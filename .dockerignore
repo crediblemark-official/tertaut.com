@@ -1,0 +1,21 @@
+node_modules
+**/node_modules
+
+# Build artifacts — SPA dibangun ulang di dalam image
+dist
+**/dist
+
+# Jangan pernah membawa rahasia lokal ke dalam image
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+docs
+BUGS_AND_PREMATURE_FEATURES.md
+README.md
+
+*.log
+*.tsbuildinfo
+.vscode

@@ -1,0 +1,20 @@
+{
+  "name": "@tertaut/sdk",
+  "version": "0.1.0",
+  "description": "Lightweight client library for tertaut.com (<15KB) - Fake Door, MoR Checkout, Universal Licensing & AI Proxy Shield",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir ./dist --minify",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.7.3"
+  }
+}
