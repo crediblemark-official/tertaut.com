@@ -19,7 +19,8 @@ import {
   ChevronRight,
   Search,
   Ticket,
-  LogOut
+  LogOut,
+  LogIn
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -154,7 +155,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- Public Full-Width Layout (for /, /pay/:slug, /portal, /panel) -->
+  <!-- Public Full-Width Layout (for /, /pay/:slug, /dashboard/portal, /panel) -->
   <div v-if="isPublicPage" class="min-h-screen bg-white text-[#111111] font-sans">
     <router-view />
   </div>
@@ -269,7 +270,7 @@ onUnmounted(() => {
       <!-- Bottom Card & Status -->
       <div class="space-y-2 pt-3 border-t border-[#111111]/10">
         <router-link
-          to="/portal"
+          to="/dashboard/portal"
           class="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 text-xs font-semibold text-[#111111] transition border border-[#111111]/10"
         >
           <div class="flex items-center gap-2">
@@ -320,6 +321,39 @@ onUnmounted(() => {
           </div>
           <div class="text-[10px] text-white/75 font-mono">Bun + Xendit Rail</div>
         </div>
+
+        <!-- Sidebar Auth & Profile Section -->
+        <div class="pt-2 border-t border-[#111111]/10 space-y-1.5">
+          <div v-if="authUser" class="p-2 rounded-lg bg-[#111111]/5 space-y-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-7 h-7 rounded-full bg-[#111111] text-white flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-[#D4AF37]/40">
+                {{ authInitial }}
+              </div>
+              <div class="min-w-0 text-left flex-1">
+                <div class="text-xs font-bold text-[#111111] truncate">{{ authUser?.name || 'Builder' }}</div>
+                <div class="text-[10px] text-[#111111]/50 font-medium truncate">{{ authUser?.email }}</div>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="flex items-center justify-center gap-1.5 w-full py-1.5 px-2 rounded-md bg-white border border-[#111111]/10 hover:border-red-500/30 hover:bg-red-50 hover:text-red-600 text-xs font-semibold text-[#111111]/70 transition shadow-xs"
+              title="Keluar dari akun"
+              @click="handleLogout"
+            >
+              <LogOut class="w-3.5 h-3.5" />
+              <span>Keluar (Log Out)</span>
+            </button>
+          </div>
+          <div v-else class="space-y-1">
+            <router-link
+              to="/login"
+              class="flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-lg bg-[#111111] hover:bg-[#222222] text-white text-xs font-bold transition shadow-sm"
+            >
+              <LogIn class="w-3.5 h-3.5 text-[#D4AF37]" />
+              <span>Masuk ke Akun</span>
+            </router-link>
+          </div>
+        </div>
       </div>
     </aside>
 
@@ -345,13 +379,13 @@ onUnmounted(() => {
         <div class="flex items-center gap-3">
           <!-- Quick Search Bar -->
           <div class="relative hidden lg:block">
-            <Search class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#111111]/40" />
+            <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Cari kampanye, token, webhook..."
-              class="w-52 pl-8 pr-8 py-1.5 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/8 focus:bg-white border border-[#111111]/10 focus:border-[#D4AF37] text-xs text-[#111111] placeholder:text-[#111111]/40 transition outline-none"
+              placeholder="Cari fitur, aplikasi, dokumen..."
+              class="w-60 xl:w-72 pl-9 pr-10 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/60 focus:bg-white border border-slate-200/80 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs font-medium text-slate-900 placeholder:text-slate-400 transition-all outline-none"
             />
-            <kbd class="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-mono text-[#111111]/40 bg-white px-1.5 py-0.5 rounded border border-[#111111]/10">⌘K</kbd>
+            <kbd class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9.5px] font-mono text-slate-400 bg-white px-1.5 py-0.5 rounded-md border border-slate-200/90 shadow-2xs pointer-events-none">⌘K</kbd>
           </div>
 
           <!-- Environment Status Pill -->
@@ -384,24 +418,44 @@ onUnmounted(() => {
             </a>
           </div>
 
-          <!-- Builder Profile Snippet -->
+          <!-- Builder Profile Snippet & Prominent Log Out / Log In -->
           <div class="flex items-center gap-2 pl-1">
             <div class="w-7 h-7 rounded-full bg-[#111111] text-white flex items-center justify-center font-bold text-xs shadow-sm ring-2 ring-[#D4AF37]/40">
               {{ authInitial }}
             </div>
-            <div class="hidden xl:block text-left">
+            <div class="hidden xl:block text-left pr-1">
               <div class="text-xs font-bold text-[#111111] leading-none">{{ authUser?.name || 'Builder' }}</div>
               <div class="text-[10px] text-[#111111]/50 font-medium">{{ authUser?.email || 'Belum login' }}</div>
             </div>
+
+            <!-- Clear Action Buttons -->
             <button
               v-if="authUser"
               type="button"
-              class="p-1.5 rounded-md hover:bg-[#111111]/5 text-[#111111]/50 hover:text-red-500 transition"
-              title="Keluar"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#111111]/15 bg-white hover:border-red-500/30 hover:bg-red-50 hover:text-red-600 text-xs font-bold text-[#111111]/70 transition shadow-xs"
+              title="Keluar dari akun (Log Out)"
               @click="handleLogout"
             >
-              <LogOut class="w-4 h-4" />
+              <LogOut class="w-3.5 h-3.5 text-red-500" />
+              <span>Keluar</span>
             </button>
+            <div v-else class="flex items-center gap-1.5">
+              <router-link
+                to="/login"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D4AF37] hover:bg-[#C5A059] text-xs font-bold text-[#111111] transition shadow-xs"
+              >
+                <LogIn class="w-3.5 h-3.5" />
+                <span>Masuk</span>
+              </router-link>
+              <button
+                type="button"
+                class="p-1.5 rounded-md hover:bg-red-50 text-[#111111]/40 hover:text-red-600 transition"
+                title="Reset Sesi"
+                @click="handleLogout"
+              >
+                <LogOut class="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -442,6 +496,23 @@ onUnmounted(() => {
           >
             <Code2 class="w-3.5 h-3.5 text-[#D4AF37]" />
           </a>
+          <button
+            v-if="authUser"
+            type="button"
+            @click="handleLogout"
+            class="p-1.5 rounded-md bg-red-50 text-red-600 text-xs flex items-center gap-1"
+            title="Keluar"
+          >
+            <LogOut class="w-3.5 h-3.5" />
+          </button>
+          <router-link
+            v-else
+            to="/login"
+            class="p-1.5 rounded-md bg-[#D4AF37] text-[#111111] text-xs font-bold"
+            title="Masuk"
+          >
+            <LogIn class="w-3.5 h-3.5" />
+          </router-link>
         </div>
       </header>
 

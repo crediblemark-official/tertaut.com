@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { authClient } from '../lib/auth'
 import {
   api,
   type PortalLicenseItem,
@@ -22,8 +23,9 @@ import CustomerTransactionTable from '../components/portal/CustomerTransactionTa
 import OfflineJwtModal from '../components/portal/OfflineJwtModal.vue'
 
 const route = useRoute()
+const authSession = authClient.useSession()
 
-const customerEmail = ref((route.query.email as string) || '')
+const customerEmail = ref((route.query.email as string) || authSession.value?.data?.user?.email || '')
 const customerLicenseKey = ref('')
 const portalToken = ref('')
 const licenses = ref<PortalLicenseItem[]>([])

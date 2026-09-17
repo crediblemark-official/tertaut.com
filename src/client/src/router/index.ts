@@ -75,10 +75,10 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
-    path: "/portal",
+    path: "/dashboard/portal",
     name: "customer-portal",
     component: () => import("../views/CustomerPortalView.vue"),
-    meta: { public: true },
+    meta: { requiresAuth: true },
   },
   {
     path: "/panel",

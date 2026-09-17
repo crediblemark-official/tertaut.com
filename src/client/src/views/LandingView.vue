@@ -65,7 +65,7 @@ function copySdkInstall() {
         <nav class="hidden md:flex items-center gap-6 text-xs font-semibold text-[#111111]/70">
           <a href="#fitur" class="hover:text-[#111111] transition">Fitur Utama</a>
           <a href="#arsitektur" class="hover:text-[#111111] transition">Arsitektur</a>
-          <router-link to="/portal" class="hover:text-[#111111] transition">Portal Pembeli</router-link>
+          <router-link to="/dashboard/portal" class="hover:text-[#111111] transition">Portal Pembeli</router-link>
           <router-link to="/dashboard/docs" class="hover:text-[#111111] transition">SDK & Docs</router-link>
           <a href="/swagger" target="_blank" class="hover:text-[#111111] flex items-center gap-1 transition">
             <span>Swagger API</span>
@@ -123,7 +123,7 @@ function copySdkInstall() {
       <div v-if="isMobileMenuOpen" class="md:hidden border-t border-[#111111]/10 bg-white px-4 py-3 space-y-2 text-xs font-semibold animate-fadeIn">
         <a href="#fitur" @click="isMobileMenuOpen = false" class="block py-1.5 text-[#111111]/80 hover:text-[#111111]">Fitur Utama</a>
         <a href="#arsitektur" @click="isMobileMenuOpen = false" class="block py-1.5 text-[#111111]/80 hover:text-[#111111]">Arsitektur</a>
-        <router-link to="/portal" @click="isMobileMenuOpen = false" class="block py-1.5 text-[#111111]/80 hover:text-[#111111]">Portal Pembeli (Cek Lisensi)</router-link>
+        <router-link to="/dashboard/portal" @click="isMobileMenuOpen = false" class="block py-1.5 text-[#111111]/80 hover:text-[#111111]">Portal Pembeli (Cek Lisensi)</router-link>
         <router-link to="/dashboard/docs" @click="isMobileMenuOpen = false" class="block py-1.5 text-[#111111]/80 hover:text-[#111111]">SDK &amp; Docs</router-link>
         <router-link to="/pay/fastmail-ai" @click="isMobileMenuOpen = false" class="block py-1.5 text-[#111111]/80 hover:text-[#111111]">Coba Demo Paywall</router-link>
         <a href="/swagger" target="_blank" class="block py-1.5 text-[#111111]/80 hover:text-[#111111]">Swagger API Docs ↗</a>
@@ -492,7 +492,7 @@ function copySdkInstall() {
 
         <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 font-medium">
           <router-link to="/dashboard" class="hover:text-[#111111] transition">Dashboard Builder</router-link>
-          <router-link to="/portal" class="hover:text-[#111111] transition">Portal Pembeli</router-link>
+          <router-link to="/dashboard/portal" class="hover:text-[#111111] transition">Portal Pembeli</router-link>
           <router-link to="/panel" class="hover:text-[#111111] transition">Admin Panel</router-link>
           <router-link to="/dashboard/docs" class="hover:text-[#111111] transition">Dokumentasi</router-link>
           <router-link to="/pay/fastmail-ai" class="hover:text-[#111111] transition">Demo Checkout</router-link>
