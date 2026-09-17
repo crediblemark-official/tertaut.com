@@ -5,6 +5,7 @@ import { eq, or, and, inArray } from "drizzle-orm";
 import { XenditService } from "../services/xendit";
 import { DanaService } from "../services/dana";
 import { LicenseService } from "../services/license";
+import { EmailService } from "../services/email";
 import { randomBytes } from "crypto";
 
 export const webhookSchema = {
@@ -31,6 +32,22 @@ export const danaDisburseWebhookSchema = {
   },
 };
 
+async function sendLicenseIssuedEmail(result: any): Promise<void> {
+  if (!result?.licenseKey || !result?.appId || !result?.customerEmail) return;
+  try {
+    const app = await db.query.apps.findFirst({ where: eq(apps.id, result.appId) });
+    await EmailService.sendLicenseIssued({
+      to: result.customerEmail,
+      appName: app?.name || "Lisensi",
+      licenseKey: result.licenseKey,
+      expiresAt: result.expiresAt,
+    });
+  } catch (err: any) {
+    // Pengiriman email tidak boleh menggagalkan fulfillment pembayaran.
+    console.error("[Webhook] Gagal kirim email lisensi:", err?.message || err);
+  }
+}
+
 /**
  * Fulfill payment dan terbitkan lisensi secara universal & idempotent
  */
@@ -40,7 +57,7 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
   const expiresAt = new Date(now.getTime() + grantDays * 24 * 60 * 60 * 1000);
 
   try {
-    return await db.transaction(async (trx) => {
+    const result = await db.transaction(async (trx) => {
       // Kunci baris transaksi agar callback paralel tidak diproses ganda.
       const [locked] = await trx
         .select()
@@ -94,8 +111,18 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         message: "Transaction verified and balance updated",
         transactionId: tx.id,
         licenseKey,
+        newlyFulfilled: true,
+        appId: tx.appId,
+        customerEmail: tx.customerEmail,
+        expiresAt,
       };
     });
+
+    if (result?.newlyFulfilled) {
+      await sendLicenseIssuedEmail(result);
+    }
+
+    return result;
   } catch (err: any) {
     // Backstop idempotensi: unique(transaction_id) menangkap balapan insert.
     if (err?.code === "23505") {

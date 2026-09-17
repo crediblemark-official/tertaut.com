@@ -4,6 +4,7 @@ import { licenses, licenseActivations, apps, revokedTokens } from "../db/schema"
 import { eq, and, inArray } from "drizzle-orm";
 import { LicenseService } from "../services/license";
 import { LicenseTokenService } from "../services/licenseToken";
+import { EmailService } from "../services/email";
 import { enforceRateLimit } from "../services/rateLimiter";
 import { randomBytes } from "crypto";
 
@@ -663,6 +664,14 @@ function createLicensingRouter(prefix: string) {
             expiresAt,
           })
           .returning();
+
+        const app = await db.query.apps.findFirst({ where: eq(apps.id, appId) });
+        await EmailService.sendLicenseIssued({
+          to: customerEmail,
+          appName: app?.name || "Lisensi",
+          licenseKey,
+          expiresAt,
+        });
 
         return {
           success: true,

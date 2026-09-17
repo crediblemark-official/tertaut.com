@@ -427,8 +427,8 @@ Sudah diperbaiki:
 - ✅ **Clipboard non-secure** — `useClipboard` (dengan fallback `execCommand`) dipakai di Landing/Docs/Licensing/CustomerPortal.
 - ✅ **`selectedPaymentRail`** — pilihan QRIS/VA/E-Wallet kini dikirim `paymentRail` → `payment_methods` Xendit.
 - ✅ **Docker Compose** — service `app` (build Dockerfile) ditambahkan, depend on Postgres sehat; default DB diselaraskan ke `tertautv2`.
+- ✅ **Email delivery (Resend)** — `EmailService` (REST API, tanpa dep baru) mengirim kunci lisensi saat pembayaran terkonfirmasi (webhook) & saat lisensi diterbitkan manual; non-fatal, dilewati bila `RESEND_API_KEY` kosong.
 
 Masih tertunda:
 - ⏳ **`grantCredits` inert** — hanya disimpan di `transactions`, belum ada ledger/saldo kredit; penegakan menunggu spek produk (ditandai TODO di `schema/transactions.ts` & `routes/checkout.ts`).
-- ⏳ **Email delivery hilang** — pilih provider (Resend/SMTP) sebelum mengembalikan janji kirim lisensi via email.
 - ⏳ Publish SDK ke npm dan ganti endpoint docs `localhost:3000`.

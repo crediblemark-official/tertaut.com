@@ -75,6 +75,14 @@ export const config = {
     hwidSalt: getEnv("HWID_SALT") || getEnv("JWT_SECRET") || DEFAULT_JWT_SECRET,
   },
 
+  email: {
+    /** API key Resend. Bila kosong, pengiriman email dilewati (skip) dengan peringatan. */
+    resendApiKey: getEnv("RESEND_API_KEY"),
+    /** Alamat pengirim terverifikasi di Resend, mis. "tertaut.com <noreply@tertaut.com>". */
+    from: getEnv("EMAIL_FROM", "tertaut.com <noreply@tertaut.com>"),
+    replyTo: getEnv("EMAIL_REPLY_TO"),
+  },
+
   paymentGateway: (getEnv("PAYMENT_GATEWAY", "xendit").toLowerCase() === "dana" ? "dana" : "xendit") as "xendit" | "dana",
 
   xendit: {
