@@ -47,3 +47,9 @@ Thumbs.db
 # Scratch test files
 scratch/
 
+# Keys & Certificates
+keys/
+*.pem
+*.key
+
+

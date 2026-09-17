@@ -183,17 +183,52 @@ Seluruh skenario pengujian di DANA Sandbox Dashboard (`dashboard.dana.id/sandbox
 
 ---
 
-## 7. Langkah Lanjutan Menuju Produksi (Go-Live Checklist)
+## 7. Form Pengajuan Production DANA (Aktif Diisi)
 
-1. **Apply for Production:** Begitu indikator Step 3 (*Uji Devsite in Progress*) berubah menjadi centang hijau (*Completed*), klik tombol **"Apply for Production"** di dashboard DANA.
-2. **Review Compliance (KYB):** Menunggu persetujuan administratif & legalitas badan usaha PT Retas Lintas Batas oleh tim DANA (estimasi 1–3 hari kerja).
-3. **Migrasi Kredensial `.env`:**
-   * Ganti `DANA_BASE_URL` dari `https://api.sandbox.dana.id` ke `https://api.dana.id`.
-   * Masukkan `DANA_CLIENT_ID`, `DANA_CLIENT_SECRET`, dan `DANA_MERCHANT_ID` Production yang diterbitkan DANA.
-   * Daftarkan Public Key RSA Production di Dashboard DANA dan simpan Private Key di environment server aman.
-4. **Konfigurasi Webhook Production:**
-   * Ganti URL sementara ngrok di DANA Dashboard Production menjadi URL resmi domain produksi:
-     * **Finish Payment URL:** `https://tertaut.com/v1.0/debit/notify`
-     * **Disburse to Bank Notify URL:** `https://tertaut.com/v1.0/emoney/transfer-bank-notify.htm`
-     * **Finish Redirect URL:** `https://tertaut.com/checkout/dana/finish`
-5. **Aktivasi Multi-Gateway:** Set `PAYMENT_GATEWAY=dana` di `.env` server produksi.
+Pada dashboard DANA Enterprise di menu **Pengajuan Production**, formulir berikut telah disiapkan dan diverifikasi:
+
+### A. Production Key (RSA 2048-bit)
+* **Pasangan Kunci Telah Dibuat:** Disimpan di direktori lokal `keys/` (terproteksi otomatis di `.gitignore`).
+* **Public Key (Dimasukkan ke Form DANA):**
+  ```text
+  -----BEGIN PUBLIC KEY-----
+  MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn7E/18nPmOeCKgAxqnhZ
+  7ID8vmE0B3iGTMjM/QM0lSgVeqHuXuROv00K6KLHnt1IyT45kZERtTL6NVuE7Wf/
+  2IDZG5wAaSoUz4rKVy7A5WVZiS4WIRhZe3Qc6SoLYjmd0TUXouQmn2yLwxen7wlZ
+  N9VbLcg0+QZeeOGhSepW2UIx5XEKbUYhoRyg4ybqcrxUaU0bi4vsxcuZhWo2QV8o
+  0uxtZNwn16nxH5neDRR+lelzf9DbcFsapEtV3qy0QsofNEKrcTsduhnOasNmjxaU
+  /nQ1MHHLj/GSH+XNCUk3M8aAjU1Flw1RYHj2CO3AkQErV5jJQiDm0o/4JaEEpGdF
+  hQIDAQAB
+  -----END PUBLIC KEY-----
+  ```
+* **Private Key (Disimpan untuk Server):** `keys/dana_production_private.pem`. File ini nanti dimasukkan ke variabel `DANA_PRIVATE_KEY` di server production.
+
+---
+
+### B. Endpoint Production (Terverifikasi HTTP 200)
+
+Ketiga URL telah diuji secara lokal dan terbukti berfungsi dengan baik:
+
+| Field di Form DANA | Nilai Endpoint | Status Pengujian |
+| :--- | :--- | :---: |
+| **URL Finish Payment** | `https://tertaut.com/v1.0/debit/notify` | ✅ HTTP 200 OK |
+| **URL Disbursement Notify** | `https://tertaut.com/v1.0/emoney/transfer-bank-notify.htm` | ✅ HTTP 200 OK |
+| **URL Finish Redirect** | `https://tertaut.com/checkout/dana/finish` | ✅ HTTP 200 OK |
+
+---
+
+## 8. Prosedur Deployment & Roadmap Aktivasi Live
+
+1. **Submit Pengajuan:** Form Pengajuan Production dapat langsung diklik **Kirim** tanpa harus menunggu deploy server selesai, karena DANA hanya menyimpan konfigurasi awal ke sistem pendaftaran.
+2. **Review Compliance (KYB):** Tim internal DANA akan memverifikasi legalitas PT Retas Lintas Batas (estimasi 1–3 hari kerja).
+3. **Deployment Server Production:** Sebelum akun production diaktifkan untuk melayani transaksi nyata, pastikan repositori `tertautv2` telah di-deploy ke server hosting/VPS `tertaut.com`.
+4. **Pemasangan Kredensial Live:** Begitu DANA menerbitkan `DANA_CLIENT_ID` dan `DANA_MERCHANT_ID` production, setel di `.env` server:
+   ```env
+   PAYMENT_GATEWAY=dana
+   DANA_BASE_URL=https://api.dana.id
+   DANA_CLIENT_ID=<production_client_id>
+   DANA_MERCHANT_ID=<production_merchant_id>
+   DANA_PRIVATE_KEY="<isi_dari_keys/dana_production_private.pem>"
+   DANA_PUBLIC_KEY="<isi_dari_keys/dana_production_public.pem>"
+   ```
+
