@@ -7,6 +7,8 @@ import { badgeRoutes } from "./routes/badge";
 import { webhookRoutes, webhooksPluralRoutes, snapBiWebhookRoutes } from "./routes/webhook";
 import { checkoutRoutes } from "./routes/checkout";
 import { config } from "./config";
+import { auth } from "./auth";
+import { LicenseTokenService } from "./services/licenseToken";
 import { existsSync, statSync } from "fs";
 import { resolve } from "path";
 
@@ -80,6 +82,17 @@ export const app = new Elysia()
       },
     })
   )
+
+  // Better Auth handler (sign-in/up, session) di /api/auth/*
+  .all("/api/auth/*", ({ request }) => auth.handler(request))
+  .get("/api/auth/*", ({ request }) => auth.handler(request))
+
+  // Public key Ed25519 untuk verifikasi offline license token (tanpa shared secret)
+  .get("/.well-known/jwks.json", () => LicenseTokenService.getJwks())
+  .get("/.well-known/license-public-key.pem", ({ set }) => {
+    set.headers["content-type"] = "text/plain; charset=utf-8";
+    return LicenseTokenService.getPublicKeyPem();
+  })
 
   // Mount API v1 Routes & Direct Badge Endpoint
   .use(apiV1Routes)

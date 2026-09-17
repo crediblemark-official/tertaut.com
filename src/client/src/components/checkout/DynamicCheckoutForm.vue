@@ -7,7 +7,7 @@ defineProps<{
 }>()
 
 const amount = defineModel<number>('amount', { default: 49000 })
-const customerEmail = defineModel<string>('customerEmail', { default: 'pembeli@tertaut.com' })
+const customerEmail = defineModel<string>('customerEmail', { default: '' })
 const grantDays = defineModel<number>('grantDays', { default: 30 })
 
 const emit = defineEmits<{

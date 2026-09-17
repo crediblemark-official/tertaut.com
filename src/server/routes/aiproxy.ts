@@ -13,6 +13,7 @@ import { eq, and } from "drizzle-orm";
 import { CryptoService } from "../services/crypto";
 import { AiGatewayService } from "../services/aiGateway";
 import { config } from "../config";
+import { authenticate } from "../middleware/auth";
 
 /**
  * Key mock/sandbox (sk-test/... atau mock/...) hanya boleh dipakai saat isSandbox.
@@ -576,8 +577,17 @@ async function handleAiChat({
  * Route Handler untuk AI Proxy Shield & Quota Guardrails
  * Dipasang pada `/ai-proxy` dan `/ai`
  */
+/** Endpoint AI yang publik (dipakai end-user via license JWT, bukan dashboard). */
+const PUBLIC_AI_PATHS = ["/chat", "quota-status"];
+
 export function createAiRoutes(prefix: string) {
   return new Elysia({ prefix })
+    // Manajemen vault/config/logs hanya untuk dashboard builder yang login.
+    .onBeforeHandle(async ({ request: { headers }, status, path }) => {
+      if (PUBLIC_AI_PATHS.some((p) => path.includes(p))) return;
+      const res = await authenticate(headers);
+      if ("status" in res) return status(res.status, { error: res.error });
+    })
     /**
      * Panggilan AI Chat (Streaming SSE atau Non-Streaming)
      * POST /api/v1/ai/chat dan POST /api/v1/ai-proxy/chat

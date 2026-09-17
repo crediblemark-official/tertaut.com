@@ -8,8 +8,13 @@ import {
 } from "../db/schema";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { XenditService } from "../services/xendit";
+import { authenticate } from "../middleware/auth";
 
 export const panelRoutes = new Elysia({ prefix: "/panel" })
+  .onBeforeHandle(async ({ request: { headers }, status }) => {
+    const res = await authenticate(headers, true);
+    if ("status" in res) return status(res.status, { error: res.error });
+  })
   /**
    * Macro Platform Overview Stats (Pendapatan Fee 5% & GMV Platform tertaut.com)
    */

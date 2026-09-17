@@ -64,6 +64,15 @@ export const config = {
   security: {
     jwtSecret: resolveSecret("JWT_SECRET", DEFAULT_JWT_SECRET),
     vaultEncryptionKey: resolveSecret("VAULT_ENCRYPTION_KEY", DEFAULT_VAULT_KEY),
+    /** Secret untuk Better Auth (sesi & token). Fallback ke JWT_SECRET bila tidak disetel. */
+    betterAuthSecret: getEnv("BETTER_AUTH_SECRET") || resolveSecret("JWT_SECRET", DEFAULT_JWT_SECRET),
+    /** Private key Ed25519 (base64/PEM) untuk menandatangani offline license token. */
+    licensePrivateKey: getEnv("LICENSE_SIGNING_PRIVATE_KEY"),
+    /**
+     * Salt untuk hashing hardware ID (HMAC). Fallback ke JWT_SECRET agar konsisten
+     * antar-proses. Setel HWID_SALT terpisah untuk rotasi mandiri.
+     */
+    hwidSalt: getEnv("HWID_SALT") || getEnv("JWT_SECRET") || DEFAULT_JWT_SECRET,
   },
 
   paymentGateway: (getEnv("PAYMENT_GATEWAY", "xendit").toLowerCase() === "dana" ? "dana" : "xendit") as "xendit" | "dana",

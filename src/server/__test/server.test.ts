@@ -1,6 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { CryptoService } from "../services/crypto";
 import { LicenseService } from "../services/license";
+import { LicenseTokenService } from "../services/licenseToken";
 import { XenditService } from "../services/xendit";
 import { DanaService } from "../services/dana";
 import { config } from "../config";
@@ -16,6 +17,7 @@ import {
   aiAppConfigs,
   aiUsageLogs,
   coupons,
+  revokedTokens,
 } from "../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { handleXenditInvoiceWebhook } from "../routes/webhook";
@@ -41,13 +43,13 @@ describe("CryptoService (AES-256-GCM & JWT Tokens)", () => {
     expect(decrypted).toBe(originalText);
   });
 
-  it("should generate and verify 30-day offline grace JWT token", () => {
+  it("should generate and verify 30-day offline grace license token (Ed25519)", () => {
     const token = LicenseService.createOfflineGraceToken("TT-TEST-KEY-0001", "app_demo");
-    const verified = CryptoService.verifySignedToken<{ sub: string; appId: string }>(token);
+    const verified = LicenseTokenService.verify(token);
 
-    expect(verified).not.toBeNull();
-    expect(verified?.sub).toBe("TT-TEST-KEY-0001");
-    expect(verified?.appId).toBe("app_demo");
+    expect(verified.valid).toBe(true);
+    expect(verified.claims?.lic).toBe("TT-TEST-KEY-0001");
+    expect(verified.claims?.app).toBe("app_demo");
   });
 });
 
@@ -61,6 +63,23 @@ describe("LicenseService (Anti-Piracy & Key Generator)", () => {
     const hw1 = "CPU_M3_MAX_12345";
     const hw2 = "cpu_m3_max_12345 "; // whitespace and lowercase check
     expect(LicenseService.hashHardwareId(hw1)).toBe(LicenseService.hashHardwareId(hw2));
+  });
+
+  it("should salt hardware ID hashing and keep legacy hashes as lookup candidates", () => {
+    const hw = "CPU_RYZEN_9_7950X_SN_001";
+    const secure1 = LicenseService.hashHardwareIdSecure(hw);
+    const secure2 = LicenseService.hashHardwareIdSecure("cpu_ryzen_9_7950x_sn_001 ");
+    const legacy = LicenseService.hashHardwareId(hw);
+
+    expect(secure1).toBe(secure2);
+    expect(secure1).toMatch(/^hw2:[a-f0-9]{64}$/);
+    expect(secure1).not.toBe(legacy);
+    expect(LicenseService.isSecureHwidHash(secure1)).toBe(true);
+    expect(LicenseService.isSecureHwidHash(legacy)).toBe(false);
+
+    const candidates = LicenseService.hwidLookupHashes(hw);
+    expect(candidates).toContain(secure1);
+    expect(candidates).toContain(legacy);
   });
 });
 
@@ -105,14 +124,14 @@ describe("App End-to-End Validation & MoR Calculations", () => {
     }
   });
 
-  it("should correctly handle offline JWT signature expiration timestamps", () => {
+  it("should correctly handle offline license token expiration timestamps", () => {
     const token = LicenseService.createOfflineGraceToken("TT-VALID-9999", "app_test");
-    const payload = CryptoService.verifySignedToken<any>(token);
-    expect(payload).toBeDefined();
-    expect(payload.type).toBe("offline_grace_license");
+    const result = LicenseTokenService.verify(token);
+    expect(result.valid).toBe(true);
+    expect(result.claims?.typ).toBe("license");
     // Verify exp is ~30 days in future
     const now = Math.floor(Date.now() / 1000);
-    expect(payload.exp).toBeGreaterThan(now + 25 * 86400);
+    expect(result.claims!.exp).toBeGreaterThan(now + 25 * 86400);
   });
 });
 
@@ -284,7 +303,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
     expect(keyTAUT).toMatch(/^TAUT-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
   });
 
-  it("should create and verify signed offline JWT grace token with seat quota", () => {
+  it("should create and verify Ed25519 signed offline license token with seat quota", () => {
     const token = LicenseService.createOfflineGraceToken(
       "TAUT-TEST-8812-9999",
       "app_devdocs_pro",
@@ -293,13 +312,18 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       3
     );
 
-    const verified = CryptoService.verifySignedToken<any>(token);
-    expect(verified).not.toBeNull();
-    expect(verified?.lic).toBe("TAUT-TEST-8812-9999");
-    expect(verified?.appId).toBe("app_devdocs_pro");
-    expect(verified?.seats).toBe(3);
-    expect(verified?.hw).toBe("hwid_hash_12345");
-    expect(verified?.type).toBe("offline_grace_license");
+    const verified = LicenseTokenService.verify(token);
+    expect(verified.valid).toBe(true);
+    expect(verified.claims?.lic).toBe("TAUT-TEST-8812-9999");
+    expect(verified.claims?.app).toBe("app_devdocs_pro");
+    expect(verified.claims?.seats).toBe(3);
+    expect(verified.claims?.hw).toBe("hwid_hash_12345");
+    expect(verified.claims?.typ).toBe("license");
+    expect(typeof verified.claims?.jti).toBe("string");
+
+    // Token yang diubah harus ditolak (signature tidak valid)
+    const tampered = token.slice(0, -2) + (token.slice(-2) === "aa" ? "bb" : "aa");
+    expect(LicenseTokenService.verify(tampered).valid).toBe(false);
   });
 
   it("should enforce multi-platform device seat quota (N_active <= N_max) and support seat deactivation", async () => {
@@ -426,6 +450,185 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
     } finally {
       // Clean up test data
       await db.delete(licenseActivations).where(eq(licenseActivations.licenseId, testLicId));
+      await db.delete(licenses).where(eq(licenses.id, testLicId));
+    }
+  });
+
+  it("should claim device seats atomically under concurrent activation (no quota over-run)", async () => {
+    const app = await db.query.apps.findFirst();
+    if (!app) return;
+
+    const testLicId = `lic_race_test_${Date.now()}`;
+    const testKey = `TAUT-RACE-${Math.random().toString(36).substring(2, 6).toUpperCase()}-TEST`;
+
+    await db.insert(licenses).values({
+      id: testLicId,
+      appId: app.id,
+      licenseKey: testKey,
+      customerEmail: "race_tester@example.com",
+      status: "ACTIVE",
+      maxSeats: 1,
+    });
+
+    try {
+      const attempts = Array.from({ length: 6 }, (_, i) =>
+        fetch("http://localhost:3000/api/v1/licensing/activate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            licenseKey: testKey,
+            appId: app.id,
+            hwid: `CPU_RACE_DEVICE_${i}`,
+            deviceName: `Race Device ${i}`,
+          }),
+        }).then(async (r) => ({ status: r.status, data: await r.json() }))
+      );
+
+      const results = await Promise.all(attempts);
+      const successes = results.filter((r) => r.status === 200 && r.data.success === true);
+      const rejections = results.filter((r) => r.status === 403);
+
+      expect(successes.length).toBe(1);
+      expect(rejections.length).toBe(5);
+
+      const activations = await db.query.licenseActivations.findMany({
+        where: eq(licenseActivations.licenseId, testLicId),
+      });
+      expect(activations.length).toBe(1);
+    } finally {
+      await db.delete(licenseActivations).where(eq(licenseActivations.licenseId, testLicId));
+      await db.delete(licenses).where(eq(licenses.id, testLicId));
+    }
+  });
+
+  it("should transparently migrate legacy unsalted HWID bindings to salted hashes", async () => {
+    const app = await db.query.apps.findFirst();
+    if (!app) return;
+
+    const testLicId = `lic_migrate_${Date.now()}`;
+    const testKey = `TT-MIGR8-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const rawHwid = "CPU_LEGACY_DEVICE_SN_777";
+    const legacyHash = LicenseService.hashHardwareId(rawHwid);
+
+    await db.insert(licenses).values({
+      id: testLicId,
+      appId: app.id,
+      licenseKey: testKey,
+      customerEmail: "migrate@example.com",
+      status: "ACTIVE",
+      maxSeats: 1,
+      hardwareId: legacyHash,
+    });
+    await db.insert(licenseActivations).values({
+      id: `act_migrate_${Date.now()}`,
+      licenseId: testLicId,
+      hwidHash: legacyHash,
+      deviceName: "Legacy Device",
+    });
+
+    try {
+      // Aktivasi ulang dengan HWID mentah yang sama harus me-migrasi, bukan menambah seat.
+      const res = await fetch("http://localhost:3000/api/v1/licensing/activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licenseKey: testKey, appId: app.id, hwid: rawHwid, deviceName: "Legacy Device" }),
+      });
+      const data: any = await res.json();
+      expect(res.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.data.seatsUsed).toBe(1);
+
+      const activations = await db.query.licenseActivations.findMany({
+        where: eq(licenseActivations.licenseId, testLicId),
+      });
+      expect(activations.length).toBe(1);
+      expect(LicenseService.isSecureHwidHash(activations[0].hwidHash)).toBe(true);
+
+      const migratedLicense = await db.query.licenses.findFirst({ where: eq(licenses.id, testLicId) });
+      expect(LicenseService.isSecureHwidHash(migratedLicense!.hardwareId)).toBe(true);
+
+      // Verifikasi dengan HWID mentah (legacy hash) tetap valid.
+      const verifyRes = await fetch("http://localhost:3000/api/v1/licensing/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licenseKey: testKey, hwid: rawHwid }),
+      });
+      const verifyData: any = await verifyRes.json();
+      expect(verifyRes.status).toBe(200);
+      expect(verifyData.valid).toBe(true);
+    } finally {
+      await db.delete(licenseActivations).where(eq(licenseActivations.licenseId, testLicId));
+      await db.delete(licenses).where(eq(licenses.id, testLicId));
+    }
+  });
+
+  it("should reject revoked offline tokens via jti denylist and expose Ed25519 JWKS", async () => {
+    const app = await db.query.apps.findFirst();
+    if (!app) return;
+
+    const testLicId = `lic_revoke_${Date.now()}`;
+    const testKey = `TT-REVOKE-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const token = LicenseService.createOfflineGraceToken(
+      testKey,
+      app.id,
+      "hw_revoke",
+      "revoke@test.com",
+      1
+    );
+
+    await db.insert(licenses).values({
+      id: testLicId,
+      appId: app.id,
+      licenseKey: testKey,
+      customerEmail: "revoke@test.com",
+      status: "ACTIVE",
+      maxSeats: 1,
+      offlineJwtGraceToken: token,
+    });
+
+    try {
+      // 1. Token valid sebelum revoke
+      const res1 = await fetch("http://localhost:3000/api/v1/licensing/verify-offline-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      const data1: any = await res1.json();
+      expect(res1.status).toBe(200);
+      expect(data1.valid).toBe(true);
+
+      // 2. JWKS mengekspos public key Ed25519
+      const jwksRes = await fetch("http://localhost:3000/.well-known/jwks.json");
+      const jwks: any = await jwksRes.json();
+      expect(jwksRes.status).toBe(200);
+      expect(jwks.keys[0].kty).toBe("OKP");
+      expect(jwks.keys[0].crv).toBe("Ed25519");
+
+      // 3. Verifikasi lokal SDK (Web Crypto Ed25519) tanpa server
+      const localVerify = await new Tertaut({ appId: app.id, environment: "sandbox" }).licensing.verifyOfflineToken(token);
+      expect(localVerify.valid).toBe(true);
+      expect(localVerify.claims?.lic).toBe(testKey);
+
+      // 4. Revoke -> jti masuk denylist
+      const revRes = await fetch("http://localhost:3000/api/v1/licensing/revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licenseKey: testKey }),
+      });
+      expect(revRes.status).toBe(200);
+
+      // 5. Token yang sama harus ditolak setelah revoke
+      const res2 = await fetch("http://localhost:3000/api/v1/licensing/verify-offline-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      const data2: any = await res2.json();
+      expect(res2.status).toBe(401);
+      expect(data2.valid).toBe(false);
+      expect(["TOKEN_REVOKED", "LICENSE_REVOKED"]).toContain(data2.reason);
+    } finally {
+      await db.delete(revokedTokens).where(eq(revokedTokens.licenseId, testLicId));
       await db.delete(licenses).where(eq(licenses.id, testLicId));
     }
   });
@@ -811,8 +1014,28 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
     });
 
     try {
-      // 3. Uji Customer Portal: GET /api/v1/portal/licenses?email=...
-      const resLicenses = await fetch(`http://localhost:3000/api/v1/portal/licenses?email=${encodeURIComponent(testEmail)}`);
+      // 2b. Uji Customer Portal: POST /api/v1/portal/access (tukar email + license key -> token)
+      const resAccess = await fetch("http://localhost:3000/api/v1/portal/access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: testEmail, licenseKey: testKey }),
+      });
+      const accessData: any = await resAccess.json();
+      expect(resAccess.status).toBe(200);
+      expect(accessData.success).toBe(true);
+      expect(typeof accessData.token).toBe("string");
+      const portalToken: string = accessData.token;
+
+      // Bukti kepemilikan salah harus ditolak
+      const resAccessBad = await fetch("http://localhost:3000/api/v1/portal/access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "orang_lain@customer.com", licenseKey: testKey }),
+      });
+      expect(resAccessBad.status).toBe(403);
+
+      // 3. Uji Customer Portal: GET /api/v1/portal/licenses (wajib portal token)
+      const resLicenses = await fetch(`http://localhost:3000/api/v1/portal/licenses?token=${portalToken}`);
       const licData: any = await resLicenses.json();
       expect(resLicenses.status).toBe(200);
       expect(licData.success).toBe(true);
@@ -836,8 +1059,8 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
       expect(deactData.success).toBe(true);
       expect(deactData.remainingSeats).toBe(2);
 
-      // 5. Uji Customer Portal: GET /api/v1/portal/transactions?email=...
-      const resTx = await fetch(`http://localhost:3000/api/v1/portal/transactions?email=${encodeURIComponent(testEmail)}`);
+      // 5. Uji Customer Portal: GET /api/v1/portal/transactions (wajib portal token)
+      const resTx = await fetch(`http://localhost:3000/api/v1/portal/transactions?token=${portalToken}`);
       const txData: any = await resTx.json();
       expect(resTx.status).toBe(200);
       expect(txData.success).toBe(true);

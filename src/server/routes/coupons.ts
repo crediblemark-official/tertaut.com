@@ -3,6 +3,7 @@ import { db } from "../db";
 import { coupons, apps, transactions } from "../db/schema";
 import { eq, and, desc, gte, isNotNull, sql, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
+import { authenticate } from "../middleware/auth";
 
 /**
  * Manajemen Kupon Diskon (Modul 1: Monetization)
@@ -10,6 +11,10 @@ import { randomBytes } from "crypto";
  * melalui body.couponCode.
  */
 export const couponRoutes = new Elysia({ prefix: "/coupons" })
+  .onBeforeHandle(async ({ request: { headers }, status }) => {
+    const res = await authenticate(headers);
+    if ("status" in res) return status(res.status, { error: res.error });
+  })
   /**
    * Daftar kupon (opsional filter per app)
    */

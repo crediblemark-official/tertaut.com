@@ -11,8 +11,10 @@ import { launchRoutes } from "./launch";
 import { portalRoutes } from "./portal";
 import { panelRoutes } from "./panel";
 import { couponRoutes } from "./coupons";
+import { authMiddleware } from "../middleware/auth";
 
 export const apiV1Routes = new Elysia({ prefix: "/api/v1" })
+  .use(authMiddleware)
   .use(healthRoutes)
   .use(appRoutes)
   .use(checkoutRoutes)

@@ -5,6 +5,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { XenditService } from "../services/xendit";
 import { DanaService } from "../services/dana";
 import { config } from "../config";
+import { authenticate } from "../middleware/auth";
 
 /** FR-4.2 Minimum disbursement threshold Rp 50.000 */
 const MIN_THRESHOLD = 50000;
@@ -13,6 +14,10 @@ const formatIdr = (value: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(value);
 
 export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
+  .onBeforeHandle(async ({ request: { headers }, status }) => {
+    const res = await authenticate(headers);
+    if ("status" in res) return status(res.status, { error: res.error });
+  })
   /**
    * PRD 7.1 C: Trigger Builder Payout (Disbursement)
    */

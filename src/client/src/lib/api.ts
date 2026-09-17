@@ -320,8 +320,17 @@ export const api = {
   },
 
   // Customer Portal
-  async getPortalLicenses(email: string): Promise<{ success: boolean; count: number; licenses: PortalLicenseItem[]; error?: string }> {
-    const res = await fetch(`/api/v1/portal/licenses?email=${encodeURIComponent(email)}`);
+  async portalAccess(email: string, licenseKey: string): Promise<{ success: boolean; token?: string; expiresInSeconds?: number; error?: string }> {
+    const res = await fetch("/api/v1/portal/access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, licenseKey }),
+    });
+    return res.json();
+  },
+
+  async getPortalLicenses(token: string): Promise<{ success: boolean; count: number; licenses: PortalLicenseItem[]; error?: string }> {
+    const res = await fetch(`/api/v1/portal/licenses?token=${encodeURIComponent(token)}`);
     return res.json();
   },
 
@@ -334,8 +343,8 @@ export const api = {
     return res.json();
   },
 
-  async getPortalTransactions(email: string): Promise<{ success: boolean; count: number; transactions: PortalTransactionItem[]; error?: string }> {
-    const res = await fetch(`/api/v1/portal/transactions?email=${encodeURIComponent(email)}`);
+  async getPortalTransactions(token: string): Promise<{ success: boolean; count: number; transactions: PortalTransactionItem[]; error?: string }> {
+    const res = await fetch(`/api/v1/portal/transactions?token=${encodeURIComponent(token)}`);
     return res.json();
   },
 

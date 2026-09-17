@@ -19,7 +19,7 @@ import SearchPicker from '../components/common/SearchPicker.vue'
 const appsList = ref<AppItem[]>([])
 const selectedAppId = ref('')
 const amount = ref(49000)
-const customerEmail = ref('pembeli@tertaut.com')
+const customerEmail = ref('')
 const grantDays = ref(30)
 const loading = ref(false)
 const disburseLoading = ref<string | null>(null)

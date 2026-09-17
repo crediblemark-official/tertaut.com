@@ -4,12 +4,19 @@ import { apps, builders, transactions, licenses } from "../db/schema";
 import { eq, desc, count, sql, and, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { config as appConfig } from "../config";
+import { authenticate } from "../middleware/auth";
 
 const modeQuery = t.Object({
   mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
 });
 
 export const appRoutes = new Elysia({ prefix: "/apps" })
+  // Semua endpoint apps privat KECUALI halaman produk publik /apps/by-slug/:slug
+  .onBeforeHandle(async ({ request: { headers }, status, path }) => {
+    if (path.includes("by-slug")) return;
+    const res = await authenticate(headers);
+    if ("status" in res) return status(res.status, { error: res.error });
+  })
   /**
    * Ambil daftar seluruh aplikasi yang terdaftar
    */

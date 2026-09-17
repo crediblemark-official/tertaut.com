@@ -23,6 +23,8 @@ import OfflineJwtModal from '../components/portal/OfflineJwtModal.vue'
 const route = useRoute()
 
 const customerEmail = ref((route.query.email as string) || '')
+const customerLicenseKey = ref('')
+const portalToken = ref('')
 const licenses = ref<PortalLicenseItem[]>([])
 const transactions = ref<PortalTransactionItem[]>([])
 const loading = ref(false)
@@ -57,8 +59,8 @@ function copyToClipboard(text: string, id: string) {
 }
 
 async function loadCustomerData() {
-  if (!customerEmail.value.trim()) {
-    showAlert('error', 'Silakan masukkan alamat email yang digunakan saat pembelian.')
+  if (!customerEmail.value.trim() || !customerLicenseKey.value.trim()) {
+    showAlert('error', 'Masukkan email pembelian dan salah satu license key Anda untuk membuktikan kepemilikan.')
     return
   }
 
@@ -66,9 +68,22 @@ async function loadCustomerData() {
   alertMessage.value = null
 
   try {
+    // Tukar email + license key menjadi portal access token (bukti kepemilikan)
+    const accessRes = await api.portalAccess(
+      customerEmail.value.trim(),
+      customerLicenseKey.value.trim()
+    )
+
+    if (!accessRes.success || !accessRes.token) {
+      showAlert('error', accessRes.error || 'Email dan license key tidak cocok.')
+      return
+    }
+
+    portalToken.value = accessRes.token
+
     const [licRes, txRes] = await Promise.all([
-      api.getPortalLicenses(customerEmail.value.trim()),
-      api.getPortalTransactions(customerEmail.value.trim())
+      api.getPortalLicenses(portalToken.value),
+      api.getPortalTransactions(portalToken.value)
     ])
 
     licenses.value = licRes.success ? licRes.licenses : []
@@ -112,13 +127,8 @@ function openOfflineJwtModal(lic: PortalLicenseItem) {
   isJwtModalOpen.value = true
 }
 
-function prefillDemoEmail() {
-  customerEmail.value = 'pembeli@tertaut.com'
-  loadCustomerData()
-}
-
 onMounted(() => {
-  if (customerEmail.value.trim()) {
+  if (customerEmail.value.trim() && customerLicenseKey.value.trim()) {
     loadCustomerData()
   }
 })
@@ -188,9 +198,9 @@ onMounted(() => {
       <!-- Hero Header & Search Form Component -->
       <PortalSearchHero
         v-model:email="customerEmail"
+        v-model:license-key="customerLicenseKey"
         :loading="loading"
         @search="loadCustomerData"
-        @prefill-demo="prefillDemoEmail"
       />
 
       <!-- Customer Results Section -->

@@ -15,6 +15,7 @@ import {
   danaWebhookSchema,
   fulfillPaymentTransaction,
 } from "./webhook";
+import { authenticate } from "../middleware/auth";
 
 /** Harga default dipakai hanya kalau aplikasi belum menetapkan target_price. */
 const DEFAULT_PRICE = checkoutConfig.defaultPrice;
@@ -22,7 +23,16 @@ const DEFAULT_PRICE = checkoutConfig.defaultPrice;
 const formatIdr = (value: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(value);
 
+/** Endpoint checkout yang memang harus publik (webhook, buat sesi, preview kupon, redirect DANA). */
+const PUBLIC_CHECKOUT_PATHS = ["webhook", "/session", "preview-coupon", "dana/finish"];
+
 export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
+  // Dashboard-only: /transactions, /disburse/:txId, /simulate-paid/:txId
+  .onBeforeHandle(async ({ request: { headers }, status, path }) => {
+    if (PUBLIC_CHECKOUT_PATHS.some((p) => path.includes(p))) return;
+    const res = await authenticate(headers);
+    if ("status" in res) return status(res.status, { error: res.error });
+  })
   /**
    * PRD 7.1 B: Webhook Xendit Invoice Callback
    */
@@ -59,6 +69,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
         customerEmail,
         buyerEmail,
         grantDays = 365,
+        // TODO(grantCredits): hanya disimpan, belum ditegakkan (tak ada ledger kredit).
         grantCredits = 0,
         redirectUrl,
         couponCode,
@@ -266,6 +277,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
         customerEmail: t.Optional(t.String()),
         buyerEmail: t.Optional(t.String()),
         grantDays: t.Optional(t.Number({ default: 365 })),
+        // TODO(grantCredits): inert — hanya disimpan, belum ada ledger/saldo kredit.
         grantCredits: t.Optional(t.Number({ default: 0 })),
         redirectUrl: t.Optional(t.String()),
         couponCode: t.Optional(t.String({ maxLength: 64 })),

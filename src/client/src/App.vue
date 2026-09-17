@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from './lib/api'
+import { authClient } from './lib/auth'
 import { dashboardEnv, envPath, SANDBOX_PREFIX, type DashboardEnv } from './lib/environment'
 import {
   LayoutDashboard,
@@ -17,12 +18,24 @@ import {
   ShieldAlert,
   ChevronRight,
   Search,
-  Ticket
+  Ticket,
+  LogOut
 } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const env = dashboardEnv
+
+const authSession = authClient.useSession()
+const authUser = computed(() => authSession.value?.data?.user)
+const authInitial = computed(() => (authUser.value?.name || authUser.value?.email || 'B').charAt(0).toUpperCase())
+
+async function handleLogout() {
+  try {
+    await authClient.signOut()
+  } catch {}
+  router.push('/login')
+}
 
 const isPublicPage = computed(() => !!route.meta.public || !!route.meta.fullscreen)
 
@@ -374,12 +387,21 @@ onUnmounted(() => {
           <!-- Builder Profile Snippet -->
           <div class="flex items-center gap-2 pl-1">
             <div class="w-7 h-7 rounded-full bg-[#111111] text-white flex items-center justify-center font-bold text-xs shadow-sm ring-2 ring-[#D4AF37]/40">
-              B
+              {{ authInitial }}
             </div>
             <div class="hidden xl:block text-left">
-              <div class="text-xs font-bold text-[#111111] leading-none">Solo Builder</div>
-              <div class="text-[10px] text-[#111111]/50 font-medium">Developer Tier</div>
+              <div class="text-xs font-bold text-[#111111] leading-none">{{ authUser?.name || 'Builder' }}</div>
+              <div class="text-[10px] text-[#111111]/50 font-medium">{{ authUser?.email || 'Belum login' }}</div>
             </div>
+            <button
+              v-if="authUser"
+              type="button"
+              class="p-1.5 rounded-md hover:bg-[#111111]/5 text-[#111111]/50 hover:text-red-500 transition"
+              title="Keluar"
+              @click="handleLogout"
+            >
+              <LogOut class="w-4 h-4" />
+            </button>
           </div>
         </div>
       </header>

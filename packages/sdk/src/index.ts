@@ -61,6 +61,36 @@ export interface AiStreamChunk {
   text: string;
 }
 
+export interface OfflineTokenVerifyResult {
+  valid: boolean;
+  reason?: string;
+  claims?: {
+    typ?: string;
+    lic?: string;
+    app?: string;
+    hw?: string | null;
+    eml?: string | null;
+    seats?: number;
+    jti?: string;
+    iat?: number;
+    exp?: number;
+  };
+}
+
+/** Decode base64url menjadi Uint8Array tanpa dependensi eksternal. */
+function base64urlToBytes(input: string): Uint8Array {
+  const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+  if (typeof atob === "function") {
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+  // @ts-ignore Node/Bun fallback
+  return new Uint8Array(Buffer.from(padded, "base64"));
+}
+
 export class Tertaut {
   public appId: string;
   public baseUrl: string;
@@ -79,6 +109,10 @@ export class Tertaut {
    * Modul 1: Direct Live Checkout (MoR Engine via Xendit) (FR-3.2)
    */
   public async checkout(options: CheckoutOptions): Promise<{ checkoutUrl: string; transactionId: string }> {
+    if (!options.customerEmail) {
+      throw new Error("[Tertaut SDK] customerEmail is required for checkout.");
+    }
+
     const res = await fetch(`${this.baseUrl}/api/v1/checkout/session`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -87,7 +121,7 @@ export class Tertaut {
         amount: options.amount,
         grantDays: options.grantDays ?? 30,
         grantCredits: options.grantCredits ?? 0,
-        customerEmail: options.customerEmail || "customer@example.com",
+        customerEmail: options.customerEmail,
         redirectUrl: options.redirectUrl,
       }),
     });
@@ -155,6 +189,69 @@ export class Tertaut {
         }),
       });
       return res.json();
+    },
+
+    /** Ambil public key Ed25519 (JWKS) untuk verifikasi offline. */
+    getJwks: async () => {
+      const res = await fetch(`${this.baseUrl}/.well-known/jwks.json`);
+      return res.json();
+    },
+
+    /**
+     * Verifikasi offline license token secara lokal (Ed25519) tanpa memanggil server.
+     * Menggunakan Web Crypto API sehingga tetap zero-dependency di browser/Node/Bun.
+     * Catatan: verifikasi lokal tidak mengetahui status revoke terbaru — lakukan
+     * re-validasi online (`validate`) secara berkala.
+     */
+    verifyOfflineToken: async (
+      token: string,
+      options?: { publicKeyJwk?: JsonWebKey; jwksUrl?: string }
+    ): Promise<OfflineTokenVerifyResult> => {
+      try {
+        const [header, body, signature] = token.split(".");
+        if (!header || !body || !signature) {
+          return { valid: false, reason: "MALFORMED_TOKEN" };
+        }
+
+        let jwk = options?.publicKeyJwk;
+        if (!jwk) {
+          const jwksUrl = options?.jwksUrl || `${this.baseUrl}/.well-known/jwks.json`;
+          const res = await fetch(jwksUrl);
+          const jwks = (await res.json()) as { keys?: JsonWebKey[] };
+          jwk = jwks.keys?.[0];
+        }
+        if (!jwk) return { valid: false, reason: "PUBLIC_KEY_UNAVAILABLE" };
+
+        const key = await crypto.subtle.importKey(
+          "jwk",
+          jwk,
+          { name: "Ed25519" } as any,
+          false,
+          ["verify"]
+        );
+        const signatureBytes = base64urlToBytes(signature);
+        const data = new TextEncoder().encode(`${header}.${body}`);
+        const ok = await crypto.subtle.verify(
+          "Ed25519" as any,
+          key,
+          signatureBytes as unknown as BufferSource,
+          data as unknown as BufferSource
+        );
+        if (!ok) return { valid: false, reason: "INVALID_SIGNATURE" };
+
+        const claims = JSON.parse(
+          new TextDecoder().decode(base64urlToBytes(body))
+        ) as OfflineTokenVerifyResult["claims"];
+
+        if (claims?.typ !== "license") return { valid: false, reason: "INVALID_TOKEN_TYPE" };
+        if (claims.exp && claims.exp < Math.floor(Date.now() / 1000)) {
+          return { valid: false, reason: "TOKEN_EXPIRED" };
+        }
+
+        return { valid: true, claims };
+      } catch (err: any) {
+        return { valid: false, reason: err?.message || "INVALID_TOKEN" };
+      }
     },
   };
 

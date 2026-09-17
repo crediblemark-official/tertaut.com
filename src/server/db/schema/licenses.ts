@@ -28,7 +28,8 @@ export const licenses = pgTable("licenses", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("idx_licenses_app_id").on(table.appId),
-  index("idx_licenses_transaction_id").on(table.transactionId),
+  // Satu transaksi hanya boleh melahirkan satu lisensi (cegah double-issue).
+  unique("unique_licenses_transaction_id").on(table.transactionId),
   index("idx_licenses_customer_email").on(table.customerEmail),
   index("idx_licenses_status").on(table.status),
 ]);
@@ -53,7 +54,28 @@ export const licenseActivations = pgTable(
   ]
 );
 
+/**
+ * Denylist token offline (jti) agar token yang sudah beredar bisa dicabut.
+ */
+export const revokedTokens = pgTable(
+  "revoked_tokens",
+  {
+    jti: text("jti").primaryKey(),
+    licenseId: text("license_id").references(() => licenses.id, { onDelete: "cascade" }),
+    licenseKey: text("license_key"),
+    reason: text("reason").default("REVOKED"),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_revoked_tokens_license_id").on(table.licenseId),
+    index("idx_revoked_tokens_expires_at").on(table.expiresAt),
+  ]
+);
+
 export type License = typeof licenses.$inferSelect;
 export type NewLicense = typeof licenses.$inferInsert;
 export type LicenseActivation = typeof licenseActivations.$inferSelect;
 export type NewLicenseActivation = typeof licenseActivations.$inferInsert;
+export type RevokedToken = typeof revokedTokens.$inferSelect;
+export type NewRevokedToken = typeof revokedTokens.$inferInsert;

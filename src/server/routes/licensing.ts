@@ -1,14 +1,22 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
-import { licenses, licenseActivations, apps } from "../db/schema";
+import { licenses, licenseActivations, apps, revokedTokens } from "../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { LicenseService } from "../services/license";
-import { CryptoService } from "../services/crypto";
+import { LicenseTokenService } from "../services/licenseToken";
+import { enforceRateLimit } from "../services/rateLimiter";
 import { randomBytes } from "crypto";
 
 // Common handler implementations for dual-route mounting (/licensing & /license)
-async function handleActivateLicense({ body, set }: any) {
+async function handleActivateLicense(ctx: any) {
+  const { body, set, request } = ctx;
   const { licenseKey, appId, hwid, deviceName } = body;
+
+  const rl = enforceRateLimit(request, "licensing:activate", 20, 60_000);
+  if (!rl.allowed) {
+    set.status = 429;
+    return { success: false, error: `Terlalu banyak percobaan aktivasi. Coba lagi dalam ${rl.retryAfter} detik.` };
+  }
 
   const lic = await db.query.licenses.findFirst({
     where: eq(licenses.licenseKey, licenseKey.trim()),
@@ -40,97 +48,156 @@ async function handleActivateLicense({ body, set }: any) {
     return { success: false, error: "License has expired" };
   }
 
-  const hwidHash = LicenseService.hashHardwareId(hwid);
+  const hwidHash = LicenseService.hashHardwareIdSecure(hwid);
+  const lookupHashes = LicenseService.hwidLookupHashes(hwid);
   const maxSeats = lic.maxSeats || 3;
+  const ipAddress =
+    request?.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request?.headers?.get?.("x-real-ip") ||
+    null;
 
-  // Cek apakah perangkat dengan HWID ini sudah teraktivasi sebelumnya
-  const existingActivation = await db.query.licenseActivations.findFirst({
-    where: and(
-      eq(licenseActivations.licenseId, lic.id),
-      eq(licenseActivations.hwidHash, hwidHash)
-    ),
-  });
+  try {
+    const outcome = await db.transaction(async (trx) => {
+      // Kunci baris lisensi: mencegah balapan check-then-act melebihi kuota seat.
+      const [locked] = await trx
+        .select()
+        .from(licenses)
+        .where(eq(licenses.id, lic.id))
+        .for("update");
 
-  if (existingActivation) {
-    // Update last validated timestamp & optional device name
-    await db
-      .update(licenseActivations)
-      .set({
-        lastValidatedAt: now,
-        deviceName: deviceName || existingActivation.deviceName,
-      })
-      .where(eq(licenseActivations.id, existingActivation.id));
-  } else {
-    // Periksa kuota device seat
-    const allActivations = await db.query.licenseActivations.findMany({
-      where: eq(licenseActivations.licenseId, lic.id),
+      if (!locked || locked.status !== "ACTIVE") {
+        return { error: `License is ${locked?.status || "UNKNOWN"}` };
+      }
+
+      // Cek apakah perangkat dengan HWID ini sudah teraktivasi sebelumnya
+      const existingActivation = await trx.query.licenseActivations.findFirst({
+        where: and(
+          eq(licenseActivations.licenseId, lic.id),
+          inArray(licenseActivations.hwidHash, lookupHashes)
+        ),
+      });
+
+      if (existingActivation) {
+        await trx
+          .update(licenseActivations)
+          .set({
+            hwidHash, // migrasi transparan dari hash legacy ke salted
+            lastValidatedAt: now,
+            deviceName: deviceName || existingActivation.deviceName,
+            ipAddress: ipAddress || existingActivation.ipAddress,
+          })
+          .where(eq(licenseActivations.id, existingActivation.id));
+
+        if (
+          locked.hardwareId &&
+          !LicenseService.isSecureHwidHash(locked.hardwareId) &&
+          lookupHashes.includes(locked.hardwareId)
+        ) {
+          await trx
+            .update(licenses)
+            .set({ hardwareId: hwidHash, updatedAt: now })
+            .where(eq(licenses.id, lic.id));
+        }
+      } else {
+        const allActivations = await trx.query.licenseActivations.findMany({
+          where: eq(licenseActivations.licenseId, lic.id),
+        });
+
+        if (allActivations.length >= maxSeats) {
+          return {
+            error: `Device seats quota exceeded (${allActivations.length}/${maxSeats}). Please deactivate another device first.`,
+          };
+        }
+
+        await trx.insert(licenseActivations).values({
+          id: `act_${randomBytes(8).toString("hex")}`,
+          licenseId: lic.id,
+          hwidHash,
+          deviceName: deviceName || "Unknown Device",
+          ipAddress,
+          lastValidatedAt: now,
+          createdAt: now,
+        });
+
+        if (!locked.hardwareId) {
+          await trx
+            .update(licenses)
+            .set({ hardwareId: hwidHash, updatedAt: now })
+            .where(eq(licenses.id, lic.id));
+        }
+      }
+
+      const activeSeats = await trx.query.licenseActivations.findMany({
+        where: eq(licenseActivations.licenseId, lic.id),
+      });
+
+      // Hasilkan Signed License JWT Token (dengan 30 days offline grace period)
+      const licenseToken = LicenseService.createOfflineGraceToken(
+        lic.licenseKey,
+        lic.appId,
+        hwidHash,
+        lic.customerEmail,
+        maxSeats
+      );
+
+      await trx
+        .update(licenses)
+        .set({
+          lastValidatedAt: now,
+          offlineJwtGraceToken: licenseToken,
+          updatedAt: now,
+        })
+        .where(eq(licenses.id, lic.id));
+
+      return { success: true as const, licenseToken, seatsUsed: activeSeats.length };
     });
 
-    if (allActivations.length >= maxSeats) {
+    if ("error" in outcome) {
       set.status = 403;
+      return { success: false, error: outcome.error };
+    }
+
+    return {
+      success: true,
+      message: "Device activated successfully",
+      data: {
+        licenseToken: outcome.licenseToken,
+        status: "ACTIVE",
+        expiresAt: lic.expiresAt ? lic.expiresAt.toISOString() : null,
+        seatsUsed: outcome.seatsUsed,
+        maxSeats,
+      },
+    };
+  } catch (err: any) {
+    // Backstop idempotensi: unique(license_id, hwid_hash) menangkap balapan insert.
+    if (err?.code === "23505") {
+      const activeSeats = await db.query.licenseActivations.findMany({
+        where: eq(licenseActivations.licenseId, lic.id),
+      });
       return {
-        success: false,
-        error: `Device seats quota exceeded (${allActivations.length}/${maxSeats}). Please deactivate another device first.`,
+        success: true,
+        message: "Device already activated (idempotent)",
+        data: {
+          licenseToken: lic.offlineJwtGraceToken,
+          status: "ACTIVE",
+          expiresAt: lic.expiresAt ? lic.expiresAt.toISOString() : null,
+          seatsUsed: activeSeats.length,
+          maxSeats,
+        },
       };
     }
-
-    // Daftarkan seat perangkat baru
-    const actId = `act_${randomBytes(8).toString("hex")}`;
-    await db.insert(licenseActivations).values({
-      id: actId,
-      licenseId: lic.id,
-      hwidHash,
-      deviceName: deviceName || "Unknown Device",
-      lastValidatedAt: now,
-      createdAt: now,
-    });
-
-    if (!lic.hardwareId) {
-      await db
-        .update(licenses)
-        .set({ hardwareId: hwidHash, lastValidatedAt: now, updatedAt: now })
-        .where(eq(licenses.id, lic.id));
-    }
+    throw err;
   }
-
-  // Hitung jumlah seat terpakai saat ini
-  const activeSeats = await db.query.licenseActivations.findMany({
-    where: eq(licenseActivations.licenseId, lic.id),
-  });
-
-  // Hasilkan Signed License JWT Token (dengan 30 days offline grace period)
-  const licenseToken = LicenseService.createOfflineGraceToken(
-    lic.licenseKey,
-    lic.appId,
-    hwidHash,
-    lic.customerEmail,
-    maxSeats
-  );
-
-  await db
-    .update(licenses)
-    .set({
-      lastValidatedAt: now,
-      offlineJwtGraceToken: licenseToken,
-      updatedAt: now,
-    })
-    .where(eq(licenses.id, lic.id));
-
-  return {
-    success: true,
-    message: "Device activated successfully",
-    data: {
-      licenseToken,
-      status: "ACTIVE",
-      expiresAt: lic.expiresAt ? lic.expiresAt.toISOString() : null,
-      seatsUsed: activeSeats.length,
-      maxSeats,
-    },
-  };
 }
 
-async function handleVerifyLicense({ body, set }: any) {
+async function handleVerifyLicense({ body, set, request }: any) {
   const { licenseKey, hwid } = body;
+
+  const rl = enforceRateLimit(request, "licensing:verify", 120, 60_000);
+  if (!rl.allowed) {
+    set.status = 429;
+    return { valid: false, status: "RATE_LIMITED", message: `Terlalu banyak permintaan. Coba lagi dalam ${rl.retryAfter} detik.` };
+  }
 
   const lic = await db.query.licenses.findFirst({
     where: eq(licenses.licenseKey, licenseKey.trim()),
@@ -156,15 +223,16 @@ async function handleVerifyLicense({ body, set }: any) {
   }
 
   if (hwid) {
-    const hwidHash = LicenseService.hashHardwareId(hwid);
+    const lookupHashes = LicenseService.hwidLookupHashes(hwid);
     const activation = await db.query.licenseActivations.findFirst({
       where: and(
         eq(licenseActivations.licenseId, lic.id),
-        eq(licenseActivations.hwidHash, hwidHash)
+        inArray(licenseActivations.hwidHash, lookupHashes)
       ),
     });
 
-    if (!activation && lic.hardwareId !== hwidHash) {
+    const mainBound = lic.hardwareId ? lookupHashes.includes(lic.hardwareId) : false;
+    if (!activation && !mainBound) {
       return {
         valid: false,
         status: "DEVICE_NOT_ACTIVATED",
@@ -188,11 +256,11 @@ async function handleVerifyLicense({ body, set }: any) {
   // Hitung sisa hari offline grace dari token tertanda (jika tersedia)
   let gracePeriodRemainingDays: number | null = null;
   if (lic.offlineJwtGraceToken) {
-    const decoded = CryptoService.verifySignedToken<{ exp?: number }>(lic.offlineJwtGraceToken);
-    if (decoded?.exp) {
+    const decoded = LicenseTokenService.verify(lic.offlineJwtGraceToken);
+    if (decoded.valid && decoded.claims?.exp) {
       gracePeriodRemainingDays = Math.max(
         0,
-        Math.ceil((decoded.exp * 1000 - now.getTime()) / 86_400_000)
+        Math.ceil((decoded.claims.exp * 1000 - now.getTime()) / 86_400_000)
       );
     }
   }
@@ -204,8 +272,14 @@ async function handleVerifyLicense({ body, set }: any) {
   };
 }
 
-async function handleDeactivateLicense({ body, set }: any) {
+async function handleDeactivateLicense({ body, set, request }: any) {
   const { licenseKey, hwid } = body;
+
+  const rl = enforceRateLimit(request, "licensing:deactivate", 30, 60_000);
+  if (!rl.allowed) {
+    set.status = 429;
+    return { success: false, error: `Terlalu banyak permintaan. Coba lagi dalam ${rl.retryAfter} detik.` };
+  }
 
   const lic = await db.query.licenses.findFirst({
     where: eq(licenses.licenseKey, licenseKey.trim()),
@@ -216,20 +290,20 @@ async function handleDeactivateLicense({ body, set }: any) {
     return { success: false, error: "License key not found" };
   }
 
-  const hwidHash = LicenseService.hashHardwareId(hwid);
+  const lookupHashes = LicenseService.hwidLookupHashes(hwid);
 
-  // Hapus seat aktivasi perangkat
+  // Hapus seat aktivasi perangkat (mendukung hash salted maupun legacy)
   await db
     .delete(licenseActivations)
     .where(
       and(
         eq(licenseActivations.licenseId, lic.id),
-        eq(licenseActivations.hwidHash, hwidHash)
+        inArray(licenseActivations.hwidHash, lookupHashes)
       )
     );
 
   // Jika hardwareId utama sama dengan hwidHash yang di-deactivate, bersihkan
-  if (lic.hardwareId === hwidHash) {
+  if (lic.hardwareId && lookupHashes.includes(lic.hardwareId)) {
     const remainingAct = await db.query.licenseActivations.findFirst({
       where: eq(licenseActivations.licenseId, lic.id),
     });
@@ -316,8 +390,14 @@ function createLicensingRouter(prefix: string) {
      */
     .post(
       "/validate",
-      async ({ body, set }) => {
+      async ({ body, set, request }) => {
         const { licenseKey, appId, hardwareId, platform = "general" } = body;
+
+        const rl = enforceRateLimit(request, "licensing:validate", 120, 60_000);
+        if (!rl.allowed) {
+          set.status = 429;
+          return { valid: false, reason: "RATE_LIMITED" };
+        }
 
         const lic = await db.query.licenses.findFirst({
           where: eq(licenses.licenseKey, licenseKey.trim()),
@@ -337,6 +417,15 @@ function createLicensingRouter(prefix: string) {
           return { valid: false, reason: `LICENSE_${lic.status}` };
         }
 
+        // Enforce platform bila lisensi dikunci ke platform tertentu.
+        if (lic.platform && lic.platform !== "general" && platform && platform !== lic.platform) {
+          return {
+            valid: false,
+            reason: "PLATFORM_MISMATCH",
+            message: `Lisensi ini hanya berlaku untuk platform ${lic.platform}.`,
+          };
+        }
+
         const now = new Date();
         if (lic.expiresAt && lic.expiresAt < now) {
           await db
@@ -347,25 +436,23 @@ function createLicensingRouter(prefix: string) {
           return { valid: false, reason: "LICENSE_EXPIRED" };
         }
 
+        // Validasi tidak boleh mengikat hardware secara implisit — binding wajib
+        // melalui /activate agar kuota seat (N_active <= N_max) ditegakkan.
         let boundHardwareHash = lic.hardwareId;
         if (hardwareId) {
-          const incomingHash = LicenseService.hashHardwareId(hardwareId);
-          if (!lic.hardwareId) {
-            boundHardwareHash = incomingHash;
-            await db
-              .update(licenses)
-              .set({
-                hardwareId: incomingHash,
-                platform,
-                lastValidatedAt: now,
-                updatedAt: now,
-              })
-              .where(eq(licenses.id, lic.id));
-          } else if (lic.hardwareId !== incomingHash) {
+          const lookupHashes = LicenseService.hwidLookupHashes(hardwareId);
+          if (lic.hardwareId && !lookupHashes.includes(lic.hardwareId)) {
             return {
               valid: false,
               reason: "HARDWARE_MISMATCH",
               message: "Lisensi ini sudah terikat dengan perangkat hardware lain.",
+            };
+          }
+          if (!lic.hardwareId) {
+            return {
+              valid: false,
+              reason: "DEVICE_NOT_ACTIVATED",
+              message: "Perangkat belum diaktivasi. Jalankan /activate terlebih dahulu.",
             };
           }
         }
@@ -418,29 +505,48 @@ function createLicensingRouter(prefix: string) {
      */
     .post(
       "/verify-offline-token",
-      async ({ body, set }) => {
+      async ({ body, set, request }) => {
         const { token } = body;
-        const decoded = CryptoService.verifySignedToken<{
-          sub: string;
-          lic?: string;
-          appId?: string;
-          app?: string;
-          hw?: string;
-          seats?: number;
-          type: string;
-        }>(token);
 
-        if (!decoded || decoded.type !== "offline_grace_license") {
+        const rl = enforceRateLimit(request, "licensing:verify-offline", 120, 60_000);
+        if (!rl.allowed) {
+          set.status = 429;
+          return { valid: false, reason: "RATE_LIMITED" };
+        }
+
+        const decoded = LicenseTokenService.verify(token);
+        if (!decoded.valid || !decoded.claims) {
           set.status = 401;
-          return { valid: false, reason: "INVALID_OR_EXPIRED_TOKEN" };
+          return { valid: false, reason: decoded.reason || "INVALID_OR_EXPIRED_TOKEN" };
+        }
+
+        const claims = decoded.claims;
+
+        // Denylist: token yang di-revoke tidak boleh dianggap valid.
+        const revoked = await db.query.revokedTokens.findFirst({
+          where: eq(revokedTokens.jti, claims.jti),
+        });
+        if (revoked) {
+          set.status = 401;
+          return { valid: false, reason: "TOKEN_REVOKED" };
+        }
+
+        // Cek status lisensi di server (revoked/expired menang atas token).
+        const lic = await db.query.licenses.findFirst({
+          where: eq(licenses.licenseKey, claims.lic),
+        });
+        if (!lic || lic.status !== "ACTIVE") {
+          set.status = 401;
+          return { valid: false, reason: lic ? `LICENSE_${lic.status}` : "LICENSE_NOT_FOUND" };
         }
 
         return {
           valid: true,
-          licenseKey: decoded.lic || decoded.sub,
-          appId: decoded.app || decoded.appId,
-          hardwareHash: decoded.hw,
-          seats: decoded.seats || 3,
+          licenseKey: claims.lic,
+          appId: claims.app,
+          hardwareHash: claims.hw,
+          seats: claims.seats || 3,
+          expiresAt: claims.exp ? new Date(claims.exp * 1000).toISOString() : null,
           mode: "OFFLINE_GRACE_ACTIVE",
         };
       },
@@ -509,6 +615,7 @@ function createLicensingRouter(prefix: string) {
         };
       },
       {
+        requireAuth: true,
         query: t.Object({
           appId: t.Optional(t.String()),
           limit: t.Optional(t.Numeric({ default: 50 })),
@@ -563,6 +670,7 @@ function createLicensingRouter(prefix: string) {
         };
       },
       {
+        requireAuth: true,
         body: t.Object({
           appId: t.String(),
           customerEmail: t.String(),
@@ -604,13 +712,34 @@ function createLicensingRouter(prefix: string) {
           return { error: "License not found" };
         }
 
+        // Denylist jti token aktif agar token yang sudah beredar ikut tidak valid.
+        let denylisted = false;
+        if (updated.offlineJwtGraceToken) {
+          const decoded = LicenseTokenService.verify(updated.offlineJwtGraceToken);
+          if (decoded.valid && decoded.claims) {
+            await db
+              .insert(revokedTokens)
+              .values({
+                jti: decoded.claims.jti,
+                licenseId: updated.id,
+                licenseKey: updated.licenseKey,
+                reason: "LICENSE_REVOKED",
+                expiresAt: decoded.claims.exp ? new Date(decoded.claims.exp * 1000) : null,
+              })
+              .onConflictDoNothing();
+            denylisted = true;
+          }
+        }
+
         return {
           success: true,
           message: `Kunci lisensi ${licenseKey} berhasil dicabut (REVOKED).`,
+          tokenDenylisted: denylisted,
           license: updated,
         };
       },
       {
+        requireAuth: true,
         body: t.Object({
           licenseKey: t.String(),
         }),
@@ -656,6 +785,7 @@ function createLicensingRouter(prefix: string) {
         };
       },
       {
+        requireAuth: true,
         body: t.Object({
           licenseKey: t.String(),
         }),

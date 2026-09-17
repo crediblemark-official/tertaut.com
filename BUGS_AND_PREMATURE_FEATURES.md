@@ -404,5 +404,24 @@ Path traversal (`index.ts`), CORS whitelist, atomic disbursement lock + pemetaan
 9. **`drizzle.config.ts` fallback ke DB `tertaut`** sedangkan config server fallback `tertautv2` — inkonsistensi lama #10 luput di drizzle config.
 
 ### Test Coverage
-- `src/server/__test/server.test.ts`: **29 test** (25 lama + 4 test E2E kupon baru: create→preview→redeem dengan verifikasi breakdown MoR atas nominal terdiskon, penolakan kupon lintas-app/tak dikenal, enforcement kuota `maxRedemptions` tanpa invoice hantu, toggle aktif/nonaktif).
+- `src/server/__test/server.test.ts`: **41 test** — 29 di atas + auth Better Auth, seat race atomik, migrasi HWID salted, Ed25519 offline token + denylist `jti` + JWKS + verifikasi lokal SDK.
 - Catatan: test E2E butuh server berjalan di `localhost:3000` + Postgres; test kupon aman di sandbox karena `XENDIT_SECRET_KEY` mock → invoice mock, bukan tagihan nyata.
+
+---
+
+### Pembaruan Sesi Terbaru (17 September 2026)
+
+Sudah diperbaiki:
+- ✅ **Autentikasi** — Better Auth native Elysia (email + password), guard `requireAuth`/`requireAdmin` pada panel/payouts/coupons/launch/apps/checkout/licensing + aiproxy; bypass `DEV_USER` hanya di non-production.
+- ✅ **Race condition seat & duplicate license webhook** — klaim seat atomik (`db.transaction` + `FOR UPDATE`) + `unique_licenses_transaction_id` + backstop `23505`.
+- ✅ **Portal tanpa bukti kepemilikan** — `POST /portal/access` (email + license key → signed token); `/portal/licenses` & `/portal/transactions` wajib token.
+- ✅ **Rate limiting** — sliding-window in-memory di endpoint lisensi & portal.
+- ✅ **Token offline HS256 → Ed25519** — `LicenseTokenService` (EdDSA, `kid`, `jti`), JWKS + public key PEM, revoke via denylist `revoked_tokens`, verifikasi lokal SDK via Web Crypto.
+- ✅ **Deviasi SDK** — hapus fallback email demo; `customerEmail` wajib saat checkout.
+- ✅ **HWID hash tanpa salt** — kini HMAC-SHA256 (`HWID_SALT`/`JWT_SECRET`, prefix `hw2:`) dengan migrasi transparan untuk binding legacy.
+- ✅ **Data demo/hardcode** — `pembeli@tertaut.com`, `customer@example.com` dihapus dari checkout/portal/SDK.
+
+Masih tertunda:
+- ⏳ **`grantCredits` inert** — hanya disimpan di `transactions`, belum ada ledger/saldo kredit; penegakan menunggu spek produk (ditandai TODO di `schema/transactions.ts` & `routes/checkout.ts`).
+- ⏳ Publish SDK ke npm dan ganti endpoint docs `localhost:3000`.
+- ⏳ Hapus hardcode "89 Lisensi Terjual" (`DocsView.vue`).

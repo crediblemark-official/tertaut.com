@@ -35,54 +35,82 @@ export const danaDisburseWebhookSchema = {
  * Fulfill payment dan terbitkan lisensi secara universal & idempotent
  */
 export async function fulfillPaymentTransaction(tx: any, paymentChannel: string = "QRIS") {
-  // NFR: Idempotensi Webhook (Cegah duplikasi saldo & lisensi jika callback dikirim berulang)
-  if (tx.paymentStatus === "PAID") {
-    return {
-      status: "success",
-      message: "Transaction already verified and processed (idempotent)",
-      transactionId: tx.id,
-    };
-  }
-
   const now = new Date();
   const grantDays = tx.grantDays || 365;
   const expiresAt = new Date(now.getTime() + grantDays * 24 * 60 * 60 * 1000);
 
-  // Update status transaksi menjadi PAID
-  await db
-    .update(transactions)
-    .set({
-      paymentStatus: "PAID",
-      paymentChannel,
-      paidAt: now,
-      updatedAt: now,
-    })
-    .where(eq(transactions.id, tx.id));
+  try {
+    return await db.transaction(async (trx) => {
+      // Kunci baris transaksi agar callback paralel tidak diproses ganda.
+      const [locked] = await trx
+        .select()
+        .from(transactions)
+        .where(eq(transactions.id, tx.id))
+        .for("update");
 
-  // Generate Universal License Key (Modul 3 Integration)
-  const licenseKey = LicenseService.generateLicenseKey();
-  const offlineToken = LicenseService.createOfflineGraceToken(licenseKey, tx.appId);
+      if (!locked) {
+        return { status: "error", message: "Transaction not found", transactionId: tx.id };
+      }
 
-  const licId = `lic_${randomBytes(8).toString("hex")}`;
-  await db.insert(licenses).values({
-    id: licId,
-    appId: tx.appId,
-    transactionId: tx.id,
-    licenseKey,
-    customerEmail: tx.customerEmail,
-    status: "ACTIVE",
-    expiresAt,
-    offlineJwtGraceToken: offlineToken,
-  });
+      // NFR: Idempotensi Webhook (Cegah duplikasi saldo & lisensi jika callback dikirim berulang)
+      if (locked.paymentStatus === "PAID") {
+        return {
+          status: "success",
+          message: "Transaction already verified and processed (idempotent)",
+          transactionId: tx.id,
+        };
+      }
 
-  console.log(`[Webhook] Payment confirmed for TX: ${tx.id}, License issued: ${licenseKey}`);
+      await trx
+        .update(transactions)
+        .set({
+          paymentStatus: "PAID",
+          paymentChannel,
+          paidAt: now,
+          updatedAt: now,
+        })
+        .where(eq(transactions.id, tx.id));
 
-  return {
-    status: "success",
-    message: "Transaction verified and balance updated",
-    transactionId: tx.id,
-    licenseKey,
-  };
+      // Generate Universal License Key (Modul 3 Integration)
+      const licenseKey = LicenseService.generateLicenseKey();
+      const offlineToken = LicenseService.createOfflineGraceToken(licenseKey, tx.appId);
+
+      const licId = `lic_${randomBytes(8).toString("hex")}`;
+      await trx.insert(licenses).values({
+        id: licId,
+        appId: tx.appId,
+        transactionId: tx.id,
+        licenseKey,
+        customerEmail: tx.customerEmail,
+        status: "ACTIVE",
+        expiresAt,
+        offlineJwtGraceToken: offlineToken,
+      });
+
+      console.log(`[Webhook] Payment confirmed for TX: ${tx.id}, License issued: ${licenseKey}`);
+
+      return {
+        status: "success",
+        message: "Transaction verified and balance updated",
+        transactionId: tx.id,
+        licenseKey,
+      };
+    });
+  } catch (err: any) {
+    // Backstop idempotensi: unique(transaction_id) menangkap balapan insert.
+    if (err?.code === "23505") {
+      const existing = await db.query.licenses.findFirst({
+        where: eq(licenses.transactionId, tx.id),
+      });
+      return {
+        status: "success",
+        message: "Transaction already verified and processed (idempotent)",
+        transactionId: tx.id,
+        licenseKey: existing?.licenseKey,
+      };
+    }
+    throw err;
+  }
 }
 
 export const webhookRoutes = new Elysia({ prefix: "/webhook" })

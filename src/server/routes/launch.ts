@@ -1,7 +1,12 @@
 import { Elysia, t } from "elysia";
 import { LaunchService } from "../services/launchService";
+import { authenticate } from "../middleware/auth";
 
 export const launchRoutes = new Elysia({ prefix: "/launch" })
+  .onBeforeHandle(async ({ request: { headers }, status }) => {
+    const res = await authenticate(headers);
+    if ("status" in res) return status(res.status, { error: res.error });
+  })
   /**
    * One-Click Live Launch (PRD Modul 5: FR-1.1, FR-1.2, FR-1.3)
    */

@@ -2,12 +2,14 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router"
 import LandingView from "../views/LandingView.vue";
 import OverviewView from "../views/OverviewView.vue";
 import { applyEnvFromPath, SANDBOX_PREFIX } from "../lib/environment";
+import { authClient } from "../lib/auth";
 
 const liveDashboardRoutes: RouteRecordRaw[] = [
   {
     path: "/dashboard",
     name: "dashboard",
     component: OverviewView,
+    meta: { requiresAuth: true },
   },
   {
     path: "/dashboard/apps",
@@ -56,6 +58,12 @@ const routes: RouteRecordRaw[] = [
     component: LandingView,
     meta: { public: true },
   },
+  {
+    path: "/login",
+    name: "login",
+    component: () => import("../views/LoginView.vue"),
+    meta: { public: true },
+  },
 
   ...liveDashboardRoutes,
   ...sandboxDashboardRoutes,
@@ -76,7 +84,7 @@ const routes: RouteRecordRaw[] = [
     path: "/panel",
     name: "admin-panel",
     component: () => import("../views/AdminPanelView.vue"),
-    meta: { public: true },
+    meta: { requiresAuth: true },
   },
 ];
 
@@ -85,6 +93,19 @@ export const router = createRouter({
   routes,
 });
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   applyEnvFromPath(to.path);
+
+  const requiresAuth =
+    !!to.meta.requiresAuth ||
+    to.path.startsWith("/dashboard") ||
+    to.path.startsWith("/panel");
+
+  // Di dev, server memakai bypass (DEV_USER) agar alur tetap bisa dites tanpa login.
+  if (import.meta.env.PROD && requiresAuth) {
+    const { data } = await authClient.getSession();
+    if (!data) {
+      return { path: "/login", query: { redirect: to.fullPath } };
+    }
+  }
 });

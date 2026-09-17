@@ -2,18 +2,93 @@ import { Elysia, t } from "elysia";
 import { db } from "../db";
 import { licenses, licenseActivations, apps, transactions } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { CryptoService } from "../services/crypto";
+import { enforceRateLimit } from "../services/rateLimiter";
+
+const PORTAL_TOKEN_TTL_SECONDS = 3600;
+
+/** Ambil portal access token dari query `token` atau header Authorization Bearer. */
+function extractPortalToken(query: any, headers: any): string | null {
+  const fromQuery = typeof query?.token === "string" ? query.token : null;
+  if (fromQuery) return fromQuery;
+  const auth = headers?.authorization || headers?.Authorization;
+  if (typeof auth === "string" && auth.startsWith("Bearer ")) return auth.slice(7).trim();
+  return null;
+}
+
+/** Verifikasi portal token & kembalikan email pemilik yang tervalidasi (atau null). */
+function resolvePortalEmail({ query, request }: any): string | null {
+  const token = extractPortalToken(query, request?.headers);
+  if (!token) return null;
+  const payload = CryptoService.verifySignedToken<{ typ?: string; email?: string }>(token);
+  if (!payload || payload.typ !== "portal" || !payload.email) return null;
+  return String(payload.email).trim().toLowerCase();
+}
 
 export const portalRoutes = new Elysia({ prefix: "/portal" })
   /**
-   * Mengambil semua lisensi milik pembeli berdasarkan email
+   * Menukar bukti kepemilikan (email + salah satu license key miliknya)
+   * menjadi portal access token berumur pendek.
+   */
+  .post(
+    "/access",
+    async ({ body, set, request }) => {
+      const email = body.email.trim().toLowerCase();
+      const licenseKey = body.licenseKey.trim();
+
+      const rl = enforceRateLimit(request, "portal:access", 10, 60_000);
+      if (!rl.allowed) {
+        set.status = 429;
+        return { success: false, error: `Terlalu banyak percobaan. Coba lagi dalam ${rl.retryAfter} detik.` };
+      }
+
+      const lic = await db.query.licenses.findFirst({
+        where: eq(licenses.licenseKey, licenseKey),
+      });
+
+      if (!lic || lic.customerEmail.trim().toLowerCase() !== email) {
+        set.status = 403;
+        return { success: false, error: "Email tidak cocok dengan pemilik license key tersebut" };
+      }
+
+      const token = CryptoService.createSignedToken(
+        { typ: "portal", email },
+        PORTAL_TOKEN_TTL_SECONDS
+      );
+
+      return { success: true, token, expiresInSeconds: PORTAL_TOKEN_TTL_SECONDS };
+    },
+    {
+      body: t.Object({
+        email: t.String(),
+        licenseKey: t.String(),
+      }),
+      detail: {
+        tags: ["Customer Portal"],
+        summary: "Exchange Email + License Key for Portal Access Token",
+      },
+    }
+  )
+
+  /**
+   * Mengambil semua lisensi milik pembeli (wajib portal access token)
    */
   .get(
     "/licenses",
-    async ({ query, set }) => {
-      const email = (query.email || "").trim().toLowerCase();
-      if (!email || !email.includes("@")) {
-        set.status = 400;
-        return { success: false, error: "Email pembeli tidak valid" };
+    async ({ query, request, set }) => {
+      const email = resolvePortalEmail({ query, request });
+      if (!email) {
+        set.status = 401;
+        return {
+          success: false,
+          error: "Portal access token tidak valid. Masukkan email + salah satu license key Anda.",
+        };
+      }
+
+      const rl = enforceRateLimit(request, "portal:licenses", 60, 60_000);
+      if (!rl.allowed) {
+        set.status = 429;
+        return { success: false, error: `Terlalu banyak permintaan. Coba lagi dalam ${rl.retryAfter} detik.` };
       }
 
       const buyerLicenses = await db.query.licenses.findMany({
@@ -68,12 +143,13 @@ export const portalRoutes = new Elysia({ prefix: "/portal" })
     },
     {
       query: t.Object({
-        email: t.String(),
+        token: t.Optional(t.String()),
+        email: t.Optional(t.String()),
       }),
       detail: {
         tags: ["Customer Portal"],
         summary: "Get Buyer Licenses",
-        description: "Retrieve all purchased licenses and active device seats by buyer email",
+        description: "Retrieve all purchased licenses and active device seats for the token owner",
       },
     }
   )
@@ -83,8 +159,14 @@ export const portalRoutes = new Elysia({ prefix: "/portal" })
    */
   .post(
     "/deactivate-device",
-    async ({ body, set }) => {
+    async ({ body, set, request }) => {
       const { licenseKey, hwidHash, customerEmail } = body;
+
+      const rl = enforceRateLimit(request, "portal:deactivate", 20, 60_000);
+      if (!rl.allowed) {
+        set.status = 429;
+        return { success: false, error: `Terlalu banyak permintaan. Coba lagi dalam ${rl.retryAfter} detik.` };
+      }
 
       const lic = await db.query.licenses.findFirst({
         where: eq(licenses.licenseKey, licenseKey),
@@ -95,8 +177,8 @@ export const portalRoutes = new Elysia({ prefix: "/portal" })
         return { success: false, error: "Kunci lisensi tidak ditemukan" };
       }
 
-      // Verifikasi kepemilikan jika customerEmail disertakan
-      if (customerEmail && lic.customerEmail.toLowerCase() !== customerEmail.trim().toLowerCase()) {
+      // Wajib buktikan kepemilikan: email harus cocok dengan pemilik lisensi
+      if (lic.customerEmail.toLowerCase() !== customerEmail.trim().toLowerCase()) {
         set.status = 403;
         return { success: false, error: "Email tidak cocok dengan pemilik lisensi" };
       }
@@ -133,7 +215,7 @@ export const portalRoutes = new Elysia({ prefix: "/portal" })
       body: t.Object({
         licenseKey: t.String(),
         hwidHash: t.String(),
-        customerEmail: t.Optional(t.String()),
+        customerEmail: t.String(),
       }),
       detail: {
         tags: ["Customer Portal"],
@@ -148,11 +230,20 @@ export const portalRoutes = new Elysia({ prefix: "/portal" })
    */
   .get(
     "/transactions",
-    async ({ query, set }) => {
-      const email = (query.email || "").trim().toLowerCase();
-      if (!email || !email.includes("@")) {
-        set.status = 400;
-        return { success: false, error: "Email pembeli tidak valid" };
+    async ({ query, request, set }) => {
+      const email = resolvePortalEmail({ query, request });
+      if (!email) {
+        set.status = 401;
+        return {
+          success: false,
+          error: "Portal access token tidak valid. Masukkan email + salah satu license key Anda.",
+        };
+      }
+
+      const rl = enforceRateLimit(request, "portal:transactions", 60, 60_000);
+      if (!rl.allowed) {
+        set.status = 429;
+        return { success: false, error: `Terlalu banyak permintaan. Coba lagi dalam ${rl.retryAfter} detik.` };
       }
 
       const buyerTxs = await db.query.transactions.findMany({
@@ -189,12 +280,13 @@ export const portalRoutes = new Elysia({ prefix: "/portal" })
     },
     {
       query: t.Object({
-        email: t.String(),
+        token: t.Optional(t.String()),
+        email: t.Optional(t.String()),
       }),
       detail: {
         tags: ["Customer Portal"],
         summary: "Get Buyer Purchase History",
-        description: "Retrieve all purchase receipts and transactions for a buyer email",
+        description: "Retrieve all purchase receipts and transactions for the token owner",
       },
     }
   );
