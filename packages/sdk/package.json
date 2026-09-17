@@ -1,16 +1,42 @@
 {
   "name": "@tertaut/sdk",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "description": "Lightweight client library for tertaut.com (<15KB) - Fake Door, MoR Checkout, Universal Licensing & AI Proxy Shield",
   "type": "module",
   "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
+  "sideEffects": false,
+  "keywords": [
+    "tertaut",
+    "licensing",
+    "license-key",
+    "merchant-of-record",
+    "ai-proxy",
+    "sdk"
+  ],
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/crediblemark-official/tertaut.com.git",
+    "directory": "packages/sdk"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --minify",
+    "build": "bun build ./src/index.ts --outdir ./dist --minify && tsc",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

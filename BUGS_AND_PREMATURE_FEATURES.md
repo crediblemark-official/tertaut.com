@@ -428,7 +428,9 @@ Sudah diperbaiki:
 - ✅ **`selectedPaymentRail`** — pilihan QRIS/VA/E-Wallet kini dikirim `paymentRail` → `payment_methods` Xendit.
 - ✅ **Docker Compose** — service `app` (build Dockerfile) ditambahkan, depend on Postgres sehat; default DB diselaraskan ke `tertautv2`.
 - ✅ **Email delivery (Resend)** — `EmailService` (REST API, tanpa dep baru) mengirim kunci lisensi saat pembayaran terkonfirmasi (webhook) & saat lisensi diterbitkan manual; non-fatal, dilewati bila `RESEND_API_KEY` kosong.
+- ✅ **Publish SDK** — `@tertaut/sdk@0.1.4` terbit ke npm (public) dengan `exports`, `.d.ts`, README, `publishConfig.access`.
+- ✅ **Endpoint docs** — prompt AI di `DocsView` memakai `window.location.origin` (bukan hardcode `localhost:3000`).
+- ✅ **Git hooks** — Husky v9: pre-commit menjalankan `build:server` + typecheck SDK.
 
 Masih tertunda:
 - ⏳ **`grantCredits` inert** — hanya disimpan di `transactions`, belum ada ledger/saldo kredit; penegakan menunggu spek produk (ditandai TODO di `schema/transactions.ts` & `routes/checkout.ts`).
-- ⏳ Publish SDK ke npm dan ganti endpoint docs `localhost:3000`.

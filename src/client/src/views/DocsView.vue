@@ -53,7 +53,7 @@ const aiPromptCursor = computed(() => {
 
 Informasi Proyek:
 - App ID: app_prod_${selectedAppSlug.value.replace(/-/g, '_')}
-- API Endpoint: http://localhost:3000 (atau https://tertaut.com di production)
+ - API Endpoint: ${typeof window !== 'undefined' ? window.location.origin : 'https://tertaut.com'}
 - Target Model AI: fast-summary-model
 
 Langkah Integrasi:

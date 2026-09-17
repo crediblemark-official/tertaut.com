@@ -1,0 +1,2 @@
+bun run build:server
+bun run --cwd packages/sdk typecheck
