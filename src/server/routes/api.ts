@@ -20,6 +20,7 @@ const PUBLIC_PREFIXES = [
   "/api/v1/webhook",
   "/api/v1/webhooks",
   "/api/v1/portal/access",
+  "/api/v1/portal/",
   "/api/v1/checkout/session",
   "/api/v1/apps/by-slug",
   "/api/v1/licensing/verify",

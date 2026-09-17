@@ -432,6 +432,7 @@ Sudah diperbaiki:
 - ✅ **Endpoint docs** — prompt AI di `DocsView` memakai `window.location.origin` (bukan hardcode `localhost:3000`).
 - ✅ **Git hooks** — Husky v9: pre-commit menjalankan `build:server` + typecheck SDK.
 - ✅ **Login / Logout UI** — tombol "Masuk" (→ `/login`) dan "Keluar" di LandingView; `handleLogout` di App.vue memanggil `authClient.signOut()`. Origin check diperluas ke `localhost:3000` & `127.0.0.1:3000`.
+- ✅ **Auth gate global** — `apiV1Routes` menegakkan `authenticate()` untuk semua `/api/v1/*` kecuali path publik yang sudah diizinkan (health, badge, widget, webhook, portal/access, checkout/session, apps/by-slug, licensing verify/validate/activate/deactivate, credits). Endpoint admin licensing (`/list`, `/issue`, `/revoke`) yang sebelumnya tanpa guard kini dilindungi. Di prod → 401 tanpa sesi; dev → DEV_USER bypass.
 - ✅ **Ledger kredit (`grantCredits`)** — tabel `credit_ledger` (append-only, `SUM(delta)` + `balance_after` audit). Kredit di-grant otomatis saat pembayaran terkonfirmasi & saat lisensi diterbitkan manual. Endpoint publik baru: `POST /api/v1/licensing/credits/{balance,consume,history}`. `consume` atomik (`FOR UPDATE`, anti saldo negatif) + idempotensi via `reference`. `verify` kini mengembalikan `credits`. SDK `credits.balance/consume/history`.
 
 Tidak ada item backlog yang tersisa.
