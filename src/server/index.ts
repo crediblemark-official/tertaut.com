@@ -11,6 +11,9 @@ import { auth } from "./auth";
 import { LicenseTokenService } from "./services/licenseToken";
 import { existsSync, statSync } from "fs";
 import { resolve } from "path";
+import { db } from "./db";
+import { licenses } from "./db/schema";
+import { eq, and, lt } from "drizzle-orm";
 
 const clientDistPath = resolve(import.meta.dir, "../../dist");
 const isProduction = process.env.NODE_ENV === "production";
@@ -149,6 +152,24 @@ if (hasBuiltClient) {
     return Response.redirect(`http://localhost:5173${url.pathname}${url.search}`, 302);
   });
 }
+
+async function expireLicenses(): Promise<void> {
+  try {
+    const now = new Date();
+    const expired = await db
+      .update(licenses)
+      .set({ status: "EXPIRED", updatedAt: now })
+      .where(and(eq(licenses.status, "ACTIVE"), lt(licenses.expiresAt, now)))
+      .returning({ id: licenses.id, licenseKey: licenses.licenseKey });
+    if (expired.length > 0) {
+      console.log(`[Expiry] ${expired.length} license(s) marked EXPIRED.`);
+    }
+  } catch (err: any) {
+    console.error("[Expiry] failed:", err?.message || err);
+  }
+}
+expireLicenses();
+setInterval(expireLicenses, 5 * 60 * 1000);
 
 app.listen(config.port, () => {
   console.log(`\n🚀 tertaut.com Engine is running at http://localhost:${config.port}`);

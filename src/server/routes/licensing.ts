@@ -794,20 +794,26 @@ function createLicensingRouter(prefix: string) {
           });
         }
 
-        // Ambil data aktivasi device seats untuk setiap lisensi
-        const licensesWithActivations = await Promise.all(
-          licList.map(async (lic) => {
-            const activations = await db.query.licenseActivations.findMany({
-              where: eq(licenseActivations.licenseId, lic.id),
-              orderBy: (act, { desc }) => [desc(act.lastValidatedAt)],
-            });
-            return {
-              ...lic,
-              seatsUsed: activations.length,
-              activations,
-            };
-          })
-        );
+        // Batch-fetch seluruh aktivasi device seats (hindari N+1).
+        const licenseIds = licList.map((lic) => lic.id);
+        const allActivations =
+          licenseIds.length > 0
+            ? await db.query.licenseActivations.findMany({
+                where: inArray(licenseActivations.licenseId, licenseIds),
+                orderBy: (act, { desc }) => [desc(act.lastValidatedAt)],
+              })
+            : [];
+        const activationsByLicense = new Map<string, any[]>();
+        for (const act of allActivations) {
+          const list = activationsByLicense.get(act.licenseId) || [];
+          list.push(act);
+          activationsByLicense.set(act.licenseId, list);
+        }
+        const licensesWithActivations = licList.map((lic) => ({
+          ...lic,
+          seatsUsed: (activationsByLicense.get(lic.id) || []).length,
+          activations: activationsByLicense.get(lic.id) || [],
+        }));
 
         return {
           success: true,
