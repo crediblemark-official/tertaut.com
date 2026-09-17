@@ -286,26 +286,26 @@ onMounted(() => {
     <!-- Main Content Area with Desktop Top Bar -->
     <div class="flex-1 flex flex-col min-w-0">
       <!-- Admin Desktop Top Header -->
-      <header class="hidden md:flex items-center justify-between px-6 py-3 border-b border-[#111111]/10 bg-white/90 backdrop-blur-md shrink-0 z-20">
+      <header class="hidden md:flex items-center justify-between px-6 min-h-[44px] py-1.5 sm:py-0 border-b border-[#111111] bg-[#111111] text-white shrink-0 z-20">
         <!-- Left: Breadcrumb / Category / Title -->
         <div class="flex items-center gap-3">
-          <div class="flex items-center gap-1.5 text-xs text-[#111111]/50 font-medium">
-            <span class="hover:text-[#111111] transition cursor-default">Super Admin</span>
-            <ChevronRight class="w-3 h-3 text-[#111111]/30" />
+          <div class="flex items-center gap-1.5 text-xs text-white/50 font-medium">
+            <span class="hover:text-white transition cursor-default">Super Admin</span>
+            <ChevronRight class="w-3 h-3 text-white/30" />
             <span class="text-[#D4AF37] font-semibold">{{ currentNavItem.category }}</span>
-            <ChevronRight class="w-3 h-3 text-[#111111]/30" />
+            <ChevronRight class="w-3 h-3 text-white/30" />
           </div>
-          <h2 class="text-sm font-bold text-[#111111] tracking-tight flex items-center gap-2">
+          <h2 class="text-sm font-bold text-white tracking-tight flex items-center gap-2">
             <span>{{ currentNavItem.name }}</span>
-            <span class="px-2 py-0.5 rounded-full bg-[#111111]/5 text-[#111111]/60 text-[10px] font-mono font-normal">v2.2</span>
+            <span class="px-2 py-0.5 rounded-full bg-white/10 text-white text-[10px] font-mono font-normal">v2.2</span>
           </h2>
         </div>
 
         <!-- Right: Status, Refresh & External Links -->
         <div class="flex items-center gap-3">
           <!-- Mode Pill -->
-          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold bg-[#0F4C3A]/10 border-[#0F4C3A]/20 text-[#0F4C3A]">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold bg-[#0F4C3A]/30 border-[#0F4C3A]/50 text-emerald-300">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             <span>Super Admin Rail</span>
           </div>
 
@@ -313,17 +313,17 @@ onMounted(() => {
           <button
             @click="loadAllData"
             :disabled="refreshing"
-            class="h-9 px-3 rounded-lg border border-[#111111]/15 bg-white hover:bg-[#111111]/5 text-[#111111] font-bold transition flex items-center gap-1.5 text-xs disabled:opacity-50 cursor-pointer shadow-xs"
+            class="h-8 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold transition flex items-center gap-1.5 text-xs disabled:opacity-50 cursor-pointer shadow-xs"
           >
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': refreshing }" />
             <span>Segarkan</span>
           </button>
 
-          <div class="flex items-center gap-1 border-l border-[#111111]/10 pl-2">
+          <div class="flex items-center gap-1 border-l border-white/15 pl-2">
             <router-link
               to="/"
               target="_blank"
-              class="p-1.5 rounded-md hover:bg-[#111111]/5 text-[#111111]/60 hover:text-[#111111] transition"
+              class="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition"
               title="Kunjungi Beranda Publik"
             >
               <Globe class="w-4 h-4" />
@@ -331,7 +331,7 @@ onMounted(() => {
             <a
               href="/swagger"
               target="_blank"
-              class="p-1.5 rounded-md hover:bg-[#111111]/5 text-[#111111]/60 hover:text-[#111111] transition"
+              class="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition"
               title="Buka Swagger API Docs"
             >
               <Code2 class="w-4 h-4" />
@@ -341,14 +341,14 @@ onMounted(() => {
       </header>
 
       <!-- Mobile Top Compact Bar (Two-Tier Contextual Bar) -->
-      <header class="md:hidden bg-[#FFFFFF] border-b border-[#111111]/10 sticky top-0 z-40 shadow-xs">
-        <div class="flex items-center justify-between px-3.5 py-2">
+      <header class="md:hidden bg-[#111111] text-white border-b border-[#111111] sticky top-0 z-40 shadow-xs min-h-[44px]">
+        <div class="flex items-center justify-between px-3.5 py-1.5">
           <router-link to="/panel" class="flex items-center gap-2">
-            <div class="w-7 h-7 rounded-md bg-[#111111] flex items-center justify-center font-bold text-white text-xs relative shadow-xs">
+            <div class="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center font-bold text-white text-xs relative shadow-xs">
               T
               <span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-[#D4AF37]"></span>
             </div>
-            <span class="font-extrabold text-xs tracking-tight text-[#111111] font-mono">
+            <span class="font-extrabold text-xs tracking-tight text-white font-mono">
               tertaut<span class="text-[#D4AF37]">.admin</span>
             </span>
           </router-link>
@@ -356,7 +356,7 @@ onMounted(() => {
           <div class="flex items-center gap-2">
             <router-link
               to="/dashboard"
-              class="px-2 py-1 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 text-[10.5px] font-bold text-[#111111] flex items-center gap-1 transition"
+              class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[10.5px] font-bold text-white flex items-center gap-1 transition"
             >
               <LayoutDashboard class="w-3.5 h-3.5 text-[#D4AF37]" />
               <span>Builder</span>
@@ -365,7 +365,7 @@ onMounted(() => {
             <button
               @click="loadAllData"
               :disabled="refreshing"
-              class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-[#111111]/5 text-[#111111] text-xs flex items-center justify-center cursor-pointer transition active:scale-95"
+              class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-white/10 text-white text-xs flex items-center justify-center cursor-pointer transition active:scale-95"
               title="Segarkan data admin"
             >
               <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': refreshing }" />

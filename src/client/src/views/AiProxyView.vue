@@ -214,16 +214,80 @@ watch(dashboardEnv, () => {
 </script>
 
 <template>
-  <div class="space-y-6 animate-fadeIn pb-12">
-    <!-- Action Bar -->
-    <div class="flex items-center justify-between gap-3 pb-1 border-b border-[#111111]/10">
-      <h1 class="text-base font-extrabold text-[#111111]">AI Proxy Shield</h1>
+  <div class="animate-fadeIn pb-12">
+    <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 -mt-4 sm:-mt-5 md:-mt-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-[#111111] text-white border-b border-[#111111] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+        <button
+          type="button"
+          @click="activeTab = 'vault'"
+          :class="[
+            'flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap',
+            activeTab === 'vault'
+              ? 'bg-white/20 text-white shadow-2xs'
+              : 'text-white/60 hover:text-white hover:bg-white/10'
+          ]"
+        >
+          <KeyRound class="w-3.5 h-3.5" :class="activeTab === 'vault' ? 'text-[#D4AF37]' : ''" />
+          <span>Vault Kredensial</span>
+        </button>
+
+        <button
+          type="button"
+          @click="activeTab = 'playground'"
+          :class="[
+            'flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap',
+            activeTab === 'playground'
+              ? 'bg-white/20 text-white shadow-2xs'
+              : 'text-white/60 hover:text-white hover:bg-white/10'
+          ]"
+        >
+          <Bot class="w-3.5 h-3.5" :class="activeTab === 'playground' ? 'text-[#D4AF37]' : ''" />
+          <span>Uji Coba AI</span>
+        </button>
+
+        <button
+          type="button"
+          @click="activeTab = 'guardrails'"
+          :class="[
+            'flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap',
+            activeTab === 'guardrails'
+              ? 'bg-white/20 text-white shadow-2xs'
+              : 'text-white/60 hover:text-white hover:bg-white/10'
+          ]"
+        >
+          <ShieldCheck class="w-3.5 h-3.5" :class="activeTab === 'guardrails' ? 'text-[#D4AF37]' : ''" />
+          <span>Token &amp; Guardrails</span>
+        </button>
+
+        <button
+          type="button"
+          @click="activeTab = 'audit'"
+          :class="[
+            'flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap',
+            activeTab === 'audit'
+              ? 'bg-white/20 text-white shadow-2xs'
+              : 'text-white/60 hover:text-white hover:bg-white/10'
+          ]"
+        >
+          <Receipt class="w-3.5 h-3.5" :class="activeTab === 'audit' ? 'text-[#D4AF37]' : ''" />
+          <span>Audit Log</span>
+          <span
+            :class="[
+              'px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold',
+              activeTab === 'audit' ? 'bg-white text-[#111111]' : 'bg-white/10 text-white'
+            ]"
+          >
+            {{ proxyLogs.length }}
+          </span>
+        </button>
+      </div>
 
       <button
         @click="fetchData"
-        class="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 text-[#111111] text-xs font-bold transition shrink-0 cursor-pointer"
+        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition cursor-pointer shrink-0"
       >
-        <RefreshCw class="w-3 h-3" />
+        <RefreshCw class="w-3.5 h-3.5" />
         <span>Segarkan Data</span>
       </button>
     </div>
@@ -231,80 +295,13 @@ watch(dashboardEnv, () => {
     <!-- Alert Banner -->
     <div
       v-if="vaultAlert"
-      class="p-3 rounded-xl bg-[#0F4C3A]/10 border border-[#0F4C3A]/25 text-[#0F4C3A] text-xs font-bold flex items-center justify-between"
+      class="mb-3 p-3 rounded-xl bg-[#0F4C3A]/10 border border-[#0F4C3A]/25 text-[#0F4C3A] text-xs font-bold flex items-center justify-between"
     >
       <div class="flex items-center gap-1.5">
         <CheckCircle2 class="w-4 h-4 shrink-0" />
         <span>{{ vaultAlert }}</span>
       </div>
       <button @click="vaultAlert = null" class="text-xs underline cursor-pointer">Tutup</button>
-    </div>
-
-    <!-- Navigation Tabs -->
-    <div class="flex items-center gap-1.5 border-b border-[#111111]/10 pb-2 overflow-x-auto no-scrollbar">
-      <button
-        type="button"
-        @click="activeTab = 'vault'"
-        :class="[
-          'flex items-center gap-2 px-3 h-9 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap',
-          activeTab === 'vault'
-            ? 'bg-[#111111] text-white shadow-xs'
-            : 'text-[#111111]/60 hover:text-[#111111] hover:bg-[#111111]/5'
-        ]"
-      >
-        <KeyRound class="w-3.5 h-3.5" :class="activeTab === 'vault' ? 'text-[#D4AF37]' : ''" />
-        <span>Vault Kredensial</span>
-      </button>
-
-      <button
-        type="button"
-        @click="activeTab = 'playground'"
-        :class="[
-          'flex items-center gap-2 px-3 h-9 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap',
-          activeTab === 'playground'
-            ? 'bg-[#111111] text-white shadow-xs'
-            : 'text-[#111111]/60 hover:text-[#111111] hover:bg-[#111111]/5'
-        ]"
-      >
-        <Bot class="w-3.5 h-3.5" :class="activeTab === 'playground' ? 'text-[#D4AF37]' : ''" />
-        <span>Uji Coba AI</span>
-      </button>
-
-      <button
-        type="button"
-        @click="activeTab = 'guardrails'"
-        :class="[
-          'flex items-center gap-2 px-3 h-9 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap',
-          activeTab === 'guardrails'
-            ? 'bg-[#111111] text-white shadow-xs'
-            : 'text-[#111111]/60 hover:text-[#111111] hover:bg-[#111111]/5'
-        ]"
-      >
-        <ShieldCheck class="w-3.5 h-3.5" :class="activeTab === 'guardrails' ? 'text-[#D4AF37]' : ''" />
-        <span>Token &amp; Guardrails</span>
-      </button>
-
-      <button
-        type="button"
-        @click="activeTab = 'audit'"
-        :class="[
-          'flex items-center gap-2 px-3 h-9 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap',
-          activeTab === 'audit'
-            ? 'bg-[#111111] text-white shadow-xs'
-            : 'text-[#111111]/60 hover:text-[#111111] hover:bg-[#111111]/5'
-        ]"
-      >
-        <Receipt class="w-3.5 h-3.5" :class="activeTab === 'audit' ? 'text-[#D4AF37]' : ''" />
-        <span>Audit Log Pemanggilan AI</span>
-        <span
-          :class="[
-            'px-1.5 py-0.2 rounded-full text-[10px] font-mono',
-            activeTab === 'audit' ? 'bg-white/20 text-white' : 'bg-[#111111]/10 text-[#111111]'
-          ]"
-        >
-          {{ proxyLogs.length }}
-        </span>
-      </button>
     </div>
 
     <!-- TAB 1: VAULT KREDENSIAL -->

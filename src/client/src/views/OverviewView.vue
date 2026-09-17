@@ -37,13 +37,21 @@ watch(dashboardEnv, () => {
 
 <template>
   <div class="space-y-5 animate-fadeIn">
-    <!-- Top Action Strip -->
-    <div class="flex items-center justify-between gap-3 pb-1 border-b border-[#111111]/10">
-      <h1 class="text-base font-extrabold text-[#111111]">Ringkasan Bisnis</h1>
+    <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 -mt-4 sm:-mt-5 md:-mt-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-[#111111] text-white border-b border-[#111111] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
+      <div class="flex items-center gap-2">
+        <h1 class="text-xs font-bold uppercase tracking-wider text-white">Ringkasan Bisnis</h1>
+        <span
+          class="px-2 py-0.5 rounded-md font-bold text-[10px]"
+          :class="dashboardEnv === 'sandbox' ? 'bg-[#D4AF37] text-[#111111]' : 'bg-[#0F4C3A] text-white'"
+        >
+          {{ dashboardEnv === 'sandbox' ? 'Sandbox' : 'Live' }}
+        </span>
+      </div>
 
       <router-link
         :to="envPath(dashboardEnv, '/apps')"
-        class="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg btn-gold text-xs font-bold transition shadow-gold-glow active:scale-95 cursor-pointer"
+        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg btn-gold text-xs font-bold transition shadow-2xs active:scale-95 cursor-pointer shrink-0"
       >
         <Boxes class="w-3.5 h-3.5 stroke-[3]" />
         <span>Kelola Aplikasi</span>

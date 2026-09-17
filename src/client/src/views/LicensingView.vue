@@ -223,16 +223,7 @@ watch(dashboardEnv, () => {
 </script>
 
 <template>
-  <div class="space-y-6 animate-fadeIn pb-12">
-    <!-- Alert Feedback -->
-    <div
-      v-if="actionFeedback"
-      class="p-3 rounded-xl bg-[#0F4C3A]/10 border border-[#0F4C3A]/30 text-[#0F4C3A] text-xs font-bold flex items-center gap-2 animate-fadeIn"
-    >
-      <CheckCircle2 class="w-4 h-4" />
-      <span>{{ actionFeedback }}</span>
-    </div>
-
+  <div class="animate-fadeIn pb-12">
     <!-- Active Licenses Table Component -->
     <LicenseTable
       :licenses-list="licensesList"
@@ -246,8 +237,18 @@ watch(dashboardEnv, () => {
       @deactivate-seat="(k, h) => testDeactivateSeat(k, h)"
     />
 
+    <!-- Alert Feedback -->
+    <div
+      v-if="actionFeedback"
+      class="mt-3 p-3 rounded-xl bg-[#0F4C3A]/10 border border-[#0F4C3A]/30 text-[#0F4C3A] text-xs font-bold flex items-center gap-2 animate-fadeIn"
+    >
+      <CheckCircle2 class="w-4 h-4" />
+      <span>{{ actionFeedback }}</span>
+    </div>
+
     <!-- Diagnostic & Validation Engine Component -->
-    <LicenseValidatorPanel
+    <div class="mt-6">
+      <LicenseValidatorPanel
       :apps-list="appsList"
       :loading-validation="loadingValidation"
       :validation-result="validationResult"
@@ -260,6 +261,7 @@ watch(dashboardEnv, () => {
       @deactivate-seat="() => testDeactivateSeat()"
       @validate-standard="testValidation"
     />
+    </div>
 
     <!-- Issue License Modal Component -->
     <IssueLicenseModal

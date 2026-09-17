@@ -40,21 +40,22 @@ const filteredBuilders = computed(() => {
     </div>
 
     <!-- Table View (Responsive Table with Horizontal Scroll on Mobile) -->
-    <div class="overflow-x-auto w-full top-scrollbar">
-      <table class="w-full text-left text-xs whitespace-nowrap">
-        <thead class="border-b border-[#111111]/10 text-[#111111]/60 uppercase tracking-wider text-[10px] font-bold">
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
+      <table class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-[#111111]/15">
+        <thead class="border-b border-[#111111]/20 text-xs font-semibold text-[#111111]/70 bg-white">
           <tr>
-            <th class="py-2 pr-3 pl-0">Builder / Akun</th>
-            <th class="py-2 px-3">Rekening Pencairan</th>
-            <th class="py-2 px-3">Aplikasi</th>
-            <th class="py-2 px-3">Total GMV</th>
-            <th class="py-2 px-3">Net 95%</th>
-            <th class="py-2 pl-3 pr-0 text-right">Terdaftar</th>
+            <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Builder</th>
+            <th class="py-2.5 px-3">Email</th>
+            <th class="py-2.5 px-3">Rekening Pencairan</th>
+            <th class="py-2.5 px-3">Aplikasi</th>
+            <th class="py-2.5 px-3">Total GMV</th>
+            <th class="py-2.5 px-3">Net 95%</th>
+            <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Terdaftar</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-[#111111]/5">
+        <tbody class="divide-y divide-[#111111]/15">
           <tr v-if="filteredBuilders.length === 0">
-            <td colspan="6" class="py-8 text-center text-[#111111]/40">
+            <td colspan="7" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-[#111111]/40">
               Tidak ada data builder ditemukan.
             </td>
           </tr>
@@ -63,9 +64,11 @@ const filteredBuilders = computed(() => {
             :key="b.id"
             class="hover:bg-[#111111]/[0.02] transition"
           >
-            <td class="py-2.5 pr-3 pl-0">
-              <div class="font-bold text-[#111111]">{{ b.name || 'Builder' }}</div>
-              <div class="text-[10px] text-[#111111]/50 font-mono">{{ b.email }}</div>
+            <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-bold text-[#111111]">
+              {{ b.name || 'Builder' }}
+            </td>
+            <td class="py-2.5 px-3 text-[11px] text-[#111111]/70 font-mono">
+              {{ b.email }}
             </td>
             <td class="py-2.5 px-3 text-[#111111]/80">
               <div v-if="b.bankAccount || b.disbursementAccount" class="space-y-0.5">
@@ -98,7 +101,7 @@ const filteredBuilders = computed(() => {
             <td class="py-2.5 px-3 font-mono font-bold text-[#0F4C3A]">
               Rp {{ (b.builderNetRevenue ?? b.totalNetEarnings ?? 0).toLocaleString('id-ID') }}
             </td>
-            <td class="py-2.5 pl-3 pr-0 text-right text-[#111111]/50 text-[11px]">
+            <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right text-[#111111]/50 text-[11px]">
               {{ b.createdAt ? new Date(b.createdAt).toLocaleDateString('id-ID') : '-' }}
             </td>
           </tr>

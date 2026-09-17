@@ -61,24 +61,25 @@ const filteredTransactions = computed(() => {
     </div>
 
     <!-- Table View (Responsive Table with Horizontal Scroll on Mobile) -->
-    <div class="overflow-x-auto w-full top-scrollbar">
-      <table class="w-full text-left text-xs whitespace-nowrap">
-        <thead class="border-b border-[#111111]/10 text-[#111111]/60 uppercase tracking-wider text-[10px] font-bold">
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
+      <table class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-[#111111]/15">
+        <thead class="border-b border-[#111111]/20 text-xs font-semibold text-[#111111]/70 bg-white">
           <tr>
-            <th class="py-2 pr-3 pl-0">ID / Tanggal</th>
-            <th class="py-2 px-3">Aplikasi</th>
-            <th class="py-2 px-3">Builder</th>
-            <th class="py-2 px-3">Pelanggan</th>
-            <th class="py-2 px-3">Gross (GMV)</th>
-            <th class="py-2 px-3">MoR 5%</th>
-            <th class="py-2 px-3">Net 95%</th>
-            <th class="py-2 px-3">Status</th>
-            <th class="py-2 pl-3 pr-0 text-right">Disbursement</th>
+            <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Tanggal</th>
+            <th class="py-2.5 px-3">TX ID</th>
+            <th class="py-2.5 px-3">Aplikasi</th>
+            <th class="py-2.5 px-3">Builder</th>
+            <th class="py-2.5 px-3">Pelanggan</th>
+            <th class="py-2.5 px-3">Gross (GMV)</th>
+            <th class="py-2.5 px-3">MoR 5%</th>
+            <th class="py-2.5 px-3">Net 95%</th>
+            <th class="py-2.5 px-3">Status</th>
+            <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Disbursement</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-[#111111]/5">
+        <tbody class="divide-y divide-[#111111]/15">
           <tr v-if="filteredTransactions.length === 0">
-            <td colspan="9" class="py-8 text-center text-[#111111]/40">
+            <td colspan="10" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-[#111111]/40">
               Tidak ada transaksi ditemukan.
             </td>
           </tr>
@@ -87,9 +88,11 @@ const filteredTransactions = computed(() => {
             :key="tx.id"
             class="hover:bg-[#111111]/[0.02] transition"
           >
-            <td class="py-2.5 pr-3 pl-0">
-              <div class="font-mono font-bold text-[11px] text-[#111111]">{{ tx.id.slice(0, 8) }}...</div>
-              <div class="text-[10px] text-[#111111]/50">{{ new Date(tx.createdAt).toLocaleDateString('id-ID') }}</div>
+            <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 text-[11px] text-[#111111]/70 font-mono">
+              {{ new Date(tx.createdAt).toLocaleDateString('id-ID') }}
+            </td>
+            <td class="py-2.5 px-3 font-mono font-bold text-[11px] text-[#111111]">
+              {{ tx.id.slice(0, 10) }}...
             </td>
             <td class="py-2.5 px-3 font-semibold text-[#111111]">{{ tx.appName }}</td>
             <td class="py-2.5 px-3 text-[#111111]/70 font-mono text-[11px]">{{ tx.builderEmail }}</td>
@@ -111,7 +114,7 @@ const filteredTransactions = computed(() => {
                 {{ tx.paymentStatus }}
               </span>
             </td>
-            <td class="py-2.5 pl-3 pr-0 text-right">
+            <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
               <span
                 :class="[
                   'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',

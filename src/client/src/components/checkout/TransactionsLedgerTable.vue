@@ -111,23 +111,24 @@ const filteredTransactions = computed(() => {
     </div>
 
     <!-- Table (Scrollable on mobile) -->
-    <div class="overflow-x-auto w-full top-scrollbar">
-      <table class="w-full text-left text-xs whitespace-nowrap">
-        <thead class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
+      <table class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-[#111111]/15">
+        <thead class="border-b border-[#111111]/20 text-xs font-semibold text-[#111111]/70 bg-white">
           <tr>
-            <th class="py-2 pr-2.5 pl-0">Waktu &amp; TX ID</th>
-            <th class="py-2 px-2.5">Pembeli</th>
-            <th class="py-2 px-2.5">Gross</th>
-            <th class="py-2 px-2.5">Fee (5%)</th>
-            <th class="py-2 px-2.5">Net Builder (95%)</th>
-            <th class="py-2 px-2.5">Status Bayar</th>
-            <th class="py-2 px-2.5">Pencairan</th>
-            <th class="py-2 pl-2.5 pr-0 text-right">Aksi</th>
+            <th class="py-2.5 pr-2.5 pl-3.5 sm:pl-4 md:pl-6">Waktu</th>
+            <th class="py-2.5 px-2.5">TX ID</th>
+            <th class="py-2.5 px-2.5">Pembeli</th>
+            <th class="py-2.5 px-2.5">Gross</th>
+            <th class="py-2.5 px-2.5">Fee (5%)</th>
+            <th class="py-2.5 px-2.5">Net Builder (95%)</th>
+            <th class="py-2.5 px-2.5">Status Bayar</th>
+            <th class="py-2.5 px-2.5">Pencairan</th>
+            <th class="py-2.5 pl-2.5 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-[#111111]/5">
+        <tbody class="divide-y divide-[#111111]/15">
           <tr v-if="filteredTransactions.length === 0">
-            <td colspan="8" class="py-6 text-center text-[#111111]/40">
+            <td colspan="9" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-[#111111]/40">
               <div class="space-y-0.5">
                 <p class="font-semibold text-xs text-[#111111]/60">Tidak ada transaksi ditemukan.</p>
                 <p class="text-[11px] text-[#111111]/40" v-if="searchQuery || statusFilter !== 'ALL'">
@@ -137,24 +138,28 @@ const filteredTransactions = computed(() => {
             </td>
           </tr>
           <tr v-for="tx in filteredTransactions" :key="tx.id" class="hover:bg-[#111111]/[0.02]">
-            <td class="py-2 pr-2.5 pl-0 font-mono text-[11px]">
-              <div class="font-bold text-[#111111] leading-tight">{{ tx.id }}</div>
-              <div class="text-[9.5px] text-[#111111]/50">{{ new Date(tx.createdAt).toLocaleString('id-ID') }}</div>
+            <td class="py-2.5 pr-2.5 pl-3.5 sm:pl-4 md:pl-6 font-mono text-[11px] text-[#111111]/70">
+              {{ new Date(tx.createdAt).toLocaleString('id-ID') }}
             </td>
-            <td class="py-2 px-2.5 text-[#111111]/80">
-              <div class="text-[11px]">{{ tx.customerEmail }}</div>
-              <div
-                v-if="tx.couponCode"
-                class="inline-flex items-center gap-0.5 mt-0.5 px-1 py-0.2 rounded bg-[#D4AF37]/15 border border-[#D4AF37]/30 text-[9px] font-bold text-[#111111] font-mono"
-              >
-                <TicketPercent class="w-2.5 h-2.5" />
-                {{ tx.couponCode }}
+            <td class="py-2.5 px-2.5 font-mono text-[11px] font-bold text-[#111111]">
+              {{ tx.id }}
+            </td>
+            <td class="py-2.5 px-2.5 text-[#111111]/80">
+              <div class="inline-flex items-center gap-1.5">
+                <span class="text-[11px]">{{ tx.customerEmail }}</span>
+                <span
+                  v-if="tx.couponCode"
+                  class="inline-flex items-center gap-0.5 px-1 py-0.2 rounded bg-[#D4AF37]/15 border border-[#D4AF37]/30 text-[9px] font-bold text-[#111111] font-mono"
+                >
+                  <TicketPercent class="w-2.5 h-2.5" />
+                  {{ tx.couponCode }}
+                </span>
               </div>
             </td>
-            <td class="py-2 px-2.5 font-mono font-bold text-[#111111]">{{ formatRupiah(tx.grossAmount) }}</td>
-            <td class="py-2 px-2.5 font-mono text-[#8B0000] text-[11px]">-{{ formatRupiah(tx.platformFee) }}</td>
-            <td class="py-2 px-2.5 font-mono font-bold text-[#0F4C3A]">{{ formatRupiah(tx.netAmount) }}</td>
-            <td class="py-2 px-2.5">
+            <td class="py-2.5 px-2.5 font-mono font-bold text-[#111111]">{{ formatRupiah(tx.grossAmount) }}</td>
+            <td class="py-2.5 px-2.5 font-mono text-[#8B0000] text-[11px]">-{{ formatRupiah(tx.platformFee) }}</td>
+            <td class="py-2.5 px-2.5 font-mono font-bold text-[#0F4C3A]">{{ formatRupiah(tx.netAmount) }}</td>
+            <td class="py-2.5 px-2.5">
               <span
                 class="px-2 py-0.5 rounded-full text-[10px] font-bold"
                 :class="tx.paymentStatus === 'PAID' ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]' : 'bg-[#D4AF37]/15 text-[#111111]'"
@@ -162,7 +167,7 @@ const filteredTransactions = computed(() => {
                 {{ tx.paymentStatus }}
               </span>
             </td>
-            <td class="py-2 px-2.5">
+            <td class="py-2.5 px-2.5">
               <span
                 class="px-2 py-0.5 rounded-full text-[10px] font-bold"
                 :class="tx.disbursementStatus === 'COMPLETED' ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]' : 'bg-[#111111]/5 text-[#111111]/70'"
@@ -170,7 +175,7 @@ const filteredTransactions = computed(() => {
                 {{ tx.disbursementStatus }}
               </span>
             </td>
-            <td class="py-2 pl-2.5 pr-0 text-right">
+            <td class="py-2.5 pl-2.5 pr-3.5 sm:pr-4 md:pr-6 text-right">
               <div class="flex items-center justify-end gap-1">
                 <!-- Simulation for Pending -->
                 <button

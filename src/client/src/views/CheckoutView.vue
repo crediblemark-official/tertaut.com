@@ -177,31 +177,31 @@ const activeTab = ref<'generator' | 'history'>('generator')
 </script>
 
 <template>
-  <div class="space-y-3.5 animate-fadeIn pb-8">
-    <!-- Navigation Tabs & Batch Disburse Action -->
-    <div class="flex items-center justify-between border-b border-[#111111]/10 pb-1.5">
-      <div class="flex items-center gap-1.5">
+  <div class="animate-fadeIn pb-8">
+    <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 -mt-4 sm:-mt-5 md:-mt-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-[#111111] text-white border-b border-[#111111] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
         <button type="button" @click="activeTab = 'generator'" :class="[
-          'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer',
+          'flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer',
           activeTab === 'generator'
-            ? 'bg-[#111111] text-white shadow-2xs'
-            : 'text-[#111111]/60 hover:text-[#111111] hover:bg-[#111111]/5'
+            ? 'bg-white/20 text-white shadow-2xs'
+            : 'text-white/60 hover:text-white hover:bg-white/10'
         ]">
           <Sparkles class="w-3.5 h-3.5" :class="activeTab === 'generator' ? 'text-[#D4AF37]' : ''" />
           <span>Buat Sesi Checkout</span>
         </button>
 
         <button type="button" @click="activeTab = 'history'" :class="[
-          'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer',
+          'flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer',
           activeTab === 'history'
-            ? 'bg-[#111111] text-white shadow-2xs'
-            : 'text-[#111111]/60 hover:text-[#111111] hover:bg-[#111111]/5'
+            ? 'bg-white/20 text-white shadow-2xs'
+            : 'text-white/60 hover:text-white hover:bg-white/10'
         ]">
           <Receipt class="w-3.5 h-3.5" :class="activeTab === 'history' ? 'text-[#D4AF37]' : ''" />
           <span>Riwayat Transaksi</span>
           <span :class="[
-            'px-1.5 py-0.2 rounded-full text-[10px] font-mono',
-            activeTab === 'history' ? 'bg-white/20 text-white' : 'bg-[#111111]/10 text-[#111111]'
+            'px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold',
+            activeTab === 'history' ? 'bg-white text-[#111111]' : 'bg-white/10 text-white'
           ]">
             {{ transactions.length }}
           </span>
