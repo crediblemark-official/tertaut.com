@@ -14,6 +14,7 @@ import MoRValueProps from '../components/checkout/MoRValueProps.vue'
 import DynamicCheckoutForm from '../components/checkout/DynamicCheckoutForm.vue'
 import CheckoutResultCard from '../components/checkout/CheckoutResultCard.vue'
 import TransactionsLedgerTable from '../components/checkout/TransactionsLedgerTable.vue'
+import SearchPicker from '../components/common/SearchPicker.vue'
 
 const appsList = ref<AppItem[]>([])
 const selectedAppId = ref('')
@@ -183,15 +184,13 @@ watch(dashboardEnv, () => {
       <!-- App Selector Dropdown & Batch Disburse -->
       <div class="flex items-center gap-2">
         <div v-if="appsList.length > 0" class="flex items-center gap-1.5">
-          <select
+          <SearchPicker
             v-model="selectedAppId"
+            :items="appsList"
             @change="onAppChange"
-            class="text-xs font-bold bg-[#FFFFFF] border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-[#111111] focus:outline-none focus:border-[#D4AF37]"
-          >
-            <option v-for="app in appsList" :key="app.id" :value="app.id">
-              {{ app.name }}
-            </option>
-          </select>
+            placeholder="Pilih aplikasi..."
+            search-placeholder="Cari software..."
+          />
         </div>
 
         <button

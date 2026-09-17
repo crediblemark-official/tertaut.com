@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { KeyRound, X, Sparkles } from 'lucide-vue-next'
 import type { AppItem, LicensePlatform } from '../../types'
+import SearchPicker from '../common/SearchPicker.vue'
 
 const props = defineProps<{
   show: boolean
@@ -61,14 +62,13 @@ function submit() {
       <div class="space-y-3 text-xs">
         <div>
           <label class="block font-bold text-[#111111]/70 mb-1">Pilih Aplikasi</label>
-          <select
+          <SearchPicker
             v-model="issueAppId"
-            class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] font-bold focus:outline-none focus:border-[#D4AF37]"
-          >
-            <option v-for="app in appsList" :key="app.id" :value="app.id">
-              {{ app.name }} ({{ app.id }})
-            </option>
-          </select>
+            :items="appsList"
+            placeholder="Pilih aplikasi..."
+            search-placeholder="Cari software..."
+            button-class="w-full"
+          />
         </div>
 
         <div>

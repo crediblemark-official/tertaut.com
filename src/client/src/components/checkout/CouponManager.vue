@@ -14,6 +14,7 @@ import {
 import { api } from '../../lib/api'
 import type { AppItem, CouponItem } from '../../types'
 import { formatRupiah } from '../../lib/utils'
+import SearchPicker from '../common/SearchPicker.vue'
 
 const props = defineProps<{
   appsList: AppItem[]
@@ -164,15 +165,13 @@ function submitCreate() {
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
         <div class="lg:col-span-2">
           <label class="block text-[10px] font-bold text-[#111111]/60 mb-1">Aplikasi</label>
-          <select
+          <SearchPicker
             v-model="form.appId"
-            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg px-2.5 py-1.5 text-xs font-bold text-[#111111] focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
-          >
-            <option value="" disabled>Pilih aplikasi...</option>
-            <option v-for="app in appsList" :key="app.id" :value="app.id">
-              {{ app.name }}
-            </option>
-          </select>
+            :items="appsList"
+            placeholder="Pilih aplikasi..."
+            search-placeholder="Cari software..."
+            button-class="w-full bg-[#111111]/5 border-[#111111]/10"
+          />
         </div>
 
         <div>
@@ -307,15 +306,14 @@ function submitCreate() {
           class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#111111]/5 border border-[#111111]/10 text-xs text-[#111111] placeholder:text-[#111111]/40 focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
         />
       </div>
-      <select
+      <SearchPicker
         v-model="filterAppId"
-        class="bg-[#111111]/5 border border-[#111111]/10 rounded-lg px-2.5 py-1.5 text-xs font-bold text-[#111111] focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
-      >
-        <option value="">Semua Aplikasi</option>
-        <option v-for="app in appsList" :key="app.id" :value="app.id">
-          {{ app.name }}
-        </option>
-      </select>
+        :items="appsList"
+        all-option-label="Semua Aplikasi"
+        placeholder="Semua Aplikasi"
+        search-placeholder="Cari software..."
+        button-class="bg-[#111111]/5 border-[#111111]/10"
+      />
     </div>
 
     <!-- Desktop Coupons Table (Flush left/right) -->

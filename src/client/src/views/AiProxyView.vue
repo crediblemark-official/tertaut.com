@@ -15,6 +15,7 @@ import SecurityPillars from '../components/aiproxy/SecurityPillars.vue'
 import VaultCredentialsManager from '../components/aiproxy/VaultCredentialsManager.vue'
 import AiProxyAuditTable from '../components/aiproxy/AiProxyAuditTable.vue'
 import AiStreamingPlayground from '../components/aiproxy/AiStreamingPlayground.vue'
+import SearchPicker from '../components/common/SearchPicker.vue'
 
 const appsList = ref<AppItem[]>([])
 const selectedAppId = ref('')
@@ -214,15 +215,13 @@ watch(dashboardEnv, () => {
       </div>
 
       <div class="flex items-center gap-2">
-        <select
+        <SearchPicker
           v-model="selectedAppId"
+          :items="appsList"
           @change="fetchData"
-          class="text-xs font-bold bg-[#FFFFFF] border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-[#111111] focus:outline-none focus:border-[#D4AF37]"
-        >
-          <option v-for="app in appsList" :key="app.id" :value="app.id">
-            {{ app.name }}
-          </option>
-        </select>
+          placeholder="Pilih aplikasi..."
+          search-placeholder="Cari software..."
+        />
 
         <button
           @click="fetchData"

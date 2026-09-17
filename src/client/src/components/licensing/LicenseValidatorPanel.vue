@@ -9,6 +9,7 @@ import {
   ShieldAlert
 } from 'lucide-vue-next'
 import type { AppItem } from '../../types'
+import SearchPicker from '../common/SearchPicker.vue'
 
 defineProps<{
   appsList: AppItem[]
@@ -41,14 +42,13 @@ const emit = defineEmits<{
       <div class="space-y-3 text-xs">
         <div>
           <label class="block font-bold text-[#111111]/70 mb-1">Pilih Aplikasi Terkait</label>
-          <select
+          <SearchPicker
             v-model="appId"
-            class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] font-bold focus:outline-none focus:border-[#D4AF37]"
-          >
-            <option v-for="app in appsList" :key="app.id" :value="app.id">
-              {{ app.name }} ({{ app.id }})
-            </option>
-          </select>
+            :items="appsList"
+            placeholder="Pilih aplikasi..."
+            search-placeholder="Cari software..."
+            button-class="w-full"
+          />
         </div>
 
         <div>
