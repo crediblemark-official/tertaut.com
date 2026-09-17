@@ -431,6 +431,7 @@ Sudah diperbaiki:
 - ✅ **Publish SDK** — `@tertaut/sdk@0.1.5` terbit ke npm (public) dengan `exports`, `.d.ts`, README, `publishConfig.access`.
 - ✅ **Endpoint docs** — prompt AI di `DocsView` memakai `window.location.origin` (bukan hardcode `localhost:3000`).
 - ✅ **Git hooks** — Husky v9: pre-commit menjalankan `build:server` + typecheck SDK.
+- ✅ **Login / Logout UI** — tombol "Masuk" (→ `/login`) dan "Keluar" di LandingView; `handleLogout` di App.vue memanggil `authClient.signOut()`. Origin check diperluas ke `localhost:3000` & `127.0.0.1:3000`.
 - ✅ **Ledger kredit (`grantCredits`)** — tabel `credit_ledger` (append-only, `SUM(delta)` + `balance_after` audit). Kredit di-grant otomatis saat pembayaran terkonfirmasi & saat lisensi diterbitkan manual. Endpoint publik baru: `POST /api/v1/licensing/credits/{balance,consume,history}`. `consume` atomik (`FOR UPDATE`, anti saldo negatif) + idempotensi via `reference`. `verify` kini mengembalikan `credits`. SDK `credits.balance/consume/history`.
 
 Tidak ada item backlog yang tersisa.
