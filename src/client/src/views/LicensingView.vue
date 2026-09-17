@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { api, type AppItem, type LicenseItem, type LicensePlatform } from '../lib/api'
+import { api } from '../lib/api'
+import type { AppItem } from '../types/app'
+import type { LicenseItem, LicensePlatform } from '../types/licensing'
 import { dashboardEnv } from '../lib/environment'
 import { CheckCircle2 } from 'lucide-vue-next'
 import { useClipboard } from '../composables/useClipboard'

@@ -8,6 +8,7 @@ import {
   verify as cryptoVerify,
   type KeyObject,
 } from "crypto";
+import { existsSync, writeFileSync, mkdirSync } from "fs";
 import { config } from "../config";
 
 export interface LicenseTokenClaims {
@@ -54,6 +55,13 @@ export class LicenseTokenService {
     } else if (!config.isProd) {
       const generated = generateKeyPairSync("ed25519");
       privateKeyPem = generated.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+      try {
+        const devKeyPath = "keys/license_signing_private.pem";
+        if (!existsSync("keys")) mkdirSync("keys", { recursive: true });
+        if (!existsSync(devKeyPath)) {
+          writeFileSync(devKeyPath, privateKeyPem, { mode: 0o600 });
+        }
+      } catch {}
     } else {
       throw new Error(
         "[LicenseToken] LICENSE_SIGNING_PRIVATE_KEY wajib diisi di production untuk token lisensi Ed25519."

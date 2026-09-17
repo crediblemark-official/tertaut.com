@@ -8,7 +8,7 @@ import {
   Send,
   TicketPercent
 } from 'lucide-vue-next'
-import type { TransactionItem } from '../../types'
+import type { TransactionItem } from '../../types/transaction'
 import { formatRupiah } from '../../lib/utils'
 
 const props = defineProps<{

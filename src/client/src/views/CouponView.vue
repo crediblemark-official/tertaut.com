@@ -3,7 +3,8 @@ import { ref, onMounted, watch } from 'vue'
 import { api } from '../lib/api'
 import { dashboardEnv } from '../lib/environment'
 import { CheckCircle2, RefreshCw, Ticket, Plus, BarChart3 } from 'lucide-vue-next'
-import type { AppItem, CouponItem } from '../types'
+import type { AppItem } from '../types/app'
+import type { CouponItem } from '../types/coupon'
 import CouponManager from '../components/checkout/CouponManager.vue'
 
 const isCreateModalOpen = ref(false)

@@ -12,7 +12,8 @@ import {
   X
 } from 'lucide-vue-next'
 import { api } from '../../lib/api'
-import type { AppItem, CouponItem } from '../../types'
+import type { AppItem } from '../../types/app'
+import type { CouponItem } from '../../types/coupon'
 import { formatRupiah } from '../../lib/utils'
 import SearchPicker from '../common/SearchPicker.vue'
 

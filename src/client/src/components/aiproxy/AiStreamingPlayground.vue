@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Send, Bot } from 'lucide-vue-next'
-import type { AppItem } from '../../types'
+import type { AppItem } from '../../types/app'
 import SearchPicker from '../common/SearchPicker.vue'
 
 defineProps<{

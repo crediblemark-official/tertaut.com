@@ -25,7 +25,7 @@ const DEFAULT_VAULT_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef01234
  * Default fallback publik hanya dipakai di development; di production startup
  * GAGAL jika secret kosong, tidak disetel, atau masih memakai nilai default publik.
  */
-function resolveSecret(envName: string, devFallback: string): string {
+function resolveSecret(envName: string, devFallback = ""): string {
   const value = getEnv(envName);
   if (isProd) {
     if (!value || value === devFallback) {
@@ -64,6 +64,7 @@ export const config = {
   port: Number(getEnv("PORT", "3000")),
   nodeEnv,
   isDev: nodeEnv === "development",
+  isTest: nodeEnv === "test",
   isProd,
   /**
    * Sandbox mode: mengaktifkan fitur dev (mock payment, simulasi, auto-seed demo).
@@ -74,32 +75,36 @@ export const config = {
   publicAppUrl: getEnv("PUBLIC_APP_URL", "http://localhost:3000"),
   publicStoreUrl: getEnv("PUBLIC_STORE_URL", "https://situsbisnis.com"),
   /** Harga default (IDR) untuk produk yang belum menetapkan target_price. */
-  defaultPrice: Number(getEnv("DEFAULT_PRICE", "0")) || 49000,
+  defaultPrice: Number(getEnv("DEFAULT_PRICE", "0")),
 
   database: {
-    url: getEnv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/tertautv2"),
+    url: isProd
+      ? resolveSecret("DATABASE_URL")
+      : getEnv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/tertautv2"),
   },
-
 
   security: {
     jwtSecret: resolveSecret("JWT_SECRET", DEFAULT_JWT_SECRET),
     vaultEncryptionKey: resolveSecret("VAULT_ENCRYPTION_KEY", DEFAULT_VAULT_KEY),
-    /** Secret untuk Better Auth (sesi & token). Fallback ke JWT_SECRET bila tidak disetel. */
-    betterAuthSecret: getEnv("BETTER_AUTH_SECRET") || resolveSecret("JWT_SECRET", DEFAULT_JWT_SECRET),
+    /** Secret untuk Better Auth (sesi & token). Wajib unik di production, terisolasi di dev. */
+    betterAuthSecret: isProd
+      ? resolveSecret("BETTER_AUTH_SECRET")
+      : (getEnv("BETTER_AUTH_SECRET") || "dev-better-auth-secret-unique-seed-12345"),
     /** Private key Ed25519 (base64/PEM atau path ke keys/license_signing_private.pem). */
     licensePrivateKey: resolveKeyOrFile("LICENSE_SIGNING_PRIVATE_KEY", "keys/license_signing_private.pem"),
     /**
-     * Salt untuk hashing hardware ID (HMAC). Fallback ke JWT_SECRET agar konsisten
-     * antar-proses. Setel HWID_SALT terpisah untuk rotasi mandiri.
+     * Salt untuk hashing hardware ID (HMAC). Wajib unik di production, terisolasi di dev.
      */
-    hwidSalt: getEnv("HWID_SALT") || getEnv("JWT_SECRET") || DEFAULT_JWT_SECRET,
+    hwidSalt: isProd
+      ? resolveSecret("HWID_SALT")
+      : (getEnv("HWID_SALT") || "dev-hwid-salt-unique-seed-67890"),
   },
 
   email: {
     /** API key Resend. Bila kosong, pengiriman email dilewati (skip) dengan peringatan. */
     resendApiKey: getEnv("RESEND_API_KEY"),
-    /** Alamat pengirim terverifikasi di Resend, mis. "tertaut.com <noreply@tertaut.com>". */
-    from: getEnv("EMAIL_FROM", "tertaut.com <noreply@tertaut.com>"),
+    /** Alamat pengirim terverifikasi di Resend, mis. "Tertaut <no-reply@mail.tertaut.com>". */
+    from: getEnv("MAIL_FROM") || getEnv("EMAIL_FROM") || "Tertaut <no-reply@mail.tertaut.com>",
     replyTo: getEnv("EMAIL_REPLY_TO"),
   },
 
@@ -121,5 +126,5 @@ export const config = {
     privateKey: resolveKeyOrFile("DANA_PRIVATE_KEY", "keys/dana_production_private.pem"),
     platformFeePercent: 5, // 5% Merchant of Record platform fee
   },
-} as const;
+};
 

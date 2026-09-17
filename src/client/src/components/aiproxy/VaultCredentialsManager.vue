@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Lock, KeyRound, Power } from 'lucide-vue-next'
-import type { VaultCredentialItem, AiProvider, AppItem } from '../../types'
+import type { VaultCredentialItem, AiProvider } from '../../types/aiproxy'
+import type { AppItem } from '../../types/app'
 import { formatRupiah } from '../../lib/utils'
 import SearchPicker from '../common/SearchPicker.vue'
 

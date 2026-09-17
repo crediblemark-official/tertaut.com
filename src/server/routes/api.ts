@@ -1,15 +1,15 @@
 import { Elysia } from "elysia";
 import { healthRoutes } from "./health";
-import { appRoutes } from "./apps";
-import { checkoutRoutes } from "./checkout";
-import { webhookRoutes, webhooksPluralRoutes } from "./webhook";
-import { payoutsRoutes } from "./payouts";
-import { licensingRoutes, licenseLegacyRoutes } from "./licensing";
-import { aiProxyRoutes, aiRoutes } from "./aiproxy";
-import { badgeRoutes, widgetRoutes } from "./badge";
+import { appRoutes } from "./apps/router";
+import { checkoutRoutes } from "./checkout/router";
+import { webhookRoutes, webhooksPluralRoutes } from "./webhook/router";
+import { payoutsRoutes } from "./payouts/router";
+import { licensingRoutes, licenseLegacyRoutes } from "./licensing/router";
+import { aiProxyRoutes, aiRoutes } from "./aiproxy/router";
+import { badgeRoutes, widgetRoutes } from "./badge/router";
 import { launchRoutes } from "./launch";
-import { panelRoutes } from "./panel";
-import { couponRoutes } from "./coupons";
+import { panelRoutes } from "./panel/router";
+import { couponRoutes } from "./coupons/router";
 import { authMiddleware, authenticate } from "../middleware/auth";
 
 const PUBLIC_PREFIXES = [

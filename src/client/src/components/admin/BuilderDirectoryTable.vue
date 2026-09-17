@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search, Building2 } from 'lucide-vue-next'
-import type { PanelBuilderItem } from '../../types'
+import type { PanelBuilderItem } from '../../types/panel'
 
 const props = defineProps<{
   builders: PanelBuilderItem[]

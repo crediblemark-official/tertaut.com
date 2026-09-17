@@ -488,3 +488,274 @@ Semua item dari laporan lama kecuali yang tercantum di bawah.
 1. ✅ DANA UAT hardcoded amounts di production (`webhook.ts:395-412`) — di-gate sandbox & amount diparse riil.
 2. ✅ `/checkout/dana/finish?mock=true` auth bypass (`checkout.ts:339`) — di-gate sandbox.
 3. ✅ `.env` berisi real secrets termasuk private key — dipindahkan ke `keys/*.pem` yang ter-gitignore.
+
+---
+
+## ANALISIS MODULARITAS & DRY
+
+### File Terlalu Panjang (Harus Dipecah)
+
+#### Server Routes
+
+| File | Lines | Severity | Rekomendasi |
+|------|-------|----------|-------------|
+| `licensing.ts` | **1,041** | 🔴 KRITIS | Split jadi 4: `device.ts`, `credits.ts`, `admin.ts`, `token.ts` |
+| `aiproxy.ts` | **856** | 🔴 KRITIS | Split jadi 5: `chat.ts`, `vault.ts`, `quota.ts`, `config.ts`, `logs.ts` |
+| `apps.ts` | **670** | 🟡 SEDANG | Split disbursement ke `disbursement.ts`, stats ke `stats.ts` |
+| `webhook.ts` | **610** | 🟡 SEDANG | Split per provider: `xendit.ts`, `dana.ts`, `fulfill.ts` |
+| `checkout.ts` | **623** | 🟡 SEDANG | Split per domain: `session.ts`, `dana.ts`, `disburse.ts` |
+| `panel.ts` | **441** | 🟡 SEDANG | Split per admin domain: `stats.ts`, `builders.ts`, `transactions.ts`, `payouts.ts` |
+| `coupons.ts` | 284 | ✅ OK | — |
+| `payouts.ts` | 280 | ✅ OK | — |
+| `badge.ts` | 214 | ✅ OK | — |
+| `launch.ts` | 57 | ✅ OK | — |
+
+**Total server routes: 5,140 baris di 12 file.**
+
+#### Server Services
+
+| File | Lines | Severity | Rekomendasi |
+|------|-------|----------|-------------|
+| `aiGateway.ts` | **324** | 🟡 SEDANG | Rate limiter duplikat, usage tracking, SSE formatting |
+| `dana.ts` | **297** | 🟡 SEDANG | `calculateMorBreakdown` duplikat dengan `xendit.ts` |
+| `xendit.ts` | **230** | 🟡 SEDANG | `calculateMorBreakdown` duplikat dengan `dana.ts` |
+| `credits.ts` | 168 | ✅ OK | — |
+| `licenseToken.ts` | 158 | ✅ OK | — |
+| `email.ts` | 141 | ✅ OK | — |
+| `launchService.ts` | 132 | ✅ OK | — |
+| `rateLimiter.ts` | 95 | ✅ OK | — |
+| `crypto.ts` | 109 | ✅ OK | — |
+| `coupon.ts` | 90 | ✅ OK | — |
+| `license.ts` | 80 | ✅ OK | — |
+
+**Total server services: 1,823 baris di 11 file.**
+
+#### Client Views
+
+| File | Lines | Severity | Rekomendasi |
+|------|-------|----------|-------------|
+| `AppsView.vue` | **1,196** | 🔴 KRITIS | Split jadi 4-5 komponen: `AppCatalog`, `AppCreateForm`, dll |
+| `App.vue` | **656** | 🔴 KRITIS | Split layout: `Sidebar`, `TopHeader`, `MobileBottomNav` |
+| `PayView.vue` | **623** | 🔴 KRITIS | Split jadi `PayLayout`, `PayOrderSummary`, `PayPaymentForm` |
+| `AdminPanelView.vue` | **568** | 🔴 KRITIS | Split tab content jadi komponen terpisah |
+| `LandingView.vue` | **506** | 🟡 SEDANG | Split jadi `LandingHeader`, `HeroSection`, `ModulePillars`, `Footer` |
+| `OverviewView.vue` | **448** | 🟡 SEDANG | Split jadi `OverviewLayout`, `KpiCards`, `AnalyticsChart` |
+| `LoginView.vue` | **432** | 🟡 SEDANG | Split jadi `LoginLayout`, `SignInForm`, `SignUpForm` |
+| `DocsView.vue` | **371** | 🟡 SEDANG | Split SDK snippet, widget preview |
+| `AiProxyView.vue` | **366** | 🟡 SEDANG | Split chat, vault, quota |
+| `CheckoutView.vue` | **300** | ✅ OK | — |
+| `CouponView.vue` | 218 | ✅ OK | — |
+| `LicensingView.vue` | 172 | ✅ OK | — |
+
+**Total client views: 6,330 baris di 11 view files.**
+
+#### Client Components
+
+| File | Lines | Severity | Rekomendasi |
+|------|-------|----------|-------------|
+| `CouponManager.vue` | **466** | 🟡 SEDANG | Split stats, table, modal |
+| `SearchPicker.vue` | **329** | 🟡 SEDANG | `[key: string]: any` — perlu proper typing |
+| `TransactionsLedgerTable.vue` | 224 | ✅ OK | — |
+| `LicenseTable.vue` | 223 | ✅ OK | — |
+| `IssueLicenseModal.vue` | 138 | ✅ OK | — |
+| `VaultCredentialsManager.vue` | 134 | ✅ OK | — |
+| `GlobalLedgerTable.vue` | 134 | ✅ OK | — |
+| `AiStreamingPlayground.vue` | 125 | ✅ OK | — |
+| `BuilderDirectoryTable.vue` | 112 | ✅ OK | — |
+| `DynamicCheckoutForm.vue` | 103 | ✅ OK | — |
+| `TokenGuardrailsWidget.vue` | 99 | ✅ OK | — |
+| `AiProxyAuditTable.vue` | 91 | ✅ OK | — |
+| `CheckoutResultCard.vue` | 87 | ✅ OK | — |
+| `SystemTelemetryCard.vue` | 76 | ✅ OK | — |
+| `PlatformKpiCards.vue` | 68 | ✅ OK | — |
+| `BatchPayoutBanner.vue` | 51 | ✅ OK | — |
+
+**Total client components: 2,460 baris di 16 komponen.**
+
+---
+
+### Duplikasi Kode Terbesar
+
+#### Server
+
+| Duplikat | Files | Ekstrak Ke |
+|----------|-------|------------|
+| `authenticate()` onBeforeHandle | 8+ route files | `requireAuth`/`requireAdmin` macro di `middleware/auth.ts` |
+| `set.status = N; return { error: ... }` | 20+ handlers | `createErrorResponse()` di `src/server/utils/errors.ts` |
+| `formatIdr` | `checkout.ts`, `payouts.ts` | `src/server/utils/format.ts` |
+| `db.query.apps.findFirst` + 404 | 20+ occurrences | `getAppOr404()` di `src/server/utils/db.ts` |
+| `db.query.transactions.findFirst` + 404 | 10+ occurrences | `getTransactionOr404()` di `src/server/utils/db.ts` |
+| License validation (lookup + ACTIVE + expiry) | `licensing.ts` (6x), `aiproxy.ts`, `checkout.ts` | `LicenseService.validateLicense()` |
+| Disbursement flow | `apps.ts`, `checkout.ts`, `panel.ts`, `payouts.ts` | `DisbursementService.handle()` |
+| `calculateMorBreakdown` | `xendit.ts`, `dana.ts` | `calculateMor(amount, feeRate)` |
+| Rate limit + 429 response | 6+ handlers | `checkRateLimit()` helper |
+| `randomBytes(n).toString("hex")` ID | 6+ files | `generateId(prefix, length)` |
+| `console.error` catch pattern | `webhook.ts`, `email.ts`, `dana.ts` | `safeCall(fn, label)` |
+| URL construction (`publicAppUrl`) | `checkout.ts`, `dana.ts`, `launchService.ts` | `buildUrl()` di `src/server/utils/urls.ts` |
+| `resolveCurrentBuilder` | `apps.ts` (47 lines) | Shared `resolveBuilder(headers)` |
+| `createInvoice`/`createOrder` mock | `xendit.ts`, `dana.ts` | Parameterized `createOrder(provider, config)` |
+
+#### Client
+
+| Duplikat | Files | Ekstrak Ke |
+|----------|-------|------------|
+| `watch(dashboardEnv, () => loadData())` | 6+ views | `useDashboardEnv` composable |
+| `ref + setTimeout + onUnmounted` alert | AdminPanelView, AiProxyView, LicensingView, DocsView | `useAlert(timeout)` composable |
+| `Promise.all([api.getApps(), api.getLicenses()])` | 3+ views | `useApps()` composable with caching |
+| `console.error('Failed to load ...:', err)` | 10+ views | `useErrorHandler()` composable |
+| Header toolbar markup | 5+ views | `StandardHeader` component |
+| Scrollable table wrapper | 8+ components | `DataTable` component |
+| Search input with icon | 6+ components | `SearchInput` component |
+| Status badge | 7+ components | `StatusBadge` component |
+| `try/catch + loading state` | Every view | `useLoadingState()` composable |
+| `api.getApps()` + `api.getLicenses()` | 3+ views | `useApps()` composable |
+
+---
+
+### Struktur Target yang Direkomendasikan
+
+#### Server
+```
+src/server/
+├── utils/
+│   ├── errors.ts          # createErrorResponse(), ApiError
+│   ├── db.ts              # getAppOr404(), getTransactionOr404()
+│   ├── format.ts          # formatIdr(), generateId(), nowISO()
+│   ├── urls.ts            # buildUrl(), buildCheckoutUrl()
+│   ├── disbursement.ts    # handleDisbursement() (shared flow)
+│   ├── license.ts         # validateLicense(), checkLicenseExpiry()
+│   ├── rateLimit.ts       # checkRateLimitWithResponse()
+│   └── payment.ts         # calculateMor(), createOrder()
+├── routes/
+│   ├── apps.ts            # CRUD only (~400 lines)
+│   ├── apps/disbursement.ts  # Extract disbursement endpoint
+│   ├── apps/stats.ts      # Extract stats overview
+│   ├── checkout.ts        # Session + preview-coupon (~350 lines)
+│   ├── checkout/dana.ts   # Extract /dana/finish
+│   ├── checkout/disburse.ts  # Extract /disburse/:txId
+│   ├── webhook.ts         # Route definitions only (~150 lines)
+│   ├── webhook/xendit.ts  # Extract Xendit handlers
+│   ├── webhook/dana.ts    # Extract DANA handlers
+│   ├── webhook/fulfill.ts # Extract fulfillPaymentTransaction
+│   ├── licensing/
+│   │   ├── device.ts      # activate, verify, deactivate (~300 lines)
+│   │   ├── credits.ts     # balance, consume, history (~150 lines)
+│   │   ├── admin.ts       # issue, revoke, list (~200 lines)
+│   │   └── token.ts       # verify-offline-token (~100 lines)
+│   ├── aiproxy/
+│   │   ├── chat.ts        # handleAiChat (~200 lines)
+│   │   ├── vault.ts       # saveVaultCredential (~150 lines)
+│   │   ├── quota.ts       # quota-status (~100 lines)
+│   │   ├── config.ts      # configs GET/POST (~150 lines)
+│   │   └── logs.ts        # logs endpoint (~50 lines)
+│   └── panel/
+│       ├── panel.ts       # Route definitions (~100 lines)
+│       ├── stats.ts       # /stats (~100 lines)
+│       ├── builders.ts    # /builders (~100 lines)
+│       ├── transactions.ts  # /transactions (~80 lines)
+│       └── payouts.ts     # /payouts/batch (~80 lines)
+```
+
+#### Client
+```
+src/client/src/
+├── composables/
+│   ├── useDataLoader.ts   # loadData() + Promise.all + try/catch
+│   ├── useAlert.ts        # ref + setTimeout + onUnmounted
+│   ├── useApps.ts         # Cached api.getApps() + api.getLicenses()
+│   ├── useDashboardEnv.ts # watch(dashboardEnv) + reload
+│   ├── useErrorHandler.ts # console.error pattern
+│   ├── useLoadingState.ts # loading ref + try/catch/finally
+│   └── useTableFilter.ts  # searchQuery + filter computed
+├── components/
+│   ├── common/
+│   │   ├── StandardHeader.vue  # Extract from 5+ views
+│   │   ├── DataTable.vue       # Extract from 8+ components
+│   │   ├── SearchInput.vue     # Extract from 6+ components
+│   │   ├── StatusBadge.vue     # Extract from 7+ components
+│   │   ├── AlertBanner.vue     # Extract from 4+ views
+│   │   ├── MobileBottomNav.vue # Extract from App.vue, AdminPanelView.vue
+│   │   └── ConfirmDialog.vue   # Replace window.confirm()
+├── views/
+│   ├── AppsView.vue         # 1196 -> ~200 lines (shell only)
+│   ├── App.vue              # 656 -> ~200 lines (shell only)
+│   ├── PayView.vue          # 623 -> ~200 lines (shell only)
+│   ├── AdminPanelView.vue   # 568 -> ~200 lines (shell only)
+```
+
+---
+
+### Estimasi Upaya Refactoring
+
+| Aktivitas | Files Dilibatkan | Baris Dilibatkan | Estimasi |
+|-----------|-----------------|-----------------|----------|
+| Extract `src/server/utils/` | 10+ files | ~200 baris duplicate | 1 hari |
+| Split `licensing.ts` | 1 → 4 files | 1,041 → ~750 total | 2-3 hari |
+| Split `aiproxy.ts` | 1 → 5 files | 856 → ~650 total | 2-3 hari |
+| Split `AppsView.vue` | 1 → 4-5 components | 1,196 → ~800 total | 2-3 hari |
+| Split `App.vue` | 1 → 4 components | 656 → ~500 total | 1-2 hari |
+| Extract composables (`useAlert`, `useDataLoader`, `useApps`) | 6+ views | ~150 baris duplicate | 1 hari |
+| Extract components (`StandardHeader`, `DataTable`, `SearchInput`) | 8+ components | ~300 baris duplicate | 1-2 hari |
+| **TOTAL** | **~30 files** | **~3,300 baris** | **~10-15 hari** |
+
+### ✅ Implementasi Foundation (17 Sep 2026)
+
+Berikut file-file yang sudah dibuat sebagai foundation untuk refactoring modularitas dan DRY:
+
+#### Server Utils (`src/server/utils/`)
+
+| File | Isi | Status |
+|------|-----|--------|
+| `utils/errors.ts` | `apiError()`, `successResponse()` | ✅ DIBUAT |
+| `utils/format.ts` | `formatIdr()`, `generateId()`, `nowISO()` | ✅ DIBUAT |
+| `utils/db.ts` | `getAppOr404()`, `getTransactionOr404()`, `getBuilderById()`, `getLicenseByKey()` | ✅ DIBUAT |
+| `utils/urls.ts` | `buildUrl()`, `buildCheckoutUrl()`, `buildPayUrl()` | ✅ DIBUAT |
+| `utils/payment.ts` | `calculateMor(amount, feeRatePercent)` — menggantikan duplikat di `xendit.ts` dan `dana.ts` | ✅ DIBUAT |
+| `utils/rateLimit.ts` | `checkRateLimit()` — wraper uniform untuk `enforceRateLimit` | ✅ DIBUAT |
+| `utils/index.ts` | Re-export semua | ✅ DIBUAT |
+
+#### Client Composables (`src/client/src/composables/`)
+
+| File | Isi | Status |
+|------|-----|--------|
+| `useAlert.ts` | `alertMessage`, `showAlert()`, `clearAlert()`, auto-dismiss, `onUnmounted` cleanup | ✅ DIBUAT |
+| `useDataLoader.ts` | `loading`, `error`, `loadData()` — generic data loader dengan try/catch/finally | ✅ DIBUAT |
+| `useDashboardEnv.ts` | `watch(dashboardEnv, onChange)` — environment change watcher | ✅ DIBUAT |
+| `useErrorHandler.ts` | `handleError(err, context)` — standardized error logging | ✅ DIBUAT |
+| `useApps.ts` | `appsList`, `loading`, `error`, `refetch()` — cached `api.getApps()` with 5min TTL | ✅ DIBUAT |
+| `useLoadingState.ts` | `loading`, `error`, `withLoading(fn)` — reusable loading wrapper | ✅ DIBUAT |
+| `index.ts` | Re-export semua composables | ✅ DIBUAT |
+
+#### Client Common Components (`src/client/src/components/common/`)
+
+| File | Isi | Status |
+|------|-----|--------|
+| `StandardHeader.vue` | Toolbar header dengan slot `left`/`right` — extracted dari 5+ views | ✅ DIBUAT |
+| `DataTable.vue` | Scrollable table wrapper dengan `columns`/`rows` props — extracted dari 8+ components | ✅ DIBUAT |
+| `SearchInput.vue` | Search input with icon slot dan `v-model` — extracted dari 6+ components | ✅ DIBUAT |
+| `StatusBadge.vue` | Status badge dengan `label` prop — extracted dari 7+ components | ✅ DIBUAT |
+| `AlertBanner.vue` | Alert banner dengan `type` (`success`/`error`) dan `close` emit | ✅ DIBUAT |
+| `MobileBottomNav.vue` | Fixed bottom nav dengan slot — extracted dari `App.vue` dan `AdminPanelView.vue` | ✅ DIBUAT |
+| *No Barrel Files* | Menggunakan direct imports di seluruh client & server components | ✅ DIPATUHI |
+
+#### Progress Status
+
+| Aktivitas | Status |
+|-----------|--------|
+| Extract `src/server/utils/` | ✅ **DONE** — 8 utils files dibuat |
+| Extract composables (`useAlert`, `useDataLoader`, `useApps`, dll) | ✅ **DONE** — direct import |
+| Extract components (`StandardHeader`, `DataTable`, dll) | ✅ **DONE** — direct import |
+| Split `licensing.ts` (1,041 → 4 modular route modules) | ✅ **DONE** — `device.ts`, `credits.ts`, `admin.ts`, `token.ts` |
+| Split `aiproxy.ts` (856 → 5 modular route modules) | ✅ **DONE** — `chat.ts`, `vault.ts`, `quota.ts`, `config.ts`, `logs.ts` |
+| Split `apps.ts`, `checkout.ts`, `webhook.ts`, `panel.ts` | ✅ **DONE** — domain modules terpisah |
+| Split `AppsView.vue` (1,196 → 74 lines) | ✅ **DONE** — `AppCatalog.vue`, `AppCreateForm.vue` |
+| Split `App.vue` (656 → 136 lines) | ✅ **DONE** — `DashboardSidebar.vue`, `DashboardTopHeader.vue`, `MobileNav.vue` |
+| Split `PayView.vue` (623 → 357 lines) | ✅ **DONE** — `PayOrderSummary.vue`, `PayPaymentForm.vue` |
+| Split `AdminPanelView.vue` (568 → 284 lines) | ✅ **DONE** — `AdminSidebar.vue`, `AdminTopHeader.vue`, `OverviewPreviews.vue`, `AdminMobileNav.vue` |
+
+---
+
+### Test Coverage
+
+- `src/server/__test/server.test.ts`: **47 test** — auth Better Auth, seat race atomik, migrasi HWID salted, Ed25519 offline token + denylist `jti` + JWKS + verifikasi lokal SDK, cross-app AI guard, status terminal webhook invoice/disbursement, ledger kredit.
+- Catatan: Test E2E butuh server berjalan di `localhost:3000` + Postgres. Test kupon aman di sandbox.

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Gauge, Zap, Clock, ShieldCheck, CheckCircle2 } from 'lucide-vue-next'
-import type { AiQuotaStatus } from '../../types'
+import type { AiQuotaStatus } from '../../types/aiproxy'
 
 const props = defineProps<{
   quotaStatus: AiQuotaStatus | null

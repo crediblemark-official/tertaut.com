@@ -7,7 +7,7 @@ import {
   Monitor,
   Plus
 } from 'lucide-vue-next'
-import type { LicenseItem } from '../../types'
+import type { LicenseItem } from '../../types/licensing'
 
 const props = defineProps<{
   licensesList: LicenseItem[]

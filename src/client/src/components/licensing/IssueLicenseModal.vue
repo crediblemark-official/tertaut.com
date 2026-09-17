@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { KeyRound, X, Sparkles } from 'lucide-vue-next'
-import type { AppItem, LicensePlatform } from '../../types'
+import type { AppItem } from '../../types/app'
+import type { LicensePlatform } from '../../types/licensing'
 import SearchPicker from '../common/SearchPicker.vue'
 
 const props = defineProps<{

@@ -8,13 +8,25 @@ const buckets = new Map<string, Bucket>();
 
 // Bersihkan bucket kadaluwarsa secara berkala agar tidak tumbuh tanpa batas.
 const CLEANUP_INTERVAL_MS = 60_000;
+const MAX_BUCKETS = 10_000;
 let lastCleanup = Date.now();
 
 function cleanup(now: number) {
-  if (now - lastCleanup < CLEANUP_INTERVAL_MS) return;
+  if (now - lastCleanup < CLEANUP_INTERVAL_MS && buckets.size < MAX_BUCKETS) return;
   lastCleanup = now;
   for (const [key, bucket] of buckets) {
     if (bucket.resetAt <= now) buckets.delete(key);
+  }
+
+  // Proteksi memory leak: jika masih melebihi kapasitas maksimum saat flooding, buang entri tertua
+  if (buckets.size >= MAX_BUCKETS) {
+    const toDeleteCount = Math.floor(MAX_BUCKETS * 0.2);
+    let deleted = 0;
+    for (const key of buckets.keys()) {
+      buckets.delete(key);
+      deleted++;
+      if (deleted >= toDeleteCount) break;
+    }
   }
 }
 

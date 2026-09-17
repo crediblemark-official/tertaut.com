@@ -45,7 +45,9 @@ export class EmailService {
 
   static async send(params: SendEmailParams): Promise<SendEmailResult> {
     if (!this.isConfigured()) {
-      console.warn(`[Email] RESEND_API_KEY belum diset — email "${params.subject}" ke ${params.to} dilewati.`);
+      if (!config.isProd) {
+        console.warn(`[Email] RESEND_API_KEY belum diset — email "${params.subject}" ke ${params.to} dilewati.`);
+      }
       return { ok: false, skipped: true };
     }
 
@@ -75,7 +77,9 @@ export class EmailService {
       }
 
       const data = (await res.json().catch(() => ({}))) as { id?: string };
-      console.log(`[Email] Terkirim ke ${params.to} (id: ${data.id ?? "-"}).`);
+      if (!config.isProd) {
+        console.log(`[Email] Terkirim ke ${params.to} (id: ${data.id ?? "-"}).`);
+      }
       return { ok: true, id: data.id };
     } catch (err: any) {
       console.error(`[Email] Resend error untuk ${params.to}:`, err?.message || err);

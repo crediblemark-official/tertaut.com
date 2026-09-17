@@ -1,9 +1,9 @@
 import { Elysia, t } from "elysia";
-import { db } from "../db";
-import { coupons, apps, transactions } from "../db/schema";
+import { db } from "../../db";
+import { coupons, apps, transactions } from "../../db/schema";
 import { eq, and, desc, gte, isNotNull, sql, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
-import { authenticate } from "../middleware/auth";
+import { authenticate } from "../../middleware/auth";
 
 /**
  * Manajemen Kupon Diskon (Modul 1: Monetization)

@@ -23,6 +23,35 @@ export interface CaptureConfig {
   calendarLink?: string;
 }
 
+export interface DeliveryConfig {
+  licenseKey?: {
+    enabled: boolean;
+    description?: string;
+    expiresInDays?: number;
+    maxSeats?: number;
+  };
+  fileDownload?: {
+    enabled: boolean;
+    title?: string;
+    fileUrl?: string;
+    fileName?: string;
+  };
+  privateNote?: {
+    enabled: boolean;
+    title?: string;
+    note?: string;
+  };
+}
+
+export interface MeteringConfig {
+  enabled: boolean;
+  template: "llm_tokens" | "api_calls" | "compute_minutes" | "storage" | "active_seats" | "custom";
+  name: string;
+  aggregation: string; // e.g. "sum(tokens) on ai_usage"
+  unitPrice?: number;
+  metricUnit?: string;
+}
+
 export const apps = pgTable("apps", {
   id: text("id").primaryKey(), // e.g. "app_xyz123"
   builderId: uuid("builder_id")
@@ -34,6 +63,12 @@ export const apps = pgTable("apps", {
     .default("sandbox")
     .notNull(),
   targetPrice: integer("target_price").default(0).notNull(), // dalam IDR
+  pricingType: text("pricing_type", { enum: ["one_time", "subscription", "free"] })
+    .default("one_time")
+    .notNull(),
+  billingPeriod: text("billing_period", { enum: ["monthly", "yearly"] }),
+  deliveryConfig: jsonb("delivery_config").$type<DeliveryConfig>(),
+  meteringConfig: jsonb("metering_config").$type<MeteringConfig>(),
   description: text("description"),
   headline: text("headline"),
   subheadline: text("subheadline"),
@@ -55,3 +90,4 @@ export const apps = pgTable("apps", {
 
 export type App = typeof apps.$inferSelect;
 export type NewApp = typeof apps.$inferInsert;
+

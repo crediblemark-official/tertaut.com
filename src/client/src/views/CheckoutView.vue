@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { api, type AppItem, type TransactionItem } from '../lib/api'
+import { api } from '../lib/api'
+import type { AppItem } from '../types/app'
+import type { TransactionItem } from '../types/transaction'
 import { dashboardEnv } from '../lib/environment'
 import { formatRupiah } from '../lib/utils'
 import {
@@ -78,7 +80,7 @@ async function loadAppsAndTransactions() {
 
 function onAppChange() {
   if (currentApp.value) {
-    amount.value = currentApp.value.targetPrice || 49000
+    amount.value = currentApp.value.targetPrice || 0
   }
 }
 

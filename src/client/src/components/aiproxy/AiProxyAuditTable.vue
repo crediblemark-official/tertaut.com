@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RefreshCw, CheckCircle2 } from 'lucide-vue-next'
-import type { AiProxyLogItem, AppItem } from '../../types'
+import type { AiProxyLogItem } from '../../types/aiproxy'
+import type { AppItem } from '../../types/app'
 import SearchPicker from '../common/SearchPicker.vue'
 
 defineProps<{

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Cpu, Activity } from 'lucide-vue-next'
-import type { PanelStats } from '../../types'
+import type { PanelStats } from '../../types/panel'
 
 defineProps<{
   stats: PanelStats | null

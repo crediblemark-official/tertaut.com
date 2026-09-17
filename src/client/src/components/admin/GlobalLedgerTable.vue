@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Search } from 'lucide-vue-next'
-import type { PanelTransactionItem } from '../../types'
+import type { PanelTransactionItem } from '../../types/panel'
 
 const props = defineProps<{
   transactions: PanelTransactionItem[]

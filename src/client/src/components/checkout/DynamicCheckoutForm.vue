@@ -10,7 +10,7 @@ defineProps<{
 }>()
 
 const selectedAppId = defineModel<string>('selectedAppId', { default: '' })
-const amount = defineModel<number>('amount', { default: 49000 })
+const amount = defineModel<number>('amount', { default: 0 })
 const customerEmail = defineModel<string>('customerEmail', { default: '' })
 const grantDays = defineModel<number>('grantDays', { default: 30 })
 

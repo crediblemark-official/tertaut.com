@@ -1,14 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import {
-  api,
-  type AppItem,
-  type LicenseItem,
-  type VaultCredentialItem,
-  type AiProxyLogItem,
-  type AiQuotaStatus,
-  type AiProvider
-} from '../lib/api'
+import { api } from '../lib/api'
+import type { AppItem } from '../types/app'
+import type { LicenseItem } from '../types/licensing'
+import type { VaultCredentialItem, AiProxyLogItem, AiQuotaStatus, AiProvider } from '../types/aiproxy'
 import { dashboardEnv } from '../lib/environment'
 import { RefreshCw, CheckCircle2, KeyRound, Receipt, ShieldCheck, Bot } from 'lucide-vue-next'
 import TokenGuardrailsWidget from '../components/aiproxy/TokenGuardrailsWidget.vue'
@@ -50,7 +45,7 @@ onUnmounted(() => {
 
 // AI Chat Playground & Guardrails State
 const licenseKey = ref('')
-const modelAlias = ref('fast-summary-model')
+const modelAlias = ref('default')
 const streamMode = ref(true)
 const userPrompt = ref('Rangkumkan email penting dari investor ini dalam 3 poin actionable.')
 const loading = ref(false)

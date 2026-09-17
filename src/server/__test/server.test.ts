@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "bun:test";
+import { describe, it, expect, beforeEach, beforeAll } from "bun:test";
 import { resetRateLimits } from "../services/rateLimiter";
 import { CryptoService } from "../services/crypto";
 import { LicenseService } from "../services/license";
@@ -7,6 +7,7 @@ import { CreditService } from "../services/credits";
 import { XenditService } from "../services/xendit";
 import { DanaService } from "../services/dana";
 import { config } from "../config";
+import { auth } from "../auth";
 import { db } from "../db";
 import {
   transactions,
@@ -23,11 +24,42 @@ import {
   creditLedger,
 } from "../db/schema";
 import { eq, desc, inArray } from "drizzle-orm";
-import { handleXenditInvoiceWebhook, handleXenditDisbursementWebhook } from "../routes/webhook";
+import { handleXenditInvoiceWebhook, handleXenditDisbursementWebhook } from "../routes/webhook/xendit";
 import { AiGatewayService } from "../services/aiGateway";
 import { LaunchService } from "../services/launchService";
 import { Tertaut } from "../../../packages/sdk/src/index";
 import { statSync, existsSync } from "fs";
+
+let authCookie = "";
+
+beforeAll(async () => {
+  try {
+    const res = await auth.api.signInEmail({
+      body: { email: "admin@tertaut.com", password: "AdminPassword123!" },
+      asResponse: true,
+    });
+    const setCookie = res.headers.get("set-cookie");
+    if (setCookie) {
+      authCookie = setCookie.split(";")[0];
+    }
+  } catch (err: any) {
+    console.warn("[Test] Failed to sign in admin:", err?.message);
+  }
+});
+
+const originalFetch = globalThis.fetch;
+globalThis.fetch = ((input: any, init?: any) => {
+  const url = typeof input === "string" ? input : input?.url || "";
+  if (url.includes("http://localhost:3000") && authCookie) {
+    init = init || {};
+    const headers = new Headers(init.headers || {});
+    if (!headers.has("cookie")) {
+      headers.set("cookie", authCookie);
+    }
+    init.headers = headers;
+  }
+  return originalFetch(input, init);
+}) as typeof globalThis.fetch;
 
 // Rate limiter in-memory bersifat global per proses; reset tiap test agar
 // pengujian tidak saling menabrak kuota (activate 20/menit).
@@ -1561,6 +1593,92 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
       const toggled: any = await toggleRes.json();
       expect(toggleRes.status).toBe(200);
       expect(toggled.app.mode).toBe("live");
+    } finally {
+      if (createdAppId) await db.delete(apps).where(eq(apps.id, createdAppId));
+    }
+  });
+
+  it("should create product with subscription pricing, multi-delivery config, and usage-based metering", async () => {
+    const builder = await db.query.builders.findFirst();
+    if (!builder) return;
+
+    const testSlug = `creem-prod-${Math.random().toString(36).substring(2, 8)}`;
+    let createdAppId: string | null = null;
+
+    try {
+      const createRes = await fetch("http://localhost:3000/api/v1/apps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "AI Code Companion Pro",
+          slug: testSlug,
+          targetPrice: 99000,
+          pricingType: "subscription",
+          billingPeriod: "monthly",
+          deliveryConfig: {
+            licenseKey: {
+              enabled: true,
+              description: "Pro Developer License",
+              expiresInDays: 30,
+              maxSeats: 3,
+            },
+            fileDownload: {
+              enabled: true,
+              title: "VS Code Extension Pack",
+              fileUrl: "https://cdn.example.com/pack.zip",
+            },
+            privateNote: {
+              enabled: true,
+              title: "Access Discord",
+              note: "Private invite link and activation secret",
+            },
+          },
+          meteringConfig: {
+            enabled: true,
+            template: "llm_tokens",
+            name: "Token LLM",
+            aggregation: "sum(tokens) on ai_usage",
+            unitPrice: 15,
+            metricUnit: "per 1.000 token",
+          },
+        }),
+      });
+
+      const json: any = await createRes.json();
+      expect(createRes.status).toBe(200);
+      expect(json.success).toBe(true);
+      expect(json.app.pricingType).toBe("subscription");
+      expect(json.app.billingPeriod).toBe("monthly");
+      expect(json.app.deliveryConfig.licenseKey.enabled).toBe(true);
+      expect(json.app.deliveryConfig.fileDownload.enabled).toBe(true);
+      expect(json.app.deliveryConfig.privateNote.enabled).toBe(true);
+      expect(json.app.meteringConfig.enabled).toBe(true);
+      expect(json.app.meteringConfig.template).toBe("llm_tokens");
+      expect(json.app.meteringConfig.aggregation).toBe("sum(tokens) on ai_usage");
+      createdAppId = json.app.id;
+
+      // Update via PATCH
+      const patchRes = await fetch(`http://localhost:3000/api/v1/apps/${createdAppId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pricingType: "one_time",
+          billingPeriod: null,
+          meteringConfig: {
+            enabled: true,
+            template: "api_calls",
+            name: "Permintaan API",
+            aggregation: "count on api_call",
+            unitPrice: 5,
+            metricUnit: "per panggilan",
+          },
+        }),
+      });
+
+      const patchJson: any = await patchRes.json();
+      expect(patchRes.status).toBe(200);
+      expect(patchJson.app.pricingType).toBe("one_time");
+      expect(patchJson.app.meteringConfig.template).toBe("api_calls");
     } finally {
       if (createdAppId) await db.delete(apps).where(eq(apps.id, createdAppId));
     }

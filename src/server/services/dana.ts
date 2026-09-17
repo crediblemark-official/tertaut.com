@@ -53,9 +53,11 @@ export class DanaService {
       `${config.publicAppUrl}/checkout/dana/finish?orderId=${params.externalId}`;
 
     if (mockEnabled) {
-      console.warn(
-        "[DanaService] Using mock order response (sandbox mode / DANA credentials not configured yet)"
-      );
+      if (!config.isProd) {
+        console.warn(
+          "[DanaService] Using mock order response (sandbox mode / DANA credentials not configured yet)"
+        );
+      }
       const mockOrderId = `dana_order_${Date.now()}`;
       return {
         orderId: mockOrderId,
@@ -78,12 +80,14 @@ export class DanaService {
     const endpointPath = "/payment-gateway/v1.0/debit/payment-host-to-host.htm";
     const endpoint = `${config.dana.baseUrl}${endpointPath}`;
 
-    const d = new Date(Date.now() + 7 * 3600 * 1000);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const ts = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}+07:00`;
+    const formatWibIso = (date: Date): string => {
+      const wibDate = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${wibDate.getUTCFullYear()}-${pad(wibDate.getUTCMonth() + 1)}-${pad(wibDate.getUTCDate())}T${pad(wibDate.getUTCHours())}:${pad(wibDate.getUTCMinutes())}:${pad(wibDate.getUTCSeconds())}+07:00`;
+    };
 
-    const validUpDate = new Date(Date.now() + 7 * 3600 * 1000 + 30 * 60 * 1000); // 30 mins
-    const validUpTo = `${validUpDate.getUTCFullYear()}-${pad(validUpDate.getUTCMonth() + 1)}-${pad(validUpDate.getUTCDate())}T${pad(validUpDate.getUTCHours())}:${pad(validUpDate.getUTCMinutes())}:${pad(validUpDate.getUTCSeconds())}+07:00`;
+    const ts = formatWibIso(new Date());
+    const validUpTo = formatWibIso(new Date(Date.now() + 30 * 60 * 1000));
 
     const payload = {
       partnerReferenceNo: params.externalId,

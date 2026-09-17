@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import {
-  api,
-  type DashboardStats,
-  type TransactionItem,
-  type LicenseItem
-} from '../lib/api'
+import { api } from '../lib/api'
+import type { DashboardStats } from '../types/app'
+import type { TransactionItem } from '../types/transaction'
+import type { LicenseItem } from '../types/licensing'
 import { dashboardEnv, envPath } from '../lib/environment'
 import { formatRupiah } from '../lib/utils'
 import {

@@ -16,7 +16,8 @@ import {
   Layers,
 } from 'lucide-vue-next'
 
-import { api, type AppItem } from '../lib/api'
+import { api } from '../lib/api'
+import type { AppItem } from '../types/app'
 
 const copiedIndex = ref<number | null>(null)
 const appsList = ref<AppItem[]>([])
@@ -31,7 +32,7 @@ const currentApp = computed(() => {
 })
 
 const currentAppId = computed(() => currentApp.value?.id || 'app_sample_id')
-const currentAppPrice = computed(() => currentApp.value?.targetPrice || 49000)
+const currentAppPrice = computed(() => currentApp.value?.targetPrice || 0)
 
 async function loadWidgetSales() {
   if (!selectedAppSlug.value) return
@@ -57,9 +58,6 @@ async function loadApps() {
     }
   } catch {
     // fallback
-  }
-  if (!selectedAppSlug.value) {
-    selectedAppSlug.value = 'fastmail-ai'
   }
   await loadWidgetSales()
 }
@@ -271,7 +269,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
             <input
               v-model="selectedAppSlug"
               type="text"
-              placeholder="fastmail-ai"
+              placeholder="nama-slug-aplikasi"
               class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg p-2 font-mono text-xs text-[#111111] focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
             />
           </div>

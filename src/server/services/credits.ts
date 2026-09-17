@@ -39,32 +39,45 @@ export class CreditService {
     return Number(row?.balance ?? 0);
   }
 
-  /** Tambah kredit. Bila `executor` transaksi diberikan, ikut atomik dengan transaksi tersebut. */
+  /** Tambah kredit secara atomik. Baris lisensi dikunci (`FOR UPDATE`) agar saldo konsisten. */
   static async grant(
     ctx: CreditContext,
     amount: number,
     options: CreditEntryOptions = {}
   ): Promise<number> {
     assertPositiveInteger(amount);
-    const executor = options.executor ?? db;
 
-    const balance = await this.getBalance(ctx.licenseId, executor);
-    const balanceAfter = balance + amount;
+    const performGrant = async (trx: any) => {
+      // Kunci baris lisensi untuk serialisasi konkuren grant
+      await trx
+        .select({ id: licenses.id })
+        .from(licenses)
+        .where(eq(licenses.id, ctx.licenseId))
+        .for("update");
 
-    await executor.insert(creditLedger).values({
-      id: `crl_${randomBytes(8).toString("hex")}`,
-      licenseId: ctx.licenseId,
-      appId: ctx.appId,
-      customerEmail: ctx.customerEmail,
-      type: "GRANT",
-      delta: amount,
-      balanceAfter,
-      reference: options.reference ?? null,
-      description: options.description ?? "Credit granted",
-      metadata: options.metadata ?? null,
-    });
+      const balance = await this.getBalance(ctx.licenseId, trx);
+      const balanceAfter = balance + amount;
 
-    return balanceAfter;
+      await trx.insert(creditLedger).values({
+        id: `crl_${randomBytes(8).toString("hex")}`,
+        licenseId: ctx.licenseId,
+        appId: ctx.appId,
+        customerEmail: ctx.customerEmail,
+        type: "GRANT",
+        delta: amount,
+        balanceAfter,
+        reference: options.reference ?? null,
+        description: options.description ?? "Credit granted",
+        metadata: options.metadata ?? null,
+      });
+
+      return balanceAfter;
+    };
+
+    if (options.executor) {
+      return await performGrant(options.executor);
+    }
+    return await db.transaction(performGrant);
   }
 
   /**
