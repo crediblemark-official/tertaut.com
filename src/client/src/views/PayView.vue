@@ -227,234 +227,282 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen sm:min-h-[90vh] flex flex-col items-center justify-start sm:justify-center p-0 sm:px-3 sm:py-8 md:py-12 animate-fadeIn bg-white sm:bg-transparent">
-    <div v-if="loading" class="text-[#111111]/60 text-xs flex items-center gap-2 p-8">
+  <div class="min-h-screen w-full bg-white text-[#111111] flex items-center justify-center p-4 sm:p-8 lg:p-12 animate-fadeIn">
+    <!-- Loading State -->
+    <div v-if="loading" class="flex items-center justify-center text-[#111111]/60 text-xs gap-2 p-8">
       <div class="w-4 h-4 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
       <span>Menyiapkan sesi pembayaran aman...</span>
     </div>
 
-    <div v-else-if="notFound" class="text-center space-y-2 max-w-sm luxury-card p-6 rounded-2xl m-4 sm:m-0">
-      <h1 class="text-base font-extrabold text-[#111111]">Produk Pembayaran Tidak Ditemukan</h1>
-      <p class="text-xs text-[#111111]/60">Tautan pembayaran tidak valid atau produk belum diluncurkan.</p>
-      <router-link to="/dashboard" class="inline-block mt-2 text-xs font-bold text-[#D4AF37] underline">Kembali ke Dashboard</router-link>
+    <!-- Not Found State -->
+    <div v-else-if="notFound" class="flex flex-col items-center justify-center text-center p-6 space-y-3">
+      <div class="w-12 h-12 mx-auto rounded-full bg-[#8B0000]/10 flex items-center justify-center text-[#8B0000]">
+        <Lock class="w-6 h-6" />
+      </div>
+      <h1 class="text-lg font-black text-[#111111]">Produk Pembayaran Tidak Ditemukan</h1>
+      <p class="text-xs text-[#111111]/60 max-w-sm leading-relaxed">Tautan pembayaran tidak valid, kedaluwarsa, atau produk belum diluncurkan.</p>
+      <router-link to="/dashboard" class="inline-block mt-2 text-xs font-bold text-[#D4AF37] hover:underline">
+        Kembali ke Dashboard
+      </router-link>
     </div>
 
-    <div v-else-if="product" class="w-full sm:max-w-md space-y-0 sm:space-y-4">
-      <!-- Hosted Checkout Card: Full Edge on Mobile (No container, no border, no radius), Luxury Card on sm+ -->
-      <div class="w-full bg-white rounded-none border-0 shadow-none p-4 pb-8 sm:p-6 space-y-5 sm:rounded-2xl sm:border sm:border-[#111111]/12 sm:shadow-luxury-hover sm:luxury-card">
-        <!-- Brand & Merchant of Record Header -->
-        <div class="flex items-center justify-between pb-3 border-b border-[#111111]/10">
-          <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-xl bg-[#111111] flex items-center justify-center font-bold text-white text-xs shadow-md">
-              T
-            </div>
-            <div>
-              <div class="text-xs font-extrabold text-[#111111] font-mono">
-                tertaut<span class="text-[#D4AF37]">.com</span>
+    <!-- 2-Column Checkout (Compact, Centered, No Container Card, Clean Dividers) -->
+    <div v-else-if="product" class="w-full max-w-4xl mx-auto">
+      <div class="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-[#111111]/10">
+        
+        <!-- ============================================== -->
+        <!-- KOLOM KIRI (5 cols): Order Summary & Branding  -->
+        <!-- ============================================== -->
+        <div class="lg:col-span-5 pb-8 lg:pb-0 lg:pr-8 space-y-6">
+          <!-- Brand & Merchant of Record Header -->
+          <div class="flex items-center justify-between pb-4 border-b border-[#111111]/10">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-[#111111] flex items-center justify-center font-bold text-white text-xs shadow-xs">
+                T
               </div>
-              <div class="text-[9px] text-[#111111]/50 font-medium">Official Merchant of Record (MoR)</div>
+              <div>
+                <div class="text-xs font-extrabold text-[#111111] font-mono tracking-tight">
+                  tertaut<span class="text-[#D4AF37]">.com</span>
+                </div>
+                <div class="text-[9px] text-[#111111]/50 font-medium">Official Merchant of Record (MoR)</div>
+              </div>
+            </div>
+
+            <div v-if="product.mode === 'sandbox'" class="flex items-center gap-1 text-[10px] font-bold text-[#2563EB] bg-[#2563EB]/10 px-2.5 py-1 rounded-full border border-[#2563EB]/30">
+              <FlaskConical class="w-3.5 h-3.5" />
+              <span>Sandbox</span>
+            </div>
+            <div v-else class="flex items-center gap-1 text-[10px] font-bold text-[#0F4C3A] bg-[#0F4C3A]/10 px-2.5 py-1 rounded-full border border-[#0F4C3A]/25">
+              <ShieldCheck class="w-3.5 h-3.5" />
+              <span>Xendit Secured</span>
             </div>
           </div>
 
-          <div v-if="product.mode === 'sandbox'" class="flex items-center gap-1 text-[10px] font-bold text-[#2563EB] bg-[#2563EB]/10 px-2.5 py-1 rounded-full border border-[#2563EB]/30">
-            <FlaskConical class="w-3.5 h-3.5" />
-            <span>Mode Sandbox — Simulasi</span>
-          </div>
-          <div v-else class="flex items-center gap-1 text-[10px] font-bold text-[#0F4C3A] bg-[#0F4C3A]/10 px-2.5 py-1 rounded-full border border-[#0F4C3A]/25">
-            <ShieldCheck class="w-3.5 h-3.5" />
-            <span>Xendit Secured</span>
-          </div>
-        </div>
-
-        <!-- Product Summary -->
-        <div class="space-y-1">
-          <div class="text-[10px] font-mono font-bold uppercase text-[#D4AF37]">Pesanan Lisensi Digital</div>
-          <h1 class="text-xl font-black text-[#111111] tracking-tight">
-            {{ product.headline || product.name }}
-          </h1>
-          <p class="text-xs text-[#111111]/70 leading-relaxed">
-            {{ product.subheadline || product.description }}
-          </p>
-        </div>
-
-        <!-- Total Breakdown Card -->
-        <div class="p-3.5 rounded-xl bg-[#111111]/5 border border-[#111111]/10 space-y-2">
-          <div class="flex items-center justify-between text-xs">
-            <span class="text-[#111111]/70">{{ product.name }}</span>
-            <span class="font-mono font-bold text-[#111111]">{{ formatRupiah(product.targetPrice) }}</span>
-          </div>
-          <div class="flex items-center justify-between text-[11px] text-[#111111]/50">
-            <span>Biaya Layanan &amp; PPN</span>
-            <span class="text-[#0F4C3A] font-bold">Gratis (Ditanggung Penjual)</span>
+          <!-- Product Headline & Description -->
+          <div class="space-y-1.5">
+            <div class="text-[10px] font-mono font-bold uppercase text-[#D4AF37] tracking-wider">Pesanan Lisensi Digital</div>
+            <h1 class="text-2xl font-black text-[#111111] tracking-tight">
+              {{ product.headline || product.name }}
+            </h1>
+            <p class="text-xs text-[#111111]/70 leading-relaxed">
+              {{ product.subheadline || product.description }}
+            </p>
           </div>
 
-          <!-- Kupon Diskon -->
-          <div class="space-y-1.5 pt-1">
-            <div v-if="appliedCoupon" class="flex items-center justify-between text-[11px]">
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0F4C3A]/10 border border-[#0F4C3A]/30 text-[#0F4C3A] font-bold">
-                <CheckCircle2 class="w-3 h-3" />
-                {{ appliedCoupon.code }} (−{{ appliedCoupon.discountPercent }}%)
-              </span>
-              <button
-                @click="appliedCoupon = null; couponInput = ''"
-                class="text-[#111111]/40 underline hover:text-[#111111] cursor-pointer"
-              >Hapus</button>
+          <!-- Optional Product Media/Screenshot -->
+          <div v-if="product.mediaUrl" class="rounded-xl overflow-hidden border border-[#111111]/10">
+            <img :src="product.mediaUrl" :alt="product.name" class="w-full h-auto object-cover max-h-48" />
+          </div>
+
+          <!-- Product Value Propositions (Feature bullets) -->
+          <div v-if="product.valueProps && product.valueProps.length > 0" class="space-y-2">
+            <div v-for="(vp, idx) in product.valueProps" :key="idx" class="flex items-start gap-2 text-xs text-[#111111]/80">
+              <CheckCircle2 class="w-4 h-4 text-[#0F4C3A] shrink-0 mt-0.5" />
+              <span class="leading-tight">{{ vp }}</span>
             </div>
-            <div v-else class="flex items-center gap-1.5">
-              <input
-                v-model="couponInput"
-                type="text"
-                placeholder="Kode kupon (opsional)"
-                class="flex-1 bg-white border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-[11px] uppercase font-mono text-[#111111] placeholder:normal-case placeholder:font-sans placeholder:text-[#111111]/35 focus:outline-none focus:border-[#D4AF37]"
-                @keyup.enter="applyCoupon"
-              />
-              <button
-                @click="applyCoupon"
-                :disabled="!couponInput.trim()"
-                class="px-2.5 py-1.5 rounded-lg bg-[#111111] text-[#D4AF37] text-[11px] font-bold disabled:opacity-40 cursor-pointer"
-              >Pakai</button>
+          </div>
+
+          <!-- Price Breakdown: Flat Divider Lines -->
+          <div class="py-4 border-t border-b border-[#111111]/10 space-y-2.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-[#111111]/70">{{ product.name }}</span>
+              <span class="font-mono font-bold text-[#111111]">{{ formatRupiah(product.targetPrice) }}</span>
             </div>
-            <p v-if="couponError" class="text-[10px] text-[#8B0000] font-bold">{{ couponError }}</p>
+            <div class="flex items-center justify-between text-[11px] text-[#111111]/50">
+              <span>Biaya Layanan &amp; PPN</span>
+              <span class="text-[#0F4C3A] font-bold">Gratis (Ditanggung Penjual)</span>
+            </div>
+
+            <!-- Kupon Diskon -->
+            <div class="space-y-1.5 pt-1 border-t border-[#111111]/5">
+              <div v-if="appliedCoupon" class="flex items-center justify-between text-xs">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#0F4C3A]/10 border border-[#0F4C3A]/30 text-[#0F4C3A] font-bold">
+                  <CheckCircle2 class="w-3 h-3" />
+                  {{ appliedCoupon.code }} (−{{ appliedCoupon.discountPercent }}%)
+                </span>
+                <button
+                  @click="appliedCoupon = null; couponInput = ''"
+                  class="text-[#111111]/40 underline hover:text-[#111111] cursor-pointer"
+                >Hapus</button>
+              </div>
+              <div v-else class="flex items-center gap-2">
+                <input
+                  v-model="couponInput"
+                  type="text"
+                  placeholder="Kode kupon (opsional)"
+                  class="flex-1 bg-[#FAFAFA] border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-xs uppercase font-mono text-[#111111] placeholder:normal-case placeholder:font-sans placeholder:text-[#111111]/35 focus:outline-none focus:border-[#D4AF37]"
+                  @keyup.enter="applyCoupon"
+                />
+                <button
+                  @click="applyCoupon"
+                  :disabled="!couponInput.trim()"
+                  class="px-3 py-1.5 rounded-lg bg-[#111111] text-[#D4AF37] text-xs font-bold disabled:opacity-40 cursor-pointer hover:bg-[#222222] transition"
+                >Pakai</button>
+              </div>
+              <p v-if="couponError" class="text-[10px] text-[#8B0000] font-bold">{{ couponError }}</p>
+            </div>
+
+            <div v-if="estimatedDiscount > 0" class="flex items-center justify-between text-xs text-[#0F4C3A] font-bold">
+              <span>Diskon kupon</span>
+              <span class="font-mono">−{{ formatRupiah(estimatedDiscount) }}</span>
+            </div>
           </div>
 
-          <div v-if="estimatedDiscount > 0" class="flex items-center justify-between text-[11px] text-[#0F4C3A] font-bold">
-            <span>Diskon kupon</span>
-            <span class="font-mono">−{{ formatRupiah(estimatedDiscount) }}</span>
-          </div>
-
-          <div class="pt-2 border-t border-[#111111]/10 flex items-baseline justify-between">
-            <span class="text-xs font-bold text-[#111111]">Total Pembayaran</span>
-            <span class="text-xl font-black text-[#111111] font-mono">
+          <!-- Total Pembayaran -->
+          <div class="flex items-baseline justify-between pt-0.5">
+            <span class="text-xs font-bold text-[#111111]/80 uppercase tracking-wider">Total Pembayaran</span>
+            <span class="text-2xl font-black text-[#111111] font-mono">
               {{ formatRupiah(payableAmount || product.targetPrice) }}
             </span>
           </div>
-        </div>
 
-        <!-- Multi-Rail Payment Options Selector (FR-2.1) -->
-        <div v-if="!sandboxSessionId" class="space-y-2">
-          <label class="block text-[11px] font-bold text-[#111111]/70">Pilih Jalur Pembayaran Resmi</label>
-          <div class="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              @click="selectedPaymentRail = 'qris'"
-              class="p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 cursor-pointer"
-              :class="selectedPaymentRail === 'qris' ? 'border-[#D4AF37] bg-[#D4AF37]/10 font-bold text-[#111111]' : 'border-[#111111]/15 hover:bg-[#111111]/5 text-[#111111]/70'"
-            >
-              <QrCode class="w-4 h-4 text-[#D4AF37]" />
-              <span class="text-[10px]">QRIS Instan</span>
-            </button>
-
-            <button
-              type="button"
-              @click="selectedPaymentRail = 'va'"
-              class="p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 cursor-pointer"
-              :class="selectedPaymentRail === 'va' ? 'border-[#D4AF37] bg-[#D4AF37]/10 font-bold text-[#111111]' : 'border-[#111111]/15 hover:bg-[#111111]/5 text-[#111111]/70'"
-            >
-              <Building class="w-4 h-4 text-[#111111]" />
-              <span class="text-[10px]">Virtual Account</span>
-            </button>
-
-            <button
-              type="button"
-              @click="selectedPaymentRail = 'ewallet'"
-              class="p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 cursor-pointer"
-              :class="selectedPaymentRail === 'ewallet' ? 'border-[#D4AF37] bg-[#D4AF37]/10 font-bold text-[#111111]' : 'border-[#111111]/15 hover:bg-[#111111]/5 text-[#111111]/70'"
-            >
-              <Wallet class="w-4 h-4 text-[#0F4C3A]" />
-              <span class="text-[10px]">E-Wallet</span>
-            </button>
-          </div>
-          <p class="text-[10px] text-[#111111]/50 text-center">
-            Mendukung BCA, Mandiri, BRI, BNI, GoPay, OVO, DANA, dan ShopeePay.
-          </p>
-        </div>
-
-        <!-- Buyer Email Input for License Delivery -->
-        <div v-if="!sandboxSessionId" class="space-y-1.5">
-          <label class="block text-xs font-bold text-[#111111]/80">
-            Email Penerima Lisensi Digital <span class="text-[#8B0000]">*</span>
-          </label>
-          <input
-            v-model="emailInput"
-            type="email"
-            placeholder="nama@email.com"
-            class="w-full bg-[#FFFFFF] border border-[#111111]/20 rounded-xl px-3.5 py-2.5 text-xs text-[#111111] placeholder-[#111111]/40 focus:outline-none focus:border-[#D4AF37] transition"
-            @keyup.enter="handlePay"
-          />
-          <p class="text-[10px] text-[#111111]/50">
-            Kunci lisensi resmi dan petunjuk instalasi akan dikirimkan ke email ini.
-          </p>
-        </div>
-
-        <!-- Error Alert -->
-        <div v-if="errorMessage" class="p-2.5 rounded-lg bg-[#8B0000]/10 border border-[#8B0000]/25 text-[#8B0000] text-xs font-bold">
-          {{ errorMessage }}
-        </div>
-
-        <!-- Sandbox: Simulasi Pembayaran Inline -->
-        <div v-if="sandboxSessionId && !sandboxResult" class="space-y-3 p-3.5 rounded-xl bg-[#2563EB]/5 border border-[#2563EB]/25">
-          <div class="flex items-start gap-2">
-            <FlaskConical class="w-4 h-4 text-[#2563EB] shrink-0 mt-0.5" />
-            <div class="space-y-0.5">
-              <p class="text-xs font-bold text-[#2563EB]">Sesi Pembayaran Sandbox Siap</p>
-              <p class="text-[10px] text-[#111111]/60">
-                Tidak ada pembayaran nyata. Simulasikan checkout untuk menerbitkan lisensi uji coba.
-              </p>
+          <!-- Trust Badges Footer (Left Column) -->
+          <div class="pt-4 border-t border-[#111111]/10 grid grid-cols-2 gap-2 text-[10px] text-[#111111]/60">
+            <div class="flex items-center gap-1.5">
+              <Lock class="w-3.5 h-3.5 text-[#0F4C3A] shrink-0" />
+              <span>Enkripsi 256-Bit SSL</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <Sparkles class="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+              <span>Aktivasi Lisensi Instan</span>
             </div>
           </div>
-          <button
-            @click="simulateSandboxPayment"
-            :disabled="isSimulating"
-            class="w-full py-3 rounded-xl bg-[#2563EB] text-white text-xs font-bold transition hover:bg-[#1D4ED8] flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 cursor-pointer"
-          >
-            <FlaskConical class="w-4 h-4" />
-            <span>{{ isSimulating ? 'Mensimulasikan…' : 'Simulasikan Pembayaran' }}</span>
-          </button>
         </div>
 
-        <!-- Sandbox: Hasil Simulasi -->
-        <div v-if="sandboxResult" class="space-y-2 p-3.5 rounded-xl bg-[#0F4C3A]/10 border border-[#0F4C3A]/30">
-          <div class="flex items-start gap-2">
-            <CheckCircle2 class="w-4 h-4 text-[#0F4C3A] shrink-0 mt-0.5" />
-            <div class="space-y-1">
-              <p class="text-xs font-bold text-[#0F4C3A]">Simulasi Pembayaran Berhasil</p>
-              <p class="text-[10px] text-[#111111]/70">{{ sandboxResult.message }}</p>
-              <div v-if="sandboxResult.licenseKey" class="pt-1">
-                <p class="text-[10px] font-bold text-[#111111]/60">Kunci Lisensi Uji Coba</p>
-                <p class="font-mono font-extrabold text-[#0F4C3A] text-sm break-all select-all">{{ sandboxResult.licenseKey }}</p>
+        <!-- ============================================== -->
+        <!-- KOLOM KANAN (7 cols): Checkout & Payment Form  -->
+        <!-- ============================================== -->
+        <div class="lg:col-span-7 pt-8 lg:pt-0 lg:pl-8 space-y-5">
+          <div class="pb-3 border-b border-[#111111]/10">
+            <h2 class="text-lg font-bold text-[#111111] tracking-tight">Detail Pembayaran</h2>
+            <p class="text-xs text-[#111111]/60 mt-0.5">Lengkapi informasi untuk penerbitan lisensi resmi Anda.</p>
+          </div>
+
+          <!-- Buyer Email Input for License Delivery -->
+          <div v-if="!sandboxSessionId" class="space-y-1.5">
+            <label class="block text-xs font-bold text-[#111111]/80">
+              Email Penerima Lisensi Digital <span class="text-[#8B0000]">*</span>
+            </label>
+            <input
+              v-model="emailInput"
+              type="email"
+              placeholder="nama@email.com"
+              class="w-full bg-white border border-[#111111]/20 rounded-xl px-3.5 py-2.5 text-xs text-[#111111] placeholder-[#111111]/40 focus:outline-none focus:border-[#D4AF37] transition"
+              @keyup.enter="handlePay"
+            />
+            <p class="text-[10px] text-[#111111]/50 leading-relaxed">
+              Kunci lisensi resmi dan petunjuk aktivasi akan dikirimkan otomatis ke alamat email ini segera setelah pembayaran dikonfirmasi.
+            </p>
+          </div>
+
+          <!-- Multi-Rail Payment Options Selector (FR-2.1) -->
+          <div v-if="!sandboxSessionId" class="space-y-2">
+            <label class="block text-[11px] font-bold text-[#111111]/70">Pilih Jalur Pembayaran Resmi</label>
+            <div class="grid grid-cols-3 gap-2.5">
+              <button
+                type="button"
+                @click="selectedPaymentRail = 'qris'"
+                class="p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 cursor-pointer"
+                :class="selectedPaymentRail === 'qris' ? 'border-[#D4AF37] bg-[#D4AF37]/10 font-bold text-[#111111] shadow-xs' : 'border-[#111111]/15 hover:bg-[#111111]/5 text-[#111111]/70'"
+              >
+                <QrCode class="w-4 h-4 text-[#D4AF37]" />
+                <span class="text-[11px]">QRIS Instan</span>
+              </button>
+
+              <button
+                type="button"
+                @click="selectedPaymentRail = 'va'"
+                class="p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 cursor-pointer"
+                :class="selectedPaymentRail === 'va' ? 'border-[#D4AF37] bg-[#D4AF37]/10 font-bold text-[#111111] shadow-xs' : 'border-[#111111]/15 hover:bg-[#111111]/5 text-[#111111]/70'"
+              >
+                <Building class="w-4 h-4 text-[#111111]" />
+                <span class="text-[11px]">Virtual Account</span>
+              </button>
+
+              <button
+                type="button"
+                @click="selectedPaymentRail = 'ewallet'"
+                class="p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center gap-1 cursor-pointer"
+                :class="selectedPaymentRail === 'ewallet' ? 'border-[#D4AF37] bg-[#D4AF37]/10 font-bold text-[#111111] shadow-xs' : 'border-[#111111]/15 hover:bg-[#111111]/5 text-[#111111]/70'"
+              >
+                <Wallet class="w-4 h-4 text-[#0F4C3A]" />
+                <span class="text-[11px]">E-Wallet</span>
+              </button>
+            </div>
+            <div class="flex items-center justify-between text-[10px] text-[#111111]/50 px-1 pt-0.5">
+              <span>Mendukung BCA, Mandiri, BRI, BNI</span>
+              <span>GoPay, OVO, DANA, ShopeePay</span>
+            </div>
+          </div>
+
+          <!-- Error Alert -->
+          <div v-if="errorMessage" class="p-3 rounded-xl bg-[#8B0000]/10 border border-[#8B0000]/25 text-[#8B0000] text-xs font-bold">
+              {{ errorMessage }}
+          </div>
+
+          <!-- Sandbox: Simulasi Pembayaran Inline -->
+          <div v-if="sandboxSessionId && !sandboxResult" class="space-y-3 p-3.5 rounded-xl bg-[#2563EB]/5 border border-[#2563EB]/25">
+            <div class="flex items-start gap-2">
+              <FlaskConical class="w-4 h-4 text-[#2563EB] shrink-0 mt-0.5" />
+              <div class="space-y-0.5">
+                <p class="text-xs font-bold text-[#2563EB]">Sesi Pembayaran Sandbox Siap</p>
+                <p class="text-[10px] text-[#111111]/60">
+                  Tidak ada transaksi nyata yang akan ditagihkan. Klik tombol di bawah untuk mensimulasikan lunas dan menerbitkan lisensi uji coba.
+                </p>
+              </div>
+            </div>
+            <button
+              @click="simulateSandboxPayment"
+              :disabled="isSimulating"
+              class="w-full py-2.5 rounded-xl bg-[#2563EB] text-white text-xs font-bold transition hover:bg-[#1D4ED8] flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 cursor-pointer"
+            >
+              <FlaskConical class="w-4 h-4" />
+              <span>{{ isSimulating ? 'Mensimulasikan…' : 'Simulasikan Pembayaran' }}</span>
+            </button>
+          </div>
+
+          <!-- Sandbox: Hasil Simulasi -->
+          <div v-if="sandboxResult" class="space-y-2 p-3.5 rounded-xl bg-[#0F4C3A]/10 border border-[#0F4C3A]/30">
+            <div class="flex items-start gap-2">
+              <CheckCircle2 class="w-4 h-4 text-[#0F4C3A] shrink-0 mt-0.5" />
+              <div class="space-y-1 w-full">
+                <p class="text-xs font-bold text-[#0F4C3A]">Simulasi Pembayaran Berhasil</p>
+                <p class="text-[10px] text-[#111111]/70">{{ sandboxResult.message }}</p>
+                <div v-if="sandboxResult.licenseKey" class="pt-1.5 border-t border-[#0F4C3A]/20">
+                  <p class="text-[10px] font-bold text-[#111111]/60 mb-1">Kunci Lisensi Uji Coba Anda:</p>
+                  <div class="p-2 bg-white rounded-lg border border-[#0F4C3A]/30 font-mono font-extrabold text-[#0F4C3A] text-xs break-all select-all text-center">
+                    {{ sandboxResult.licenseKey }}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Pay Button -->
-        <div v-if="!sandboxSessionId">
-          <button
-            @click="handlePay"
-            :disabled="isSubmitting || !emailInput"
-            class="w-full py-3.5 rounded-xl btn-gold text-xs font-bold transition flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 cursor-pointer shadow-gold-glow"
-            :class="product.mode === 'sandbox' ? '!bg-[#2563EB] !text-white' : ''"
-          >
-            <FlaskConical v-if="product.mode === 'sandbox'" class="w-4 h-4" />
-            <CreditCard v-else class="w-4 h-4" />
-            <span>
-              {{ isSubmitting ? 'Menyiapkan sesi...' : product.mode === 'sandbox' ? `Mulai Sesi Sandbox — ${formatRupiah(payableAmount || product.targetPrice)}` : `Bayar Sekarang — ${formatRupiah(payableAmount || product.targetPrice)}` }}
-            </span>
-            <ArrowRight class="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <!-- Trust Badges -->
-        <div class="pt-3 border-t border-[#111111]/10 flex items-center justify-between text-[10px] text-[#111111]/60">
-          <div class="flex items-center gap-1">
-            <Lock class="w-3.5 h-3.5 text-[#0F4C3A]" />
-            <span>Enkripsi 256-Bit SSL</span>
+          <!-- Pay Button -->
+          <div v-if="!sandboxSessionId" class="pt-1">
+            <button
+              @click="handlePay"
+              :disabled="isSubmitting || !emailInput"
+              class="w-full py-3 rounded-xl btn-gold text-xs font-bold transition flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50 cursor-pointer shadow-gold-glow"
+              :class="product.mode === 'sandbox' ? '!bg-[#2563EB] !text-white hover:!bg-[#1D4ED8]' : ''"
+            >
+              <FlaskConical v-if="product.mode === 'sandbox'" class="w-4 h-4" />
+              <CreditCard v-else class="w-4 h-4" />
+              <span>
+                {{ isSubmitting ? 'Menyiapkan sesi...' : product.mode === 'sandbox' ? `Mulai Sesi Sandbox — ${formatRupiah(payableAmount || product.targetPrice)}` : `Bayar Sekarang — ${formatRupiah(payableAmount || product.targetPrice)}` }}
+              </span>
+              <ArrowRight class="w-3.5 h-3.5" />
+            </button>
           </div>
-          <div class="flex items-center gap-1">
-            <Sparkles class="w-3.5 h-3.5 text-[#D4AF37]" />
-            <span>Aktivasi Lisensi Instan</span>
+
+          <!-- Bottom Assurance Note -->
+          <div class="pt-3 border-t border-[#111111]/10 text-center">
+            <p class="text-[10px] text-[#111111]/50 leading-relaxed">
+              Pembayaran diproses secara aman oleh <span class="font-bold text-[#111111]/70">Xendit Indonesia</span>. Merchant of Record resmi oleh <span class="font-bold text-[#111111]/70">tertaut.com</span>. Faktur dan garansi berlaku penuh.
+            </p>
           </div>
         </div>
+
       </div>
     </div>
   </div>

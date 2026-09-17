@@ -67,3 +67,13 @@
 .btn-gold:active {
   transform: scale(0.98);
 }
+
+/* Top Horizontal Scrollbar */
+.top-scrollbar {
+  transform: rotateX(180deg);
+  -ms-overflow-style: auto;
+}
+.top-scrollbar > * {
+  transform: rotateX(180deg);
+}
+

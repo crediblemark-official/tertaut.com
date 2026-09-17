@@ -232,18 +232,22 @@ watch(dashboardEnv, () => {
     <MoRValueProps />
 
     <!-- Dynamic Checkout Generator & Result Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[#111111]/10 border-t border-b border-[#111111]/10 py-6">
       <!-- Checkout Generator Form Component -->
-      <DynamicCheckoutForm
-        :loading="loading"
-        v-model:amount="amount"
-        v-model:customer-email="customerEmail"
-        v-model:grant-days="grantDays"
-        @create-checkout="createCheckout"
-      />
+      <div class="pb-6 lg:pb-0 pr-0 lg:pr-6">
+        <DynamicCheckoutForm
+          :loading="loading"
+          v-model:amount="amount"
+          v-model:customer-email="customerEmail"
+          v-model:grant-days="grantDays"
+          @create-checkout="createCheckout"
+        />
+      </div>
 
       <!-- Checkout Output Card Component -->
-      <CheckoutResultCard :checkout-result="checkoutResult" />
+      <div class="pt-6 lg:pt-0 pl-0 lg:pl-6">
+        <CheckoutResultCard :checkout-result="checkoutResult" />
+      </div>
     </div>
 
     <!-- Alert Disbursement Banner -->

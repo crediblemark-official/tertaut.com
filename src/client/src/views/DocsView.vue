@@ -122,7 +122,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
     </div>
 
     <!-- Package Installation Banner -->
-    <div class="luxury-card p-4 rounded-xl space-y-2.5">
+    <div class="space-y-2.5 pb-6 border-b border-[#111111]/10">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <Terminal class="w-4 h-4 text-[#D4AF37]" />
@@ -145,7 +145,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
     </div>
 
     <!-- Prompt-Ready Integration Generator (FR-4.1) -->
-    <div class="luxury-card p-4 md:p-5 rounded-xl space-y-3">
+    <div class="space-y-3 pb-6 border-b border-[#111111]/10">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div class="flex items-center gap-2">
           <Sparkles class="w-4 h-4 text-[#D4AF37]" />
@@ -169,8 +169,8 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
     </div>
 
     <!-- Embeddable Badges & Social Proof Widgets Generator (FR-2.1 & FR-2.2) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <div class="luxury-card p-4 md:p-5 rounded-xl space-y-3">
+    <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[#111111]/10 border-b border-[#111111]/10 pb-6 pt-1">
+      <div class="pb-6 lg:pb-0 pr-0 lg:pr-6 space-y-3">
         <div class="flex items-center gap-2">
           <ShieldCheck class="w-4 h-4 text-[#0F4C3A]" />
           <h2 class="text-sm font-bold text-[#111111]">Generator Embeddable Widget &amp; Badges</h2>
@@ -213,7 +213,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
               v-model="selectedAppSlug"
               type="text"
               placeholder="fastmail-ai"
-              class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 font-mono text-xs text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+              class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg p-2 font-mono text-xs text-[#111111] focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
             />
           </div>
 
@@ -235,7 +235,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
       </div>
 
       <!-- Live Widget Preview -->
-      <div class="luxury-card p-4 md:p-5 rounded-xl space-y-4 flex flex-col justify-between">
+      <div class="pt-6 lg:pt-0 pl-0 lg:pl-6 space-y-4 flex flex-col justify-between">
         <div>
           <h2 class="text-sm font-bold text-[#111111]">Pratinjau Widget (Live Preview)</h2>
           <p class="text-xs text-[#111111]/60">Tampilan render di situs web pembeli:</p>
@@ -293,7 +293,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
     </div>
 
     <!-- Complete Unified SDK Reference Code (FR-3.2) -->
-    <div class="luxury-card p-4 md:p-5 rounded-xl space-y-3">
+    <div class="space-y-3 pt-2">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <Code2 class="w-4 h-4 text-[#D4AF37]" />

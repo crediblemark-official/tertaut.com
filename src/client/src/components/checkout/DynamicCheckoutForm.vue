@@ -16,7 +16,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="luxury-card p-4 md:p-5 rounded-xl space-y-4">
+  <div class="space-y-4">
     <h2 class="text-sm font-bold text-[#111111]">Buat Sesi Dynamic Checkout</h2>
 
     <div class="space-y-3 text-xs">

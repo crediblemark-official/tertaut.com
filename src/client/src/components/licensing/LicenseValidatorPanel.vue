@@ -30,9 +30,9 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-    <!-- Input Form Card -->
-    <div class="luxury-card p-4 md:p-5 rounded-xl space-y-4">
+  <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[#111111]/10 border-t border-b border-[#111111]/10 py-6">
+    <!-- Input Form Section -->
+    <div class="pb-6 lg:pb-0 pr-0 lg:pr-6 space-y-4">
       <div class="flex items-center gap-2">
         <Search class="w-4 h-4 text-[#D4AF37]" />
         <h2 class="text-sm font-bold text-[#111111]">Verifikasi &amp; Diagnostic Lisensi (Engine Validator)</h2>
@@ -120,8 +120,8 @@ const emit = defineEmits<{
       </div>
     </div>
 
-    <!-- Result Terminal Card -->
-    <div class="luxury-card p-4 md:p-5 rounded-xl space-y-4">
+    <!-- Result Terminal Section -->
+    <div class="pt-6 lg:pt-0 pl-0 lg:pl-6 space-y-4">
       <h2 class="text-sm font-bold text-[#111111]">Hasil Respon Engine</h2>
 
       <div v-if="validationResult" class="p-3.5 rounded-xl bg-[#111111] text-white font-mono text-xs space-y-2">

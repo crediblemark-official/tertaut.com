@@ -19,9 +19,9 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[#111111]/10 border-t border-b border-[#111111]/10 py-6">
     <!-- Prompt Input Form -->
-    <div class="luxury-card p-4 md:p-5 rounded-xl space-y-3">
+    <div class="pb-6 lg:pb-0 pr-0 lg:pr-6 space-y-3">
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-bold text-[#111111]">Tes Eksekusi AI via Proxy Shield</h2>
         <div class="flex items-center gap-1.5 text-xs text-[#111111]/70 font-semibold">
@@ -41,7 +41,7 @@ const emit = defineEmits<{
           <input
             v-model="licenseKey"
             type="text"
-            class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] font-mono font-bold focus:outline-none focus:border-[#D4AF37]"
+            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg p-2 text-[#111111] font-mono font-bold focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
           />
         </div>
 
@@ -51,7 +51,7 @@ const emit = defineEmits<{
             v-model="modelAlias"
             type="text"
             placeholder="fast-summary-model"
-            class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] font-mono text-xs focus:outline-none focus:border-[#D4AF37]"
+            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg p-2 text-[#111111] font-mono text-xs focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
           />
         </div>
 
@@ -60,7 +60,7 @@ const emit = defineEmits<{
           <textarea
             v-model="userPrompt"
             rows="3"
-            class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg p-2 text-[#111111] focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
           ></textarea>
         </div>
 
@@ -76,7 +76,7 @@ const emit = defineEmits<{
     </div>
 
     <!-- Live Terminal Output -->
-    <div class="luxury-card p-4 md:p-5 rounded-xl space-y-3">
+    <div class="pt-6 lg:pt-0 pl-0 lg:pl-6 space-y-3">
       <h2 class="text-sm font-bold text-[#111111]">Respon AI Terlindungi</h2>
 
       <div v-if="aiResult" class="p-3.5 rounded-xl bg-[#111111] text-white font-mono text-xs space-y-2">

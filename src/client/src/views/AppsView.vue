@@ -145,8 +145,8 @@ watch(dashboardEnv, () => {
     </div>
 
     <!-- Desktop Table -->
-    <div class="hidden sm:block overflow-x-auto w-full">
-      <table class="w-full text-left text-xs">
+    <div class="hidden sm:block overflow-x-auto w-full top-scrollbar">
+      <table class="w-full text-left text-xs whitespace-nowrap">
         <thead class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
           <tr>
             <th class="py-2.5 pr-3 pl-0">Nama Produk</th>

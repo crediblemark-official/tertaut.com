@@ -45,8 +45,9 @@ const filteredTransactions = computed(() => {
 </script>
 
 <template>
-  <div class="luxury-card p-4 md:p-5 rounded-xl space-y-4">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  <div class="space-y-4">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#111111]/10">
       <div>
         <h2 class="text-sm font-bold text-[#111111]">Riwayat Transaksi MoR &amp; Pencairan Saldo (Xendit)</h2>
         <p class="text-xs text-[#111111]/60">Daftar transaksi real-time dari database dengan rincian fee MoR 5% dan payout 95%.</p>
@@ -63,7 +64,7 @@ const filteredTransactions = computed(() => {
     </div>
 
     <!-- Search & Filter Controls -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-[#111111]/10">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#111111]/10">
       <!-- Search Input -->
       <div class="relative flex-1 max-w-sm">
         <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#111111]/40" />
@@ -71,7 +72,7 @@ const filteredTransactions = computed(() => {
           v-model="searchQuery"
           type="text"
           placeholder="Cari TX ID atau Email Pembeli..."
-          class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-white border border-[#111111]/15 text-xs text-[#111111] placeholder:text-[#111111]/40 focus:outline-none focus:border-[#D4AF37]"
+          class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#111111]/5 border border-[#111111]/10 text-xs text-[#111111] placeholder:text-[#111111]/40 focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
         />
       </div>
 
@@ -107,18 +108,19 @@ const filteredTransactions = computed(() => {
       </div>
     </div>
 
-    <div class="overflow-x-auto">
-      <table class="w-full text-left text-xs">
-        <thead>
-          <tr class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
-            <th class="pb-2">Waktu &amp; TX ID</th>
-            <th class="pb-2">Pembeli</th>
-            <th class="pb-2">Gross</th>
-            <th class="pb-2">Fee (5%)</th>
-            <th class="pb-2">Net Builder (95%)</th>
-            <th class="pb-2">Status Bayar</th>
-            <th class="pb-2">Pencairan (Disbursement)</th>
-            <th class="pb-2 text-right">Aksi</th>
+    <!-- Desktop Table (Flush left/right) -->
+    <div class="hidden sm:block overflow-x-auto w-full top-scrollbar">
+      <table class="w-full text-left text-xs whitespace-nowrap">
+        <thead class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
+          <tr>
+            <th class="py-2.5 pr-3 pl-0">Waktu &amp; TX ID</th>
+            <th class="py-2.5 px-3">Pembeli</th>
+            <th class="py-2.5 px-3">Gross</th>
+            <th class="py-2.5 px-3">Fee (5%)</th>
+            <th class="py-2.5 px-3">Net Builder (95%)</th>
+            <th class="py-2.5 px-3">Status Bayar</th>
+            <th class="py-2.5 px-3">Pencairan</th>
+            <th class="py-2.5 pl-3 pr-0 text-right">Aksi</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[#111111]/5">
@@ -133,11 +135,11 @@ const filteredTransactions = computed(() => {
             </td>
           </tr>
           <tr v-for="tx in filteredTransactions" :key="tx.id" class="hover:bg-[#111111]/[0.02]">
-            <td class="py-2.5 font-mono text-[11px]">
+            <td class="py-3 pr-3 pl-0 font-mono text-[11px]">
               <div class="font-bold text-[#111111]">{{ tx.id }}</div>
               <div class="text-[10px] text-[#111111]/50">{{ new Date(tx.createdAt).toLocaleString('id-ID') }}</div>
             </td>
-            <td class="py-2.5 text-[#111111]/80">
+            <td class="py-3 px-3 text-[#111111]/80">
               <div>{{ tx.customerEmail }}</div>
               <div
                 v-if="tx.couponCode"
@@ -147,10 +149,10 @@ const filteredTransactions = computed(() => {
                 {{ tx.couponCode }}
               </div>
             </td>
-            <td class="py-2.5 font-mono font-bold text-[#111111]">{{ formatRupiah(tx.grossAmount) }}</td>
-            <td class="py-2.5 font-mono text-[#8B0000]">-{{ formatRupiah(tx.platformFee) }}</td>
-            <td class="py-2.5 font-mono font-bold text-[#0F4C3A]">{{ formatRupiah(tx.netAmount) }}</td>
-            <td class="py-2.5">
+            <td class="py-3 px-3 font-mono font-bold text-[#111111]">{{ formatRupiah(tx.grossAmount) }}</td>
+            <td class="py-3 px-3 font-mono text-[#8B0000]">-{{ formatRupiah(tx.platformFee) }}</td>
+            <td class="py-3 px-3 font-mono font-bold text-[#0F4C3A]">{{ formatRupiah(tx.netAmount) }}</td>
+            <td class="py-3 px-3">
               <span
                 class="px-2 py-0.5 rounded-full text-[10px] font-bold"
                 :class="tx.paymentStatus === 'PAID' ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]' : 'bg-[#D4AF37]/15 text-[#111111]'"
@@ -158,7 +160,7 @@ const filteredTransactions = computed(() => {
                 {{ tx.paymentStatus }}
               </span>
             </td>
-            <td class="py-2.5">
+            <td class="py-3 px-3">
               <span
                 class="px-2 py-0.5 rounded-full text-[10px] font-bold"
                 :class="tx.disbursementStatus === 'COMPLETED' ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]' : 'bg-[#111111]/5 text-[#111111]/70'"
@@ -166,9 +168,9 @@ const filteredTransactions = computed(() => {
                 {{ tx.disbursementStatus }}
               </span>
             </td>
-            <td class="py-2.5 text-right">
+            <td class="py-3 pl-3 pr-0 text-right">
               <div class="flex items-center justify-end gap-1.5">
-                <!-- Simulation for Pending — hanya tersedia di environment Sandbox -->
+                <!-- Simulation for Pending -->
                 <button
                   v-if="tx.paymentStatus === 'PENDING' && isSandbox"
                   @click="emit('simulatePayment', tx)"
@@ -210,6 +212,53 @@ const filteredTransactions = computed(() => {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Mobile Cards/List View -->
+    <div class="sm:hidden divide-y divide-[#111111]/10">
+      <div v-for="tx in filteredTransactions" :key="tx.id" class="py-3 space-y-2">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="font-mono font-bold text-xs text-[#111111]">{{ tx.id }}</div>
+            <div class="text-[10px] text-[#111111]/50">{{ new Date(tx.createdAt).toLocaleString('id-ID') }}</div>
+            <div class="text-[11px] text-[#111111]/80 mt-0.5">{{ tx.customerEmail }}</div>
+          </div>
+          <div class="text-right">
+            <div class="font-mono font-extrabold text-xs text-[#111111]">{{ formatRupiah(tx.grossAmount) }}</div>
+            <div class="text-[10px] font-mono text-[#0F4C3A] font-bold">Net: {{ formatRupiah(tx.netAmount) }}</div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-1 text-[10px]">
+          <div class="flex items-center gap-1.5">
+            <span
+              class="px-2 py-0.5 rounded-full font-bold"
+              :class="tx.paymentStatus === 'PAID' ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]' : 'bg-[#D4AF37]/15 text-[#111111]'"
+            >
+              {{ tx.paymentStatus }}
+            </span>
+            <span class="text-[#111111]/50">•</span>
+            <span class="text-[#111111]/70">{{ tx.disbursementStatus }}</span>
+          </div>
+
+          <div class="flex items-center gap-1">
+            <button
+              v-if="tx.paymentStatus === 'PENDING' && isSandbox"
+              @click="emit('simulatePayment', tx)"
+              class="px-2 py-0.5 rounded bg-[#D4AF37] text-[10px] font-bold text-[#111111]"
+            >
+              Simulasi
+            </button>
+            <button
+              v-if="tx.paymentStatus === 'PAID' && tx.disbursementStatus !== 'COMPLETED'"
+              @click="emit('disburse', tx)"
+              class="px-2 py-0.5 rounded bg-[#0F4C3A] text-white text-[10px] font-bold"
+            >
+              Cairkan
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>

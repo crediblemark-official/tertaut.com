@@ -23,15 +23,15 @@ const quotaPercent = computed(() => {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+  <div class="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#111111]/10 border-b border-[#111111]/10 pb-4 pt-1">
     <!-- Pemakaian Token Hari Ini -->
-    <div class="luxury-card p-3.5 rounded-xl border border-[#D4AF37]/20 bg-[#FFFFFF] flex flex-col justify-between">
+    <div class="py-2 pr-0 sm:pr-4 pl-0 flex flex-col justify-between">
       <div class="flex items-center justify-between text-xs text-[#111111]/60 font-medium">
         <span>Pemakaian Token Hari Ini</span>
         <Gauge class="w-4 h-4 text-[#D4AF37]" />
       </div>
       <div class="mt-2">
-        <div class="text-lg font-extrabold text-[#111111] font-mono">
+        <div class="text-xl font-black text-[#111111] font-mono">
           {{ (quotaStatus?.dailyTokensUsed ?? 0).toLocaleString('id-ID') }}
         </div>
         <div class="w-full bg-[#111111]/5 h-1.5 rounded-full overflow-hidden mt-1.5">
@@ -48,13 +48,13 @@ const quotaPercent = computed(() => {
     </div>
 
     <!-- Sisa Token Tersedia -->
-    <div class="luxury-card p-3.5 rounded-xl border border-[#111111]/10 bg-[#FFFFFF] flex flex-col justify-between">
+    <div class="py-2 px-0 sm:px-4 flex flex-col justify-between">
       <div class="flex items-center justify-between text-xs text-[#111111]/60 font-medium">
         <span>Sisa Token Tersedia</span>
         <Zap class="w-4 h-4 text-[#0F4C3A]" />
       </div>
       <div class="mt-2">
-        <div class="text-lg font-extrabold text-[#0F4C3A] font-mono">
+        <div class="text-xl font-black text-[#0F4C3A] font-mono">
           {{ (quotaStatus?.remainingTokens ?? 100000).toLocaleString('id-ID') }}
         </div>
         <p class="text-[10px] text-[#111111]/50 mt-1">
@@ -64,13 +64,13 @@ const quotaPercent = computed(() => {
     </div>
 
     <!-- Reset Kuota Harian -->
-    <div class="luxury-card p-3.5 rounded-xl border border-[#111111]/10 bg-[#FFFFFF] flex flex-col justify-between">
+    <div class="py-2 px-0 sm:px-4 flex flex-col justify-between">
       <div class="flex items-center justify-between text-xs text-[#111111]/60 font-medium">
         <span>Reset Kuota Harian</span>
         <Clock class="w-4 h-4 text-[#111111]/60" />
       </div>
       <div class="mt-2">
-        <div class="text-lg font-extrabold text-[#111111] font-mono">
+        <div class="text-xl font-black text-[#111111] font-mono">
           {{ formattedResetTime }}
         </div>
         <p class="text-[10px] text-[#111111]/50 mt-1">
@@ -80,7 +80,7 @@ const quotaPercent = computed(() => {
     </div>
 
     <!-- Privasi Prompt -->
-    <div class="luxury-card p-3.5 rounded-xl border border-[#111111]/10 bg-[#FFFFFF] flex flex-col justify-between">
+    <div class="py-2 pl-0 sm:pl-4 pr-0 flex flex-col justify-between">
       <div class="flex items-center justify-between text-xs text-[#111111]/60 font-medium">
         <span>Privasi Prompt (FR-4.2)</span>
         <ShieldCheck class="w-4 h-4 text-[#0F4C3A]" />

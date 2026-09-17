@@ -19,9 +19,9 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[#111111]/10 border-t border-b border-[#111111]/10 py-6">
     <!-- Form Input Vault Key -->
-    <div class="luxury-card p-4 md:p-5 rounded-xl space-y-4">
+    <div class="pb-6 lg:pb-0 pr-0 lg:pr-6 space-y-4">
       <h2 class="text-sm font-bold text-[#111111]">Simpan / Perbarui Kredensial AI di Vault</h2>
 
       <div class="space-y-3 text-xs">
@@ -29,7 +29,7 @@ const emit = defineEmits<{
           <label class="block font-bold text-[#111111]/70 mb-1">Penyedia AI (Provider)</label>
           <select
             v-model="newProvider"
-            class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] font-bold focus:outline-none focus:border-[#D4AF37]"
+            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg p-2 text-[#111111] font-bold focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
           >
             <option value="gemini">Google Gemini (Default)</option>
             <option value="openai">OpenAI (GPT-4o / Mini)</option>
@@ -43,7 +43,7 @@ const emit = defineEmits<{
             v-model="newRawKey"
             type="password"
             placeholder="sk-ant-... atau AIzaSy..."
-            class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] font-mono focus:outline-none focus:border-[#D4AF37]"
+            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg p-2 text-[#111111] font-mono focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
           />
         </div>
 
@@ -53,7 +53,7 @@ const emit = defineEmits<{
             v-model.number="newBudget"
             type="number"
             step="50000"
-            class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] font-mono focus:outline-none focus:border-[#D4AF37]"
+            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg p-2 text-[#111111] font-mono focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
           />
         </div>
 
@@ -69,7 +69,7 @@ const emit = defineEmits<{
     </div>
 
     <!-- Active Vault Status & Kill Switch -->
-    <div class="luxury-card p-4 md:p-5 rounded-xl space-y-4">
+    <div class="pt-6 lg:pt-0 pl-0 lg:pl-6 space-y-4">
       <h2 class="text-sm font-bold text-[#111111]">Status Vault &amp; Tombol Darurat (Kill Switch)</h2>
 
       <div
@@ -80,11 +80,11 @@ const emit = defineEmits<{
         <p class="text-xs">Belum ada API Key tersimpan untuk aplikasi ini. Masukkan key di samping.</p>
       </div>
 
-      <div v-else class="space-y-3">
+      <div v-else class="divide-y divide-[#111111]/10">
         <div
           v-for="cred in vaultCreds"
           :key="cred.id"
-          class="p-3.5 rounded-xl border border-[#111111]/10 bg-[#111111]/[0.02] flex items-center justify-between gap-3 text-xs"
+          class="py-3 flex items-center justify-between gap-3 text-xs"
         >
           <div class="space-y-1">
             <div class="flex items-center gap-2">

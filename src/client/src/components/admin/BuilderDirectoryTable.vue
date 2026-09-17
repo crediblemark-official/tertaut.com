@@ -51,8 +51,8 @@ const filteredBuilders = computed(() => {
     </div>
 
     <div v-else class="bg-white rounded-2xl border border-[#111111]/10 overflow-hidden shadow-xs">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-xs border-collapse">
+      <div class="overflow-x-auto top-scrollbar">
+        <table class="w-full text-left text-xs border-collapse whitespace-nowrap">
           <thead>
             <tr class="bg-[#FAFAFA] border-b border-[#111111]/10 text-[#111111]/60 uppercase tracking-wider text-[10px]">
               <th class="py-3 px-4 font-bold">Builder / Akun</th>

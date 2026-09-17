@@ -133,9 +133,9 @@ function submitCreate() {
 </script>
 
 <template>
-  <div class="luxury-card p-4 md:p-5 rounded-xl space-y-4">
+  <div class="space-y-5">
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#111111]/10">
       <div class="flex items-center gap-2">
         <div class="p-1.5 rounded-lg bg-[#D4AF37]/15 border border-[#D4AF37]/35">
           <Ticket class="w-4 h-4 text-[#D4AF37]" />
@@ -154,8 +154,8 @@ function submitCreate() {
       </button>
     </div>
 
-    <!-- Create Form -->
-    <div class="p-3.5 rounded-xl bg-[#111111]/[0.03] border border-[#111111]/10 space-y-3">
+    <!-- Create Form Section -->
+    <div class="space-y-3 pb-5 border-b border-[#111111]/10">
       <div class="flex items-center gap-1.5 text-[11px] font-bold text-[#111111]/70 uppercase tracking-wide">
         <Plus class="w-3.5 h-3.5 text-[#D4AF37]" />
         <span>Buat Kupon Baru</span>
@@ -166,7 +166,7 @@ function submitCreate() {
           <label class="block text-[10px] font-bold text-[#111111]/60 mb-1">Aplikasi</label>
           <select
             v-model="form.appId"
-            class="w-full bg-white border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-xs font-bold text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg px-2.5 py-1.5 text-xs font-bold text-[#111111] focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
           >
             <option value="" disabled>Pilih aplikasi...</option>
             <option v-for="app in appsList" :key="app.id" :value="app.id">
@@ -181,7 +181,7 @@ function submitCreate() {
             v-model="form.code"
             type="text"
             placeholder="EARLY50"
-            class="w-full bg-white border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold uppercase text-[#111111] placeholder:normal-case placeholder:font-sans placeholder:text-[#111111]/35 focus:outline-none focus:border-[#D4AF37]"
+            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold uppercase text-[#111111] placeholder:normal-case placeholder:font-sans placeholder:text-[#111111]/35 focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
           />
         </div>
 
@@ -192,7 +192,7 @@ function submitCreate() {
             type="number"
             min="1"
             max="100"
-            class="w-full bg-white border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#111111] focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
           />
         </div>
 
@@ -202,7 +202,7 @@ function submitCreate() {
             v-model.number="form.maxRedemptions"
             type="number"
             min="0"
-            class="w-full bg-white border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#111111] focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
           />
         </div>
       </div>
@@ -213,7 +213,7 @@ function submitCreate() {
           <input
             v-model="form.expiresAt"
             type="datetime-local"
-            class="w-full bg-white border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-xs text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg px-2.5 py-1.5 text-xs text-[#111111] focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
           />
         </div>
 
@@ -228,8 +228,8 @@ function submitCreate() {
       </div>
     </div>
 
-    <!-- Statistik Pemakaian (Redeem per Hari) -->
-    <div class="p-3.5 rounded-xl bg-[#111111]/[0.03] border border-[#111111]/10 space-y-3">
+    <!-- Statistik Pemakaian (Redeem per Hari) Divider Strip -->
+    <div class="space-y-3 pb-5 border-b border-[#111111]/10">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div class="flex items-center gap-1.5 text-[11px] font-bold text-[#111111]/70 uppercase tracking-wide">
           <BarChart3 class="w-3.5 h-3.5 text-[#D4AF37]" />
@@ -248,20 +248,20 @@ function submitCreate() {
         </div>
       </div>
 
-      <!-- Ringkasan Periode -->
-      <div class="grid grid-cols-2 gap-2">
-        <div class="p-2.5 rounded-lg bg-white border border-[#111111]/10">
+      <!-- Ringkasan Periode (Divided Grid) -->
+      <div class="grid grid-cols-2 divide-x divide-[#111111]/10 py-1">
+        <div class="pr-4 pl-0">
           <div class="text-[10px] font-bold uppercase text-[#111111]/50">Penebusan ({{ statsDays }} hari)</div>
-          <div class="text-lg font-black font-mono text-[#111111]">{{ stats?.totalRedemptions ?? '—' }}</div>
+          <div class="text-xl font-black font-mono text-[#111111]">{{ stats?.totalRedemptions ?? '—' }}</div>
         </div>
-        <div class="p-2.5 rounded-lg bg-white border border-[#111111]/10">
+        <div class="pl-4 pr-0">
           <div class="text-[10px] font-bold uppercase text-[#111111]/50">Total Diskon Diberikan</div>
-          <div class="text-lg font-black font-mono text-[#8B0000]">{{ stats ? formatRupiah(stats.totalDiscountIdr) : '—' }}</div>
+          <div class="text-xl font-black font-mono text-[#8B0000]">{{ stats ? formatRupiah(stats.totalDiscountIdr) : '—' }}</div>
         </div>
       </div>
 
       <!-- Bar Chart Harian -->
-      <div v-if="stats && stats.daily.length > 0" class="flex items-end gap-1 h-24 px-0.5">
+      <div v-if="stats && stats.daily.length > 0" class="flex items-end gap-1 h-20 px-0.5 pt-2">
         <div
           v-for="d in stats.daily"
           :key="d.day"
@@ -273,7 +273,7 @@ function submitCreate() {
           </div>
           <div
             class="w-full max-w-[28px] rounded-t-md bg-[#D4AF37]/85 group-hover:bg-[#D4AF37] transition-colors"
-            :style="{ height: `${Math.max(6, (d.redemptions / maxDailyRedemptions) * 72)}px` }"
+            :style="{ height: `${Math.max(6, (d.redemptions / maxDailyRedemptions) * 60)}px` }"
           ></div>
           <span class="text-[8px] text-[#111111]/45 font-mono leading-none">{{ dayLabel(d.day) }}</span>
         </div>
@@ -283,7 +283,7 @@ function submitCreate() {
       </p>
 
       <!-- Kupon Teratas -->
-      <div v-if="stats && stats.topCoupons.length > 0" class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-[#111111]/10">
+      <div v-if="stats && stats.topCoupons.length > 0" class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[#111111]/10">
         <span class="text-[10px] font-bold uppercase text-[#111111]/50 mr-1">Teratas:</span>
         <span
           v-for="(tc, idx) in stats.topCoupons.slice(0, 3)"
@@ -296,20 +296,20 @@ function submitCreate() {
       </div>
     </div>
 
-    <!-- Search & Filter -->
-    <div class="flex flex-col sm:flex-row sm:items-center gap-2 pt-1 border-t border-[#111111]/10">
-      <div class="relative flex-1 max-w-xs">
-        <Search class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#111111]/40" />
+    <!-- Search & Filter Toolbar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#111111]/10">
+      <div class="relative flex-1 max-w-sm">
+        <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#111111]/40" />
         <input
           v-model="searchQuery"
           type="text"
           placeholder="Cari kode kupon..."
-          class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-white border border-[#111111]/15 text-xs text-[#111111] placeholder:text-[#111111]/40 focus:outline-none focus:border-[#D4AF37]"
+          class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#111111]/5 border border-[#111111]/10 text-xs text-[#111111] placeholder:text-[#111111]/40 focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
         />
       </div>
       <select
         v-model="filterAppId"
-        class="bg-white border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-xs font-bold text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+        class="bg-[#111111]/5 border border-[#111111]/10 rounded-lg px-2.5 py-1.5 text-xs font-bold text-[#111111] focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
       >
         <option value="">Semua Aplikasi</option>
         <option v-for="app in appsList" :key="app.id" :value="app.id">
@@ -318,18 +318,18 @@ function submitCreate() {
       </select>
     </div>
 
-    <!-- Coupons Table -->
-    <div class="overflow-x-auto">
-      <table class="w-full text-left text-xs">
-        <thead>
-          <tr class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
-            <th class="pb-2">Kode</th>
-            <th class="pb-2">Aplikasi</th>
-            <th class="pb-2">Diskon</th>
-            <th class="pb-2">Terpakai</th>
-            <th class="pb-2">Kedaluwarsa</th>
-            <th class="pb-2">Status</th>
-            <th class="pb-2 text-right">Aksi</th>
+    <!-- Desktop Coupons Table (Flush left/right) -->
+    <div class="hidden sm:block overflow-x-auto w-full top-scrollbar">
+      <table class="w-full text-left text-xs whitespace-nowrap">
+        <thead class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
+          <tr>
+            <th class="py-2.5 pr-3 pl-0">Kode</th>
+            <th class="py-2.5 px-3">Aplikasi</th>
+            <th class="py-2.5 px-3">Diskon</th>
+            <th class="py-2.5 px-3">Terpakai</th>
+            <th class="py-2.5 px-3">Kedaluwarsa</th>
+            <th class="py-2.5 px-3">Status</th>
+            <th class="py-2.5 pl-3 pr-0 text-right">Aksi</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[#111111]/5">
@@ -343,27 +343,27 @@ function submitCreate() {
             </td>
           </tr>
           <tr v-for="c in filteredCoupons" :key="c.id" class="hover:bg-[#111111]/[0.02]">
-            <td class="py-2.5">
+            <td class="py-3 pr-3 pl-0">
               <span class="font-mono font-bold text-[#111111]">{{ c.code }}</span>
             </td>
-            <td class="py-2.5 text-[#111111]/80">{{ appLabel(c.appId) }}</td>
-            <td class="py-2.5">
+            <td class="py-3 px-3 text-[#111111]/80">{{ appLabel(c.appId) }}</td>
+            <td class="py-3 px-3">
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[#111111] text-[10px] font-bold">
                 <TicketPercent class="w-2.5 h-2.5" />
                 {{ c.discountPercent }}%
               </span>
             </td>
-            <td class="py-2.5 font-mono text-[#111111]/80">
+            <td class="py-3 px-3 font-mono text-[#111111]/80">
               {{ c.redemptionCount }} / {{ remainingQuota(c) }}
             </td>
-            <td class="py-2.5 text-[11px]">
+            <td class="py-3 px-3 text-[11px]">
               <span v-if="c.expiresAt" class="inline-flex items-center gap-1" :class="isExpiringSoon(c) ? 'text-[#8B0000] font-bold' : 'text-[#111111]/60'">
                 <Clock class="w-3 h-3" />
                 {{ new Date(c.expiresAt).toLocaleDateString('id-ID') }}
               </span>
               <span v-else class="text-[#111111]/40">Tanpa batas</span>
             </td>
-            <td class="py-2.5">
+            <td class="py-3 px-3">
               <span
                 class="px-2 py-0.5 rounded-full text-[10px] font-bold"
                 :class="c.isActive ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]' : 'bg-[#111111]/5 text-[#111111]/50'"
@@ -371,7 +371,7 @@ function submitCreate() {
                 {{ c.isActive ? 'AKTIF' : 'NONAKTIF' }}
               </span>
             </td>
-            <td class="py-2.5 text-right">
+            <td class="py-3 pl-3 pr-0 text-right">
               <div class="flex items-center justify-end gap-1.5">
                 <button
                   @click="emit('toggle', c)"
@@ -395,6 +395,48 @@ function submitCreate() {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Mobile Coupons List View -->
+    <div class="sm:hidden divide-y divide-[#111111]/10">
+      <div v-for="c in filteredCoupons" :key="c.id" class="py-3 space-y-2">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="font-mono font-bold text-xs text-[#111111]">{{ c.code }}</div>
+            <div class="text-[10px] text-[#111111]/50">{{ appLabel(c.appId) }}</div>
+          </div>
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[#111111] text-[10px] font-bold">
+            <TicketPercent class="w-2.5 h-2.5" />
+            {{ c.discountPercent }}%
+          </span>
+        </div>
+
+        <div class="flex items-center justify-between text-[10px] text-[#111111]/70 pt-1">
+          <span>Terpakai: {{ c.redemptionCount }} / {{ remainingQuota(c) }}</span>
+          <div class="flex items-center gap-2">
+            <span
+              class="px-2 py-0.5 rounded-full text-[9px] font-bold"
+              :class="c.isActive ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]' : 'bg-[#111111]/5 text-[#111111]/50'"
+            >
+              {{ c.isActive ? 'AKTIF' : 'NONAKTIF' }}
+            </span>
+            <button
+              @click="emit('toggle', c)"
+              class="p-1 rounded bg-[#111111]/5 hover:bg-[#D4AF37]/20"
+              :title="c.isActive ? 'Nonaktifkan' : 'Aktifkan'"
+            >
+              <Power class="w-3 h-3" />
+            </button>
+            <button
+              @click="emit('delete', c)"
+              class="p-1 rounded bg-[#8B0000]/10 text-[#8B0000]"
+              title="Hapus"
+            >
+              <Trash2 class="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
