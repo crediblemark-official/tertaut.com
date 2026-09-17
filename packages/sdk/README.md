@@ -48,6 +48,16 @@ if (result.valid) console.log(result.claims);
 
 > Verifikasi offline tidak mengetahui revoke terbaru. Lakukan `validate()` online secara berkala.
 
+### Kredit
+
+```ts
+await tertaut.credits.balance({ licenseKey, hwid });
+await tertaut.credits.consume({ licenseKey, hwid, amount: 10, reason: "10x generate" });
+const { entries } = await tertaut.credits.history({ licenseKey, limit: 20 });
+```
+
+Kredit ditambahkan otomatis saat checkout membawa `grantCredits`. Pemakaian bersifat atomik (tidak bisa melewati saldo) dan mendukung `reference` untuk idempotensi.
+
 ### AI Proxy
 
 ```ts
@@ -70,6 +80,7 @@ for await (const chunk of await tertaut.aiProxy.chatStream({ licenseKey, prompt:
 | `licensing.activate / validate / verify / deactivate` | Siklus hidup lisensi |
 | `licensing.getJwks()` | Ambil public key Ed25519 |
 | `licensing.verifyOfflineToken(token, options?)` | Verifikasi token offline lokal |
+| `credits.balance / consume / history` | Saldo & pemakaian kredit lisensi |
 | `aiProxy.chat / chatStream` | AI gateway (non-streaming & streaming) |
 
 ## Lisensi

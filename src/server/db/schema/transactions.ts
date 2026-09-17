@@ -34,7 +34,7 @@ export const transactions = pgTable("transactions", {
   couponCode: text("coupon_code"), // Kupon yang ditebus (null = harga penuh)
   discountAmount: integer("discount_amount").default(0).notNull(), // Nominal IDR yang dipotong
   grantDays: integer("grant_days").default(30),
-  // TODO(grantCredits): inert — belum ada ledger/saldo kredit. Penegakan menunggu spek produk.
+  // Jumlah kredit yang ditambahkan ke ledger lisensi saat pembayaran terkonfirmasi.
   grantCredits: integer("grant_credits").default(0),
   paidAt: timestamp("paid_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

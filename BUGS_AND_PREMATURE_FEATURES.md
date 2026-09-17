@@ -404,7 +404,7 @@ Path traversal (`index.ts`), CORS whitelist, atomic disbursement lock + pemetaan
 9. **`drizzle.config.ts` fallback ke DB `tertaut`** sedangkan config server fallback `tertautv2` — inkonsistensi lama #10 luput di drizzle config.
 
 ### Test Coverage
-- `src/server/__test/server.test.ts`: **44 test** — 29 di atas + auth Better Auth, seat race atomik, migrasi HWID salted, Ed25519 offline token + denylist `jti` + JWKS + verifikasi lokal SDK, cross-app AI guard, status terminal webhook invoice/disbursement.
+- `src/server/__test/server.test.ts`: **47 test** — 29 di atas + auth Better Auth, seat race atomik, migrasi HWID salted, Ed25519 offline token + denylist `jti` + JWKS + verifikasi lokal SDK, cross-app AI guard, status terminal webhook invoice/disbursement, ledger kredit (grant/debit atomik/idempotensi/endpoint HTTP).
 - Catatan: test E2E butuh server berjalan di `localhost:3000` + Postgres; test kupon aman di sandbox karena `XENDIT_SECRET_KEY` mock → invoice mock, bukan tagihan nyata.
 
 ---
@@ -428,9 +428,9 @@ Sudah diperbaiki:
 - ✅ **`selectedPaymentRail`** — pilihan QRIS/VA/E-Wallet kini dikirim `paymentRail` → `payment_methods` Xendit.
 - ✅ **Docker Compose** — service `app` (build Dockerfile) ditambahkan, depend on Postgres sehat; default DB diselaraskan ke `tertautv2`.
 - ✅ **Email delivery (Resend)** — `EmailService` (REST API, tanpa dep baru) mengirim kunci lisensi saat pembayaran terkonfirmasi (webhook) & saat lisensi diterbitkan manual; non-fatal, dilewati bila `RESEND_API_KEY` kosong.
-- ✅ **Publish SDK** — `@tertaut/sdk@0.1.4` terbit ke npm (public) dengan `exports`, `.d.ts`, README, `publishConfig.access`.
+- ✅ **Publish SDK** — `@tertaut/sdk@0.1.5` terbit ke npm (public) dengan `exports`, `.d.ts`, README, `publishConfig.access`.
 - ✅ **Endpoint docs** — prompt AI di `DocsView` memakai `window.location.origin` (bukan hardcode `localhost:3000`).
 - ✅ **Git hooks** — Husky v9: pre-commit menjalankan `build:server` + typecheck SDK.
+- ✅ **Ledger kredit (`grantCredits`)** — tabel `credit_ledger` (append-only, `SUM(delta)` + `balance_after` audit). Kredit di-grant otomatis saat pembayaran terkonfirmasi & saat lisensi diterbitkan manual. Endpoint publik baru: `POST /api/v1/licensing/credits/{balance,consume,history}`. `consume` atomik (`FOR UPDATE`, anti saldo negatif) + idempotensi via `reference`. `verify` kini mengembalikan `credits`. SDK `credits.balance/consume/history`.
 
-Masih tertunda:
-- ⏳ **`grantCredits` inert** — hanya disimpan di `transactions`, belum ada ledger/saldo kredit; penegakan menunggu spek produk (ditandai TODO di `schema/transactions.ts` & `routes/checkout.ts`).
+Tidak ada item backlog yang tersisa.

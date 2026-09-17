@@ -6,6 +6,7 @@ import { XenditService } from "../services/xendit";
 import { DanaService } from "../services/dana";
 import { LicenseService } from "../services/license";
 import { EmailService } from "../services/email";
+import { CreditService } from "../services/credits";
 import { randomBytes } from "crypto";
 
 export const webhookSchema = {
@@ -104,6 +105,21 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         offlineJwtGraceToken: offlineToken,
       });
 
+      // Tambahkan kredit lisensi (jika paket membawa grantCredits) ke ledger.
+      const grantedCredits = tx.grantCredits || 0;
+      let creditBalance = 0;
+      if (grantedCredits > 0) {
+        creditBalance = await CreditService.grant(
+          { licenseId: licId, appId: tx.appId, customerEmail: tx.customerEmail },
+          grantedCredits,
+          {
+            reference: tx.id,
+            description: `Pembelian paket (${tx.id})`,
+            executor: trx,
+          }
+        );
+      }
+
       console.log(`[Webhook] Payment confirmed for TX: ${tx.id}, License issued: ${licenseKey}`);
 
       return {
@@ -115,6 +131,8 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         appId: tx.appId,
         customerEmail: tx.customerEmail,
         expiresAt,
+        grantedCredits,
+        creditBalance,
       };
     });
 

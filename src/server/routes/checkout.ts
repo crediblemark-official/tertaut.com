@@ -69,7 +69,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
         customerEmail,
         buyerEmail,
         grantDays = 365,
-        // TODO(grantCredits): hanya disimpan, belum ditegakkan (tak ada ledger kredit).
+        // Kredit ditambahkan ke ledger lisensi saat webhook pembayaran terkonfirmasi.
         grantCredits = 0,
         redirectUrl,
         couponCode,
@@ -290,7 +290,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
         customerEmail: t.Optional(t.String()),
         buyerEmail: t.Optional(t.String()),
         grantDays: t.Optional(t.Number({ default: 365 })),
-        // TODO(grantCredits): inert — hanya disimpan, belum ada ledger/saldo kredit.
+        // Kredit yang di-grant ke lisensi saat pembayaran sukses.
         grantCredits: t.Optional(t.Number({ default: 0 })),
         redirectUrl: t.Optional(t.String()),
         couponCode: t.Optional(t.String({ maxLength: 64 })),

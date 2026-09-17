@@ -77,6 +77,59 @@ export interface OfflineTokenVerifyResult {
   };
 }
 
+export interface CreditBalanceOptions {
+  licenseKey: string;
+  hwid?: string;
+}
+
+export interface CreditBalanceResult {
+  success: boolean;
+  balance: number;
+  licenseKey?: string;
+  reason?: string;
+  message?: string;
+}
+
+export interface CreditConsumeOptions {
+  licenseKey: string;
+  hwid: string;
+  amount: number;
+  reason?: string;
+  reference?: string;
+}
+
+export interface CreditConsumeResult {
+  success: boolean;
+  balance: number;
+  consumed?: number;
+  reason?: string;
+  message?: string;
+}
+
+export interface CreditHistoryOptions {
+  licenseKey: string;
+  hwid?: string;
+  limit?: number;
+}
+
+export interface CreditHistoryEntry {
+  id: string;
+  type: "GRANT" | "DEBIT" | "REFUND" | "ADJUSTMENT";
+  delta: number;
+  balanceAfter: number;
+  reference: string | null;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface CreditHistoryResult {
+  success: boolean;
+  balance: number;
+  entries: CreditHistoryEntry[];
+  reason?: string;
+  message?: string;
+}
+
 /** Decode base64url menjadi Uint8Array tanpa dependensi eksternal. */
 function base64urlToBytes(input: string): Uint8Array {
   const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
@@ -252,6 +305,51 @@ export class Tertaut {
       } catch (err: any) {
         return { valid: false, reason: err?.message || "INVALID_TOKEN" };
       }
+    },
+  };
+
+  /**
+   * Modul Kredit: saldo, pemakaian atomik, dan riwayat ledger lisensi.
+   */
+  public credits = {
+    balance: async (options: CreditBalanceOptions): Promise<CreditBalanceResult> => {
+      const res = await fetch(`${this.baseUrl}/api/v1/licensing/credits/balance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          licenseKey: options.licenseKey,
+          hwid: options.hwid,
+        }),
+      });
+      return res.json();
+    },
+
+    consume: async (options: CreditConsumeOptions): Promise<CreditConsumeResult> => {
+      const res = await fetch(`${this.baseUrl}/api/v1/licensing/credits/consume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          licenseKey: options.licenseKey,
+          hwid: options.hwid,
+          amount: options.amount,
+          reason: options.reason,
+          reference: options.reference,
+        }),
+      });
+      return res.json();
+    },
+
+    history: async (options: CreditHistoryOptions): Promise<CreditHistoryResult> => {
+      const res = await fetch(`${this.baseUrl}/api/v1/licensing/credits/history`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          licenseKey: options.licenseKey,
+          hwid: options.hwid,
+          limit: options.limit,
+        }),
+      });
+      return res.json();
     },
   };
 

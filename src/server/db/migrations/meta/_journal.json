@@ -22,6 +22,13 @@
       "when": 1789588354712,
       "tag": "0002_goofy_annihilus",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789620096728,
+      "tag": "0003_free_rocket_racer",
+      "breakpoints": true
     }
   ]
 }
