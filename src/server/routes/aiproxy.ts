@@ -23,6 +23,237 @@ function isMockApiKey(key: string | null | undefined): boolean {
 }
 
 /**
+ * Panggil upstream AI non-streaming untuk semua provider yang didukung.
+ * Mengembalikan teks completion mentah dari provider.
+ */
+async function callUpstreamNonStreaming(
+  provider: string,
+  model: string,
+  apiKey: string,
+  promptText: string
+): Promise<string> {
+  if (provider === "gemini") {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] }),
+      }
+    );
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Gemini upstream error ${res.status}: ${errText.slice(0, 300)}`);
+    }
+    const data = (await res.json()) as any;
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  }
+
+  if (provider === "openai") {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: promptText }],
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`OpenAI upstream error ${res.status}: ${errText.slice(0, 300)}`);
+    }
+    const data = (await res.json()) as any;
+    return data.choices?.[0]?.message?.content || "";
+  }
+
+  if (provider === "anthropic") {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: model || "claude-3-5-haiku-latest",
+        max_tokens: 2048,
+        messages: [{ role: "user", content: promptText }],
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Anthropic upstream error ${res.status}: ${errText.slice(0, 300)}`);
+    }
+    const data = (await res.json()) as any;
+    return (data.content || []).map((b: any) => b?.text || "").join("");
+  }
+
+  if (provider === "deepseek") {
+    // DeepSeek kompatibel dengan OpenAI Chat Completions API
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: model || "deepseek-chat",
+        messages: [{ role: "user", content: promptText }],
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`DeepSeek upstream error ${res.status}: ${errText.slice(0, 300)}`);
+    }
+    const data = (await res.json()) as any;
+    return data.choices?.[0]?.message?.content || "";
+  }
+
+  throw new Error(
+    `Provider "${provider}" tidak didukung. Gunakan: gemini, openai, anthropic, atau deepseek.`
+  );
+}
+
+/**
+ * Panggil upstream AI streaming (SSE) untuk semua provider yang didukung.
+ * Mengembalikan array potongan teks hasil parse event stream provider.
+ */
+async function callUpstreamStreamingChunks(
+  provider: string,
+  model: string,
+  apiKey: string,
+  promptText: string
+): Promise<string[]> {
+  if (provider === "gemini") {
+    // Gemini streaming via alt=sse
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] }),
+      }
+    );
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Gemini upstream error ${res.status}: ${errText.slice(0, 300)}`);
+    }
+    return parseSseDataLines(res, (json) => json?.candidates?.[0]?.content?.parts?.[0]?.text);
+  }
+
+  if (provider === "openai") {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: promptText }],
+        stream: true,
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`OpenAI upstream error ${res.status}: ${errText.slice(0, 300)}`);
+    }
+    return parseSseDataLines(res, (json) => json?.choices?.[0]?.delta?.content);
+  }
+
+  if (provider === "anthropic") {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: model || "claude-3-5-haiku-latest",
+        max_tokens: 2048,
+        messages: [{ role: "user", content: promptText }],
+        stream: true,
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Anthropic upstream error ${res.status}: ${errText.slice(0, 300)}`);
+    }
+    return parseSseDataLines(res, (json) =>
+      json?.type === "content_block_delta" ? json?.delta?.text : undefined
+    );
+  }
+
+  if (provider === "deepseek") {
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: model || "deepseek-chat",
+        messages: [{ role: "user", content: promptText }],
+        stream: true,
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`DeepSeek upstream error ${res.status}: ${errText.slice(0, 300)}`);
+    }
+    return parseSseDataLines(res, (json) => json?.choices?.[0]?.delta?.content);
+  }
+
+  throw new Error(
+    `Provider "${provider}" tidak didukung. Gunakan: gemini, openai, anthropic, atau deepseek.`
+  );
+}
+
+/**
+ * Parse respons SSE upstream: kumpulkan potongan teks dari setiap event
+ * `data: {...}` memakai extractor yang dispesifikan per provider.
+ */
+async function parseSseDataLines(
+  res: Response,
+  extract: (json: any) => string | undefined
+): Promise<string[]> {
+  const chunks: string[] = [];
+  if (!res.body) return chunks;
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) continue;
+      const payload = trimmed.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+      try {
+        const text = extract(JSON.parse(payload));
+        if (text) chunks.push(text);
+      } catch {
+        // Event non-JSON diabaikan
+      }
+    }
+  }
+
+  return chunks;
+}
+
+/**
  * Core Chat Handler for both Streaming (SSE) and Non-Streaming calls
  * Standar PRD Modul 4: FR-1, FR-2, FR-3, FR-4
  */
@@ -56,8 +287,25 @@ async function handleAiChat({
   const license = validation.license;
   const appId = body.appId || license.appId;
 
-  // 2. Strict Request Rate Limiter (FR-3.2: 15 req/min)
-  const rateLimit = AiGatewayService.checkRateLimit(license.id || license.licenseKey, 15);
+  // 2. Strict Request Rate Limiter (FR-3.2)
+  // Nilai maxRequestsPerMin diambil dari config app di DB (kolom max_requests_per_min);
+  // fallback 15 req/menit untuk config default. Nilai 0/negatif diartikan unlimited.
+  let maxRequestsPerMin = 15;
+  if (body.appId) {
+    const reqLimitConfig = await db.query.aiAppConfigs.findFirst({
+      where: and(
+        eq(aiAppConfigs.appId, body.appId),
+        eq(aiAppConfigs.modelAlias, body.modelAlias || "default")
+      ),
+    });
+    if (reqLimitConfig?.maxRequestsPerMin && reqLimitConfig.maxRequestsPerMin > 0) {
+      maxRequestsPerMin = reqLimitConfig.maxRequestsPerMin;
+    }
+  }
+  const rateLimit = AiGatewayService.checkRateLimit(
+    license.id || license.licenseKey,
+    maxRequestsPerMin
+  );
   if (!rateLimit.allowed) {
     set.status = 429;
     return {
@@ -194,42 +442,10 @@ async function handleAiChat({
           let chunks: string[] = [];
 
           if (rawApiKey && !isMockApiKey(rawApiKey)) {
-            // Pemanggilan nyata ke upstream AI
-            if (resolvedProvider === "gemini") {
-              const res = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${rawApiKey}`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    contents: [{ parts: [{ text: promptText }] }],
-                  }),
-                }
-              );
-              const data = (await res.json()) as any;
-              const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-              chunks = text ? text.split(" ") : ["Hasil", " analisis", " AI", " selesai."];
-            } else if (resolvedProvider === "openai") {
-              const res = await fetch("https://api.openai.com/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${rawApiKey}`,
-                },
-                body: JSON.stringify({
-                  model: targetModel,
-                  messages: [{ role: "user", content: promptText }],
-                }),
-              });
-              const data = (await res.json()) as any;
-              const text = data.choices?.[0]?.message?.content || "";
-              chunks = text ? text.split(" ") : ["Hasil", " analisa", " AI", " selesai."];
-            } else {
-              // Anthropic / DeepSeek fallback
-              chunks = ["Respon", " streaming", " terverifikasi", " aman", " via", " Tertaut", " AI", " Gateway."];
-            }
+            // Pemanggilan streaming nyata ke upstream AI (SSE relay asli)
+            chunks = await callUpstreamStreamingChunks(resolvedProvider, targetModel, rawApiKey, promptText);
           } else if (config.isSandbox) {
-            // Sandbox/Mock Mode: tanpaki real key, simulasikan streaming chunks
+            // Sandbox/Mock Mode: tanpa real key, simulasikan streaming chunks
             chunks = [
               "Halo!",
               " Permintaan",
@@ -254,14 +470,11 @@ async function handleAiChat({
             return;
           }
 
-          // Relay Server-Sent Events Chunks
-          for (let i = 0; i < chunks.length; i++) {
-            const word = (i === 0 ? "" : " ") + chunks[i];
-            fullCompletion += word;
-            const sseChunk = AiGatewayService.formatSseChunk(chatId, word);
+          // Relay Server-Sent Events Chunks ke client
+          for (const chunk of chunks) {
+            fullCompletion += chunk;
+            const sseChunk = AiGatewayService.formatSseChunk(chatId, chunk);
             controller.enqueue(encoder.encode(sseChunk));
-            // Sedikit delay simulasi streaming token per token
-            await new Promise((resolve) => setTimeout(resolve, 20));
           }
 
           // FR-4.2: Zero text retention - catat statistik token sebelum menutup stream
@@ -281,8 +494,11 @@ async function handleAiChat({
           // Akhiri stream dengan [DONE]
           controller.enqueue(encoder.encode(AiGatewayService.formatSseDone()));
           controller.close();
-        } catch (streamErr) {
-          controller.error(streamErr);
+        } catch (streamErr: any) {
+          set.status = 502;
+          controller.error(
+            new Error(streamErr?.message || "Upstream AI provider gagal diproses.")
+          );
         }
       },
     });
@@ -300,39 +516,20 @@ async function handleAiChat({
   // 7. Non-Streaming Response
   let responseText = "";
   if (rawApiKey && !isMockApiKey(rawApiKey)) {
+    // Pemanggilan nyata ke upstream (Gemini, OpenAI, Anthropic, DeepSeek).
+    // Kegagalan upstream TIDAK lagi disembunyikan di balik teks fallback palsu —
+    // client harus tahu request-nya gagal agar bisa retry.
     try {
-      if (resolvedProvider === "gemini") {
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${rawApiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: promptText }] }],
-            }),
-          }
-        );
-        const geminiData = (await geminiRes.json()) as any;
-        responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "Respon AI diterima.";
-      } else if (resolvedProvider === "openai") {
-        const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${rawApiKey}`,
-          },
-          body: JSON.stringify({
-            model: targetModel,
-            messages: [{ role: "user", content: promptText }],
-          }),
-        });
-        const openaiData = (await openaiRes.json()) as any;
-        responseText = openaiData.choices?.[0]?.message?.content || "Respon AI OpenAI diterima.";
-      } else {
-        responseText = "Respon AI aman dari provider terproteksi.";
-      }
-    } catch {
-      responseText = "Respon aman via Tertaut AI Proxy Shield (Gateway Fallback).";
+      responseText = await callUpstreamNonStreaming(resolvedProvider, targetModel, rawApiKey, promptText);
+    } catch (upstreamErr: any) {
+      set.status = 502;
+      return {
+        success: false,
+        error: "UPSTREAM_AI_ERROR",
+        message: upstreamErr?.message || "Provider AI gagal merespons.",
+        provider: resolvedProvider,
+        model: targetModel,
+      };
     }
   } else if (config.isSandbox) {
     responseText = "Respon terverifikasi dari Tertaut AI Proxy Shield. Kredensial terlindungi oleh enkripsi AES-256-GCM.";

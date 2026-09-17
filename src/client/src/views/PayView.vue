@@ -12,7 +12,8 @@ import {
   QrCode,
   Building,
   Wallet,
-  ExternalLink
+  ExternalLink,
+  FlaskConical
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -29,6 +30,7 @@ const product = ref<{
   id: string
   name: string
   slug: string
+  mode: 'sandbox' | 'live'
   targetPrice: number
   description: string | null
   headline: string | null
@@ -39,11 +41,26 @@ const product = ref<{
 } | null>(null)
 
 const emailInput = ref('')
+const couponInput = ref('')
+const appliedCoupon = ref<{ code: string; discountPercent: number; discountAmount: number } | null>(null)
+const couponError = ref('')
 const loading = ref(true)
 const notFound = ref(false)
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const selectedPaymentRail = ref<'qris' | 'va' | 'ewallet'>('qris')
+const sandboxSessionId = ref<string | null>(null)
+const sandboxResult = ref<{ message: string; licenseKey?: string } | null>(null)
+const isSimulating = ref(false)
+
+/** Estimasi diskon & total bayar untuk pratinjau langsung saat mengetik kupon. */
+const estimatedDiscount = computed(() => {
+  if (!product.value || !appliedCoupon.value) return 0
+  return Math.min(appliedCoupon.value.discountAmount, product.value.targetPrice)
+})
+const payableAmount = computed(() =>
+  product.value ? Math.max(0, product.value.targetPrice - estimatedDiscount.value) : 0
+)
 
 async function loadCheckoutData() {
   loading.value = true
@@ -85,11 +102,46 @@ async function loadCheckoutData() {
   }
 }
 
+/**
+ * Preview kupon langsung di halaman pay sebelum membuat sesi pembayaran.
+ * Validasi otoritatif tetap di server saat POST /checkout/session.
+ */
+async function applyCoupon() {
+  if (!product.value || !couponInput.value.trim()) return
+  couponError.value = ''
+  appliedCoupon.value = null
+
+  try {
+    const res = await fetch('/api/v1/checkout/preview-coupon', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        appId: product.value.id,
+        couponCode: couponInput.value.trim(),
+        amount: product.value.targetPrice
+      })
+    })
+    const data = await res.json()
+    if (!res.ok || !data.valid) {
+      couponError.value = data.message || data.error || 'Kupon tidak valid'
+      return
+    }
+    appliedCoupon.value = {
+      code: data.coupon.code,
+      discountPercent: data.discountPercent,
+      discountAmount: data.discountAmount
+    }
+  } catch {
+    couponError.value = 'Gagal memvalidasi kupon. Coba lagi.'
+  }
+}
+
 function setProductData(data: any) {
   product.value = {
     id: data.id,
     name: queryProductName.value || data.name,
     slug: data.slug,
+    mode: data.mode === 'sandbox' ? 'sandbox' : 'live',
     // Harga resmi dari server selalu menang atas override lewat query string,
     // supaya nominal di halaman ini tidak bisa dimanipulasi oleh tautan.
     targetPrice: data.targetPrice || queryAmount.value || 49000,
@@ -118,7 +170,8 @@ async function handlePay() {
         amount: product.value.targetPrice,
         customerEmail: emailInput.value,
         grantDays: queryGrantDays.value || 365,
-        redirectUrl: product.value.redirectUrl || window.location.href
+        redirectUrl: product.value.redirectUrl || window.location.href,
+        couponCode: appliedCoupon.value?.code || undefined
       })
     })
 
@@ -129,6 +182,12 @@ async function handlePay() {
     }
 
     const checkoutUrl = data.data?.xenditInvoiceUrl || data.checkoutUrl
+    if (data.data?.isSandbox && data.data?.sessionId) {
+      // Mode sandbox: jangan arahkan ke invoice mock. Tawarkan simulasi pembayaran inline.
+      sandboxSessionId.value = data.data.sessionId
+      sandboxResult.value = null
+      return
+    }
     if (checkoutUrl) {
       window.location.href = checkoutUrl
     }
@@ -136,6 +195,29 @@ async function handlePay() {
     errorMessage.value = err.message || 'Terjadi kesalahan jaringan'
   } finally {
     isSubmitting.value = false
+  }
+}
+
+async function simulateSandboxPayment() {
+  const txId = sandboxSessionId.value
+  if (!txId) return
+  isSimulating.value = true
+  errorMessage.value = ''
+  try {
+    const res = await fetch(`/api/v1/checkout/simulate-paid/${txId}`, { method: 'POST' })
+    const data = await res.json()
+    if (!res.ok || !data.success) {
+      errorMessage.value = data.error || 'Gagal mensimulasikan pembayaran'
+      return
+    }
+    sandboxResult.value = {
+      message: data.message,
+      licenseKey: data.licenseKey,
+    }
+  } catch (err: any) {
+    errorMessage.value = err.message || 'Terjadi kesalahan jaringan'
+  } finally {
+    isSimulating.value = false
   }
 }
 
@@ -174,7 +256,11 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="flex items-center gap-1 text-[10px] font-bold text-[#0F4C3A] bg-[#0F4C3A]/10 px-2.5 py-1 rounded-full border border-[#0F4C3A]/25">
+          <div v-if="product.mode === 'sandbox'" class="flex items-center gap-1 text-[10px] font-bold text-[#2563EB] bg-[#2563EB]/10 px-2.5 py-1 rounded-full border border-[#2563EB]/30">
+            <FlaskConical class="w-3.5 h-3.5" />
+            <span>Mode Sandbox — Simulasi</span>
+          </div>
+          <div v-else class="flex items-center gap-1 text-[10px] font-bold text-[#0F4C3A] bg-[#0F4C3A]/10 px-2.5 py-1 rounded-full border border-[#0F4C3A]/25">
             <ShieldCheck class="w-3.5 h-3.5" />
             <span>Xendit Secured</span>
           </div>
@@ -201,16 +287,51 @@ onMounted(() => {
             <span>Biaya Layanan &amp; PPN</span>
             <span class="text-[#0F4C3A] font-bold">Gratis (Ditanggung Penjual)</span>
           </div>
+
+          <!-- Kupon Diskon -->
+          <div class="space-y-1.5 pt-1">
+            <div v-if="appliedCoupon" class="flex items-center justify-between text-[11px]">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0F4C3A]/10 border border-[#0F4C3A]/30 text-[#0F4C3A] font-bold">
+                <CheckCircle2 class="w-3 h-3" />
+                {{ appliedCoupon.code }} (−{{ appliedCoupon.discountPercent }}%)
+              </span>
+              <button
+                @click="appliedCoupon = null; couponInput = ''"
+                class="text-[#111111]/40 underline hover:text-[#111111] cursor-pointer"
+              >Hapus</button>
+            </div>
+            <div v-else class="flex items-center gap-1.5">
+              <input
+                v-model="couponInput"
+                type="text"
+                placeholder="Kode kupon (opsional)"
+                class="flex-1 bg-white border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-[11px] uppercase font-mono text-[#111111] placeholder:normal-case placeholder:font-sans placeholder:text-[#111111]/35 focus:outline-none focus:border-[#D4AF37]"
+                @keyup.enter="applyCoupon"
+              />
+              <button
+                @click="applyCoupon"
+                :disabled="!couponInput.trim()"
+                class="px-2.5 py-1.5 rounded-lg bg-[#111111] text-[#D4AF37] text-[11px] font-bold disabled:opacity-40 cursor-pointer"
+              >Pakai</button>
+            </div>
+            <p v-if="couponError" class="text-[10px] text-[#8B0000] font-bold">{{ couponError }}</p>
+          </div>
+
+          <div v-if="estimatedDiscount > 0" class="flex items-center justify-between text-[11px] text-[#0F4C3A] font-bold">
+            <span>Diskon kupon</span>
+            <span class="font-mono">−{{ formatRupiah(estimatedDiscount) }}</span>
+          </div>
+
           <div class="pt-2 border-t border-[#111111]/10 flex items-baseline justify-between">
             <span class="text-xs font-bold text-[#111111]">Total Pembayaran</span>
             <span class="text-xl font-black text-[#111111] font-mono">
-              {{ formatRupiah(product.targetPrice) }}
+              {{ formatRupiah(payableAmount || product.targetPrice) }}
             </span>
           </div>
         </div>
 
         <!-- Multi-Rail Payment Options Selector (FR-2.1) -->
-        <div class="space-y-2">
+        <div v-if="!sandboxSessionId" class="space-y-2">
           <label class="block text-[11px] font-bold text-[#111111]/70">Pilih Jalur Pembayaran Resmi</label>
           <div class="grid grid-cols-3 gap-2">
             <button
@@ -249,7 +370,7 @@ onMounted(() => {
         </div>
 
         <!-- Buyer Email Input for License Delivery -->
-        <div class="space-y-1.5">
+        <div v-if="!sandboxSessionId" class="space-y-1.5">
           <label class="block text-xs font-bold text-[#111111]/80">
             Email Penerima Lisensi Digital <span class="text-[#8B0000]">*</span>
           </label>
@@ -270,16 +391,54 @@ onMounted(() => {
           {{ errorMessage }}
         </div>
 
+        <!-- Sandbox: Simulasi Pembayaran Inline -->
+        <div v-if="sandboxSessionId && !sandboxResult" class="space-y-3 p-3.5 rounded-xl bg-[#2563EB]/5 border border-[#2563EB]/25">
+          <div class="flex items-start gap-2">
+            <FlaskConical class="w-4 h-4 text-[#2563EB] shrink-0 mt-0.5" />
+            <div class="space-y-0.5">
+              <p class="text-xs font-bold text-[#2563EB]">Sesi Pembayaran Sandbox Siap</p>
+              <p class="text-[10px] text-[#111111]/60">
+                Tidak ada pembayaran nyata. Simulasikan checkout untuk menerbitkan lisensi uji coba.
+              </p>
+            </div>
+          </div>
+          <button
+            @click="simulateSandboxPayment"
+            :disabled="isSimulating"
+            class="w-full py-3 rounded-xl bg-[#2563EB] text-white text-xs font-bold transition hover:bg-[#1D4ED8] flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 cursor-pointer"
+          >
+            <FlaskConical class="w-4 h-4" />
+            <span>{{ isSimulating ? 'Mensimulasikan…' : 'Simulasikan Pembayaran' }}</span>
+          </button>
+        </div>
+
+        <!-- Sandbox: Hasil Simulasi -->
+        <div v-if="sandboxResult" class="space-y-2 p-3.5 rounded-xl bg-[#0F4C3A]/10 border border-[#0F4C3A]/30">
+          <div class="flex items-start gap-2">
+            <CheckCircle2 class="w-4 h-4 text-[#0F4C3A] shrink-0 mt-0.5" />
+            <div class="space-y-1">
+              <p class="text-xs font-bold text-[#0F4C3A]">Simulasi Pembayaran Berhasil</p>
+              <p class="text-[10px] text-[#111111]/70">{{ sandboxResult.message }}</p>
+              <div v-if="sandboxResult.licenseKey" class="pt-1">
+                <p class="text-[10px] font-bold text-[#111111]/60">Kunci Lisensi Uji Coba</p>
+                <p class="font-mono font-extrabold text-[#0F4C3A] text-sm break-all select-all">{{ sandboxResult.licenseKey }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Pay Button -->
-        <div>
+        <div v-if="!sandboxSessionId">
           <button
             @click="handlePay"
             :disabled="isSubmitting || !emailInput"
             class="w-full py-3.5 rounded-xl btn-gold text-xs font-bold transition flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 cursor-pointer shadow-gold-glow"
+            :class="product.mode === 'sandbox' ? '!bg-[#2563EB] !text-white' : ''"
           >
-            <CreditCard class="w-4 h-4" />
+            <FlaskConical v-if="product.mode === 'sandbox'" class="w-4 h-4" />
+            <CreditCard v-else class="w-4 h-4" />
             <span>
-              {{ isSubmitting ? 'Menghubungkan ke Gateway Xendit...' : `Bayar Sekarang — ${formatRupiah(product.targetPrice)}` }}
+              {{ isSubmitting ? 'Menyiapkan sesi...' : product.mode === 'sandbox' ? `Mulai Sesi Sandbox — ${formatRupiah(payableAmount || product.targetPrice)}` : `Bayar Sekarang — ${formatRupiah(payableAmount || product.targetPrice)}` }}
             </span>
             <ArrowRight class="w-3.5 h-3.5" />
           </button>

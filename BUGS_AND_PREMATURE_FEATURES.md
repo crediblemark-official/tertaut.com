@@ -1,7 +1,8 @@
 # Laporan Bug & Fitur Prematur — tertautv2
 
 > Tanggal audit: 11 September 2026  
-> Terakhir diperbarui: 11 September 2026 (Patch Keamanan & Stabilitas v2.2.1)
+> Terakhir diperbarui: 17 September 2026 (Sistem Kupon, Guardrail AI & Multi-Provider AI Proxy)  
+> Audit ulang: 17 September 2026 — temuan lengkap ada di bagian [AUDIT ULANG 17 SEPTEMBER 2026](#audit-ulang-17-september-2026) di bawah.
 
 ---
 
@@ -30,6 +31,10 @@
 - [x] **Demo Auto-Seed**: `GET /apps` hanya membuat builder + `app_demo_123` saat sandbox.
 - [x] **Hardcoded Rekening Bank**: Semua fallback rekening payer (`8830192847`, `"1234567890"`, `"Ahmad Rizky"`, `"Demo Builder"`, `"Vibe Builder"`) digantikan helper `XenditService.resolveDisbursementAccount()`. Di production, pencairan DITOLAK jika builder belum menyimpan rekening (bukan data palsu); fallback dummy hanya di sandbox.
 - [x] **Default Harga Hardcoded**: `49000` kini dari `config.defaultPrice` (`DEFAULT_PRICE` env), bukan literal di route.
+- [x] **Sistem Kupon Ditebus (17 Sep)**: Tabel `coupons` + kolom `coupon_code`/`discount_amount` di `transactions`, validasi & klaim kuota atomik di `POST /checkout/session`, preview kupon, CRUD `/api/v1/coupons`, persist kupon di `/launch/convert-to-live`, input kupon di halaman `/pay/:slug`, UI manajemen di dashboard, 4 test E2E penebusan.
+- [x] **Guardrail AI Berfungsi (17 Sep)**: `currentMonthlyUsage` kini di-increment setiap request AI sukses (`incrementVaultMonthlyUsage`) sehingga `BUDGET_LIMIT_EXCEEDED` terpicu pemakaian nyata; `maxRequestsPerMin` dari `ai_app_configs` tidak lagi diabaikan.
+- [x] **Provider AI Anthropic & DeepSeek (17 Sep)**: Implementasi upstream nyata (non-streaming & SSE streaming asli via `callUpstreamNonStreaming`/`callUpstreamStreamingChunks`); streaming tidak lagi memecah respons penuh per-kata; error upstream kini 502 `UPSTREAM_AI_ERROR`, bukan teks palsu `success: true`.
+- [x] **Statistik Penebusan Kupon (17 Sep)**: `GET /api/v1/coupons/stats` (agregat harian, total diskon, kupon teratas) + grafik bar 7/14/30 hari di dashboard.
 
 ---
 
@@ -234,6 +239,11 @@ Banyak `ref<any>`, `catch (err: any)`, `pageBlocks: any[]`, `answers?: any`, `me
 
 ## FITUR PREMATUR / STUB
 
+> **Update 17 Sep:** Item kupon, guardrail AI budget/rate, dan provider Anthropic/DeepSeek pada bagian ini telah DIHAPUSKAN dari daftar prematur — lihat daftar perbaikan di atas.
+
+### ✅ [SELESAI 17 Sep] Sistem Kupon = Stub
+Sudah berfungsi penuh: tabel `coupons`, penebusan atomik di checkout, persist di launch kit, CRUD API, input pembeli di `/pay/:slug`, UI dashboard, dan 4 test E2E.
+
 ### Payment System Masih Mock
 | Item | Lokasi |
 |------|--------|
@@ -348,12 +358,51 @@ Fungsi lama (`createApp`, `updateApp`, `checkSlug`, `getFakeDoorMetrics`, `getFa
 ## PRIORITAS PERBAIKAN
 
 1. **Auth system** — implementasi JWT auth middleware untuk semua route
-2. **Path traversal** — sanitize path sebelum resolve
-3. **CORS** — whitelist specific origins
-4. **Race conditions** — implementasi DB-level locking (SELECT FOR UPDATE)
-5. **Mock payment cleanup** — disable simulate-paid di production, gate dengan feature flag
-6. **Email integration** — integrasikan Resend/Nodemailer
+2. ~~Path traversal~~ ✅
+3. ~~CORS~~ ✅
+4. ~~Race conditions (disbursement)~~ ✅ — seat license & webhook masih check-then-act
+5. ~~Mock payment cleanup~~ ✅
+6. **Email integration** — integrasikan Resend/Nodemailer (notifier.ts sudah terhapus; pembeli tidak menerima email lisensi)
 7. **PRD alignment** — implementasi RSA-256 JWT untuk offline licensing
 8. **Rate limiter** — pindah ke Redis
-9. **Database indexes** — tambahkan indexes untuk frequently-queried columns
+9. ~~Database indexes~~ ✅
 10. **Kode redundan** — merge fakedoor.ts dan smoketest.ts
+
+---
+
+## AUDIT ULANG 17 SEPTEMBER 2026
+
+Audit ulang terhadap kode terkini. Sebagian besar perbaikan v2.2.1 terverifikasi benar-benar ada. Berikut status lengkap.
+
+### Terverifikasi Sudah Diperbaiki (v2.2.1 akurat) ✅
+Path traversal (`index.ts`), CORS whitelist, atomic disbursement lock + pemetaan status riil, timing-safe JWT, SHA-256 KDF, DB URL konsisten, mass-assignment allowlist, rate limiter pruning, aggregate SQL di `apps.ts`, database indexes (semua tabel relevan ber-index), grace period dinamis dari token, gate sandbox untuk simulate-paid/mock invoice/webhook bypass/mock AI key, `resolveDisbursementAccount()` menggantikan semua rekening dummy, harga default dari env, Dockerfile multi-stage dengan healthcheck, `.env` sudah di-gitignore.
+
+### Masih Prematur (terkonfirmasi di kode saat ini)
+1. **Zero autentikasi (akar masalah)** — tidak ada middleware auth; `passwordHash` masih kolom mati; `/panel/payouts/batch`, `/licensing/issue|revoke|list`, `/portal/licenses?email=...`, `/checkout/disburse/:txId` terbuka.
+2. **Email delivery hilang total** — `notifier.ts` sudah terhapus; `PayView.vue` masih berjanji kirim lisensi ke email; tidak ada kode kirim email sama sekali.
+3. **Budget guardrail AI mati** — `currentMonthlyUsage` dicek tapi tak pernah di-increment. → ✅ **DIPERBAIKI 17 Sep** (`incrementVaultMonthlyUsage`).
+4. **`maxRequestsPerMin` diabaikan** → ✅ **DIPERBAIKI 17 Sep**.
+5. **Sistem kupon = stub** (EARLY50 tidak tersimpan & tak bisa ditebus) → ✅ **DIPERBAIKI 17 Sep**.
+6. **Provider AI selain Gemini/OpenAI merespon palsu** → ✅ **DIPERBAIKI 17 Sep** (Anthropic & DeepSeek nyata, streaming SSE asli, error upstream eksplisit).
+7. **Webhook disbursement tidak ada** — payout PROCESSING di Xendit tidak pernah final.
+8. **Webhook abaikan status FAILED** — transaksi FAILED stuck PENDING.
+9. **Race condition seat & duplicate license webhook** — masih check-then-act tanpa DB lock.
+10. **`grantCredits` diterima tapi tak pernah ditegakkan**.
+11. **Deviasi PRD**: HS256 (bukan RSA/Ed25519), tanpa `chrome.storage.sync`, tanpa deep link `tertaut://activate`, payout manual-only, tanpa tabel `builder_balances`/`disbursements`, Redis di-compose tapi tak dipakai.
+12. **Data demo & hardcode**: `pembeli@tertaut.com`, `49000`, `500000`, `fast-summary-model`, `fastmail-ai`, "89 Lisensi Terjual" (DocsView), `customer@example.com` di SDK, auto-seed di `GET /apps` (ter-gate sandbox tapi GET tetap menulis).
+13. **SDK v0.1.0 belum publish** tapi docs menyuruh `npm install @tertaut/sdk`; endpoint docs `localhost:3000`.
+
+### Temuan Baru (belum ada di laporan lama)
+1. **`body.appId` dipercaya mentah di AI chat** (`aiproxy.ts`) — license app A bisa membakar vault app B (cross-app entitlement leak).
+2. **`/panel/stats|builders|transactions`**: full table scan + N+1 query per baris.
+3. **`POST /payouts/trigger` tanpa `builderId`** memilih builder pertama — risiko salah penerima dana di multi-builder.
+4. **`DocsView.copyCode`** pakai `navigator.clipboard` raw; composable `useClipboard` yang sudah di-harden tidak dipakai (juga di `LandingView`, `LicensingView`, `CustomerPortalView`).
+5. **`selectedPaymentRail` di PayView tetap tidak dikirim** ke `/checkout/session` — pilihan QRIS/VA/E-Wallet dekoratif.
+6. **Client `api.ts` masih tanpa `res.ok` check** di hampir semua fungsi.
+7. **`docker-compose.yml` tanpa service app**; `console.log` produksi masih ada (`index.ts`, `webhook.ts`).
+8. **`App.vue` masih membaca `meta.fullscreen`** yang tak pernah di-set (dead code, dibersihkan v2.2.1 ternyata ter-regresi).
+9. **`drizzle.config.ts` fallback ke DB `tertaut`** sedangkan config server fallback `tertautv2` — inkonsistensi lama #10 luput di drizzle config.
+
+### Test Coverage
+- `src/server/__test/server.test.ts`: **29 test** (25 lama + 4 test E2E kupon baru: create→preview→redeem dengan verifikasi breakdown MoR atas nominal terdiskon, penolakan kupon lintas-app/tak dikenal, enforcement kuota `maxRedemptions` tanpa invoice hantu, toggle aktif/nonaktif).
+- Catatan: test E2E butuh server berjalan di `localhost:3000` + Postgres; test kupon aman di sandbox karena `XENDIT_SECRET_KEY` mock → invoice mock, bukan tagihan nyata.

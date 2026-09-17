@@ -7,6 +7,8 @@ export interface CreateInvoiceParams {
   description: string;
   successRedirectUrl?: string;
   failureRedirectUrl?: string;
+  /** Paksa respons invoice mock untuk aplikasi yang berjalan dalam mode sandbox. */
+  forceMock?: boolean;
 }
 
 export interface XenditInvoiceResponse {
@@ -94,11 +96,13 @@ export class XenditService {
    */
   static async createInvoice(params: CreateInvoiceParams): Promise<XenditInvoiceResponse> {
     const mockEnabled =
-      config.isSandbox && (!config.xendit.secretKey || config.xendit.secretKey.includes("sample_key"));
+      params.forceMock ||
+      (config.isSandbox && (!config.xendit.secretKey || config.xendit.secretKey.includes("sample_key")));
 
     if (mockEnabled) {
-      // Mock mode hanya untuk development/sandbox lokal jika API key belum diisi
-      console.warn("[XenditService] Using mock invoice response (XENDIT_SECRET_KEY not configured)");
+      // Mock mode: development/sandbox lokal (XENDIT_SECRET_KEY belum diisi) atau
+      // aplikasi yang sedang dalam mode sandbox (simulasi pembayaran tanpa charge nyata).
+      console.warn("[XenditService] Using mock invoice response (sandbox mode / XENDIT_SECRET_KEY not configured)");
       return {
         id: `inv_mock_${Date.now()}`,
         external_id: params.externalId,

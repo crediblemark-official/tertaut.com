@@ -43,3 +43,7 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Scratch test files
+scratch/
+

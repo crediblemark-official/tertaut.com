@@ -66,10 +66,23 @@ export const config = {
     vaultEncryptionKey: resolveSecret("VAULT_ENCRYPTION_KEY", DEFAULT_VAULT_KEY),
   },
 
+  paymentGateway: (getEnv("PAYMENT_GATEWAY", "xendit").toLowerCase() === "dana" ? "dana" : "xendit") as "xendit" | "dana",
+
   xendit: {
     secretKey: getEnv("XENDIT_SECRET_KEY"),
     publicKey: getEnv("XENDIT_PUBLIC_KEY"),
     webhookToken: getEnv("XENDIT_WEBHOOK_VERIFICATION_TOKEN"),
     platformFeePercent: 5, // 5% Merchant of Record platform fee
   },
+
+  dana: {
+    clientId: getEnv("DANA_CLIENT_ID"),
+    clientSecret: getEnv("DANA_CLIENT_SECRET"),
+    merchantId: getEnv("DANA_MERCHANT_ID"),
+    baseUrl: getEnv("DANA_BASE_URL", "https://api-sandbox.dana.id"),
+    publicKey: getEnv("DANA_PUBLIC_KEY"),
+    privateKey: getEnv("DANA_PRIVATE_KEY"),
+    platformFeePercent: 5, // 5% Merchant of Record platform fee
+  },
 } as const;
+

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import {
   api,
   type AppItem,
@@ -8,6 +8,7 @@ import {
   type AiQuotaStatus,
   type AiProvider
 } from '../lib/api'
+import { dashboardEnv } from '../lib/environment'
 import { Bot, RefreshCw, CheckCircle2 } from 'lucide-vue-next'
 import TokenGuardrailsWidget from '../components/aiproxy/TokenGuardrailsWidget.vue'
 import SecurityPillars from '../components/aiproxy/SecurityPillars.vue'
@@ -186,6 +187,14 @@ async function testAiCall() {
 }
 
 onMounted(() => {
+  loadAppsAndData()
+})
+
+// Muat ulang saat environment Live/Sandbox berganti
+watch(dashboardEnv, () => {
+  selectedAppId.value = ''
+  vaultCreds.value = []
+  proxyLogs.value = []
   loadAppsAndData()
 })
 </script>

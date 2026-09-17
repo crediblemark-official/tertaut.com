@@ -200,6 +200,28 @@ export class AiGatewayService {
   }
 
   /**
+   * Tambah pemakaian bulanan pada kredensial vault (FR-3.3: Monthly Budget Guardrail).
+   * Tanpa increment ini, cek BUDGET_LIMIT_EXCEEDED tidak pernah terpicu oleh
+   * pemakaian nyata. Dipanggil setiap kali request AI sukses diproses.
+   */
+  static async incrementVaultMonthlyUsage(appId: string, provider: string, totalTokens: number): Promise<void> {
+    if (totalTokens <= 0) return;
+
+    await db
+      .update(aiVaultCredentials)
+      .set({
+        currentMonthlyUsage: sql`COALESCE(${aiVaultCredentials.currentMonthlyUsage}, 0) + ${totalTokens}`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(aiVaultCredentials.appId, appId),
+          eq(aiVaultCredentials.provider, provider as any)
+        )
+      );
+  }
+
+  /**
    * Ambil status kuota (FR-3.2 & API 7.1.B: Quota Status)
    */
   static async getQuotaStatus(license: License, modelAlias = "default") {
@@ -268,6 +290,12 @@ export class AiGatewayService {
       totalTokens,
       latencyMs: params.responseTimeMs,
     });
+
+    // 3. Tambah pemakaian bulanan vault agar budget guardrail (FR-3.3)
+    // BUDGET_LIMIT_EXCEEDED benar-benar terpicu oleh pemakaian nyata.
+    if (params.provider) {
+      await this.incrementVaultMonthlyUsage(params.appId, params.provider, totalTokens);
+    }
   }
 
   /**

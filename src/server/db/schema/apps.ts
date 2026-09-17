@@ -30,8 +30,8 @@ export const apps = pgTable("apps", {
     .references(() => builders.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(), // e.g. "fastmail-ai" for tertaut.com/v/:slug
-  mode: text("mode", { enum: ["live", "archived"] })
-    .default("live")
+  mode: text("mode", { enum: ["sandbox", "live"] })
+    .default("sandbox")
     .notNull(),
   targetPrice: integer("target_price").default(0).notNull(), // dalam IDR
   description: text("description"),

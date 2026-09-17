@@ -1,4 +1,4 @@
-export type AppMode = "live" | "archived";
+export type AppMode = "sandbox" | "live";
 
 export interface AppItem {
   id: string;

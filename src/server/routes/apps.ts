@@ -1,9 +1,13 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
 import { apps, builders, transactions, licenses } from "../db/schema";
-import { eq, desc, count, sql, and } from "drizzle-orm";
+import { eq, desc, count, sql, and, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { config as appConfig } from "../config";
+
+const modeQuery = t.Object({
+  mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
+});
 
 export const appRoutes = new Elysia({ prefix: "/apps" })
   /**
@@ -11,7 +15,7 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
    */
   .get(
     "/",
-    async () => {
+    async ({ query }) => {
       // Auto-seed builder & sample app HANYA di mode sandbox (development)
       if (appConfig.isSandbox) {
         // Pastikan ada builder demo jika DB baru diinisialisasi
@@ -33,7 +37,7 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
             builderId: demoBuilder.id,
             name: "FastMail AI Summarizer",
             slug: "fastmail-ai",
-            mode: "live",
+            mode: "sandbox",
             targetPrice: 49000,
             description: "Chrome extension untuk merangkum email penting secara instan menggunakan AI.",
             redirectUrl: "https://situsbisnis.com/@builder/success",
@@ -42,16 +46,18 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
       }
 
       const allApps = await db.query.apps.findMany({
+        where: query.mode ? eq(apps.mode, query.mode) : undefined,
         orderBy: [desc(apps.createdAt)],
       });
 
       return { apps: allApps };
     },
     {
+      query: modeQuery,
       detail: {
         tags: ["Apps"],
         summary: "List all apps",
-        description: "Retrieves list of apps managed by the current builder",
+        description: "Retrieves list of apps managed by the current builder, optionally filtered by environment mode",
       },
     }
   )
@@ -61,10 +67,32 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
    */
   .get(
     "/stats/overview",
-    async () => {
+    async ({ query }) => {
+      const emptyStats = {
+        totalGMV: 0,
+        netEarnings: 0,
+        platformFeeCollected: 0,
+        activeLicenses: 0,
+        totalTransactions: 0,
+      };
+
+      let appIds: string[] | null = null;
+      if (query.mode) {
+        const rows = await db
+          .select({ id: apps.id })
+          .from(apps)
+          .where(eq(apps.mode, query.mode));
+        appIds = rows.map((r) => r.id);
+        if (appIds.length === 0) return emptyStats;
+      }
+
+      const txScope = appIds ? inArray(transactions.appId, appIds) : undefined;
+      const licenseScope = appIds ? inArray(licenses.appId, appIds) : undefined;
+
       const [allTxCount] = await db
         .select({ count: sql<number>`count(*)::int` })
-        .from(transactions);
+        .from(transactions)
+        .where(txScope);
 
       const [paidTxAgg] = await db
         .select({
@@ -72,12 +100,12 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
           netEarnings: sql<number>`COALESCE(SUM(${transactions.netAmount}), 0)::int`,
         })
         .from(transactions)
-        .where(eq(transactions.paymentStatus, "PAID"));
+        .where(txScope ? and(eq(transactions.paymentStatus, "PAID"), txScope) : eq(transactions.paymentStatus, "PAID"));
 
       const [activeLicensesCount] = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(licenses)
-        .where(eq(licenses.status, "ACTIVE"));
+        .where(licenseScope ? and(eq(licenses.status, "ACTIVE"), licenseScope) : eq(licenses.status, "ACTIVE"));
 
       const totalGMV = paidTxAgg?.totalGMV || 0;
       const netEarnings = paidTxAgg?.netEarnings || 0;
@@ -92,10 +120,11 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
       };
     },
     {
+      query: modeQuery,
       detail: {
         tags: ["Apps"],
         summary: "Dashboard KPI Overview",
-        description: "Aggregates GMV, Net Payouts, Active Licenses, and Validation Rates",
+        description: "Aggregates GMV, Net Payouts, Active Licenses, and Validation Rates, optionally filtered by environment mode",
       },
     }
   )
@@ -135,7 +164,7 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
         name,
         slug,
         targetPrice,
-        mode = "live",
+        mode = "sandbox",
         description,
         headline,
         subheadline,
@@ -192,7 +221,7 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
         name: t.String(),
         slug: t.String(),
         targetPrice: t.Number(),
-        mode: t.Optional(t.Union([t.Literal("live"), t.Literal("archived")])),
+        mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
         description: t.Optional(t.String()),
         headline: t.Optional(t.String()),
         subheadline: t.Optional(t.String()),
@@ -278,7 +307,7 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
           name: t.String(),
           slug: t.String(),
           targetPrice: t.Number(),
-mode: t.Union([t.Literal("live"), t.Literal("archived")]),
+          mode: t.Union([t.Literal("sandbox"), t.Literal("live")]),
           description: t.String(),
           headline: t.String(),
           subheadline: t.String(),
@@ -370,7 +399,7 @@ mode: t.Union([t.Literal("live"), t.Literal("archived")]),
   )
 
   /**
-   * Perbarui status mode aplikasi (live -> archived)
+   * Perbarui status mode aplikasi (sandbox <-> live)
    */
   .patch(
     "/:appId/mode",
@@ -398,12 +427,12 @@ mode: t.Union([t.Literal("live"), t.Literal("archived")]),
     {
       params: t.Object({ appId: t.String() }),
       body: t.Object({
-        mode: t.Union([t.Literal("live"), t.Literal("archived")]),
+        mode: t.Union([t.Literal("sandbox"), t.Literal("live")]),
       }),
       detail: {
         tags: ["Apps"],
         summary: "Update App Mode",
-        description: "Toggles app mode between live and archived",
+        description: "Toggles app mode between sandbox and live",
       },
     }
   )
@@ -431,6 +460,13 @@ mode: t.Union([t.Literal("live"), t.Literal("archived")]),
       if (tx.disbursementStatus === "COMPLETED" || tx.disbursementStatus === "PROCESSING") {
         set.status = 400;
         return { error: "Pencairan sudah selesai atau sedang dalam proses" };
+      }
+
+      // Transaksi dari aplikasi sandbox hanyalah simulasi — tidak boleh dicairkan ke rekening asli.
+      const txApp = await db.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
+      if (txApp?.mode === "sandbox") {
+        set.status = 400;
+        return { error: "Transaksi sandbox (simulasi) tidak dapat dicairkan. Cairkan hanya transaksi live." };
       }
 
       // Atomic lock using conditional UPDATE to prevent double disbursement race condition

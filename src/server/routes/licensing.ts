@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
-import { licenses, licenseActivations } from "../db/schema";
-import { eq, and } from "drizzle-orm";
+import { licenses, licenseActivations, apps } from "../db/schema";
+import { eq, and, inArray } from "drizzle-orm";
 import { LicenseService } from "../services/license";
 import { CryptoService } from "../services/crypto";
 import { randomBytes } from "crypto";
@@ -461,7 +461,7 @@ function createLicensingRouter(prefix: string) {
     .get(
       "/list",
       async ({ query }) => {
-        const { appId, limit = 50 } = query;
+        const { appId, limit = 50, mode } = query;
         let licList;
         if (appId) {
           licList = await db.query.licenses.findMany({
@@ -469,6 +469,18 @@ function createLicensingRouter(prefix: string) {
             orderBy: (lic, { desc }) => [desc(lic.createdAt)],
             limit: Number(limit),
           });
+        } else if (mode) {
+          const appRows = await db
+            .select({ id: apps.id })
+            .from(apps)
+            .where(eq(apps.mode, mode));
+          licList = appRows.length
+            ? await db.query.licenses.findMany({
+                where: inArray(licenses.appId, appRows.map((a) => a.id)),
+                orderBy: (lic, { desc }) => [desc(lic.createdAt)],
+                limit: Number(limit),
+              })
+            : [];
         } else {
           licList = await db.query.licenses.findMany({
             orderBy: (lic, { desc }) => [desc(lic.createdAt)],
@@ -500,6 +512,7 @@ function createLicensingRouter(prefix: string) {
         query: t.Object({
           appId: t.Optional(t.String()),
           limit: t.Optional(t.Numeric({ default: 50 })),
+          mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
         }),
         detail: {
           tags: ["Universal Licensing"],

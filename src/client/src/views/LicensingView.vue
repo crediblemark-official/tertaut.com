@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { api, type AppItem, type LicenseItem, type LicensePlatform } from '../lib/api'
+import { dashboardEnv } from '../lib/environment'
 import { KeyRound, Plus, CheckCircle2 } from 'lucide-vue-next'
 import PlatformBadges from '../components/licensing/PlatformBadges.vue'
 import LicenseTable from '../components/licensing/LicenseTable.vue'
@@ -156,6 +157,7 @@ async function handleIssueLicense(payload: {
       actionFeedback.value = `Lisensi baru ${res.license.licenseKey} berhasil diterbitkan!`
       setTimeout(() => { actionFeedback.value = null }, 5000)
       await loadData()
+      notifyLicensesChanged()
     }
   } finally {
     isIssuing.value = false
@@ -170,6 +172,7 @@ async function revokeLicense(lic: LicenseItem) {
       actionFeedback.value = `Lisensi ${lic.licenseKey} berhasil dicabut.`
       setTimeout(() => { actionFeedback.value = null }, 4000)
       await loadData()
+      notifyLicensesChanged()
     }
   } catch (e) {
     console.error(e)
@@ -189,6 +192,11 @@ async function unbindHardware(lic: LicenseItem) {
   }
 }
 
+/** Beri tahu sidebar (App.vue) bahwa daftar lisensi berubah agar badge ter-update. */
+function notifyLicensesChanged() {
+  window.dispatchEvent(new Event('tertaut:licenses-changed'))
+}
+
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text)
   actionFeedback.value = `Kunci lisensi ${text} disalin ke clipboard!`
@@ -196,6 +204,14 @@ function copyToClipboard(text: string) {
 }
 
 onMounted(() => {
+  loadData()
+})
+
+// Muat ulang saat environment Live/Sandbox berganti
+watch(dashboardEnv, () => {
+  validationAppId.value = ''
+  licenseKey.value = ''
+  validationResult.value = null
   loadData()
 })
 </script>

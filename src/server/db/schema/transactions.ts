@@ -10,6 +10,8 @@ export const transactions = pgTable("transactions", {
   builderId: uuid("builder_id")
     .notNull()
     .references(() => builders.id, { onDelete: "cascade" }),
+  paymentProvider: text("payment_provider").default("xendit").notNull(), // "xendit" | "dana"
+  providerReferenceId: text("provider_reference_id"), // Order ID / Reference ID dari gateway
   xenditInvoiceId: text("xendit_invoice_id").unique(),
   xenditExternalId: text("xendit_external_id").notNull(),
   xenditInvoiceUrl: text("xendit_invoice_url"),
@@ -29,6 +31,8 @@ export const transactions = pgTable("transactions", {
     .default("PENDING")
     .notNull(),
   disbursementId: text("disbursement_id"),
+  couponCode: text("coupon_code"), // Kupon yang ditebus (null = harga penuh)
+  discountAmount: integer("discount_amount").default(0).notNull(), // Nominal IDR yang dipotong
   grantDays: integer("grant_days").default(30),
   grantCredits: integer("grant_credits").default(0),
   paidAt: timestamp("paid_at", { withTimezone: true }),

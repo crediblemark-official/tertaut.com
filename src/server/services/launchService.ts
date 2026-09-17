@@ -2,8 +2,10 @@ import { db } from "../db";
 import {
   apps,
   licenses,
+  coupons,
 } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+import { randomBytes } from "crypto";
 import { config } from "../config";
 
 export interface ConvertToLiveParams {
@@ -26,7 +28,7 @@ export interface ConvertToLiveResult {
 export interface WidgetDataResult {
   appName: string;
   slug: string;
-  status: "LIVE" | "ARCHIVED";
+  status: "LIVE" | "SANDBOX";
   verifiedBy: string;
   totalCustomers: number;
   targetPrice: number;
@@ -58,8 +60,34 @@ export class LaunchService {
       })
       .where(eq(apps.id, app.id));
 
-    const couponCode = params.couponCode || `EARLY${discountPercent}`;
+    const couponCode = (params.couponCode || `EARLY${discountPercent}`).trim().toUpperCase();
     const liveCheckoutUrl = `${config.publicAppUrl}/pay/${app.slug}`;
+
+    // Persist kupon agar benar-benar dapat ditebus di checkout (sebelumnya hanya
+    // dikembalikan ke client tanpa pernah disimpan — kupon kosong).
+    const existingCoupon = await db.query.coupons.findFirst({
+      where: and(eq(coupons.code, couponCode), eq(coupons.appId, app.id)),
+    });
+
+    if (existingCoupon) {
+      // Reaktivasi & sinkronkan diskon bila kupon sudah ada untuk app ini
+      await db
+        .update(coupons)
+        .set({
+          discountPercent,
+          isActive: true,
+          updatedAt: new Date(),
+        })
+        .where(eq(coupons.id, existingCoupon.id));
+    } else {
+      await db.insert(coupons).values({
+        id: `cpn_${randomBytes(8).toString("hex")}`,
+        code: couponCode,
+        appId: app.id,
+        discountPercent,
+        isActive: true,
+      });
+    }
 
     return {
       campaignId: app.id,
@@ -94,7 +122,7 @@ export class LaunchService {
     return {
       appName: app.name,
       slug: app.slug,
-      status: app.mode === "live" ? "LIVE" : "ARCHIVED",
+      status: app.mode === "live" ? "LIVE" : "SANDBOX",
       verifiedBy: "tertaut.com",
       totalCustomers: activeLicenses.length,
       targetPrice: app.targetPrice,

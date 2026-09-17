@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { api, type AppItem, type TransactionItem } from '../lib/api'
+import { dashboardEnv } from '../lib/environment'
 import { formatRupiah } from '../lib/utils'
 import {
   CreditCard,
@@ -74,6 +75,8 @@ async function loadTransactions() {
     loadingTxs.value = false
   }
 }
+
+
 
 async function createCheckout() {
   if (!selectedAppId.value) return
@@ -155,6 +158,12 @@ const totalPendingPayout = computed(() => {
 onMounted(() => {
   loadAppsAndTransactions()
 })
+
+// Muat ulang saat environment Live/Sandbox berganti
+watch(dashboardEnv, () => {
+  checkoutResult.value = null
+  loadAppsAndTransactions()
+})
 </script>
 
 <template>
@@ -186,7 +195,7 @@ onMounted(() => {
         </div>
 
         <button
-          v-if="totalPendingPayout >= 50000"
+          v-if="totalPendingPayout >= 50000 && dashboardEnv === 'live'"
           @click="triggerBatchPayout"
           :disabled="disburseLoading === 'all'"
           class="px-3 py-1.5 rounded-lg bg-[#0F4C3A] text-white text-xs font-bold hover:bg-[#0F4C3A]/90 transition shadow-sm flex items-center gap-1 cursor-pointer active:scale-95 disabled:opacity-50"
@@ -255,6 +264,7 @@ onMounted(() => {
       :loading-txs="loadingTxs"
       :simulating-tx-id="simulatingTxId"
       :disburse-loading="disburseLoading"
+      :is-sandbox="dashboardEnv === 'sandbox'"
       v-model:search-query="searchQuery"
       v-model:status-filter="statusFilter"
       @refresh="loadTransactions"

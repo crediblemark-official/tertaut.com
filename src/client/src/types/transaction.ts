@@ -11,6 +11,8 @@ export interface TransactionItem {
   paymentStatus: PaymentStatus;
   disbursementStatus: DisbursementStatus;
   disbursementId: string | null;
+  couponCode?: string | null;
+  discountAmount?: number;
   grantDays: number;
   xenditInvoiceUrl: string | null;
   createdAt: string;

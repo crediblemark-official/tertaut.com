@@ -21,15 +21,15 @@ export const badgeRoutes = new Elysia({ prefix: "/badge" })
         ? "unverified"
         : app.mode === "live"
         ? "Verified • MoR Protected"
-        : "Early Access • Validating";
+        : "Sandbox • Testing";
 
       const statusBg = !app
         ? "#666666"
         : app.mode === "live"
         ? "#0F4C3A" // Forest Green
-        : "#D4AF37"; // Classic Gold
+        : "#2563EB"; // Sandbox Blue
 
-      const statusTextColor = app?.mode === "live" ? "#ffffff" : "#111111";
+      const statusTextColor = !app?.mode || app.mode === "live" ? "#ffffff" : "#ffffff";
 
       const labelWidth = 84;
       const statusWidth = statusText.length * 7 + 16;
@@ -148,7 +148,7 @@ export const widgetRoutes = new Elysia({ prefix: "/widgets" })
         } else if (type === 'status') {
           badgeContent = \`
             <span class="dot \${isLive ? 'live' : 'validating'}"></span>
-            <span>\${isLive ? 'Just Launched' : 'Early Access'}</span>
+            <span>\${isLive ? 'Just Launched' : 'Sandbox Testing'}</span>
             <span class="sep">•</span>
             <span class="brand">tertaut</span>
           \`;

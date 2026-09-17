@@ -15,8 +15,16 @@ import type {
   PortalTransactionItem,
   PanelStats,
   PanelBuilderItem,
-  PanelTransactionItem
+  PanelTransactionItem,
+  CouponItem
 } from '../types'
+import { dashboardEnv } from './environment'
+
+/** Sisipkan filter environment dashboard (mode) ke URL endpoint data. */
+function withMode(path: string): string {
+  const separator = path.includes('?') ? '&' : '?'
+  return `${path}${separator}mode=${dashboardEnv.value}`
+}
 
 export const api = {
   async getHealth() {
@@ -25,12 +33,12 @@ export const api = {
   },
 
   async getApps(): Promise<{ apps: AppItem[] }> {
-    const res = await fetch("/api/v1/apps");
+    const res = await fetch(withMode("/api/v1/apps"));
     return res.json();
   },
 
   async getStats(): Promise<DashboardStats> {
-    const res = await fetch("/api/v1/apps/stats/overview");
+    const res = await fetch(withMode("/api/v1/apps/stats/overview"));
     return res.json();
   },
 
@@ -77,15 +85,6 @@ export const api = {
     return this.checkSlugAvailability(slug);
   },
 
-  async updateAppMode(appId: string, mode: "live" | "archived"): Promise<{ success: boolean; app: AppItem }> {
-    const res = await fetch(`/api/v1/apps/${appId}/mode`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode }),
-    });
-    return res.json();
-  },
-
   async createCheckoutSession(data: {
     appId: string;
     amount: number;
@@ -102,7 +101,7 @@ export const api = {
   },
 
   async getTransactions(appId?: string): Promise<{ success: boolean; transactions: TransactionItem[] }> {
-    const url = appId ? `/api/v1/checkout/transactions?appId=${appId}` : "/api/v1/checkout/transactions";
+    const url = appId ? `/api/v1/checkout/transactions?appId=${appId}` : withMode("/api/v1/checkout/transactions");
     const res = await fetch(url);
     return res.json();
   },
@@ -125,13 +124,13 @@ export const api = {
     const res = await fetch("/api/v1/payouts/trigger", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount }),
+      body: JSON.stringify({ amount, mode: dashboardEnv.value }),
     });
     return res.json();
   },
 
   async getLicenses(appId?: string): Promise<{ success: boolean; licenses: LicenseItem[] }> {
-    const url = appId ? `/api/v1/license/list?appId=${appId}` : "/api/v1/license/list";
+    const url = appId ? `/api/v1/license/list?appId=${appId}` : withMode("/api/v1/license/list");
     const res = await fetch(url);
     return res.json();
   },
@@ -337,6 +336,63 @@ export const api = {
 
   async getPortalTransactions(email: string): Promise<{ success: boolean; count: number; transactions: PortalTransactionItem[]; error?: string }> {
     const res = await fetch(`/api/v1/portal/transactions?email=${encodeURIComponent(email)}`);
+    return res.json();
+  },
+
+  // Coupons (Modul 1: Monetization)
+  async getCoupons(appId?: string): Promise<{ success: boolean; count: number; coupons: CouponItem[]; error?: string }> {
+    const url = appId ? `/api/v1/coupons?appId=${encodeURIComponent(appId)}` : withMode("/api/v1/coupons");
+    const res = await fetch(url);
+    return res.json();
+  },
+
+  async createCoupon(data: {
+    appId: string;
+    code: string;
+    discountPercent: number;
+    maxRedemptions?: number;
+    expiresAt?: string;
+  }): Promise<{ success: boolean; coupon?: CouponItem; error?: string }> {
+    const res = await fetch("/api/v1/coupons", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async updateCoupon(
+    couponId: string,
+    data: { isActive?: boolean; maxRedemptions?: number }
+  ): Promise<{ success: boolean; coupon?: CouponItem; error?: string }> {
+    const res = await fetch(`/api/v1/coupons/${couponId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async deleteCoupon(couponId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    const res = await fetch(`/api/v1/coupons/${couponId}`, {
+      method: "DELETE",
+    });
+    return res.json();
+  },
+
+  async getCouponStats(days = 7, appId?: string): Promise<{
+    success: boolean;
+    days: number;
+    totalRedemptions: number;
+    totalDiscountIdr: number;
+    daily: { day: string; redemptions: number; totalDiscount: number; totalGross: number }[];
+    topCoupons: { code: string | null; redemptions: number; totalDiscount: number }[];
+    error?: string;
+  }> {
+    const params = new URLSearchParams({ days: String(days) });
+    if (appId) params.append("appId", appId);
+    else params.append("mode", dashboardEnv.value);
+    const res = await fetch(`/api/v1/coupons/stats?${params.toString()}`);
     return res.json();
   },
 

@@ -4,6 +4,8 @@ import { swagger } from "@elysiajs/swagger";
 import { staticPlugin } from "@elysiajs/static";
 import { apiV1Routes } from "./routes/api";
 import { badgeRoutes } from "./routes/badge";
+import { webhookRoutes, webhooksPluralRoutes, snapBiWebhookRoutes } from "./routes/webhook";
+import { checkoutRoutes } from "./routes/checkout";
 import { config } from "./config";
 import { existsSync, statSync } from "fs";
 import { resolve } from "path";
@@ -81,7 +83,12 @@ export const app = new Elysia()
 
   // Mount API v1 Routes & Direct Badge Endpoint
   .use(apiV1Routes)
-  .use(badgeRoutes);
+  .use(badgeRoutes)
+  // Mount Direct Webhook & Checkout Root Endpoints (e.g. /webhook/dana/finish-payment, /v1.0/debit/notify)
+  .use(webhookRoutes)
+  .use(webhooksPluralRoutes)
+  .use(snapBiWebhookRoutes)
+  .use(checkoutRoutes);
 
 // Production: Single Container Monolith serves built SPA assets from dist/
 if (hasBuiltClient) {

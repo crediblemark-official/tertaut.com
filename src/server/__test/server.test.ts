@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { CryptoService } from "../services/crypto";
 import { LicenseService } from "../services/license";
 import { XenditService } from "../services/xendit";
+import { DanaService } from "../services/dana";
 import { config } from "../config";
 import { db } from "../db";
 import {
@@ -14,6 +15,7 @@ import {
   aiProviderKeys,
   aiAppConfigs,
   aiUsageLogs,
+  coupons,
 } from "../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { handleXenditInvoiceWebhook } from "../routes/webhook";
@@ -882,5 +884,640 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
   });
 });
 
+describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
+  async function createTestApp(): Promise<{ id: string; slug: string }> {
+    const builder = await db.query.builders.findFirst();
+    if (!builder) throw new Error("No builder found — jalankan seed/auto-seed dulu");
 
+    const testAppId = `app_coupon_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
+    const testSlug = `coupon-test-${Math.random().toString(36).substring(2, 8)}`;
 
+    await db.insert(apps).values({
+      id: testAppId,
+      builderId: builder.id,
+      name: "Coupon E2E Test App",
+      slug: testSlug,
+      mode: "live",
+      targetPrice: 100000,
+    });
+
+    return { id: testAppId, slug: testSlug };
+  }
+
+  it("should create coupon via API, preview discount, and redeem it on checkout session", async () => {
+    const testApp = await createTestApp();
+    const testCode = `E2E${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    try {
+      // 1. Buat kupon via API manajemen
+      const createRes = await fetch("http://localhost:3000/api/v1/coupons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: testApp.id,
+          code: testCode,
+          discountPercent: 25,
+          maxRedemptions: 5,
+        }),
+      });
+      const createData: any = await createRes.json();
+      expect(createRes.status).toBe(200);
+      expect(createData.success).toBe(true);
+      expect(createData.coupon.code).toBe(testCode);
+      expect(createData.coupon.discountPercent).toBe(25);
+      expect(createData.coupon.redemptionCount).toBe(0);
+      const couponId = createData.coupon.id as string;
+
+      // 2. Preview diskon TANPA membuat transaksi
+      const previewRes = await fetch("http://localhost:3000/api/v1/checkout/preview-coupon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appId: testApp.id, couponCode: testCode, amount: 100000 }),
+      });
+      const previewData: any = await previewRes.json();
+      expect(previewRes.status).toBe(200);
+      expect(previewData.valid).toBe(true);
+      expect(previewData.discountPercent).toBe(25);
+      expect(previewData.discountAmount).toBe(25000);
+      expect(previewData.payableAmount).toBe(75000);
+
+      // 3. Tebus kupon via checkout session sungguhan (invoice mock di sandbox)
+      const checkoutRes = await fetch("http://localhost:3000/api/v1/checkout/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: testApp.id,
+          amount: 100000,
+          customerEmail: `coupon_e2e_${Date.now()}@test.local`,
+          couponCode: testCode,
+        }),
+      });
+      const checkoutData: any = await checkoutRes.json();
+      expect(checkoutRes.status).toBe(200);
+      expect(checkoutData.success).toBe(true);
+      expect(checkoutData.couponCode).toBe(testCode);
+      expect(checkoutData.discountAmount).toBe(25000);
+      // Nominal yang ditagihkan Xendit = harga list - diskon
+      expect(checkoutData.amount).toBe(75000);
+
+      // 4. Transaksi di DB mencatat kupon & breakdown MoR atas nominal terdiskon
+      const txId = checkoutData.transactionId as string;
+      const tx = await db.query.transactions.findFirst({ where: eq(transactions.id, txId) });
+      expect(tx).toBeDefined();
+      expect(tx!.couponCode).toBe(testCode);
+      expect(tx!.discountAmount).toBe(25000);
+      expect(tx!.grossAmount).toBe(75000);
+      // 5% dari 75000 = 3750; net 95% = 71250
+      expect(tx!.platformFee).toBe(3750);
+      expect(tx!.netAmount).toBe(71250);
+
+      // 5. Kuota penebusan naik tepat 1
+      const redeemed = await db.query.coupons.findFirst({ where: eq(coupons.id, couponId) });
+      expect(redeemed).toBeDefined();
+      expect(redeemed!.redemptionCount).toBe(1);
+
+      // Cleanup transaksi tes
+      await db.delete(transactions).where(eq(transactions.id, txId));
+    } finally {
+      await db.delete(coupons).where(eq(coupons.appId, testApp.id));
+      await db.delete(apps).where(eq(apps.id, testApp.id));
+    }
+  });
+
+  it("should reject unknown coupon codes and app-mismatched coupons at checkout", async () => {
+    const testApp = await createTestApp();
+    const otherApp = await createTestApp();
+
+    try {
+      // 1. Kode yang tidak ada sama sekali
+      const unknownRes = await fetch("http://localhost:3000/api/v1/checkout/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: testApp.id,
+          amount: 100000,
+          customerEmail: `coupon_unknown_${Date.now()}@test.local`,
+          couponCode: "NO_SUCH_COUPON_XYZ",
+        }),
+      });
+      const unknownData: any = await unknownRes.json();
+      expect(unknownRes.status).toBe(400);
+      expect(unknownData.errorCode).toBe("COUPON_NOT_FOUND");
+
+      // 2. Kupon valid milik app lain tidak boleh dipakai lintas app
+      const createRes = await fetch("http://localhost:3000/api/v1/coupons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: otherApp.id,
+          code: `OWN${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+          discountPercent: 10,
+        }),
+      });
+      const created: any = await createRes.json();
+      expect(createRes.status).toBe(200);
+
+      const mismatchRes = await fetch("http://localhost:3000/api/v1/checkout/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: testApp.id,
+          amount: 100000,
+          customerEmail: `coupon_mismatch_${Date.now()}@test.local`,
+          couponCode: created.coupon.code,
+        }),
+      });
+      const mismatchData: any = await mismatchRes.json();
+      expect(mismatchRes.status).toBe(400);
+      expect(mismatchData.errorCode).toBe("COUPON_NOT_FOUND");
+    } finally {
+      await db.delete(coupons).where(eq(coupons.appId, otherApp.id));
+      await db.delete(apps).where(eq(apps.id, otherApp.id));
+      await db.delete(apps).where(eq(apps.id, testApp.id));
+    }
+  });
+
+  it("should enforce maxRedemptions quota (second redemption rejected, no ghost invoice)", async () => {
+    const testApp = await createTestApp();
+    const testCode = `QTA${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    try {
+      // Kupon dengan kuota 1x
+      const createRes = await fetch("http://localhost:3000/api/v1/coupons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: testApp.id,
+          code: testCode,
+          discountPercent: 50,
+          maxRedemptions: 1,
+        }),
+      });
+      expect(createRes.status).toBe(200);
+
+      // Penebusan #1: sukses
+      const res1 = await fetch("http://localhost:3000/api/v1/checkout/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: testApp.id,
+          amount: 100000,
+          customerEmail: `coupon_quota1_${Date.now()}@test.local`,
+          couponCode: testCode,
+        }),
+      });
+      const data1: any = await res1.json();
+      expect(res1.status).toBe(200);
+      expect(data1.success).toBe(true);
+      expect(data1.amount).toBe(50000);
+
+      // Penebusan #2: ditolak karena kuota habis
+      const res2 = await fetch("http://localhost:3000/api/v1/checkout/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: testApp.id,
+          amount: 100000,
+          customerEmail: `coupon_quota2_${Date.now()}@test.local`,
+          couponCode: testCode,
+        }),
+      });
+      const data2: any = await res2.json();
+      expect(res2.status).toBe(400);
+      expect(data2.errorCode).toBe("COUPON_EXHAUSTED");
+
+      // Transaksi dengan kupon ini harus TEPAT 1 (tidak ada invoice hantu terdiskon)
+      const txsWithCoupon = await db.query.transactions.findMany({
+        where: eq(transactions.couponCode, testCode),
+      });
+      expect(txsWithCoupon.length).toBe(1);
+      expect(txsWithCoupon[0].customerEmail).toContain("coupon_quota1_");
+
+      // Cleanup transaksi penebusan pertama
+      await db.delete(transactions).where(eq(transactions.id, data1.transactionId));
+    } finally {
+      await db.delete(coupons).where(eq(coupons.appId, testApp.id));
+      await db.delete(apps).where(eq(apps.id, testApp.id));
+    }
+  });
+
+  it("should toggle coupon active state via API and block redemption while inactive", async () => {
+    const testApp = await createTestApp();
+    const testCode = `TOG${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    try {
+      const createRes = await fetch("http://localhost:3000/api/v1/coupons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: testApp.id,
+          code: testCode,
+          discountPercent: 20,
+        }),
+      });
+      const created: any = await createRes.json();
+      expect(createRes.status).toBe(200);
+      const couponId = created.coupon.id as string;
+
+      // Nonaktifkan via PATCH
+      const patchRes = await fetch(`http://localhost:3000/api/v1/coupons/${couponId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: false }),
+      });
+      const patchData: any = await patchRes.json();
+      expect(patchRes.status).toBe(200);
+      expect(patchData.coupon.isActive).toBe(false);
+
+      // Penebusan saat nonaktif harus ditolak
+      const redeemRes = await fetch("http://localhost:3000/api/v1/checkout/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: testApp.id,
+          amount: 100000,
+          customerEmail: `coupon_inactive_${Date.now()}@test.local`,
+          couponCode: testCode,
+        }),
+      });
+      const redeemData: any = await redeemRes.json();
+      expect(redeemRes.status).toBe(400);
+      expect(redeemData.errorCode).toBe("COUPON_INACTIVE");
+
+      // Aktifkan kembali → preview valid lagi
+      await fetch(`http://localhost:3000/api/v1/coupons/${couponId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: true }),
+      });
+
+      const previewRes = await fetch("http://localhost:3000/api/v1/checkout/preview-coupon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appId: testApp.id, couponCode: testCode, amount: 100000 }),
+      });
+      const previewData: any = await previewRes.json();
+      expect(previewRes.status).toBe(200);
+      expect(previewData.valid).toBe(true);
+      expect(previewData.discountAmount).toBe(20000);
+    } finally {
+      await db.delete(coupons).where(eq(coupons.appId, testApp.id));
+      await db.delete(apps).where(eq(apps.id, testApp.id));
+    }
+  });
+});
+
+describe("Sandbox & Live App Mode (creem.io-style)", () => {
+  async function createSandboxTestApp(): Promise<{ id: string; slug: string }> {
+    const builder = await db.query.builders.findFirst();
+    if (!builder) throw new Error("No builder found — jalankan seed/auto-seed dulu");
+
+    const testAppId = `app_sandbox_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
+    const testSlug = `sandbox-test-${Math.random().toString(36).substring(2, 8)}`;
+
+    await db.insert(apps).values({
+      id: testAppId,
+      builderId: builder.id,
+      name: "Sandbox E2E Test App",
+      slug: testSlug,
+      mode: "sandbox",
+      targetPrice: 50000,
+    });
+
+    return { id: testAppId, slug: testSlug };
+  }
+
+  it("should create app with sandbox mode by default and allow mode toggle to live", async () => {
+    const builder = await db.query.builders.findFirst();
+    if (!builder) return;
+
+    const testSlug = `mode-test-${Math.random().toString(36).substring(2, 8)}`;
+    let createdAppId: string | null = null;
+
+    try {
+      // App baru dibuat TANPA mode eksplisit → default sandbox (seperti creem.io)
+      const createRes = await fetch("http://localhost:3000/api/v1/apps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Default Sandbox App",
+          slug: testSlug,
+          targetPrice: 25000,
+        }),
+      });
+      const created: any = await createRes.json();
+      expect(createRes.status).toBe(200);
+      expect(created.app.mode).toBe("sandbox");
+      createdAppId = created.app.id;
+
+      // Toggle ke live
+      const toggleRes = await fetch(`http://localhost:3000/api/v1/apps/${createdAppId}/mode`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "live" }),
+      });
+      const toggled: any = await toggleRes.json();
+      expect(toggleRes.status).toBe(200);
+      expect(toggled.app.mode).toBe("live");
+    } finally {
+      if (createdAppId) await db.delete(apps).where(eq(apps.id, createdAppId));
+    }
+  });
+
+  it("should mark checkout session as sandbox and simulate payment to issue license", async () => {
+    const testApp = await createSandboxTestApp();
+
+    try {
+      // 1. Buat sesi checkout → invoice mock karena app mode sandbox
+      const sessionRes = await fetch("http://localhost:3000/api/v1/checkout/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: testApp.id,
+          amount: 50000,
+          customerEmail: `sandbox_${Date.now()}@test.local`,
+        }),
+      });
+      const sessionData: any = await sessionRes.json();
+      expect(sessionRes.status).toBe(200);
+      expect(sessionData.success).toBe(true);
+      expect(sessionData.data.isSandbox).toBe(true);
+      expect(sessionData.data.xenditInvoiceUrl).toContain("mock");
+
+      const txId = sessionData.data.sessionId;
+
+      // 2. Simulasikan pembayaran
+      const simRes = await fetch(`http://localhost:3000/api/v1/checkout/simulate-paid/${txId}`, {
+        method: "POST",
+      });
+      const simData: any = await simRes.json();
+      expect(simRes.status).toBe(200);
+      expect(simData.success).toBe(true);
+      expect(simData.licenseKey).toMatch(/^TT-/);
+
+      // 3. Transaksi berstatus PAID
+      const tx = await db.query.transactions.findFirst({ where: eq(transactions.id, txId) });
+      expect(tx?.paymentStatus).toBe("PAID");
+
+      // 4. Pencairan harus DITOLAK untuk transaksi sandbox
+      const disbRes = await fetch(`http://localhost:3000/api/v1/checkout/disburse/${txId}`, {
+        method: "POST",
+      });
+      expect(disbRes.status).toBe(400);
+
+      // 5. Simulate-paid untuk app yang sudah LIVE hanya diizinkan saat sandbox
+      //    global aktif (development). Di luar itu harus ditolak (403).
+      await db.update(apps).set({ mode: "live" }).where(eq(apps.id, testApp.id));
+      const simLiveRes = await fetch(`http://localhost:3000/api/v1/checkout/simulate-paid/${txId}`, {
+        method: "POST",
+      });
+      if (config.isSandbox) {
+        expect(simLiveRes.status).toBe(200);
+      } else {
+        expect(simLiveRes.status).toBe(403);
+      }
+    } finally {
+      await db.delete(licenses).where(eq(licenses.appId, testApp.id));
+      await db.delete(transactions).where(eq(transactions.appId, testApp.id));
+      await db.delete(apps).where(eq(apps.id, testApp.id));
+    }
+  });
+});
+
+describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
+  it("should calculate exactly 5% platform fee and 95% net payout for DANA MoR", () => {
+    const gross = 100000;
+    const { grossAmount, platformFee, netAmount } = DanaService.calculateMorBreakdown(gross);
+
+    expect(grossAmount).toBe(100000);
+    expect(platformFee).toBe(5000); // 5%
+    expect(netAmount).toBe(95000); // 95%
+    expect(grossAmount).toBe(platformFee + netAmount);
+  });
+
+  it("should create DANA order with mock response in sandbox mode", async () => {
+    const externalId = `dana_ext_${Date.now()}`;
+    const order = await DanaService.createOrder({
+      externalId,
+      amount: 75000,
+      payerEmail: "buyer_dana@test.local",
+      description: "Lisensi Test DANA",
+      forceMock: true,
+    });
+
+    expect(order.externalId).toBe(externalId);
+    expect(order.amount).toBe(75000);
+    expect(order.checkoutUrl).toContain("checkout/dana/finish");
+    expect(order.merchantName).toContain("DANA");
+  });
+
+  it("should create checkout session using DANA when paymentGateway='dana'", async () => {
+    const existingApp = await db.query.apps.findFirst();
+    if (!existingApp) return;
+
+    const email = `dana_checkout_${Date.now()}@test.local`;
+    const res = await fetch("http://localhost:3000/api/v1/checkout/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        appId: existingApp.id,
+        amount: 80000,
+        customerEmail: email,
+        paymentGateway: "dana",
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body: any = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.paymentGateway).toBe("dana");
+    expect(
+      body.checkoutUrl.includes("checkout/dana/finish") ||
+      body.checkoutUrl.includes("sandbox.dana.id")
+    ).toBe(true);
+
+    const tx = await db.query.transactions.findFirst({
+      where: eq(transactions.id, body.transactionId),
+    });
+    expect(tx).toBeDefined();
+    expect(tx?.paymentProvider).toBe("dana");
+    expect(tx?.grossAmount).toBe(80000);
+
+    // Clean up
+    await db.delete(transactions).where(eq(transactions.id, body.transactionId));
+  });
+
+  it("should process DANA Finish Payment Webhook and issue license with idempotency", async () => {
+    const existingApp = await db.query.apps.findFirst();
+    if (!existingApp) return;
+
+    const txId = `tx_dana_test_${Date.now()}`;
+    const extId = `tt_dana_${Date.now()}`;
+    const custEmail = `customer_dana_${Date.now()}@test.local`;
+
+    await db.insert(transactions).values({
+      id: txId,
+      appId: existingApp.id,
+      builderId: existingApp.builderId,
+      paymentProvider: "dana",
+      providerReferenceId: extId,
+      xenditInvoiceId: extId,
+      xenditExternalId: extId,
+      xenditInvoiceUrl: `https://checkout.dana.id/mock/${extId}`,
+      customerEmail: custEmail,
+      grossAmount: 50000,
+      platformFee: 2500,
+      netAmount: 47500,
+      paymentStatus: "PENDING",
+      disbursementStatus: "PENDING",
+      grantDays: 30,
+    });
+
+    // 1. First webhook call: harus berhasil dan terbitkan lisensi
+    const webhookRes1 = await fetch("http://localhost:3000/webhook/dana/finish-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        merchantTransId: extId,
+        orderStatus: "SUCCESS",
+        orderAmount: { currency: "IDR", value: "50000" },
+        paymentChannel: "DANA_WALLET",
+      }),
+    });
+
+    expect(webhookRes1.status).toBe(200);
+    const resData1: any = await webhookRes1.json();
+    expect(resData1.status).toBe("success");
+    expect(resData1.licenseKey).toMatch(/^TT-/);
+
+    // Verifikasi database: status PAID
+    const txAfter = await db.query.transactions.findFirst({ where: eq(transactions.id, txId) });
+    expect(txAfter?.paymentStatus).toBe("PAID");
+    expect(txAfter?.paymentChannel).toBe("DANA_WALLET");
+
+    // 2. Second webhook call (Idempotency): tidak boleh duplikasi lisensi
+    const webhookRes2 = await fetch("http://localhost:3000/webhook/dana/finish-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        merchantTransId: extId,
+        orderStatus: "SUCCESS",
+      }),
+    });
+
+    expect(webhookRes2.status).toBe(200);
+    const resData2: any = await webhookRes2.json();
+    expect(resData2.message).toContain("idempotent");
+
+    // Pastikan hanya 1 lisensi yang terbit untuk transaksi ini
+    const issuedLicenses = await db.query.licenses.findMany({
+      where: eq(licenses.transactionId, txId),
+    });
+    expect(issuedLicenses.length).toBe(1);
+
+    // 3. Test DANA Disburse to Bank Notify Webhook
+    const disburseWebhookRes = await fetch("http://localhost:3000/webhook/dana/disburse-notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        partnerReferenceNo: extId,
+        status: "SUCCESS",
+      }),
+    });
+
+    expect(disburseWebhookRes.status).toBe(200);
+    const txDisbAfter = await db.query.transactions.findFirst({ where: eq(transactions.id, txId) });
+    expect(txDisbAfter?.disbursementStatus).toBe("COMPLETED");
+
+    // Clean up
+    await db.delete(licenses).where(eq(licenses.transactionId, txId));
+    await db.delete(transactions).where(eq(transactions.id, txId));
+  });
+
+  it("should acknowledge DANA Transaction Success Finish Notify (/v1.0/debit/notify) with 2005600 and Successful", async () => {
+    // 1. Test against SNAP BI standard route POST /v1.0/debit/notify
+    const notifyRes = await fetch("http://localhost:3000/v1.0/debit/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        originalPartnerReferenceNo: `dana_order_${Date.now()}`,
+        originalReferenceNo: `dana_ref_${Date.now()}`,
+        latestTransactionStatus: "00",
+        amount: { value: "11011.00", currency: "IDR" },
+      }),
+    });
+
+    expect(notifyRes.status).toBe(200);
+    const body: any = await notifyRes.json();
+    expect(body.responseCode).toBe("2005600");
+    expect(body.responseMessage).toBe("Successful");
+
+    // 2. Test Internal Server Error condition (amount = 11012.00)
+    const errNotifyRes = await fetch("http://localhost:3000/v1.0/debit/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        originalPartnerReferenceNo: `dana_err_${Date.now()}`,
+        latestTransactionStatus: "00",
+        amount: { value: "11012.00", currency: "IDR" },
+      }),
+    });
+
+    expect(errNotifyRes.status).toBe(500);
+    const errBody: any = await errNotifyRes.json();
+    expect(errBody.responseCode).toBe("5005601");
+    expect(errBody.responseMessage).toBe("Internal Server Error");
+  });
+
+  it("should fulfill transaction when SNAP BI Finish Notify latestTransactionStatus='00' matches an existing transaction", async () => {
+    const existingApp = await db.query.apps.findFirst();
+    if (!existingApp) return;
+
+    const txId = `tx_dana_snap_${Date.now()}`;
+    const extId = `tt_dana_snap_${Date.now()}`;
+    const custEmail = `customer_dana_snap_${Date.now()}@test.local`;
+
+    await db.insert(transactions).values({
+      id: txId,
+      appId: existingApp.id,
+      builderId: existingApp.builderId,
+      paymentProvider: "dana",
+      providerReferenceId: extId,
+      xenditInvoiceId: extId,
+      xenditExternalId: extId,
+      xenditInvoiceUrl: `https://checkout.dana.id/mock/${extId}`,
+      customerEmail: custEmail,
+      grossAmount: 50000,
+      platformFee: 2500,
+      netAmount: 47500,
+      paymentStatus: "PENDING",
+      disbursementStatus: "PENDING",
+      grantDays: 30,
+    });
+
+    const res = await fetch("http://localhost:3000/v1.0/debit/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        originalPartnerReferenceNo: extId,
+        originalReferenceNo: `dana_ref_${Date.now()}`,
+        latestTransactionStatus: "00",
+        amount: { value: "50000.00", currency: "IDR" },
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body: any = await res.json();
+    expect(body.responseCode).toBe("2005600");
+    expect(body.responseMessage).toBe("Successful");
+
+    const txAfter = await db.query.transactions.findFirst({ where: eq(transactions.id, txId) });
+    expect(txAfter?.paymentStatus).toBe("PAID");
+
+    const issued = await db.query.licenses.findMany({ where: eq(licenses.transactionId, txId) });
+    expect(issued.length).toBe(1);
+
+    await db.delete(licenses).where(eq(licenses.transactionId, txId));
+    await db.delete(transactions).where(eq(transactions.id, txId));
+  });
+});

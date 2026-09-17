@@ -10,6 +10,7 @@ import { badgeRoutes, widgetRoutes } from "./badge";
 import { launchRoutes } from "./launch";
 import { portalRoutes } from "./portal";
 import { panelRoutes } from "./panel";
+import { couponRoutes } from "./coupons";
 
 export const apiV1Routes = new Elysia({ prefix: "/api/v1" })
   .use(healthRoutes)
@@ -26,4 +27,5 @@ export const apiV1Routes = new Elysia({ prefix: "/api/v1" })
   .use(widgetRoutes)
   .use(launchRoutes)
   .use(portalRoutes)
-  .use(panelRoutes);
+  .use(panelRoutes)
+  .use(couponRoutes);

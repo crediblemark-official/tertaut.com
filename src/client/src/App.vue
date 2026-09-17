@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { api } from './lib/api'
+import { dashboardEnv, envPath, SANDBOX_PREFIX, type DashboardEnv } from './lib/environment'
 import {
   LayoutDashboard,
+  Boxes,
   CreditCard,
   KeyRound,
   Bot,
@@ -13,20 +16,39 @@ import {
   ShieldCheck,
   ShieldAlert,
   ChevronRight,
-  Search
+  Search,
+  Ticket
 } from 'lucide-vue-next'
 
 const route = useRoute()
+const router = useRouter()
+const env = dashboardEnv
 
 const isPublicPage = computed(() => !!route.meta.public || !!route.meta.fullscreen)
 
+// Kunci halaman tanpa prefix environment, mis. '/dashboard/sandbox/checkout' -> '/checkout'
+function pageKey(path: string): string {
+  const stripped = path.startsWith(SANDBOX_PREFIX)
+    ? path.slice(SANDBOX_PREFIX.length)
+    : path.startsWith('/dashboard')
+      ? path.slice('/dashboard'.length)
+      : path
+  return stripped || '/'
+}
+
+const navKey = computed(() => pageKey(route.path))
+
 const currentPage = computed(() => {
-  if (route.path === '/dashboard') return { title: 'Ringkasan Ekosistem', category: 'Overview' }
-  if (route.path.startsWith('/dashboard/checkout')) return { title: 'Dynamic Checkout & MoR', category: 'Checkout' }
-  if (route.path.startsWith('/dashboard/licensing')) return { title: 'Lisensi & Anti-Piracy', category: 'Lisensi' }
-  if (route.path.startsWith('/dashboard/ai-proxy')) return { title: 'AI API Proxy Shield', category: 'AI Shield' }
-  if (route.path.startsWith('/dashboard/docs')) return { title: 'Dokumentasi & SDK', category: 'Docs' }
-  return { title: 'Workspace', category: 'Dashboard' }
+  switch (navKey.value) {
+    case '/': return { title: 'Ringkasan Ekosistem', category: 'Overview' }
+    case '/apps': return { title: 'Katalog Aplikasi Builder', category: 'Apps' }
+    case '/checkout': return { title: 'Dynamic Checkout & MoR', category: 'Checkout' }
+    case '/coupons': return { title: 'Kupon Diskon', category: 'Checkout' }
+    case '/licensing': return { title: 'Lisensi & Anti-Piracy', category: 'Lisensi' }
+    case '/ai-proxy': return { title: 'AI API Proxy Shield', category: 'AI Shield' }
+    case '/docs': return { title: 'Dokumentasi & SDK', category: 'Docs' }
+    default: return { title: 'Workspace', category: 'Dashboard' }
+  }
 })
 
 interface NavSubItem {
@@ -36,19 +58,86 @@ interface NavSubItem {
 
 interface NavItem {
   name: string
+  key: string
   path: string
   icon: any
   children?: NavSubItem[]
 }
 
-const navItems: NavItem[] = [
-  { name: 'Ringkasan', path: '/dashboard', icon: LayoutDashboard },
+const navItems = computed<NavItem[]>(() => {
+  const e = env.value
+  return [
+    { name: 'Ringkasan', key: '/', path: envPath(e), icon: LayoutDashboard },
+    { name: 'Aplikasi', key: '/apps', path: envPath(e, '/apps'), icon: Boxes },
+    { name: 'Checkout', key: '/checkout', path: envPath(e, '/checkout'), icon: CreditCard },
+    { name: 'Kupon', key: '/coupons', path: envPath(e, '/coupons'), icon: Ticket },
+    { name: 'Lisensi', key: '/licensing', path: envPath(e, '/licensing'), icon: KeyRound },
+    { name: 'AI Shield', key: '/ai-proxy', path: envPath(e, '/ai-proxy'), icon: Bot },
+    { name: 'Docs', key: '/docs', path: envPath(e, '/docs'), icon: BookOpen },
+  ]
+})
 
-  { name: 'Checkout', path: '/dashboard/checkout', icon: CreditCard },
-  { name: 'Lisensi', path: '/dashboard/licensing', icon: KeyRound },
-  { name: 'AI Shield', path: '/dashboard/ai-proxy', icon: Bot },
-  { name: 'Docs', path: '/dashboard/docs', icon: BookOpen },
-]
+function switchEnv(target: DashboardEnv) {
+  if (target === env.value) return
+  const key = navKey.value
+  router.push(envPath(target, key === '/' ? '' : key))
+}
+
+// ===== Badge jumlah item aktif di sidebar (Kupon & Lisensi) =====
+const activeCouponCount = ref(0)
+const activeLicenseCount = ref(0)
+
+async function loadActiveCouponCount() {
+  try {
+    const res = await api.getCoupons()
+    activeCouponCount.value = (res.coupons || []).filter((c) => c.isActive).length
+  } catch {
+    // Badge hanya penanda — kegagalan fetch tidak boleh merusak layout
+  }
+}
+
+async function loadActiveLicenseCount() {
+  try {
+    const res = await api.getLicenses()
+    activeLicenseCount.value = (res.licenses || []).filter((l) => l.status === 'ACTIVE').length
+  } catch {
+    // Sama seperti kupon: badge tidak boleh merusak layout
+  }
+}
+
+function loadSidebarBadges() {
+  loadActiveCouponCount()
+  loadActiveLicenseCount()
+}
+
+// Muat saat pertama masuk dashboard & segarkan setiap pindah halaman dashboard
+watch(
+  () => route.path,
+  (path) => {
+    if (path.startsWith('/dashboard')) loadSidebarBadges()
+  }
+)
+
+// Segarkan instan saat kupon dibuat/diubah/dihapus (event dari CouponView)
+function onCouponsChanged() {
+  loadActiveCouponCount()
+}
+
+// Segarkan instan saat lisensi diterbitkan/dicabut (event dari LicensingView)
+function onLicensesChanged() {
+  loadActiveLicenseCount()
+}
+
+onMounted(() => {
+  if (route.path.startsWith('/dashboard')) loadSidebarBadges()
+  window.addEventListener('tertaut:coupons-changed', onCouponsChanged)
+  window.addEventListener('tertaut:licenses-changed', onLicensesChanged)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('tertaut:coupons-changed', onCouponsChanged)
+  window.removeEventListener('tertaut:licenses-changed', onLicensesChanged)
+})
 </script>
 
 <template>
@@ -76,6 +165,26 @@ const navItems: NavItem[] = [
           </div>
         </router-link>
 
+        <!-- Environment Switch (global) -->
+        <div class="grid grid-cols-2 gap-1 p-1 rounded-lg bg-[#111111]/5 border border-[#111111]/10">
+          <button
+            type="button"
+            @click="switchEnv('sandbox')"
+            :class="env === 'sandbox' ? 'bg-[#D4AF37] text-[#111111] shadow-sm' : 'text-[#111111]/60 hover:text-[#111111]'"
+            class="py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition"
+          >
+            Sandbox
+          </button>
+          <button
+            type="button"
+            @click="switchEnv('live')"
+            :class="env === 'live' ? 'bg-[#0F4C3A] text-white shadow-sm' : 'text-[#111111]/60 hover:text-[#111111]'"
+            class="py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition"
+          >
+            Live
+          </button>
+        </div>
+
         <!-- Navigation Menu -->
         <nav class="space-y-1">
           <div v-for="item in navItems" :key="item.path" class="space-y-0.5">
@@ -83,7 +192,7 @@ const navItems: NavItem[] = [
               :to="item.path"
               :class="[
                 'flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150',
-                route.path === item.path || (item.children && route.path.startsWith(item.path))
+                navKey === item.key
                   ? 'bg-[#111111] text-white shadow-sm'
                   : 'text-[#111111]/75 hover:text-[#111111] hover:bg-[#111111]/5'
               ]"
@@ -92,12 +201,31 @@ const navItems: NavItem[] = [
                 <component
                   :is="item.icon"
                   class="w-4 h-4 transition"
-                  :class="route.path === item.path || (item.children && route.path.startsWith(item.path)) ? 'text-[#D4AF37]' : 'text-[#111111]/60'"
+                  :class="navKey === item.key ? 'text-[#D4AF37]' : 'text-[#111111]/60'"
                 />
                 <span>{{ item.name }}</span>
               </div>
+              <!-- Badge jumlah item aktif (Kupon & Lisensi) -->
               <span
-                v-if="route.path === item.path || (item.children && route.path.startsWith(item.path))"
+                v-if="item.key === '/coupons' && activeCouponCount > 0"
+                class="px-1.5 min-w-[18px] text-center py-0.5 rounded-full text-[9px] font-black leading-none"
+                :class="
+                  navKey === item.key
+                    ? 'bg-[#D4AF37] text-[#111111]'
+                    : 'bg-[#D4AF37]/20 text-[#D4AF37]'
+                "
+              >{{ activeCouponCount }}</span>
+              <span
+                v-else-if="item.key === '/licensing' && activeLicenseCount > 0"
+                class="px-1.5 min-w-[18px] text-center py-0.5 rounded-full text-[9px] font-black leading-none"
+                :class="
+                  navKey === item.key
+                    ? 'bg-[#D4AF37] text-[#111111]'
+                    : 'bg-[#0F4C3A]/15 text-[#0F4C3A]'
+                "
+              >{{ activeLicenseCount }}</span>
+              <span
+                v-else-if="navKey === item.key"
                 class="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]"
               ></span>
             </router-link>
@@ -213,10 +341,14 @@ const navItems: NavItem[] = [
             <kbd class="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-mono text-[#111111]/40 bg-white px-1.5 py-0.5 rounded border border-[#111111]/10">⌘K</kbd>
           </div>
 
-          <!-- Live Network Status Pill -->
-          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0F4C3A]/10 border border-[#0F4C3A]/20 text-[11px] font-semibold text-[#0F4C3A]" title="Semua service Xendit MoR & Relay beroperasi normal">
-            <span class="w-1.5 h-1.5 rounded-full bg-[#0F4C3A] animate-pulse"></span>
-            <span>MoR Live</span>
+          <!-- Environment Status Pill -->
+          <div
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold"
+            :class="env === 'sandbox' ? 'bg-[#D4AF37]/15 border-[#D4AF37]/30 text-[#8a6d1f]' : 'bg-[#0F4C3A]/10 border-[#0F4C3A]/20 text-[#0F4C3A]'"
+            :title="env === 'sandbox' ? 'Environment Sandbox: pembayaran disimulasikan' : 'Environment Live: Xendit produksi aktif'"
+          >
+            <span class="w-1.5 h-1.5 rounded-full animate-pulse" :class="env === 'sandbox' ? 'bg-[#D4AF37]' : 'bg-[#0F4C3A]'"></span>
+            <span>{{ env === 'sandbox' ? 'Sandbox Mode' : 'MoR Live' }}</span>
           </div>
 
           <!-- Quick Action Buttons -->
@@ -265,6 +397,15 @@ const navItems: NavItem[] = [
         </router-link>
 
         <div class="flex items-center gap-2">
+          <button
+            type="button"
+            @click="switchEnv(env === 'sandbox' ? 'live' : 'sandbox')"
+            class="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide border"
+            :class="env === 'sandbox' ? 'bg-[#D4AF37]/15 border-[#D4AF37]/40 text-[#8a6d1f]' : 'bg-[#0F4C3A]/10 border-[#0F4C3A]/30 text-[#0F4C3A]'"
+            :title="env === 'sandbox' ? 'Beralih ke Live' : 'Beralih ke Sandbox'"
+          >
+            {{ env === 'sandbox' ? 'Sandbox' : 'Live' }}
+          </button>
           <router-link
             to="/"
             class="p-1.5 rounded-md bg-[#111111]/5 text-[#111111] text-xs flex items-center gap-1"
@@ -294,23 +435,32 @@ const navItems: NavItem[] = [
         v-for="item in navItems"
         :key="item.path"
         :to="item.path"
-        :class="[
-          'flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-semibold transition-all relative',
-          route.path === item.path
-            ? 'text-[#111111]'
-            : 'text-[#111111]/50 hover:text-[#111111]'
-        ]"
-      >
-        <component
-          :is="item.icon"
-          class="w-4 h-4 mb-0.5"
-          :class="route.path === item.path ? 'text-[#D4AF37]' : ''"
-        />
-        <span class="truncate max-w-[56px] leading-tight">{{ item.name }}</span>
-        <span
-          v-if="route.path === item.path"
-          class="absolute top-0 w-8 h-0.5 bg-[#D4AF37] rounded-full"
-        ></span>
+          :class="[
+            'flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-semibold transition-all relative',
+            navKey === item.key
+              ? 'text-[#111111]'
+              : 'text-[#111111]/50 hover:text-[#111111]'
+          ]"
+        >
+          <component
+            :is="item.icon"
+            class="w-4 h-4 mb-0.5"
+            :class="navKey === item.key ? 'text-[#D4AF37]' : ''"
+          />
+          <!-- Badge mobile: jumlah item aktif di pojok ikon (Kupon & Lisensi) -->
+          <span
+            v-if="item.key === '/coupons' && activeCouponCount > 0"
+            class="absolute top-1 right-[calc(50%-15px)] min-w-[14px] px-1 py-px rounded-full bg-[#D4AF37] text-[#111111] text-[8px] font-black leading-tight text-center shadow-sm"
+          >{{ activeCouponCount }}</span>
+          <span
+            v-else-if="item.key === '/licensing' && activeLicenseCount > 0"
+            class="absolute top-1 right-[calc(50%-15px)] min-w-[14px] px-1 py-px rounded-full bg-[#0F4C3A] text-white text-[8px] font-black leading-tight text-center shadow-sm"
+          >{{ activeLicenseCount }}</span>
+          <span class="truncate max-w-[56px] leading-tight">{{ item.name }}</span>
+          <span
+            v-if="navKey === item.key"
+            class="absolute top-0 w-8 h-0.5 bg-[#D4AF37] rounded-full"
+          ></span>
       </router-link>
     </nav>
   </div>

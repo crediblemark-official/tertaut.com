@@ -1,8 +1,10 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
-import { transactions, builders } from "../db/schema";
+import { transactions, builders, apps } from "../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { XenditService } from "../services/xendit";
+import { DanaService } from "../services/dana";
+import { config } from "../config";
 
 /** FR-4.2 Minimum disbursement threshold Rp 50.000 */
 const MIN_THRESHOLD = 50000;
@@ -17,7 +19,16 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
   .post(
     "/trigger",
     async ({ body, set }) => {
-      const { amount, builderId } = body || {};
+      const { amount, builderId, mode } = body || {};
+
+      // Environment Sandbox tidak boleh mencairkan dana nyata.
+      if (mode === "sandbox") {
+        set.status = 400;
+        return {
+          success: false,
+          error: "Pencairan tidak tersedia di environment Sandbox. Transaksi sandbox bersifat simulasi.",
+        };
+      }
 
       // Dapatkan profil builder. Tanpa sesi terautentikasi, pemanggil wajib
       // menyebut builder mana yang dicairkan supaya saldo tidak pernah tercampur.
@@ -30,16 +41,27 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
         return { success: false, error: "Builder account not found" };
       }
 
+      // Hanya transaksi dari aplikasi mode LIVE yang boleh dicairkan.
+      // Transaksi sandbox adalah simulasi dan tidak pernah dikirim ke Xendit.
+      const liveAppRows = await db
+        .select({ id: apps.id })
+        .from(apps)
+        .where(eq(apps.mode, "live"));
+      const liveAppIds = liveAppRows.map((a) => a.id);
+
       // Ambil HANYA transaksi milik builder ini yang sudah lunas (PAID)
-      // dan belum dicairkan (PENDING).
-      const eligibleTxs = await db.query.transactions.findMany({
-        where: and(
-          eq(transactions.builderId, builder.id),
-          eq(transactions.paymentStatus, "PAID"),
-          eq(transactions.disbursementStatus, "PENDING")
-        ),
-        orderBy: (tx, { asc }) => [asc(tx.createdAt)],
-      });
+      // dan belum dicairkan (PENDING), dibatasi ke aplikasi live.
+      const eligibleTxs = liveAppIds.length
+        ? await db.query.transactions.findMany({
+            where: and(
+              eq(transactions.builderId, builder.id),
+              eq(transactions.paymentStatus, "PAID"),
+              eq(transactions.disbursementStatus, "PENDING"),
+              inArray(transactions.appId, liveAppIds)
+            ),
+            orderBy: (tx, { asc }) => [asc(tx.createdAt)],
+          })
+        : [];
 
       const totalPendingNet = eligibleTxs.reduce((sum, tx) => sum + tx.netAmount, 0);
 
@@ -143,12 +165,20 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
       };
 
       try {
-        const disbResult = await XenditService.createDisbursement({
-          externalId,
-          amount: disburseAmount,
-          ...recipient,
-          description: `Pencairan Saldo Bersih Builder tertaut.com`,
-        });
+        const disbResult =
+          config.paymentGateway === "dana"
+            ? await DanaService.createDisbursement({
+                externalId,
+                amount: disburseAmount,
+                ...recipient,
+                description: `Pencairan Saldo Bersih Builder tertaut.com (DANA)`,
+              })
+            : await XenditService.createDisbursement({
+                externalId,
+                amount: disburseAmount,
+                ...recipient,
+                description: `Pencairan Saldo Bersih Builder tertaut.com`,
+              });
 
         // Hanya tandai COMPLETED kalau gateway benar-benar menyelesaikannya.
         const finalStatus =
@@ -215,6 +245,7 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
         t.Object({
           amount: t.Optional(t.Number({ minimum: 10000 })),
           builderId: t.Optional(t.String({ format: "uuid" })),
+          mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
         })
       ),
       detail: {

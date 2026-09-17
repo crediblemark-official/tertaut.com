@@ -6,7 +6,7 @@ import {
   apps,
   licenses,
 } from "../db/schema";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { XenditService } from "../services/xendit";
 
 export const panelRoutes = new Elysia({ prefix: "/panel" })
@@ -232,12 +232,23 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
   .post(
     "/payouts/batch",
     async () => {
-      const eligibleTxs = await db.query.transactions.findMany({
-        where: and(
-          eq(transactions.paymentStatus, "PAID"),
-          eq(transactions.disbursementStatus, "PENDING")
-        ),
-      });
+      // Hanya transaksi dari aplikasi mode LIVE yang boleh dicairkan.
+      // Transaksi sandbox adalah simulasi dan tidak pernah dikirim ke Xendit.
+      const liveAppRows = await db
+        .select({ id: apps.id })
+        .from(apps)
+        .where(eq(apps.mode, "live"));
+      const liveAppIds = liveAppRows.map((a) => a.id);
+
+      const eligibleTxs = liveAppIds.length
+        ? await db.query.transactions.findMany({
+            where: and(
+              eq(transactions.paymentStatus, "PAID"),
+              eq(transactions.disbursementStatus, "PENDING"),
+              inArray(transactions.appId, liveAppIds)
+            ),
+          })
+        : [];
 
       if (eligibleTxs.length === 0) {
         return {

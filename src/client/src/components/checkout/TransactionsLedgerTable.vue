@@ -5,7 +5,8 @@ import {
   Search,
   Zap,
   ExternalLink,
-  Send
+  Send,
+  TicketPercent
 } from 'lucide-vue-next'
 import type { TransactionItem } from '../../types'
 import { formatRupiah } from '../../lib/utils'
@@ -15,6 +16,7 @@ const props = defineProps<{
   loadingTxs: boolean
   simulatingTxId: string | null
   disburseLoading: string | null
+  isSandbox: boolean
 }>()
 
 const searchQuery = defineModel<string>('searchQuery', { default: '' })
@@ -135,7 +137,16 @@ const filteredTransactions = computed(() => {
               <div class="font-bold text-[#111111]">{{ tx.id }}</div>
               <div class="text-[10px] text-[#111111]/50">{{ new Date(tx.createdAt).toLocaleString('id-ID') }}</div>
             </td>
-            <td class="py-2.5 text-[#111111]/80">{{ tx.customerEmail }}</td>
+            <td class="py-2.5 text-[#111111]/80">
+              <div>{{ tx.customerEmail }}</div>
+              <div
+                v-if="tx.couponCode"
+                class="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded bg-[#D4AF37]/15 border border-[#D4AF37]/30 text-[9px] font-bold text-[#111111] font-mono"
+              >
+                <TicketPercent class="w-2.5 h-2.5" />
+                {{ tx.couponCode }}
+              </div>
+            </td>
             <td class="py-2.5 font-mono font-bold text-[#111111]">{{ formatRupiah(tx.grossAmount) }}</td>
             <td class="py-2.5 font-mono text-[#8B0000]">-{{ formatRupiah(tx.platformFee) }}</td>
             <td class="py-2.5 font-mono font-bold text-[#0F4C3A]">{{ formatRupiah(tx.netAmount) }}</td>
@@ -157,12 +168,12 @@ const filteredTransactions = computed(() => {
             </td>
             <td class="py-2.5 text-right">
               <div class="flex items-center justify-end gap-1.5">
-                <!-- Simulation for Pending -->
+                <!-- Simulation for Pending — hanya tersedia di environment Sandbox -->
                 <button
-                  v-if="tx.paymentStatus === 'PENDING'"
+                  v-if="tx.paymentStatus === 'PENDING' && isSandbox"
                   @click="emit('simulatePayment', tx)"
                   :disabled="simulatingTxId === tx.id"
-                  title="Simulasikan Pembayaran Sukses (Local Sandbox)"
+                  title="Simulasikan Pembayaran Sukses (Sandbox)"
                   class="px-2 py-1 rounded bg-[#D4AF37] hover:bg-[#D4AF37]/90 text-[#111111] text-[10px] font-bold transition inline-flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
                 >
                   <Zap class="w-2.5 h-2.5 fill-current" />
@@ -170,13 +181,14 @@ const filteredTransactions = computed(() => {
                 </button>
 
                 <a
-                  v-if="tx.xenditInvoiceUrl && tx.paymentStatus === 'PENDING'"
+                  v-if="tx.xenditInvoiceUrl && tx.paymentStatus === 'PENDING' && !isSandbox"
                   :href="tx.xenditInvoiceUrl"
                   target="_blank"
                   title="Buka Invoice Xendit Asli"
-                  class="p-1 rounded text-[#111111]/50 hover:text-[#111111] hover:bg-[#111111]/5"
+                  class="px-2 py-1 rounded bg-[#111111] text-white hover:bg-[#222222] text-[10px] font-bold transition inline-flex items-center gap-1"
                 >
-                  <ExternalLink class="w-3 h-3" />
+                  <ExternalLink class="w-2.5 h-2.5" />
+                  <span>Bayar</span>
                 </a>
 
                 <!-- Disburse for Paid -->
