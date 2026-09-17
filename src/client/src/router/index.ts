@@ -101,8 +101,9 @@ router.beforeEach(async (to) => {
     to.path.startsWith("/dashboard") ||
     to.path.startsWith("/panel");
 
-  // Di dev, server memakai bypass (DEV_USER) agar alur tetap bisa dites tanpa login.
-  if (import.meta.env.PROD && requiresAuth) {
+  // Wajib login untuk halaman beranda dashboard & panel.
+  // Di dev sekalipun; server juga menegakkan authenticate() (DEV_USER hanya safety net).
+  if (requiresAuth) {
     const { data } = await authClient.getSession();
     if (!data) {
       return { path: "/login", query: { redirect: to.fullPath } };
