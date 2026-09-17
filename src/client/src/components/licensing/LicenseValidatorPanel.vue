@@ -79,12 +79,12 @@ const emit = defineEmits<{
           </div>
         </div>
 
-        <!-- Action Buttons Grid -->
-        <div class="grid grid-cols-2 gap-2 pt-1">
+        <!-- Action Buttons Grid (Mobile-First Wrap Friendly) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
           <button
             @click="emit('activateSeat')"
             :disabled="loadingValidation || !licenseKey"
-            class="w-full h-9 rounded-lg btn-gold text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
+            class="w-full min-h-[38px] py-2 px-3 rounded-lg btn-gold text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
           >
             <Monitor class="w-3.5 h-3.5" />
             <span>Aktifkan Perangkat</span>
@@ -93,7 +93,7 @@ const emit = defineEmits<{
           <button
             @click="emit('verifyOnline')"
             :disabled="loadingValidation || !licenseKey"
-            class="w-full h-9 rounded-lg bg-[#111111] hover:bg-[#222222] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
+            class="w-full min-h-[38px] py-2 px-3 rounded-lg bg-[#111111] hover:bg-[#222222] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
           >
             <CheckCircle2 class="w-3.5 h-3.5 text-[#D4AF37]" />
             <span>Verifikasi Online</span>
@@ -102,7 +102,7 @@ const emit = defineEmits<{
           <button
             @click="emit('deactivateSeat')"
             :disabled="loadingValidation || !licenseKey"
-            class="w-full h-9 rounded-lg border border-[#8B0000]/30 hover:bg-[#8B0000]/10 text-[#8B0000] text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+            class="w-full min-h-[38px] py-2 px-3 rounded-lg border border-[#8B0000]/30 hover:bg-[#8B0000]/10 text-[#8B0000] text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95"
           >
             <Trash2 class="w-3 h-3" />
             <span>Lepas Perangkat</span>
@@ -111,7 +111,7 @@ const emit = defineEmits<{
           <button
             @click="emit('validateStandard')"
             :disabled="loadingValidation || !licenseKey"
-            class="w-full h-9 rounded-lg border border-[#111111]/20 hover:bg-[#111111]/5 text-[#111111] text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+            class="w-full min-h-[38px] py-2 px-3 rounded-lg border border-[#111111]/20 hover:bg-[#111111]/5 text-[#111111] text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95"
           >
             <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': loadingValidation }" />
             <span>Validasi Standar</span>

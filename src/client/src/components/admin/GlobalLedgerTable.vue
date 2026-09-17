@@ -60,7 +60,7 @@ const filteredTransactions = computed(() => {
       </div>
     </div>
 
-    <!-- Desktop Table (Flush left/right) -->
+    <!-- Table View (Responsive Table with Horizontal Scroll on Mobile) -->
     <div class="overflow-x-auto w-full top-scrollbar">
       <table class="w-full text-left text-xs whitespace-nowrap">
         <thead class="border-b border-[#111111]/10 text-[#111111]/60 uppercase tracking-wider text-[10px] font-bold">
@@ -87,17 +87,17 @@ const filteredTransactions = computed(() => {
             :key="tx.id"
             class="hover:bg-[#111111]/[0.02] transition"
           >
-            <td class="py-2 pr-3 pl-0">
+            <td class="py-2.5 pr-3 pl-0">
               <div class="font-mono font-bold text-[11px] text-[#111111]">{{ tx.id.slice(0, 8) }}...</div>
               <div class="text-[10px] text-[#111111]/50">{{ new Date(tx.createdAt).toLocaleDateString('id-ID') }}</div>
             </td>
-            <td class="py-2 px-3 font-semibold text-[#111111]">{{ tx.appName }}</td>
-            <td class="py-2 px-3 text-[#111111]/70 font-mono text-[11px]">{{ tx.builderEmail }}</td>
-            <td class="py-2 px-3 text-[#111111]/70 font-mono text-[11px]">{{ tx.customerEmail }}</td>
-            <td class="py-2 px-3 font-mono font-bold text-[#111111]">Rp {{ tx.grossAmount.toLocaleString('id-ID') }}</td>
-            <td class="py-2 px-3 font-mono font-bold text-[#996515]">Rp {{ tx.platformFee.toLocaleString('id-ID') }}</td>
-            <td class="py-2 px-3 font-mono font-bold text-[#0F4C3A]">Rp {{ tx.netAmount.toLocaleString('id-ID') }}</td>
-            <td class="py-2 px-3">
+            <td class="py-2.5 px-3 font-semibold text-[#111111]">{{ tx.appName }}</td>
+            <td class="py-2.5 px-3 text-[#111111]/70 font-mono text-[11px]">{{ tx.builderEmail }}</td>
+            <td class="py-2.5 px-3 text-[#111111]/70 font-mono text-[11px]">{{ tx.customerEmail }}</td>
+            <td class="py-2.5 px-3 font-mono font-bold text-[#111111]">Rp {{ tx.grossAmount.toLocaleString('id-ID') }}</td>
+            <td class="py-2.5 px-3 font-mono font-bold text-[#996515]">Rp {{ tx.platformFee.toLocaleString('id-ID') }}</td>
+            <td class="py-2.5 px-3 font-mono font-bold text-[#0F4C3A]">Rp {{ tx.netAmount.toLocaleString('id-ID') }}</td>
+            <td class="py-2.5 px-3">
               <span
                 :class="[
                   'px-2 py-0.5 rounded-full text-[10px] font-bold',
@@ -111,7 +111,7 @@ const filteredTransactions = computed(() => {
                 {{ tx.paymentStatus }}
               </span>
             </td>
-            <td class="py-2 pl-3 pr-0 text-right">
+            <td class="py-2.5 pl-3 pr-0 text-right">
               <span
                 :class="[
                   'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',

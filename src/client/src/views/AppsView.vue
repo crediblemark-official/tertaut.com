@@ -138,8 +138,8 @@ watch(dashboardEnv, () => {
       </div>
     </div>
 
-    <!-- Desktop Table (Flat & Compact) -->
-    <div class="hidden sm:block overflow-x-auto w-full top-scrollbar">
+    <!-- Table View (Responsive Table with Horizontal Scroll on Mobile) -->
+    <div class="overflow-x-auto w-full top-scrollbar">
       <table class="w-full text-left text-xs whitespace-nowrap">
         <thead class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
           <tr>
@@ -161,11 +161,11 @@ watch(dashboardEnv, () => {
             </td>
           </tr>
           <tr v-for="app in filteredApps" :key="app.id" class="hover:bg-[#111111]/[0.02]">
-            <td class="py-2 pr-3 pl-0">
+            <td class="py-2.5 pr-3 pl-0">
               <div class="font-bold text-[#111111] leading-tight">{{ app.name }}</div>
               <div class="text-[9.5px] text-[#111111]/50 font-mono">{{ app.id }}</div>
             </td>
-            <td class="py-2 px-3">
+            <td class="py-2.5 px-3">
               <span
                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
                 :class="app.mode === 'sandbox' ? 'bg-[#D4AF37]/15 text-[#8a6d1f]' : 'bg-[#0F4C3A]/10 text-[#0F4C3A]'"
@@ -174,10 +174,10 @@ watch(dashboardEnv, () => {
                 <span>{{ app.mode === 'sandbox' ? 'Sandbox' : 'Live' }}</span>
               </span>
             </td>
-            <td class="py-2 px-3 font-mono font-bold text-[#111111]">
+            <td class="py-2.5 px-3 font-mono font-bold text-[#111111]">
               {{ formatRupiah(app.targetPrice) }}
             </td>
-            <td class="py-2 px-3 font-mono text-[11px]">
+            <td class="py-2.5 px-3 font-mono text-[11px]">
               <a
                 :href="`/pay/${app.slug}`"
                 target="_blank"
@@ -187,12 +187,12 @@ watch(dashboardEnv, () => {
                 <ExternalLink class="w-2.5 h-2.5" />
               </a>
             </td>
-            <td class="py-2 px-3">
+            <td class="py-2.5 px-3">
               <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#111111]/5 text-[#111111]/80 text-[10px] font-mono">
                 tertaut-verified
               </span>
             </td>
-            <td class="py-2 pl-3 pr-0 text-right">
+            <td class="py-2.5 pl-3 pr-0 text-right">
               <router-link
                 :to="envPath(dashboardEnv, '/checkout')"
                 class="inline-flex items-center gap-1 text-[11px] font-bold text-[#111111] hover:text-[#D4AF37] transition"
@@ -204,40 +204,6 @@ watch(dashboardEnv, () => {
           </tr>
         </tbody>
       </table>
-    </div>
-
-    <!-- Mobile Cards View -->
-    <div class="sm:hidden divide-y divide-[#111111]/10">
-      <div v-for="app in filteredApps" :key="app.id" class="py-2 space-y-1.5">
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="font-bold text-xs text-[#111111]">{{ app.name }}</div>
-            <div class="text-[9.5px] text-[#111111]/50 font-mono">{{ app.id }}</div>
-          </div>
-          <div class="font-mono font-extrabold text-xs text-[#111111]">
-            {{ formatRupiah(app.targetPrice) }}
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between pt-0.5">
-          <span
-            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
-            :class="app.mode === 'sandbox' ? 'bg-[#D4AF37]/15 text-[#8a6d1f]' : 'bg-[#0F4C3A]/10 text-[#0F4C3A]'"
-          >
-            <span class="w-1 h-1 rounded-full" :class="app.mode === 'sandbox' ? 'bg-[#D4AF37]' : 'bg-[#0F4C3A]'"></span>
-            <span>{{ app.mode === 'sandbox' ? 'Sandbox' : 'Live' }}</span>
-          </span>
-
-          <router-link
-            :to="`/pay/${app.slug}`"
-            target="_blank"
-            class="text-[11px] text-[#D4AF37] font-bold inline-flex items-center gap-1"
-          >
-            Buka Halaman
-            <ExternalLink class="w-3 h-3" />
-          </router-link>
-        </div>
-      </div>
     </div>
 
     <!-- Modal Tambah Aplikasi -->

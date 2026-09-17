@@ -152,7 +152,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-white text-[#111111] flex flex-col md:flex-row font-sans pb-16 md:pb-0">
+  <div class="min-h-screen bg-white text-[#111111] flex flex-col md:flex-row font-sans pb-24 md:pb-0">
     <!-- Dedicated Super Admin Sidebar (w-56) -->
     <aside class="hidden md:flex w-56 flex-col justify-between p-4 border-r border-[#111111]/10 bg-[#FFFFFF] sticky top-0 h-screen shrink-0 z-30">
       <div class="space-y-5">
@@ -340,32 +340,53 @@ onMounted(() => {
         </div>
       </header>
 
-      <!-- Mobile Top Compact Bar -->
-      <header class="md:hidden flex items-center justify-between px-4 py-2.5 bg-[#FFFFFF] border-b border-[#111111]/10 sticky top-0 z-40">
-        <router-link to="/panel" class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-md bg-[#111111] flex items-center justify-center font-bold text-white text-xs relative">
-            T
-            <span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-[#D4AF37]"></span>
-          </div>
-          <span class="font-extrabold text-xs tracking-tight text-[#111111] font-mono">
-            tertaut<span class="text-[#D4AF37]">.admin</span>
-          </span>
-        </router-link>
+      <!-- Mobile Top Compact Bar (Two-Tier Contextual Bar) -->
+      <header class="md:hidden bg-[#FFFFFF] border-b border-[#111111]/10 sticky top-0 z-40 shadow-xs">
+        <div class="flex items-center justify-between px-3.5 py-2">
+          <router-link to="/panel" class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-md bg-[#111111] flex items-center justify-center font-bold text-white text-xs relative shadow-xs">
+              T
+              <span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-[#D4AF37]"></span>
+            </div>
+            <span class="font-extrabold text-xs tracking-tight text-[#111111] font-mono">
+              tertaut<span class="text-[#D4AF37]">.admin</span>
+            </span>
+          </router-link>
 
-        <div class="flex items-center gap-2">
-          <button
-            @click="loadAllData"
-            :disabled="refreshing"
-            class="p-1.5 rounded-md bg-[#111111]/5 text-[#111111] text-xs flex items-center gap-1 cursor-pointer"
-          >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': refreshing }" />
-          </button>
+          <div class="flex items-center gap-2">
+            <router-link
+              to="/dashboard"
+              class="px-2 py-1 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 text-[10.5px] font-bold text-[#111111] flex items-center gap-1 transition"
+            >
+              <LayoutDashboard class="w-3.5 h-3.5 text-[#D4AF37]" />
+              <span>Builder</span>
+            </router-link>
+
+            <button
+              @click="loadAllData"
+              :disabled="refreshing"
+              class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-[#111111]/5 text-[#111111] text-xs flex items-center justify-center cursor-pointer transition active:scale-95"
+              title="Segarkan data admin"
+            >
+              <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': refreshing }" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Context Sub-bar -->
+        <div class="px-3.5 py-1.5 bg-[#111111]/[0.02] border-t border-[#111111]/5 flex items-center justify-between text-[11px]">
+          <div class="flex items-center gap-1.5 font-medium text-[#111111]/60 truncate">
+            <span class="text-[#D4AF37] font-bold">{{ currentNavItem.category }}</span>
+            <span>•</span>
+            <span class="text-[#111111] font-semibold truncate">{{ currentNavItem.name }}</span>
+          </div>
+          <span class="text-[9.5px] font-mono text-[#111111]/40 shrink-0">Super Admin</span>
         </div>
       </header>
 
-      <!-- Main Workspace Container (Full Width & Aligned) -->
-      <main class="flex-1 min-w-0 px-4 py-5 md:px-6 md:py-6 overflow-y-auto w-full">
-        <div class="space-y-6 animate-fadeIn pb-12">
+      <!-- Main Workspace Container (Full Width & Aligned, Thumb Friendly Padding) -->
+      <main class="flex-1 min-w-0 px-3.5 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6 overflow-y-auto w-full">
+        <div class="space-y-6 animate-fadeIn pb-28 md:pb-12">
           <!-- Toast Alert -->
           <div
             v-if="alertMessage"
@@ -502,25 +523,32 @@ onMounted(() => {
       </main>
     </div>
 
-    <!-- Mobile Bottom Navigation Bar for Admin -->
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-14 bg-[#FFFFFF]/95 backdrop-blur-md border-t border-[#111111]/10 flex items-center justify-around px-2 z-50 shadow-[0_-4px_16px_rgba(17,17,17,0.06)]">
+    <!-- Mobile Bottom Navigation Bar for Admin (Safe-Area & Thumb Reachable) -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 pb-[env(safe-area-inset-bottom,0px)] bg-[#FFFFFF]/95 backdrop-blur-md border-t border-[#111111]/10 flex items-center justify-around px-2 z-50 shadow-[0_-4px_20px_rgba(17,17,17,0.08)]">
       <button
         v-for="item in adminNavItems"
         :key="item.key"
         @click="activeTab = item.key as any"
         type="button"
         :class="[
-          'flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-semibold transition-all relative cursor-pointer',
+          'flex flex-col items-center justify-center flex-1 h-14 py-1 text-[10px] font-semibold transition-all relative cursor-pointer active:scale-95',
           activeTab === item.key ? 'text-[#111111] font-bold' : 'text-[#111111]/50 hover:text-[#111111]'
         ]"
       >
         <component
           :is="item.icon"
-          class="w-4 h-4 mb-0.5"
-          :class="activeTab === item.key ? 'text-[#D4AF37]' : 'text-[#111111]/40'"
+          class="w-4 h-4 mb-1 transition-transform"
+          :class="activeTab === item.key ? 'text-[#D4AF37] scale-110' : 'text-[#111111]/40'"
         />
-        <span class="truncate max-w-[70px]">{{ item.name.replace('Platform', '').replace('Builder', '') }}</span>
-        <span v-if="activeTab === item.key" class="absolute top-0 w-8 h-0.5 bg-[#D4AF37] rounded-full"></span>
+        <!-- Badge counter if exists -->
+        <span
+          v-if="item.badge !== undefined && item.badge > 0"
+          class="absolute top-1 right-[calc(50%-14px)] min-w-[15px] px-1 py-px rounded-full bg-[#D4AF37] text-[#111111] text-[8px] font-black leading-tight text-center shadow-xs"
+        >
+          {{ item.badge }}
+        </span>
+        <span class="truncate max-w-[65px] text-[9.5px] leading-tight">{{ item.name.replace('Platform', '').replace('Builder', '').trim() }}</span>
+        <span v-if="activeTab === item.key" class="absolute top-0.5 w-6 h-0.5 bg-[#D4AF37] rounded-full shadow-[0_0_4px_#D4AF37]"></span>
       </button>
     </nav>
   </div>

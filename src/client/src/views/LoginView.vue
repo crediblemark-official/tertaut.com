@@ -74,7 +74,7 @@ async function submit() {
 </script>
 
 <template>
-  <div class="relative h-screen max-h-screen bg-[#090A0C] text-white flex flex-col justify-center items-center p-3 sm:p-5 lg:p-6 overflow-hidden selection:bg-[#D4AF37]/30 selection:text-white">
+  <div class="relative min-h-screen lg:h-screen lg:max-h-screen bg-[#090A0C] text-white flex flex-col justify-start lg:justify-center items-center p-3 sm:p-5 lg:p-6 overflow-y-auto lg:overflow-hidden selection:bg-[#D4AF37]/30 selection:text-white py-4 sm:py-6">
     <!-- Ambient Lighting & Developer Grid Background -->
     <div class="fixed inset-0 pointer-events-none z-0">
       <div class="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px]"></div>
@@ -107,7 +107,7 @@ async function submit() {
     </div>
 
     <!-- Master Unified Luxury Card (Anchored within Viewport, Never Pushed to Edges) -->
-    <div class="relative z-10 w-full max-w-4xl h-[530px] max-h-[calc(100vh-5rem)] rounded-2xl border border-white/[0.12] bg-[#111215]/95 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.7)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 shrink-0">
+    <div class="relative z-10 w-full max-w-4xl h-auto lg:h-[530px] lg:max-h-[calc(100vh-5rem)] rounded-2xl border border-white/[0.12] bg-[#111215]/95 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.7)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 shrink-0 my-auto">
       
       <!-- LEFT PANE: Engine Architecture Showcase (Fixed, Balanced & Clean) -->
       <div class="hidden lg:flex lg:col-span-6 flex-col justify-between p-6 xl:p-7 border-r border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent h-full overflow-hidden shrink-0">

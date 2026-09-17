@@ -8,9 +8,9 @@ defineProps<{
 </script>
 
 <template>
-  <section class="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#111111]/10 border-b border-[#111111]/10 pb-6 pt-1">
+  <section class="w-full flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 divide-x divide-[#111111]/10 border-b border-[#111111]/10 pb-4 pt-1 top-scrollbar">
     <!-- 1. Total Platform GMV -->
-    <div class="py-2 pr-4 pl-0 space-y-1">
+    <div class="min-w-[220px] sm:min-w-0 flex-1 shrink-0 py-2 pr-4 pl-0 space-y-1">
       <div class="flex items-center justify-between text-[#111111]/50 text-xs font-semibold">
         <span>Total Platform GMV</span>
         <TrendingUp class="w-4 h-4 text-[#111111]" />
@@ -24,7 +24,7 @@ defineProps<{
     </div>
 
     <!-- 2. Platform MoR Fee (5%) -->
-    <div class="py-2 px-4 space-y-1">
+    <div class="min-w-[220px] sm:min-w-0 flex-1 shrink-0 py-2 px-4 space-y-1">
       <div class="flex items-center justify-between text-[#111111]/50 text-xs font-semibold">
         <span>MoR Fee Pendapatan (5%)</span>
         <DollarSign class="w-4 h-4 text-[#D4AF37]" />
@@ -38,7 +38,7 @@ defineProps<{
     </div>
 
     <!-- 3. Net Builder Share (95%) -->
-    <div class="py-2 px-4 space-y-1">
+    <div class="min-w-[220px] sm:min-w-0 flex-1 shrink-0 py-2 px-4 space-y-1">
       <div class="flex items-center justify-between text-[#111111]/50 text-xs font-semibold">
         <span>Porsi Bersih Builder (95%)</span>
         <Users class="w-4 h-4 text-[#0F4C3A]" />
@@ -52,7 +52,7 @@ defineProps<{
     </div>
 
     <!-- 4. Pending Disbursements -->
-    <div class="py-2 pl-4 pr-0 space-y-1">
+    <div class="min-w-[220px] sm:min-w-0 flex-1 shrink-0 py-2 px-4 sm:pl-4 sm:pr-0 space-y-1">
       <div class="flex items-center justify-between text-[#111111]/50 text-xs font-semibold">
         <span>Pending Payout</span>
         <Send class="w-4 h-4 text-[#D4AF37]" />

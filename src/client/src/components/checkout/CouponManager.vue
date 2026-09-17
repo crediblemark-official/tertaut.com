@@ -245,12 +245,12 @@ function submitCreate() {
             </div>
           </div>
 
-          <!-- Bar Chart Harian -->
-          <div v-if="stats && stats.daily.length > 0" class="flex items-end gap-1 h-20 px-0.5 pt-2">
+          <!-- Bar Chart Harian (Scrollable on small mobile screens) -->
+          <div v-if="stats && stats.daily.length > 0" class="flex items-end gap-1 h-20 px-0.5 pt-2 overflow-x-auto no-scrollbar">
             <div
               v-for="d in stats.daily"
               :key="d.day"
-              class="flex-1 flex flex-col items-center justify-end gap-1 group relative"
+              class="flex-1 min-w-[24px] flex flex-col items-center justify-end gap-1 group relative"
             >
               <div class="absolute bottom-full mb-1 hidden group-hover:block z-10 whitespace-nowrap px-2 py-0.5 rounded bg-[#111111] text-white text-[9.5px] font-bold shadow-sm">
                 {{ dayLabel(d.day) }}: {{ d.redemptions }}x — {{ formatRupiah(d.totalDiscount) }}
@@ -321,8 +321,8 @@ function submitCreate() {
         />
       </div>
 
-      <!-- Desktop Coupons Table (Flat Flush) -->
-      <div class="hidden sm:block overflow-x-auto w-full top-scrollbar">
+      <!-- Coupons Table (Scrollable on mobile) -->
+      <div class="overflow-x-auto w-full top-scrollbar">
         <table class="w-full text-left text-xs whitespace-nowrap">
           <thead class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
             <tr>
@@ -398,48 +398,6 @@ function submitCreate() {
             </tr>
           </tbody>
         </table>
-      </div>
-
-      <!-- Mobile Coupons List View -->
-      <div class="sm:hidden divide-y divide-[#111111]/10">
-        <div v-for="c in filteredCoupons" :key="c.id" class="py-2 space-y-1.5">
-          <div class="flex items-start justify-between">
-            <div>
-              <div class="font-mono font-bold text-xs text-[#111111]">{{ c.code }}</div>
-              <div class="text-[10px] text-[#111111]/50">{{ appLabel(c.appId) }}</div>
-            </div>
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[#111111] text-[10px] font-bold">
-              <TicketPercent class="w-2.5 h-2.5" />
-              {{ c.discountPercent }}%
-            </span>
-          </div>
-
-          <div class="flex items-center justify-between text-[10px] text-[#111111]/70 pt-1">
-            <span>Terpakai: {{ c.redemptionCount }} / {{ remainingQuota(c) }}</span>
-            <div class="flex items-center gap-2">
-              <span
-                class="px-2 py-0.5 rounded-full text-[9px] font-bold"
-                :class="c.isActive ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]' : 'bg-[#111111]/5 text-[#111111]/50'"
-              >
-                {{ c.isActive ? 'AKTIF' : 'NONAKTIF' }}
-              </span>
-              <button
-                @click="emit('toggle', c)"
-                class="p-1 rounded bg-[#111111]/5 hover:bg-[#D4AF37]/20"
-                :title="c.isActive ? 'Nonaktifkan' : 'Aktifkan'"
-              >
-                <Power class="w-3 h-3" />
-              </button>
-              <button
-                @click="emit('delete', c)"
-                class="p-1 rounded bg-[#8B0000]/10 text-[#8B0000]"
-                title="Hapus"
-              >
-                <Trash2 class="w-3 h-3" />
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>

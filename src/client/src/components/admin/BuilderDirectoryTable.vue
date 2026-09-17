@@ -39,7 +39,7 @@ const filteredBuilders = computed(() => {
       </div>
     </div>
 
-    <!-- Desktop Table (Flush left/right) -->
+    <!-- Table View (Responsive Table with Horizontal Scroll on Mobile) -->
     <div class="overflow-x-auto w-full top-scrollbar">
       <table class="w-full text-left text-xs whitespace-nowrap">
         <thead class="border-b border-[#111111]/10 text-[#111111]/60 uppercase tracking-wider text-[10px] font-bold">
@@ -63,11 +63,11 @@ const filteredBuilders = computed(() => {
             :key="b.id"
             class="hover:bg-[#111111]/[0.02] transition"
           >
-            <td class="py-2 pr-3 pl-0">
+            <td class="py-2.5 pr-3 pl-0">
               <div class="font-bold text-[#111111]">{{ b.name || 'Builder' }}</div>
               <div class="text-[10px] text-[#111111]/50 font-mono">{{ b.email }}</div>
             </td>
-            <td class="py-2 px-3 text-[#111111]/80">
+            <td class="py-2.5 px-3 text-[#111111]/80">
               <div v-if="b.bankAccount || b.disbursementAccount" class="space-y-0.5">
                 <div class="font-semibold text-[#111111]">
                   {{ b.bankAccount?.bankName || b.disbursementAccount?.bankCode || 'BCA' }} • {{ b.bankAccount?.accountNumber || b.disbursementAccount?.accountNumber }}
@@ -78,7 +78,7 @@ const filteredBuilders = computed(() => {
               </div>
               <span v-else class="text-[#111111]/40 italic">Belum dikonfigurasi</span>
             </td>
-            <td class="py-2 px-3">
+            <td class="py-2.5 px-3">
               <div class="font-bold text-[#111111]">
                 {{ b.appCount ?? b.totalApps ?? (b.apps?.length || 0) }} Software
               </div>
@@ -92,13 +92,13 @@ const filteredBuilders = computed(() => {
                 </span>
               </div>
             </td>
-            <td class="py-2 px-3 font-mono font-bold text-[#111111]">
+            <td class="py-2.5 px-3 font-mono font-bold text-[#111111]">
               Rp {{ (b.totalSales ?? b.totalGMV ?? 0).toLocaleString('id-ID') }}
             </td>
-            <td class="py-2 px-3 font-mono font-bold text-[#0F4C3A]">
+            <td class="py-2.5 px-3 font-mono font-bold text-[#0F4C3A]">
               Rp {{ (b.builderNetRevenue ?? b.totalNetEarnings ?? 0).toLocaleString('id-ID') }}
             </td>
-            <td class="py-2 pl-3 pr-0 text-right text-[#111111]/50 text-[11px]">
+            <td class="py-2.5 pl-3 pr-0 text-right text-[#111111]/50 text-[11px]">
               {{ b.createdAt ? new Date(b.createdAt).toLocaleDateString('id-ID') : '-' }}
             </td>
           </tr>

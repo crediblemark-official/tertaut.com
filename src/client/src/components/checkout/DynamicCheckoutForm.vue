@@ -89,13 +89,13 @@ const emit = defineEmits<{
         </div>
       </div>
 
-      <!-- Action Button -->
+      <!-- Action Button (Mobile-First Thumb-Friendly) -->
       <button
         @click="emit('createCheckout')"
         :disabled="loading"
-        class="w-full py-2 rounded-lg btn-gold text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer disabled:opacity-50"
+        class="w-full min-h-[40px] py-2.5 rounded-lg btn-gold text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs active:scale-95 cursor-pointer disabled:opacity-50"
       >
-        <Sparkles class="w-3.5 h-3.5" />
+        <Sparkles class="w-4 h-4" />
         <span>{{ loading ? 'Menghubungkan ke API Xendit...' : 'Generate Dynamic Checkout Link' }}</span>
       </button>
     </div>

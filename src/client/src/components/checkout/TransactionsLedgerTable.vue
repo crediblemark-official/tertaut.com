@@ -67,8 +67,8 @@ const filteredTransactions = computed(() => {
           />
         </div>
 
-        <!-- Status Filter Pills -->
-        <div class="flex items-center gap-1 text-xs">
+        <!-- Status Filter Pills (Single Row) -->
+        <div class="flex items-center gap-1 text-xs overflow-x-auto no-scrollbar shrink-0 pb-0.5">
           <button
             @click="statusFilter = 'ALL'"
             :class="[
@@ -110,8 +110,8 @@ const filteredTransactions = computed(() => {
       </div>
     </div>
 
-    <!-- Desktop Table (Compact Flush left/right) -->
-    <div class="hidden sm:block overflow-x-auto w-full top-scrollbar">
+    <!-- Table (Scrollable on mobile) -->
+    <div class="overflow-x-auto w-full top-scrollbar">
       <table class="w-full text-left text-xs whitespace-nowrap">
         <thead class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
           <tr>
@@ -214,53 +214,6 @@ const filteredTransactions = computed(() => {
           </tr>
         </tbody>
       </table>
-    </div>
-
-    <!-- Mobile Cards/List View -->
-    <div class="sm:hidden divide-y divide-[#111111]/10">
-      <div v-for="tx in filteredTransactions" :key="tx.id" class="py-2.5 space-y-1.5">
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="font-mono font-bold text-xs text-[#111111]">{{ tx.id }}</div>
-            <div class="text-[9.5px] text-[#111111]/50">{{ new Date(tx.createdAt).toLocaleString('id-ID') }}</div>
-            <div class="text-[11px] text-[#111111]/80 mt-0.5">{{ tx.customerEmail }}</div>
-          </div>
-          <div class="text-right">
-            <div class="font-mono font-extrabold text-xs text-[#111111]">{{ formatRupiah(tx.grossAmount) }}</div>
-            <div class="text-[10px] font-mono text-[#0F4C3A] font-bold">Net: {{ formatRupiah(tx.netAmount) }}</div>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between pt-1 text-[10px]">
-          <div class="flex items-center gap-1.5">
-            <span
-              class="px-1.5 py-0.2 rounded-full font-bold"
-              :class="tx.paymentStatus === 'PAID' ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]' : 'bg-[#D4AF37]/15 text-[#111111]'"
-            >
-              {{ tx.paymentStatus }}
-            </span>
-            <span class="text-[#111111]/50">•</span>
-            <span class="text-[#111111]/70">{{ tx.disbursementStatus }}</span>
-          </div>
-
-          <div class="flex items-center gap-1">
-            <button
-              v-if="tx.paymentStatus === 'PENDING' && isSandbox"
-              @click="emit('simulatePayment', tx)"
-              class="px-2 py-0.5 rounded bg-[#D4AF37] text-[10px] font-bold text-[#111111]"
-            >
-              Simulasi
-            </button>
-            <button
-              v-if="tx.paymentStatus === 'PAID' && tx.disbursementStatus !== 'COMPLETED'"
-              @click="emit('disburse', tx)"
-              class="px-2 py-0.5 rounded bg-[#0F4C3A] text-white text-[10px] font-bold"
-            >
-              Cairkan
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>

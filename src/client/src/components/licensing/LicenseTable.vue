@@ -84,10 +84,10 @@ const filteredLicenses = computed(() => {
         />
       </div>
 
-      <!-- Platform & Status Filter Tabs -->
-      <div class="flex flex-wrap items-center gap-1.5 text-xs">
+      <!-- Platform & Status Filter Tabs (Sebariskan / Single Row with Horizontal Scroll if needed) -->
+      <div class="flex items-center gap-1.5 text-xs overflow-x-auto no-scrollbar w-full sm:w-auto shrink-0 pb-0.5">
         <!-- Platform Filter -->
-        <div class="flex items-center h-9 rounded-lg bg-[#111111]/5 p-0.5 text-[11px] font-medium">
+        <div class="flex items-center h-9 rounded-lg bg-[#111111]/5 p-0.5 text-[11px] font-medium shrink-0">
           <button
             @click="platformFilter = 'ALL'"
             :class="['px-2 h-full rounded-md transition cursor-pointer flex items-center', platformFilter === 'ALL' ? 'bg-white font-bold shadow-xs text-[#111111]' : 'text-[#111111]/60 hover:text-[#111111]']"
@@ -115,7 +115,7 @@ const filteredLicenses = computed(() => {
         </div>
 
         <!-- Status Filter -->
-        <div class="flex items-center h-9 rounded-lg bg-[#111111]/5 p-0.5 text-[11px] font-medium">
+        <div class="flex items-center h-9 rounded-lg bg-[#111111]/5 p-0.5 text-[11px] font-medium shrink-0">
           <button
             @click="statusFilter = 'ALL'"
             :class="['px-2 h-full rounded-md transition cursor-pointer flex items-center', statusFilter === 'ALL' ? 'bg-white font-bold shadow-xs text-[#111111]' : 'text-[#111111]/60 hover:text-[#111111]']"
@@ -138,8 +138,8 @@ const filteredLicenses = computed(() => {
       </div>
     </div>
 
-    <!-- Desktop Table (Flush left/right) -->
-    <div class="hidden sm:block overflow-x-auto w-full top-scrollbar">
+    <!-- License Table (Scrollable on mobile) -->
+    <div class="overflow-x-auto w-full top-scrollbar">
       <table class="w-full text-left text-xs whitespace-nowrap">
         <thead class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
           <tr>
@@ -247,60 +247,6 @@ const filteredLicenses = computed(() => {
           </tr>
         </tbody>
       </table>
-    </div>
-
-    <!-- Mobile Cards/List View -->
-    <div class="sm:hidden divide-y divide-[#111111]/10">
-      <div v-for="lic in filteredLicenses" :key="lic.id" class="py-3 space-y-2">
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="font-mono font-bold text-xs text-[#111111] flex items-center gap-1.5">
-              <span>{{ lic.licenseKey }}</span>
-              <button @click="emit('copy', lic.licenseKey)" class="text-[#111111]/40 hover:text-[#D4AF37]">
-                <Copy class="w-3 h-3" />
-              </button>
-            </div>
-            <div class="text-[10px] text-[#111111]/50 font-mono">{{ lic.appId }} • {{ lic.platform }}</div>
-            <div class="text-[11px] text-[#111111]/80 mt-0.5">{{ lic.customerEmail }}</div>
-          </div>
-          <span
-            class="px-2 py-0.5 rounded-full text-[9px] font-bold"
-            :class="{
-              'bg-[#0F4C3A]/10 text-[#0F4C3A]': lic.status === 'ACTIVE',
-              'bg-[#8B0000]/10 text-[#8B0000]': lic.status === 'REVOKED',
-              'bg-[#111111]/10 text-[#111111]/60': lic.status === 'EXPIRED',
-            }"
-          >
-            {{ lic.status }}
-          </span>
-        </div>
-
-        <div class="flex items-center justify-between text-[10px] text-[#111111]/70 pt-1">
-          <span>Seats: {{ lic.seatsUsed || 0 }} / {{ lic.maxSeats || 3 }}</span>
-          <div class="flex items-center gap-1">
-            <button
-              @click="emit('selectTest', lic)"
-              class="px-2 py-0.5 rounded bg-[#D4AF37]/15 text-[10px] font-bold text-[#111111]"
-            >
-              Uji
-            </button>
-            <button
-              v-if="lic.hardwareId || (lic.seatsUsed && lic.seatsUsed > 0)"
-              @click="emit('unbindHardware', lic)"
-              class="px-2 py-0.5 rounded bg-[#111111]/5 text-[10px] font-bold text-[#111111]"
-            >
-              Reset
-            </button>
-            <button
-              v-if="lic.status === 'ACTIVE'"
-              @click="emit('revoke', lic)"
-              class="px-2 py-0.5 rounded bg-[#8B0000]/10 text-[10px] font-bold text-[#8B0000]"
-            >
-              Revoke
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>

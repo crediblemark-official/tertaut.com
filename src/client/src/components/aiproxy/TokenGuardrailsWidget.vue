@@ -23,9 +23,9 @@ const quotaPercent = computed(() => {
 </script>
 
 <template>
-  <div class="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#111111]/10 border-b border-[#111111]/10 pb-4 pt-1">
+  <div class="w-full flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 divide-x divide-[#111111]/10 border-b border-[#111111]/10 pb-4 pt-1 top-scrollbar">
     <!-- Pemakaian Token Hari Ini -->
-    <div class="py-2 pr-0 sm:pr-4 pl-0 flex flex-col justify-between">
+    <div class="min-w-[220px] sm:min-w-0 flex-1 shrink-0 py-2 pr-4 pl-0 flex flex-col justify-between">
       <div class="flex items-center justify-between text-xs text-[#111111]/60 font-medium">
         <span>Pemakaian Token Hari Ini</span>
         <Gauge class="w-4 h-4 text-[#D4AF37]" />
@@ -48,7 +48,7 @@ const quotaPercent = computed(() => {
     </div>
 
     <!-- Sisa Token Tersedia -->
-    <div class="py-2 px-0 sm:px-4 flex flex-col justify-between">
+    <div class="min-w-[220px] sm:min-w-0 flex-1 shrink-0 py-2 px-4 flex flex-col justify-between">
       <div class="flex items-center justify-between text-xs text-[#111111]/60 font-medium">
         <span>Sisa Token Tersedia</span>
         <Zap class="w-4 h-4 text-[#0F4C3A]" />
@@ -64,7 +64,7 @@ const quotaPercent = computed(() => {
     </div>
 
     <!-- Reset Kuota Harian -->
-    <div class="py-2 px-0 sm:px-4 flex flex-col justify-between">
+    <div class="min-w-[220px] sm:min-w-0 flex-1 shrink-0 py-2 px-4 flex flex-col justify-between">
       <div class="flex items-center justify-between text-xs text-[#111111]/60 font-medium">
         <span>Reset Kuota Harian</span>
         <Clock class="w-4 h-4 text-[#111111]/60" />
@@ -80,7 +80,7 @@ const quotaPercent = computed(() => {
     </div>
 
     <!-- Privasi Prompt -->
-    <div class="py-2 pl-0 sm:pl-4 pr-0 flex flex-col justify-between">
+    <div class="min-w-[220px] sm:min-w-0 flex-1 shrink-0 py-2 px-4 sm:pl-4 sm:pr-0 flex flex-col justify-between">
       <div class="flex items-center justify-between text-xs text-[#111111]/60 font-medium">
         <span>Privasi Prompt</span>
         <ShieldCheck class="w-4 h-4 text-[#0F4C3A]" />

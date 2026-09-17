@@ -19,7 +19,9 @@ import {
   Search,
   Ticket,
   LogOut,
-  LogIn
+  LogIn,
+  MoreHorizontal,
+  X
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -91,6 +93,27 @@ const navItems = computed<NavItem[]>(() => {
   ]
 })
 
+// Menu Navigasi Mobile: Dibatasi maksimal 5 item (4 utama + 1 Lainnya/More)
+const mobileNavItems = computed<NavItem[]>(() => {
+  const e = env.value
+  return [
+    { name: 'Ringkasan', key: '/', path: envPath(e), icon: LayoutDashboard },
+    { name: 'Aplikasi', key: '/apps', path: envPath(e, '/apps'), icon: Boxes },
+    { name: 'Checkout', key: '/checkout', path: envPath(e, '/checkout'), icon: CreditCard },
+    { name: 'Lisensi', key: '/licensing', path: envPath(e, '/licensing'), icon: KeyRound },
+  ]
+})
+
+const isMobileMoreOpen = ref(false)
+
+const isMoreActive = computed(() => {
+  return ['/coupons', '/ai-proxy', '/docs'].includes(navKey.value)
+})
+
+const moreBadgeCount = computed(() => {
+  return activeCouponCount.value
+})
+
 function switchEnv(target: DashboardEnv) {
   if (target === env.value) return
   const key = navKey.value
@@ -128,6 +151,7 @@ function loadSidebarBadges() {
 watch(
   () => route.path,
   (path) => {
+    isMobileMoreOpen.value = false
     if (path.startsWith('/dashboard')) loadSidebarBadges()
   }
 )
@@ -161,7 +185,7 @@ onUnmounted(() => {
   </div>
 
   <!-- Developer Dashboard Layout (with luxury sidebar, top header, bottom bar) -->
-  <div v-else class="min-h-screen bg-[#FFFFFF] text-[#111111] flex flex-col md:flex-row font-sans pb-16 md:pb-0">
+  <div v-else class="min-h-screen bg-[#FFFFFF] text-[#111111] flex flex-col md:flex-row font-sans pb-24 md:pb-0">
     <!-- Desktop Compact Luxury Sidebar -->
     <aside class="hidden md:flex w-56 flex-col justify-between p-4 border-r border-[#111111]/10 bg-[#FFFFFF] sticky top-0 h-screen shrink-0 z-30">
       <div class="space-y-5">
@@ -449,101 +473,236 @@ onUnmounted(() => {
         </div>
       </header>
 
-      <!-- Mobile Top Compact App Bar -->
-      <header class="md:hidden flex items-center justify-between px-4 py-2.5 bg-[#FFFFFF] border-b border-[#111111]/10 sticky top-0 z-40">
-        <router-link to="/" class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-md bg-[#111111] flex items-center justify-center font-bold text-white text-xs relative">
-            T
-            <span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-[#D4AF37]"></span>
-          </div>
-          <span class="font-extrabold text-xs tracking-tight text-[#111111] font-mono">
-            tertaut<span class="text-[#D4AF37]">.com</span>
-          </span>
-        </router-link>
+      <!-- Mobile Top Compact App Bar (Two-Tier Contextual Bar) -->
+      <header class="md:hidden bg-[#FFFFFF] border-b border-[#111111]/10 sticky top-0 z-40 shadow-xs">
+        <!-- Top Row: Brand & Quick Switches -->
+        <div class="flex items-center justify-between px-3.5 py-2">
+          <router-link to="/" class="flex items-center gap-2 group">
+            <div class="w-7 h-7 rounded-md bg-[#111111] flex items-center justify-center font-bold text-white text-xs relative shadow-xs">
+              T
+              <span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-[#D4AF37]"></span>
+            </div>
+            <span class="font-extrabold text-xs tracking-tight text-[#111111] font-mono">
+              tertaut<span class="text-[#D4AF37]">.com</span>
+            </span>
+          </router-link>
 
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            @click="switchEnv(env === 'sandbox' ? 'live' : 'sandbox')"
-            class="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide border"
-            :class="env === 'sandbox' ? 'bg-[#D4AF37]/15 border-[#D4AF37]/40 text-[#8a6d1f]' : 'bg-[#0F4C3A]/10 border-[#0F4C3A]/30 text-[#0F4C3A]'"
-            :title="env === 'sandbox' ? 'Beralih ke Live' : 'Beralih ke Sandbox'"
-          >
-            {{ env === 'sandbox' ? 'Sandbox' : 'Live' }}
-          </button>
-          <router-link
-            to="/"
-            class="p-1.5 rounded-md bg-[#111111]/5 text-[#111111] text-xs flex items-center gap-1"
-            title="Ke Halaman Publik"
-          >
-            <Globe class="w-3.5 h-3.5 text-[#0F4C3A]" />
-          </router-link>
-          <a
-            href="/swagger"
-            target="_blank"
-            class="p-1.5 rounded-md bg-[#111111]/5 text-[#111111] text-xs"
-          >
-            <Code2 class="w-3.5 h-3.5 text-[#D4AF37]" />
-          </a>
-          <button
-            v-if="authUser"
-            type="button"
-            @click="handleLogout"
-            class="p-1.5 rounded-md bg-red-50 text-red-600 text-xs flex items-center gap-1"
-            title="Keluar"
-          >
-            <LogOut class="w-3.5 h-3.5" />
-          </button>
-          <router-link
-            v-else
-            to="/login"
-            class="p-1.5 rounded-md bg-[#D4AF37] text-[#111111] text-xs font-bold"
-            title="Masuk"
-          >
-            <LogIn class="w-3.5 h-3.5" />
-          </router-link>
+          <div class="flex items-center gap-1.5">
+            <!-- Sandbox / Live Switch Button -->
+            <button
+              type="button"
+              @click="switchEnv(env === 'sandbox' ? 'live' : 'sandbox')"
+              class="px-2.5 py-1 min-h-[30px] rounded-lg text-[10.5px] font-bold uppercase tracking-wide border transition flex items-center gap-1 active:scale-95"
+              :class="env === 'sandbox' ? 'bg-[#D4AF37]/15 border-[#D4AF37]/50 text-[#8a6d1f]' : 'bg-[#0F4C3A]/10 border-[#0F4C3A]/40 text-[#0F4C3A]'"
+              :title="env === 'sandbox' ? 'Beralih ke Live' : 'Beralih ke Sandbox'"
+            >
+              <span class="w-1.5 h-1.5 rounded-full" :class="env === 'sandbox' ? 'bg-[#D4AF37]' : 'bg-[#0F4C3A]'"></span>
+              <span>{{ env === 'sandbox' ? 'Sandbox' : 'Live' }}</span>
+            </button>
+
+            <!-- Admin Link Quick Pill -->
+            <router-link
+              to="/panel"
+              class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 text-[#111111] text-xs flex items-center justify-center transition"
+              title="Super Admin Panel"
+            >
+              <ShieldAlert class="w-4 h-4 text-[#D4AF37]" />
+            </router-link>
+
+            <!-- Auth Quick Profile or Login -->
+            <button
+              v-if="authUser"
+              type="button"
+              @click="handleLogout"
+              class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-red-50 text-red-600 text-xs flex items-center justify-center transition active:scale-95"
+              title="Keluar dari akun"
+            >
+              <LogOut class="w-3.5 h-3.5" />
+            </button>
+            <router-link
+              v-else
+              to="/login"
+              class="px-2.5 py-1 min-h-[30px] rounded-lg bg-[#111111] text-white text-[11px] font-bold flex items-center gap-1"
+            >
+              <LogIn class="w-3.5 h-3.5 text-[#D4AF37]" />
+              <span>Masuk</span>
+            </router-link>
+          </div>
+        </div>
+
+        <!-- Bottom Row Context Bar: Category & Active Title -->
+        <div class="px-3.5 py-1.5 bg-[#111111]/[0.02] border-t border-[#111111]/5 flex items-center justify-between text-[11px]">
+          <div class="flex items-center gap-1.5 font-medium text-[#111111]/60 truncate">
+            <span class="text-[#D4AF37] font-bold">{{ currentPage.category }}</span>
+            <span>•</span>
+            <span class="text-[#111111] font-semibold truncate">{{ currentPage.title }}</span>
+          </div>
+          <span class="text-[9.5px] font-mono text-[#111111]/40 shrink-0">v2.2</span>
         </div>
       </header>
 
-      <!-- Main Workspace Container (Full Width & Aligned with Header) -->
-      <main class="flex-1 min-w-0 px-4 py-5 md:px-6 md:py-6 overflow-y-auto w-full">
+      <!-- Main Workspace Container (Full Width, Thumb Friendly Padding) -->
+      <main class="flex-1 min-w-0 px-3.5 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6 overflow-y-auto w-full pb-28 md:pb-6">
         <router-view />
       </main>
     </div>
 
-    <!-- Mobile Bottom Navigation Bar (Mobile First Thumb Reachable) -->
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-14 bg-[#FFFFFF]/95 backdrop-blur-md border-t border-[#111111]/10 flex items-center justify-around px-2 z-50 shadow-[0_-4px_16px_rgba(17,17,17,0.06)]">
-      <router-link
-        v-for="item in navItems"
-        :key="item.path"
-        :to="item.path"
+    <!-- Mobile Bottom Navigation Bar (Maksimal 5 Item: Ringkasan, Aplikasi, Checkout, Lisensi, Lainnya) -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 pb-[env(safe-area-inset-bottom,0px)] bg-[#FFFFFF]/95 backdrop-blur-md border-t border-[#111111]/10 flex items-center px-1 z-50 shadow-[0_-4px_20px_rgba(17,17,17,0.08)]">
+      <div class="flex items-center w-full justify-around px-0.5">
+        <!-- 4 Item Utama -->
+        <router-link
+          v-for="item in mobileNavItems"
+          :key="item.path"
+          :to="item.path"
           :class="[
-            'flex flex-col items-center justify-center flex-1 h-full py-1 text-[10px] font-semibold transition-all relative',
+            'flex flex-col items-center justify-center flex-1 h-14 py-1 text-[10px] font-semibold transition-all relative rounded-lg active:scale-95',
             navKey === item.key
-              ? 'text-[#111111]'
+              ? 'text-[#111111] font-bold'
               : 'text-[#111111]/50 hover:text-[#111111]'
           ]"
         >
           <component
             :is="item.icon"
-            class="w-4 h-4 mb-0.5"
-            :class="navKey === item.key ? 'text-[#D4AF37]' : ''"
+            class="w-4 h-4 mb-1 transition-transform"
+            :class="navKey === item.key ? 'text-[#D4AF37] scale-110' : ''"
           />
-          <!-- Badge mobile: jumlah item aktif di pojok ikon (Kupon & Lisensi) -->
+          <!-- Badge mobile lisensi aktif -->
           <span
-            v-if="item.key === '/coupons' && activeCouponCount > 0"
-            class="absolute top-1 right-[calc(50%-15px)] min-w-[14px] px-1 py-px rounded-full bg-[#D4AF37] text-[#111111] text-[8px] font-black leading-tight text-center shadow-sm"
-          >{{ activeCouponCount }}</span>
-          <span
-            v-else-if="item.key === '/licensing' && activeLicenseCount > 0"
-            class="absolute top-1 right-[calc(50%-15px)] min-w-[14px] px-1 py-px rounded-full bg-[#0F4C3A] text-white text-[8px] font-black leading-tight text-center shadow-sm"
+            v-if="item.key === '/licensing' && activeLicenseCount > 0"
+            class="absolute top-1 right-[calc(50%-14px)] min-w-[15px] px-1 py-px rounded-full bg-[#0F4C3A] text-white text-[8px] font-black leading-tight text-center shadow-xs"
           >{{ activeLicenseCount }}</span>
-          <span class="truncate max-w-[56px] leading-tight">{{ item.name }}</span>
+          <span class="truncate max-w-[55px] leading-tight text-[9.5px]">{{ item.name }}</span>
           <span
             v-if="navKey === item.key"
-            class="absolute top-0 w-8 h-0.5 bg-[#D4AF37] rounded-full"
+            class="absolute top-0.5 w-6 h-0.5 bg-[#D4AF37] rounded-full shadow-[0_0_4px_#D4AF37]"
           ></span>
-      </router-link>
+        </router-link>
+
+        <!-- Item ke-5: Lainnya (Membuka Bottom Sheet untuk Kupon, AI Shield, Docs, dll) -->
+        <button
+          type="button"
+          @click="isMobileMoreOpen = !isMobileMoreOpen"
+          :class="[
+            'flex flex-col items-center justify-center flex-1 h-14 py-1 text-[10px] font-semibold transition-all relative rounded-lg active:scale-95 cursor-pointer',
+            isMoreActive || isMobileMoreOpen
+              ? 'text-[#111111] font-bold'
+              : 'text-[#111111]/50 hover:text-[#111111]'
+          ]"
+        >
+          <MoreHorizontal
+            class="w-4 h-4 mb-1 transition-transform"
+            :class="(isMoreActive || isMobileMoreOpen) ? 'text-[#D4AF37] scale-110' : ''"
+          />
+          <!-- Badge kupon aktif pada tombol Lainnya jika belum membuka kupon -->
+          <span
+            v-if="moreBadgeCount > 0 && navKey !== '/coupons'"
+            class="absolute top-1 right-[calc(50%-14px)] min-w-[15px] px-1 py-px rounded-full bg-[#D4AF37] text-[#111111] text-[8px] font-black leading-tight text-center shadow-xs"
+          >{{ moreBadgeCount }}</span>
+          <span class="truncate max-w-[55px] leading-tight text-[9.5px]">
+            {{ isMoreActive ? (navKey === '/coupons' ? 'Kupon' : navKey === '/ai-proxy' ? 'AI Shield' : 'Docs') : 'Lainnya' }}
+          </span>
+          <span
+            v-if="isMoreActive || isMobileMoreOpen"
+            class="absolute top-0.5 w-6 h-0.5 bg-[#D4AF37] rounded-full shadow-[0_0_4px_#D4AF37]"
+          ></span>
+        </button>
+      </div>
     </nav>
+
+    <!-- Mobile 'Lainnya' Menu Sheet (Backdrop + Bottom Sheet) -->
+    <div
+      v-if="isMobileMoreOpen"
+      class="md:hidden fixed inset-0 z-50 flex flex-col justify-end"
+    >
+      <!-- Backdrop -->
+      <div
+        class="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
+        @click="isMobileMoreOpen = false"
+      ></div>
+
+      <!-- Sheet Container -->
+      <div class="relative bg-white rounded-t-2xl p-4 border-t border-[#111111]/10 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-10 space-y-3 pb-[calc(env(safe-area-inset-bottom,0px)+76px)] animate-fadeIn">
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-2 border-b border-[#111111]/10">
+          <div class="flex items-center gap-2">
+            <span class="w-1.5 h-4 bg-[#D4AF37] rounded-full"></span>
+            <h3 class="text-xs font-bold text-[#111111] uppercase tracking-wider">Menu Tambahan</h3>
+          </div>
+          <button
+            @click="isMobileMoreOpen = false"
+            class="p-1 rounded-md text-[#111111]/50 hover:bg-[#111111]/5 cursor-pointer"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <!-- Sheet Items Grid -->
+        <div class="grid grid-cols-2 gap-2">
+          <!-- Kupon Diskon -->
+          <router-link
+            :to="envPath(env, '/coupons')"
+            @click="isMobileMoreOpen = false"
+            class="flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left cursor-pointer active:scale-95"
+            :class="navKey === '/coupons' ? 'bg-[#D4AF37]/10 border-[#D4AF37]/40 text-[#111111] font-bold' : 'bg-[#111111]/[0.02] border-[#111111]/10 text-[#111111]/80 hover:bg-[#111111]/5'"
+          >
+            <div class="w-8 h-8 rounded-lg bg-[#D4AF37]/20 flex items-center justify-center text-[#111111] shrink-0">
+              <Ticket class="w-4 h-4" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold leading-tight">Kupon Diskon</div>
+              <div class="text-[10px] text-[#111111]/50 truncate">{{ activeCouponCount }} Aktif</div>
+            </div>
+          </router-link>
+
+          <!-- AI Proxy Shield -->
+          <router-link
+            :to="envPath(env, '/ai-proxy')"
+            @click="isMobileMoreOpen = false"
+            class="flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left cursor-pointer active:scale-95"
+            :class="navKey === '/ai-proxy' ? 'bg-[#0F4C3A]/10 border-[#0F4C3A]/40 text-[#111111] font-bold' : 'bg-[#111111]/[0.02] border-[#111111]/10 text-[#111111]/80 hover:bg-[#111111]/5'"
+          >
+            <div class="w-8 h-8 rounded-lg bg-[#0F4C3A]/15 flex items-center justify-center text-[#0F4C3A] shrink-0">
+              <Bot class="w-4 h-4" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold leading-tight">AI Proxy Shield</div>
+              <div class="text-[10px] text-[#111111]/50 truncate">Audit & Guard</div>
+            </div>
+          </router-link>
+
+          <!-- Dokumentasi & SDK -->
+          <router-link
+            :to="envPath(env, '/docs')"
+            @click="isMobileMoreOpen = false"
+            class="flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left cursor-pointer active:scale-95"
+            :class="navKey === '/docs' ? 'bg-[#111111]/10 border-[#111111]/30 text-[#111111] font-bold' : 'bg-[#111111]/[0.02] border-[#111111]/10 text-[#111111]/80 hover:bg-[#111111]/5'"
+          >
+            <div class="w-8 h-8 rounded-lg bg-[#111111]/10 flex items-center justify-center text-[#111111] shrink-0">
+              <BookOpen class="w-4 h-4" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold leading-tight">Dokumentasi</div>
+              <div class="text-[10px] text-[#111111]/50 truncate">SDK & API</div>
+            </div>
+          </router-link>
+
+          <!-- Super Admin Panel -->
+          <router-link
+            to="/panel"
+            @click="isMobileMoreOpen = false"
+            class="flex items-center gap-2.5 p-3 rounded-xl border border-[#111111]/10 bg-[#111111]/[0.02] text-[#111111]/80 hover:bg-[#111111]/5 transition-all text-left cursor-pointer active:scale-95"
+          >
+            <div class="w-8 h-8 rounded-lg bg-[#111111]/10 flex items-center justify-center text-[#111111] shrink-0">
+              <ShieldAlert class="w-4 h-4" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold leading-tight">Admin Panel</div>
+              <div class="text-[10px] text-[#111111]/50 truncate">Super Admin Ledger</div>
+            </div>
+          </router-link>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

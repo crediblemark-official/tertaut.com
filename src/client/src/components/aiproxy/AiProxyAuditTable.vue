@@ -41,8 +41,8 @@ const emit = defineEmits<{
       </div>
     </div>
 
-    <!-- Desktop Table (Flush left/right) -->
-    <div class="hidden sm:block overflow-x-auto w-full top-scrollbar">
+    <!-- Audit Table (Scrollable on mobile) -->
+    <div class="overflow-x-auto w-full top-scrollbar">
       <table class="w-full text-left text-xs whitespace-nowrap">
         <thead class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
           <tr>
@@ -86,26 +86,6 @@ const emit = defineEmits<{
           </tr>
         </tbody>
       </table>
-    </div>
-
-    <!-- Mobile List View -->
-    <div class="sm:hidden divide-y divide-[#111111]/10">
-      <div v-for="log in proxyLogs" :key="log.id" class="py-2.5 space-y-1.5">
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="font-mono font-bold text-xs text-[#111111]">{{ log.licenseKey || 'Direct' }}</div>
-            <div class="text-[10px] text-[#111111]/50 font-mono">{{ log.provider }} · {{ log.model }}</div>
-          </div>
-          <span class="inline-flex items-center gap-1 text-[9px] font-bold text-[#0F4C3A] bg-[#0F4C3A]/10 px-2 py-0.5 rounded-full">
-            <CheckCircle2 class="w-2.5 h-2.5" />
-            <span>Guarded</span>
-          </span>
-        </div>
-        <div class="flex items-center justify-between text-[10px] text-[#111111]/70">
-          <span>{{ log.totalTokens }} tokens · {{ log.latencyMs }} ms</span>
-          <span class="font-mono text-[#111111]/50">{{ new Date(log.createdAt).toLocaleTimeString('id-ID') }}</span>
-        </div>
-      </div>
     </div>
   </div>
 </template>

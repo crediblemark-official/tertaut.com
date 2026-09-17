@@ -15,7 +15,10 @@ import {
   Building,
   Wallet,
   ExternalLink,
-  FlaskConical
+  FlaskConical,
+  ChevronDown,
+  ChevronUp,
+  TicketPercent
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -54,6 +57,7 @@ const selectedPaymentRail = ref<'qris' | 'va' | 'ewallet'>('qris')
 const sandboxSessionId = ref<string | null>(null)
 const sandboxResult = ref<{ message: string; licenseKey?: string } | null>(null)
 const isSimulating = ref(false)
+const isMobileOrderExpanded = ref(false)
 
 /** Estimasi diskon & total bayar untuk pratinjau langsung saat mengetik kupon. */
 const estimatedDiscount = computed(() => {
@@ -138,29 +142,31 @@ async function applyCoupon() {
   }
 }
 
-function setProductData(data: any) {
+function setProductData(app: any) {
   product.value = {
-    id: data.id,
-    name: queryProductName.value || data.name,
-    slug: data.slug,
-    mode: data.mode === 'sandbox' ? 'sandbox' : 'live',
-    // Harga resmi dari server selalu menang atas override lewat query string,
-    // supaya nominal di halaman ini tidak bisa dimanipulasi oleh tautan.
-    targetPrice: data.targetPrice || queryAmount.value || 49000,
-    description: data.description || data.subheadline || null,
-    headline: data.headline || data.name,
-    subheadline: data.subheadline || data.description,
-    mediaUrl: data.mediaUrl || null,
-    valueProps: data.valueProps || ['Lisensi resmi multi-platform', 'Aktivasi otomatis instan', 'Garansi pembaruan versi'],
-    redirectUrl: queryRedirectUrl.value || data.redirectUrl || null
+    id: app.id,
+    name: queryProductName.value || app.name,
+    slug: app.slug || '',
+    mode: app.mode || 'live',
+    targetPrice: queryAmount.value || app.targetPrice || 49000,
+    description: app.description || 'Solusi software premium otomatis & berlisensi resmi.',
+    headline: app.headline || null,
+    subheadline: app.subheadline || null,
+    mediaUrl: app.mediaUrl || null,
+    valueProps: Array.isArray(app.valueProps) ? app.valueProps : (app.valueProps ? JSON.parse(app.valueProps) : [
+      'Aktivasi instan dan otomatis via email',
+      'Lisensi resmi terikat hardware / device',
+      'Update versi & dukungan pelanggan langsung'
+    ]),
+    redirectUrl: queryRedirectUrl.value || app.redirectUrl || null
   }
-  document.title = `Checkout ${product.value.name} — tertaut.com MoR`
 }
 
 async function handlePay() {
   if (!product.value || !emailInput.value) return
   isSubmitting.value = true
   errorMessage.value = ''
+  sandboxResult.value = null
 
   try {
     const res = await fetch('/api/v1/checkout/session', {
@@ -168,31 +174,25 @@ async function handlePay() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         appId: product.value.id,
-        appSlug: product.value.slug,
-        amount: product.value.targetPrice,
         customerEmail: emailInput.value,
-        grantDays: queryGrantDays.value || 365,
-        redirectUrl: product.value.redirectUrl || window.location.href,
-        couponCode: appliedCoupon.value?.code || undefined,
-        paymentRail: selectedPaymentRail.value
+        amount: payableAmount.value,
+        grantDays: queryGrantDays.value,
+        preferredPaymentChannel: selectedPaymentRail.value,
+        redirectUrl: product.value.redirectUrl || `${window.location.origin}/dashboard`,
+        couponCode: appliedCoupon.value?.code || couponInput.value.trim() || undefined
       })
     })
 
     const data = await res.json()
     if (!res.ok || !data.success) {
-      errorMessage.value = data.error || 'Gagal membuat sesi pembayaran'
+      errorMessage.value = data.error || 'Gagal menyiapkan sesi checkout'
       return
     }
 
-    const checkoutUrl = data.data?.xenditInvoiceUrl || data.checkoutUrl
-    if (data.data?.isSandbox && data.data?.sessionId) {
-      // Mode sandbox: jangan arahkan ke invoice mock. Tawarkan simulasi pembayaran inline.
-      sandboxSessionId.value = data.data.sessionId
-      sandboxResult.value = null
-      return
-    }
-    if (checkoutUrl) {
-      window.location.href = checkoutUrl
+    if (product.value.mode === 'sandbox') {
+      sandboxSessionId.value = data.transactionId
+    } else if (data.checkoutUrl) {
+      window.location.href = data.checkoutUrl
     }
   } catch (err: any) {
     errorMessage.value = err.message || 'Terjadi kesalahan jaringan'
@@ -231,7 +231,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="relative h-screen max-h-screen bg-[#090A0C] text-white flex flex-col justify-center items-center p-3 sm:p-5 lg:p-6 overflow-hidden selection:bg-[#D4AF37]/30 selection:text-white">
+    class="relative min-h-screen lg:h-screen lg:max-h-screen bg-[#090A0C] text-white flex flex-col justify-start lg:justify-center items-center p-3 sm:p-5 lg:p-6 overflow-y-auto lg:overflow-hidden selection:bg-[#D4AF37]/30 selection:text-white py-4 sm:py-6">
     <!-- Ambient Lighting & Developer Grid Background -->
     <div class="fixed inset-0 pointer-events-none z-0">
       <div
@@ -243,14 +243,14 @@ onMounted(() => {
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="relative z-10 flex flex-col items-center justify-center text-white/70 text-xs gap-3 p-8">
+    <div v-if="loading" class="relative z-10 flex flex-col items-center justify-center text-white/70 text-xs gap-3 p-8 my-auto">
       <div class="w-6 h-6 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
       <span class="font-mono text-[11px]">Menyiapkan sesi checkout aman tertaut.com...</span>
     </div>
 
     <!-- Not Found State -->
     <div v-else-if="notFound"
-      class="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-[#111215]/95 backdrop-blur-2xl p-8 text-center space-y-4 shadow-2xl">
+      class="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-[#111215]/95 backdrop-blur-2xl p-8 text-center space-y-4 shadow-2xl my-auto">
       <div
         class="w-12 h-12 mx-auto rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
         <Lock class="w-5 h-5" />
@@ -294,9 +294,9 @@ onMounted(() => {
 
       <!-- Master Unified Luxury Card (50/50 Precision Split, High Contrast) -->
       <div
-        class="relative z-10 w-full max-w-4xl h-[540px] max-h-[calc(100vh-5rem)] rounded-2xl border border-slate-200/90 bg-white text-slate-900 shadow-[0_25px_70px_rgba(0,0,0,0.6)] overflow-hidden grid grid-cols-1 lg:grid-cols-2 shrink-0">
+        class="relative z-10 w-full max-w-4xl h-auto lg:h-[540px] lg:max-h-[calc(100vh-5rem)] rounded-2xl border border-slate-200/90 bg-white text-slate-900 shadow-[0_25px_70px_rgba(0,0,0,0.6)] overflow-hidden grid grid-cols-1 lg:grid-cols-2 shrink-0 my-auto">
 
-        <!-- LEFT PANE: Order Summary & Product Details (Presisi 50% Kiri) -->
+        <!-- LEFT PANE: Order Summary & Product Details (Presisi 50% Kiri, Desktop) -->
         <div
           class="hidden lg:flex flex-col justify-between p-7 xl:p-8 border-r border-slate-200 bg-slate-50/70 h-full overflow-hidden shrink-0">
           <!-- Product Details & Pricing Body -->
@@ -382,16 +382,91 @@ onMounted(() => {
 
         <!-- RIGHT PANE: Payment Form & Multi-Rail Selection (Presisi 50% Kanan, Internal Scroll) -->
         <div class="flex flex-col h-full overflow-hidden bg-white text-slate-900">
-          <div class="flex-1 overflow-y-auto p-6 sm:p-7 xl:p-8 custom-scrollbar flex flex-col justify-between">
+          <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-7 xl:p-8 custom-scrollbar flex flex-col justify-between">
             <div class="space-y-4">
-              <!-- Mobile Header & Title (visible on mobile only) -->
-              <div class="lg:hidden pb-3 border-b border-slate-200 space-y-1">
+              <!-- Mobile Order Summary & Coupon Dropdown (Mobile-First Experience) -->
+              <div class="lg:hidden rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 space-y-2.5">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-bold text-amber-600 font-mono uppercase">Pesanan Lisensi</span>
-                  <span class="font-mono font-black text-sm text-slate-950">{{ formatRupiah(payableAmount ||
-                    product.targetPrice) }}</span>
+                  <div>
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-amber-600 font-mono">Pesanan Software</div>
+                    <h1 class="text-sm sm:text-base font-extrabold text-slate-950 leading-tight">{{ product.name }}</h1>
+                  </div>
+                  <div class="text-right">
+                    <span class="font-mono font-black text-base text-slate-950 block">
+                      {{ formatRupiah(payableAmount || product.targetPrice) }}
+                    </span>
+                    <button
+                      type="button"
+                      @click="isMobileOrderExpanded = !isMobileOrderExpanded"
+                      class="inline-flex items-center gap-1 text-[10.5px] font-bold text-amber-600 hover:underline pt-0.5 cursor-pointer"
+                    >
+                      <span>{{ isMobileOrderExpanded ? 'Tutup Rincian' : 'Rincian & Kupon' }}</span>
+                      <component :is="isMobileOrderExpanded ? ChevronUp : ChevronDown" class="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
-                <h1 class="text-base font-bold text-slate-950 leading-tight">{{ product.name }}</h1>
+
+                <!-- Expandable Mobile Details & Coupon Input -->
+                <div v-if="isMobileOrderExpanded" class="pt-2 border-t border-slate-200/80 space-y-2.5 animate-in fade-in duration-150">
+                  <p v-if="product.description" class="text-xs text-slate-600 leading-relaxed">
+                    {{ product.description }}
+                  </p>
+
+                  <!-- Value propositions -->
+                  <div v-if="product.valueProps && product.valueProps.length > 0" class="space-y-1 py-0.5">
+                    <div v-for="(vp, idx) in product.valueProps.slice(0, 3)" :key="idx" class="flex items-center gap-1.5 text-xs text-slate-700">
+                      <CheckCircle2 class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>{{ vp }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Price Breakdown -->
+                  <div class="text-xs space-y-1 pt-1 border-t border-slate-200/60 font-medium">
+                    <div class="flex justify-between text-slate-600">
+                      <span>Harga Asli:</span>
+                      <span class="font-mono">{{ formatRupiah(product.targetPrice) }}</span>
+                    </div>
+                    <div class="flex justify-between text-emerald-600 text-[11px] font-semibold">
+                      <span>Biaya Layanan:</span>
+                      <span>Gratis</span>
+                    </div>
+                    <div v-if="estimatedDiscount > 0" class="flex justify-between text-emerald-600 font-bold">
+                      <span>Diskon Kupon:</span>
+                      <span class="font-mono">−{{ formatRupiah(estimatedDiscount) }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Mobile Coupon Input Form -->
+                  <div class="pt-1">
+                    <div v-if="appliedCoupon" class="flex items-center justify-between text-xs py-1.5 px-3 rounded-lg bg-emerald-50 border border-emerald-300">
+                      <span class="inline-flex items-center gap-1.5 text-emerald-700 font-bold text-xs">
+                        <CheckCircle2 class="w-3.5 h-3.5 text-emerald-600" />
+                        {{ appliedCoupon.code }} (−{{ appliedCoupon.discountPercent }}%)
+                      </span>
+                      <button @click="appliedCoupon = null; couponInput = ''" class="text-slate-600 hover:text-slate-950 text-xs font-semibold underline cursor-pointer">
+                        Hapus
+                      </button>
+                    </div>
+                    <div v-else class="flex items-center gap-2">
+                      <input
+                        v-model="couponInput"
+                        type="text"
+                        placeholder="Kode kupon promo"
+                        class="auth-input flex-1 min-h-[36px] bg-white border border-slate-300 rounded-lg px-3 text-xs font-mono font-bold uppercase text-slate-950 placeholder:normal-case placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:border-slate-800"
+                        @keyup.enter="applyCoupon"
+                      />
+                      <button
+                        type="button"
+                        @click="applyCoupon"
+                        :disabled="!couponInput.trim()"
+                        class="min-h-[36px] px-3.5 rounded-lg bg-slate-900 text-white text-xs font-bold disabled:opacity-30 cursor-pointer active:scale-95 transition"
+                      >
+                        Pakai
+                      </button>
+                    </div>
+                    <p v-if="couponError" class="text-xs text-red-600 font-semibold mt-1">{{ couponError }}</p>
+                  </div>
+                </div>
               </div>
 
               <!-- Email Input -->

@@ -50,9 +50,9 @@ watch(dashboardEnv, () => {
       </router-link>
     </div>
 
-    <!-- Overview Stats (Full Width with Horizontal & Vertical Dividers, Flush Left and Right) -->
-    <div class="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#111111]/10 border-b border-[#111111]/10 pb-6 pt-1">
-      <div class="py-2 pr-4 pl-0 space-y-1">
+    <!-- Overview Stats (Horizontal Scroll on Mobile, Grid on Tablet/Desktop) -->
+    <div class="w-full flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 divide-x divide-[#111111]/10 border-b border-[#111111]/10 pb-4 pt-1 top-scrollbar">
+      <div class="min-w-[220px] sm:min-w-0 flex-1 shrink-0 py-2 pr-4 pl-0 space-y-1">
         <div class="flex items-center justify-between text-[#111111]/50 text-xs font-semibold">
           <span>Gross Volume (MoR)</span>
           <DollarSign class="w-4 h-4 text-[#111111]" />
@@ -65,7 +65,7 @@ watch(dashboardEnv, () => {
         </div>
       </div>
 
-      <div class="py-2 px-4 space-y-1">
+      <div class="min-w-[220px] sm:min-w-0 flex-1 shrink-0 py-2 px-4 space-y-1">
         <div class="flex items-center justify-between text-[#111111]/50 text-xs font-semibold">
           <span>Net Builder Payout (95%)</span>
           <TrendingUp class="w-4 h-4 text-[#0F4C3A]" />
@@ -78,7 +78,7 @@ watch(dashboardEnv, () => {
         </div>
       </div>
 
-      <div class="py-2 px-4 space-y-1">
+      <div class="min-w-[220px] sm:min-w-0 flex-1 shrink-0 py-2 px-4 space-y-1">
         <div class="flex items-center justify-between text-[#111111]/50 text-xs font-semibold">
           <span>Lisensi Aktif Terbit</span>
           <KeyRound class="w-4 h-4 text-[#D4AF37]" />
@@ -91,7 +91,7 @@ watch(dashboardEnv, () => {
         </div>
       </div>
 
-      <div class="py-2 pl-4 pr-0 space-y-1">
+      <div class="min-w-[220px] sm:min-w-0 flex-1 shrink-0 py-2 px-4 sm:pl-4 sm:pr-0 space-y-1">
         <div class="flex items-center justify-between text-[#111111]/50 text-xs font-semibold">
           <span>Total Transaksi</span>
           <Zap class="w-4 h-4 text-[#D4AF37]" />
