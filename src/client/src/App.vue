@@ -37,7 +37,7 @@ async function handleLogout() {
   router.push('/login')
 }
 
-const isPublicPage = computed(() => !!route.meta.public || !!route.meta.fullscreen)
+const isPublicPage = computed(() => !!route.meta.public)
 
 // Kunci halaman tanpa prefix environment, mis. '/dashboard/sandbox/checkout' -> '/checkout'
 function pageKey(path: string): string {

@@ -73,7 +73,18 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
         grantCredits = 0,
         redirectUrl,
         couponCode,
+        paymentRail,
       } = body;
+
+      // Pilihan kanal pembayaran di UI checkout diteruskan ke gateway (bukan dekoratif).
+      const RAIL_PAYMENT_METHODS: Record<string, string[]> = {
+        qris: ["QRIS"],
+        va: ["BCA", "BNI", "BRI", "MANDIRI", "PERMATA", "CIMB"],
+        ewallet: ["OVO", "DANA", "SHOPEEPAY", "LINKAJA"],
+      };
+      const paymentMethods = paymentRail
+        ? RAIL_PAYMENT_METHODS[String(paymentRail).toLowerCase()]
+        : undefined;
 
       const targetIdentifier = appId || appSlug || slug;
       if (!targetIdentifier) {
@@ -196,6 +207,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
           description: `Lisensi ${app.name} (${grantDays} hari)`,
           successRedirectUrl: redirectUrl || app.redirectUrl || undefined,
           failureRedirectUrl: redirectUrl || app.redirectUrl || undefined,
+          paymentMethods,
           forceMock: isSandboxApp,
         });
         invoiceUrl = xenditInvoice.invoice_url;
@@ -272,6 +284,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
         appSlug: t.Optional(t.String()),
         slug: t.Optional(t.String()),
         paymentGateway: t.Optional(t.String()),
+        paymentRail: t.Optional(t.Union([t.Literal("qris"), t.Literal("va"), t.Literal("ewallet")])),
         amount: t.Optional(t.Number({ minimum: 1000 })),
         customAmount: t.Optional(t.Number({ minimum: 1000 })),
         customerEmail: t.Optional(t.String()),

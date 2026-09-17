@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useClipboard } from '../composables/useClipboard'
 import {
   Terminal,
   Copy,
@@ -18,12 +19,32 @@ import {
 const copiedIndex = ref<number | null>(null)
 const selectedAppSlug = ref('fastmail-ai')
 const selectedWidgetType = ref<'verified' | 'sales_counter' | 'status'>('verified')
+const widgetCustomers = ref<number | null>(null)
+const { copy: writeClipboard } = useClipboard()
 
-function copyCode(text: string, index: number) {
-  navigator.clipboard.writeText(text)
+async function loadWidgetSales() {
+  try {
+    const res = await fetch(`/api/v1/widgets/badge/${selectedAppSlug.value}`)
+    if (!res.ok) {
+      widgetCustomers.value = null
+      return
+    }
+    const json = await res.json()
+    widgetCustomers.value = typeof json?.data?.totalCustomers === 'number' ? json.data.totalCustomers : null
+  } catch {
+    widgetCustomers.value = null
+  }
+}
+
+onMounted(loadWidgetSales)
+watch(selectedAppSlug, loadWidgetSales)
+
+async function copyCode(text: string, index: number) {
+  const ok = await writeClipboard(text)
+  if (!ok) return
   copiedIndex.value = index
   setTimeout(() => {
-    copiedIndex.value = null
+    if (copiedIndex.value === index) copiedIndex.value = null
   }, 2000)
 }
 
@@ -257,7 +278,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
             class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111111] text-white border border-[#D4AF37]/50 shadow-md text-xs font-bold cursor-pointer transition hover:scale-105"
           >
             <span class="w-2 h-2 rounded-full bg-[#0F4C3A] animate-ping"></span>
-            <span>89 Lisensi Terjual</span>
+            <span>{{ widgetCustomers === null ? '—' : `${widgetCustomers.toLocaleString('id-ID')} Lisensi Terjual` }}</span>
             <span class="opacity-30">•</span>
             <span class="text-[#D4AF37]">tertaut</span>
           </div>

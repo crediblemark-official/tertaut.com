@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
 import { transactions, licenses, apps } from "../db/schema";
-import { eq, or } from "drizzle-orm";
+import { eq, or, and, inArray } from "drizzle-orm";
 import { XenditService } from "../services/xendit";
 import { DanaService } from "../services/dana";
 import { LicenseService } from "../services/license";
@@ -128,6 +128,14 @@ export const webhookRoutes = new Elysia({ prefix: "/webhook" })
     webhookSchema
   )
   /**
+   * Webhook callback handler dari Xendit Disbursement/Payout
+   */
+  .post(
+    "/xendit/disbursement",
+    handleXenditDisbursementWebhook,
+    danaDisburseWebhookSchema
+  )
+  /**
    * Webhook callback handler dari DANA Finish Notify API
    */
   .post(
@@ -154,6 +162,11 @@ export const webhooksPluralRoutes = new Elysia({ prefix: "/webhooks" })
     "/xendit/invoice",
     handleXenditInvoiceWebhook,
     webhookSchema
+  )
+  .post(
+    "/xendit/disbursement",
+    handleXenditDisbursementWebhook,
+    danaDisburseWebhookSchema
   )
   .post(
     "/dana/finish-payment",
@@ -225,17 +238,84 @@ export async function handleXenditInvoiceWebhook({ headers, body, set }: any) {
   if (status === "PAID") {
     const channel = payment_method || payment_channel || "QRIS";
     return await fulfillPaymentTransaction(tx, channel);
-  } else if (status === "EXPIRED") {
+  }
+
+  // EXPIRED/FAILED adalah status terminal. Jangan turunkan transaksi yang sudah
+  // PAID, dan jangan biarkan transaksi gagal tersangkut PENDING selamanya.
+  if (status === "EXPIRED" || status === "FAILED") {
     await db
       .update(transactions)
       .set({
-        paymentStatus: "EXPIRED",
+        paymentStatus: status,
         updatedAt: new Date(),
       })
-      .where(eq(transactions.id, tx.id));
+      .where(and(eq(transactions.id, tx.id), eq(transactions.paymentStatus, "PENDING")));
   }
 
   return { received: true, status };
+}
+
+/**
+ * Handler untuk Xendit Disbursement/Payout callback. Menutup payout yang tadinya
+ * PROCESSING agar tidak menggantung selamanya bila gateway selesai/gagal asinkron.
+ */
+export async function handleXenditDisbursementWebhook({ headers, body, set }: any) {
+  const callbackToken = headers["x-callback-token"];
+  if (!XenditService.verifyWebhook(callbackToken)) {
+    set.status = 401;
+    return { error: "Invalid callback verification token" };
+  }
+
+  const { id, external_id: externalId, status } = (body || {}) as {
+    id?: string;
+    external_id?: string;
+    status?: string;
+  };
+
+  if (!id && !externalId) {
+    set.status = 400;
+    return { error: "Missing disbursement id or external_id" };
+  }
+
+  const target =
+    (id
+      ? await db.query.transactions.findFirst({
+          where: eq(transactions.disbursementId, id),
+        })
+      : null) ||
+    (externalId
+      ? await db.query.transactions.findFirst({
+          where: eq(transactions.xenditExternalId, externalId),
+        })
+      : null);
+
+  if (!target) {
+    set.status = 404;
+    return { error: "Disbursement transaction not found" };
+  }
+
+  const normalized = String(status || "").toUpperCase();
+  const nextStatus =
+    normalized === "COMPLETED" || normalized === "SUCCEEDED"
+      ? "COMPLETED"
+      : normalized === "FAILED" || normalized === "REVERSED" || normalized === "CANCELLED"
+        ? "FAILED"
+        : null;
+
+  // Hanya finalkan payout yang masih berjalan; jangan timpa status terminal.
+  if (nextStatus) {
+    await db
+      .update(transactions)
+      .set({ disbursementStatus: nextStatus, updatedAt: new Date() })
+      .where(
+        and(
+          eq(transactions.id, target.id),
+          inArray(transactions.disbursementStatus, ["PROCESSING", "PENDING"])
+        )
+      );
+  }
+
+  return { received: true, status: normalized };
 }
 
 /**
@@ -395,10 +475,11 @@ export async function handleDanaFinishPaymentWebhook({ headers, body, set }: any
         ? "EXPIRED"
         : "FAILED";
 
+    // Jangan menurunkan transaksi yang sudah PAID (webhook telat/duplikat).
     await db
       .update(transactions)
       .set({ paymentStatus: nextStatus, updatedAt: new Date() })
-      .where(eq(transactions.id, tx.id));
+      .where(and(eq(transactions.id, tx.id), eq(transactions.paymentStatus, "PENDING")));
   }
 
   return snapBiAck;
@@ -431,7 +512,13 @@ export async function handleDanaDisburseNotifyWebhook({ headers, body, set }: an
     rawStatus === "COMPLETED" ||
     rawStatus === "00";
 
-  if (partnerReferenceNo) {
+  const isPending =
+    rawStatus === "PENDING" ||
+    rawStatus === "PROCESSING" ||
+    rawStatus === "IN_PROGRESS";
+
+  // Hanya status terminal yang mengubah ledger; status pending diabaikan.
+  if (partnerReferenceNo && !isPending) {
     await db
       .update(transactions)
       .set({
@@ -439,9 +526,12 @@ export async function handleDanaDisburseNotifyWebhook({ headers, body, set }: an
         updatedAt: new Date(),
       })
       .where(
-        or(
-          eq(transactions.xenditExternalId, partnerReferenceNo),
-          eq(transactions.providerReferenceId, partnerReferenceNo)
+        and(
+          or(
+            eq(transactions.xenditExternalId, partnerReferenceNo),
+            eq(transactions.providerReferenceId, partnerReferenceNo)
+          ),
+          inArray(transactions.disbursementStatus, ["PROCESSING", "PENDING"])
         )
       );
   }

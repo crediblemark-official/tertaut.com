@@ -5,7 +5,7 @@ export default defineConfig({
   out: "./src/server/db/migrations",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/tertaut",
+    url: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/tertautv2",
   },
   verbose: true,
   strict: true,

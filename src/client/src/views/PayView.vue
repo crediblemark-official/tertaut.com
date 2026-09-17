@@ -171,7 +171,8 @@ async function handlePay() {
         customerEmail: emailInput.value,
         grantDays: queryGrantDays.value || 365,
         redirectUrl: product.value.redirectUrl || window.location.href,
-        couponCode: appliedCoupon.value?.code || undefined
+        couponCode: appliedCoupon.value?.code || undefined,
+        paymentRail: selectedPaymentRail.value
       })
     })
 

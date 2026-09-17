@@ -6,7 +6,7 @@ import {
   apps,
   licenses,
 } from "../db/schema";
-import { eq, and, sql, desc, inArray } from "drizzle-orm";
+import { eq, and, sql, desc, inArray, count } from "drizzle-orm";
 import { XenditService } from "../services/xendit";
 import { authenticate } from "../middleware/auth";
 
@@ -21,25 +21,37 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
   .get(
     "/stats",
     async () => {
-      const allPaidTxs = await db.query.transactions.findMany({
-        where: eq(transactions.paymentStatus, "PAID"),
-      });
+      // Agregasi di database — hindari memuat seluruh ledger PAID ke memori.
+      const [totals] = await db
+        .select({
+          totalGMV: sql<number>`coalesce(sum(${transactions.grossAmount}), 0)`.mapWith(Number),
+          totalFee: sql<number>`coalesce(sum(${transactions.platformFee}), 0)`.mapWith(Number),
+          totalNet: sql<number>`coalesce(sum(${transactions.netAmount}), 0)`.mapWith(Number),
+          totalTx: sql<number>`count(*)`.mapWith(Number),
+          pendingAmount: sql<number>`coalesce(sum(case when ${transactions.disbursementStatus} = 'PENDING' then ${transactions.netAmount} else 0 end), 0)`.mapWith(Number),
+          pendingCount: sql<number>`count(*) filter (where ${transactions.disbursementStatus} = 'PENDING')`.mapWith(Number),
+          completedAmount: sql<number>`coalesce(sum(case when ${transactions.disbursementStatus} = 'COMPLETED' then ${transactions.netAmount} else 0 end), 0)`.mapWith(Number),
+        })
+        .from(transactions)
+        .where(eq(transactions.paymentStatus, "PAID"));
 
-      const totalGMV = allPaidTxs.reduce((sum, tx) => sum + tx.grossAmount, 0);
-      const totalPlatformFeeCollected = allPaidTxs.reduce((sum, tx) => sum + tx.platformFee, 0);
-      const totalNetBuilderEarnings = allPaidTxs.reduce((sum, tx) => sum + tx.netAmount, 0);
-
-      const pendingTxs = allPaidTxs.filter((tx) => tx.disbursementStatus === "PENDING");
-      const totalPendingDisbursement = pendingTxs.reduce((sum, tx) => sum + tx.netAmount, 0);
-
-      const completedTxs = allPaidTxs.filter((tx) => tx.disbursementStatus === "COMPLETED");
-      const totalCompletedDisbursement = completedTxs.reduce((sum, tx) => sum + tx.netAmount, 0);
-
-      const [buildersList, appsList, licensesList] = await Promise.all([
-        db.query.builders.findMany(),
-        db.query.apps.findMany(),
-        db.query.licenses.findMany({ where: eq(licenses.status, "ACTIVE") }),
+      const [[builderCount], [appCount], [licenseCount]] = await Promise.all([
+        db.select({ value: count() }).from(builders),
+        db.select({ value: count() }).from(apps),
+        db.select({ value: count() }).from(licenses).where(eq(licenses.status, "ACTIVE")),
       ]);
+
+      const totalGMV = totals?.totalGMV ?? 0;
+      const totalPlatformFeeCollected = totals?.totalFee ?? 0;
+      const totalNetBuilderEarnings = totals?.totalNet ?? 0;
+      const totalPaidCount = totals?.totalTx ?? 0;
+      const totalPendingDisbursement = totals?.pendingAmount ?? 0;
+      const pendingCount = totals?.pendingCount ?? 0;
+      const totalCompletedDisbursement = totals?.completedAmount ?? 0;
+
+      const totalBuilders = builderCount?.value ?? 0;
+      const totalApps = appCount?.value ?? 0;
+      const totalActiveLicenses = licenseCount?.value ?? 0;
 
       const mem = process.memoryUsage();
 
@@ -47,13 +59,13 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
         totalGMV,
         platformFeeRevenue: totalPlatformFeeCollected,
         netBuilderShare: totalNetBuilderEarnings,
-        totalTransactions: allPaidTxs.length,
-        paidTransactions: allPaidTxs.length,
+        totalTransactions: totalPaidCount,
+        paidTransactions: totalPaidCount,
         pendingDisbursementsAmount: totalPendingDisbursement,
-        pendingDisbursementsCount: pendingTxs.length,
-        totalApps: appsList.length,
-        totalBuilders: buildersList.length,
-        totalLicensesIssued: licensesList.length,
+        pendingDisbursementsCount: pendingCount,
+        totalApps,
+        totalBuilders,
+        totalLicensesIssued: totalActiveLicenses,
         system: {
           nodeEnv: process.env.NODE_ENV || "development",
           bunVersion: Bun.version,
@@ -78,10 +90,10 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
           totalNetBuilderEarnings,
           totalPendingDisbursement,
           totalCompletedDisbursement,
-          totalTransactions: allPaidTxs.length,
-          totalBuilders: buildersList.length,
-          totalApps: appsList.length,
-          totalActiveLicenses: licensesList.length,
+          totalTransactions: totalPaidCount,
+          totalBuilders,
+          totalApps,
+          totalActiveLicenses,
         },
         system: responseData.system,
       };
@@ -105,18 +117,46 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
         orderBy: (b, { desc }) => [desc(b.createdAt)],
       });
 
-      const enriched = await Promise.all(
-        allBuilders.map(async (b) => {
-          const builderApps = await db.query.apps.findMany({
-            where: eq(apps.builderId, b.id),
-          });
+      // Ambil semua app & transaksi PAID sekali, lalu kelompokkan per builder
+      // (menghindari N+1 query per builder).
+      const [allApps, paidTxs] = await Promise.all([
+        db
+          .select({
+            id: apps.id,
+            name: apps.name,
+            slug: apps.slug,
+            mode: apps.mode,
+            builderId: apps.builderId,
+          })
+          .from(apps),
+        db
+          .select({
+            builderId: transactions.builderId,
+            grossAmount: transactions.grossAmount,
+            netAmount: transactions.netAmount,
+            disbursementStatus: transactions.disbursementStatus,
+          })
+          .from(transactions)
+          .where(eq(transactions.paymentStatus, "PAID")),
+      ]);
 
-          const builderTxs = await db.query.transactions.findMany({
-            where: and(
-              eq(transactions.builderId, b.id),
-              eq(transactions.paymentStatus, "PAID")
-            ),
-          });
+      const appsByBuilder = new Map<string, typeof allApps>();
+      for (const a of allApps) {
+        const list = appsByBuilder.get(a.builderId) || [];
+        list.push(a);
+        appsByBuilder.set(a.builderId, list);
+      }
+
+      const txsByBuilder = new Map<string, typeof paidTxs>();
+      for (const tx of paidTxs) {
+        const list = txsByBuilder.get(tx.builderId) || [];
+        list.push(tx);
+        txsByBuilder.set(tx.builderId, list);
+      }
+
+      const enriched = allBuilders.map((b) => {
+          const builderApps = appsByBuilder.get(b.id) || [];
+          const builderTxs = txsByBuilder.get(b.id) || [];
 
           const gmv = builderTxs.reduce((sum, tx) => sum + tx.grossAmount, 0);
           const net = builderTxs.reduce((sum, tx) => sum + tx.netAmount, 0);
@@ -146,8 +186,7 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
             pendingPayout: pending,
             createdAt: b.createdAt,
           };
-        })
-      );
+        });
 
       return {
         success: true,
@@ -184,21 +223,29 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
         limit,
       });
 
-      const enriched = await Promise.all(
-        allTxs.map(async (tx) => {
-          const app = await db.query.apps.findFirst({
-            where: eq(apps.id, tx.appId),
-          });
-          const builder = await db.query.builders.findFirst({
-            where: eq(builders.id, tx.builderId),
-          });
+      // Batch-lookup app & builder (hindari N+1 per baris ledger).
+      const appIds = [...new Set(allTxs.map((tx) => tx.appId))];
+      const builderIds = [...new Set(allTxs.map((tx) => tx.builderId))];
 
+      const [appRows, builderRows] = await Promise.all([
+        appIds.length
+          ? db.query.apps.findMany({ where: inArray(apps.id, appIds) })
+          : Promise.resolve([] as (typeof apps.$inferSelect)[]),
+        builderIds.length
+          ? db.query.builders.findMany({ where: inArray(builders.id, builderIds) })
+          : Promise.resolve([] as (typeof builders.$inferSelect)[]),
+      ]);
+
+      const appNameById = new Map(appRows.map((a) => [a.id, a.name]));
+      const builderEmailById = new Map(builderRows.map((b) => [b.id, b.email]));
+
+      const enriched = allTxs.map((tx) => {
           return {
             id: tx.id,
             appId: tx.appId,
-            appName: app?.name || tx.appId,
+            appName: appNameById.get(tx.appId) || tx.appId,
             builderId: tx.builderId,
-            builderEmail: builder?.email || "builder@tertaut.com",
+            builderEmail: builderEmailById.get(tx.builderId) || "builder@tertaut.com",
             customerEmail: tx.customerEmail,
             grossAmount: tx.grossAmount,
             platformFee: tx.platformFee,
@@ -209,8 +256,7 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
             paidAt: tx.paidAt,
             createdAt: tx.createdAt,
           };
-        })
-      );
+        });
 
       return {
         success: true,

@@ -3,6 +3,7 @@ import { ref, onMounted, watch } from 'vue'
 import { api, type AppItem, type LicenseItem, type LicensePlatform } from '../lib/api'
 import { dashboardEnv } from '../lib/environment'
 import { KeyRound, Plus, CheckCircle2 } from 'lucide-vue-next'
+import { useClipboard } from '../composables/useClipboard'
 import PlatformBadges from '../components/licensing/PlatformBadges.vue'
 import LicenseTable from '../components/licensing/LicenseTable.vue'
 import LicenseValidatorPanel from '../components/licensing/LicenseValidatorPanel.vue'
@@ -12,6 +13,7 @@ const appsList = ref<AppItem[]>([])
 const licensesList = ref<LicenseItem[]>([])
 const loadingLicenses = ref(false)
 const actionFeedback = ref<string | null>(null)
+const { copy: writeClipboard } = useClipboard()
 
 // Validation & Diagnostic Engine State
 const licenseKey = ref('')
@@ -197,8 +199,13 @@ function notifyLicensesChanged() {
   window.dispatchEvent(new Event('tertaut:licenses-changed'))
 }
 
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text)
+async function copyToClipboard(text: string) {
+  const ok = await writeClipboard(text)
+  if (!ok) {
+    actionFeedback.value = 'Gagal menyalin ke clipboard. Salin manual dari tabel.'
+    setTimeout(() => { actionFeedback.value = null }, 3000)
+    return
+  }
   actionFeedback.value = `Kunci lisensi ${text} disalin ke clipboard!`
   setTimeout(() => { actionFeedback.value = null }, 3000)
 }

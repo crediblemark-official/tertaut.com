@@ -26,25 +26,47 @@ function withMode(path: string): string {
   return `${path}${separator}mode=${dashboardEnv.value}`
 }
 
+/**
+ * Parse respons JSON dengan aman: tidak pernah melempar saat body kosong/bukan JSON,
+ * dan menormalkan error HTTP menjadi `{ success: false, error }` agar UI tetap bisa
+ * menampilkan pesan alih-alih gagal senyap.
+ */
+async function parseJson(res: Response): Promise<any> {
+  const text = await res.text()
+  if (!text.trim()) {
+    return res.ok ? {} : { success: false, error: `HTTP ${res.status}` }
+  }
+  try {
+    const data = JSON.parse(text)
+    if (!res.ok && data && typeof data === 'object' && data.success === undefined) {
+      data.success = false
+      if (!data.error) data.error = `HTTP ${res.status}`
+    }
+    return data
+  } catch {
+    return { success: false, error: `HTTP ${res.status}: respons bukan JSON` }
+  }
+}
+
 export const api = {
   async getHealth() {
     const res = await fetch("/api/v1/health");
-    return res.json();
+    return parseJson(res);
   },
 
   async getApps(): Promise<{ apps: AppItem[] }> {
     const res = await fetch(withMode("/api/v1/apps"));
-    return res.json();
+    return parseJson(res);
   },
 
   async getStats(): Promise<DashboardStats> {
     const res = await fetch(withMode("/api/v1/apps/stats/overview"));
-    return res.json();
+    return parseJson(res);
   },
 
   async checkSlugAvailability(slug: string): Promise<{ slug: string; available: boolean }> {
     const res = await fetch(`/api/v1/apps/check-slug/${slug}`);
-    return res.json();
+    return parseJson(res);
   },
 
   async createCampaign(data: Partial<AppItem>): Promise<{ success: boolean; app: AppItem; error?: string }> {
@@ -53,7 +75,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async updateCampaign(appId: string, data: Partial<AppItem>): Promise<{ success: boolean; app: AppItem; error?: string }> {
@@ -62,14 +84,14 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async deleteCampaign(appId: string): Promise<{ success: boolean; message?: string }> {
     const res = await fetch(`/api/v1/apps/${appId}`, {
       method: "DELETE",
     });
-    return res.json();
+    return parseJson(res);
   },
 
   // Aliases for convenience
@@ -97,27 +119,27 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async getTransactions(appId?: string): Promise<{ success: boolean; transactions: TransactionItem[] }> {
     const url = appId ? `/api/v1/checkout/transactions?appId=${appId}` : withMode("/api/v1/checkout/transactions");
     const res = await fetch(url);
-    return res.json();
+    return parseJson(res);
   },
 
   async disburseTransaction(txId: string) {
     const res = await fetch(`/api/v1/checkout/disburse/${txId}`, {
       method: "POST",
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async simulatePayment(txId: string): Promise<{ success: boolean; message: string; licenseKey?: string }> {
     const res = await fetch(`/api/v1/checkout/simulate-paid/${txId}`, {
       method: "POST",
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async triggerPayout(amount?: number) {
@@ -126,13 +148,13 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ amount, mode: dashboardEnv.value }),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async getLicenses(appId?: string): Promise<{ success: boolean; licenses: LicenseItem[] }> {
     const url = appId ? `/api/v1/license/list?appId=${appId}` : withMode("/api/v1/license/list");
     const res = await fetch(url);
-    return res.json();
+    return parseJson(res);
   },
 
   async issueLicense(data: {
@@ -147,7 +169,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async revokeLicense(licenseKey: string) {
@@ -156,7 +178,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey }),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async unbindHardware(licenseKey: string) {
@@ -165,7 +187,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey }),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async validateLicense(data: { licenseKey: string; appId: string; hardwareId?: string }) {
@@ -174,7 +196,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async activateLicense(data: {
@@ -188,7 +210,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async verifyLicense(data: { licenseKey: string; hwid?: string }) {
@@ -197,7 +219,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async deactivateLicense(data: { licenseKey: string; hwid: string }) {
@@ -206,12 +228,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async getAiVault(appId: string): Promise<{ success: boolean; credentials: VaultCredentialItem[] }> {
     const res = await fetch(`/api/v1/ai-proxy/vault/${appId}`);
-    return res.json();
+    return parseJson(res);
   },
 
   async saveAiVault(data: {
@@ -225,7 +247,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async toggleAiKillSwitch(data: { appId: string; provider: "openai" | "anthropic" | "gemini" }) {
@@ -234,12 +256,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async getAiProxyLogs(appId: string): Promise<{ success: boolean; logs: AiProxyLogItem[] }> {
     const res = await fetch(`/api/v1/ai-proxy/logs/${appId}`);
-    return res.json();
+    return parseJson(res);
   },
 
   async testAiProxy(data: { licenseKey: string; appId: string; prompt: string; provider?: string; modelAlias?: string; stream?: boolean }) {
@@ -248,12 +270,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async getAiQuotaStatus(licenseKey: string, modelAlias = "default"): Promise<{ success: boolean; data: AiQuotaStatus; error?: string; message?: string }> {
     const res = await fetch(`/api/v1/ai/quota-status?licenseKey=${encodeURIComponent(licenseKey)}&modelAlias=${encodeURIComponent(modelAlias)}`);
-    return res.json();
+    return parseJson(res);
   },
 
   async streamAiChat(
@@ -267,8 +289,8 @@ export const api = {
     });
 
     if (!res.ok) {
-      const errJson = await res.json();
-      throw new Error(errJson.message || errJson.error || "Gagal streaming AI.");
+      const errJson = await res.json().catch(() => ({} as any));
+      throw new Error(errJson.message || errJson.error || `Gagal streaming AI (HTTP ${res.status}).`);
     }
 
     if (!res.body) return;
@@ -311,12 +333,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async getWidgetBadge(appSlug: string) {
     const res = await fetch(`/api/v1/widgets/badge/${appSlug}`);
-    return res.json();
+    return parseJson(res);
   },
 
   // Customer Portal
@@ -326,12 +348,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, licenseKey }),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async getPortalLicenses(token: string): Promise<{ success: boolean; count: number; licenses: PortalLicenseItem[]; error?: string }> {
     const res = await fetch(`/api/v1/portal/licenses?token=${encodeURIComponent(token)}`);
-    return res.json();
+    return parseJson(res);
   },
 
   async deactivatePortalDevice(data: { licenseKey: string; hwidHash: string; customerEmail: string }): Promise<{ success: boolean; message: string; remainingSeats: number; error?: string }> {
@@ -340,19 +362,19 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async getPortalTransactions(token: string): Promise<{ success: boolean; count: number; transactions: PortalTransactionItem[]; error?: string }> {
     const res = await fetch(`/api/v1/portal/transactions?token=${encodeURIComponent(token)}`);
-    return res.json();
+    return parseJson(res);
   },
 
   // Coupons (Modul 1: Monetization)
   async getCoupons(appId?: string): Promise<{ success: boolean; count: number; coupons: CouponItem[]; error?: string }> {
     const url = appId ? `/api/v1/coupons?appId=${encodeURIComponent(appId)}` : withMode("/api/v1/coupons");
     const res = await fetch(url);
-    return res.json();
+    return parseJson(res);
   },
 
   async createCoupon(data: {
@@ -367,7 +389,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async updateCoupon(
@@ -379,14 +401,14 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async deleteCoupon(couponId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     const res = await fetch(`/api/v1/coupons/${couponId}`, {
       method: "DELETE",
     });
-    return res.json();
+    return parseJson(res);
   },
 
   async getCouponStats(days = 7, appId?: string): Promise<{
@@ -402,18 +424,18 @@ export const api = {
     if (appId) params.append("appId", appId);
     else params.append("mode", dashboardEnv.value);
     const res = await fetch(`/api/v1/coupons/stats?${params.toString()}`);
-    return res.json();
+    return parseJson(res);
   },
 
   // Super Admin Panel
   async getPanelStats(): Promise<{ success: boolean; data: PanelStats; error?: string }> {
     const res = await fetch("/api/v1/panel/stats");
-    return res.json();
+    return parseJson(res);
   },
 
   async getPanelBuilders(): Promise<{ success: boolean; count: number; builders: PanelBuilderItem[]; error?: string }> {
     const res = await fetch("/api/v1/panel/builders");
-    return res.json();
+    return parseJson(res);
   },
 
   async getPanelTransactions(limit = 100, status?: string): Promise<{ success: boolean; count: number; transactions: PanelTransactionItem[]; error?: string }> {
@@ -421,7 +443,7 @@ export const api = {
     if (limit) query.append("limit", limit.toString());
     if (status) query.append("status", status);
     const res = await fetch(`/api/v1/panel/transactions?${query.toString()}`);
-    return res.json();
+    return parseJson(res);
   },
 
   async triggerBatchPayout(): Promise<{ success: boolean; message: string; processedCount: number; totalDisbursed: number; details: any[]; error?: string }> {
@@ -429,7 +451,7 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });
-    return res.json();
+    return parseJson(res);
   },
 
 

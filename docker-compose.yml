@@ -6,16 +6,50 @@ services:
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-tertaut}
+      POSTGRES_DB: ${DB_NAME:-tertautv2}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-tertaut}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-tertautv2}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tertaut_app
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-tertautv2}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
+      # Wajib diisi di production (lihat .env.example) — nilai default akan ditolak config.
+      JWT_SECRET: ${JWT_SECRET:-}
+      VAULT_ENCRYPTION_KEY: ${VAULT_ENCRYPTION_KEY:-}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      LICENSE_SIGNING_PRIVATE_KEY: ${LICENSE_SIGNING_PRIVATE_KEY:-}
+      HWID_SALT: ${HWID_SALT:-}
+      # Payment gateway (xendit | dana)
+      PAYMENT_GATEWAY: ${PAYMENT_GATEWAY:-xendit}
+      XENDIT_SECRET_KEY: ${XENDIT_SECRET_KEY:-}
+      XENDIT_PUBLIC_KEY: ${XENDIT_PUBLIC_KEY:-}
+      XENDIT_WEBHOOK_VERIFICATION_TOKEN: ${XENDIT_WEBHOOK_VERIFICATION_TOKEN:-}
+      DANA_CLIENT_ID: ${DANA_CLIENT_ID:-}
+      DANA_CLIENT_SECRET: ${DANA_CLIENT_SECRET:-}
+      DANA_MERCHANT_ID: ${DANA_MERCHANT_ID:-}
+      DANA_BASE_URL: ${DANA_BASE_URL:-https://api-sandbox.dana.id}
+      DANA_PUBLIC_KEY: ${DANA_PUBLIC_KEY:-}
+      DANA_PRIVATE_KEY: ${DANA_PRIVATE_KEY:-}
+    ports:
+      - "${APP_PORT:-3000}:3000"
 
   redis:
     image: redis:7-alpine

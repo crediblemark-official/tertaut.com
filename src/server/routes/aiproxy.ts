@@ -286,22 +286,31 @@ async function handleAiChat({
   }
 
   const license = validation.license;
-  const appId = body.appId || license.appId;
+
+  // Entitlement terikat pada app pemilik lisensi — body.appId tidak boleh dipercaya
+  // mentah, jika tidak lisensi app A bisa membakar vault/kredensial app B (cross-app leak).
+  if (body.appId && body.appId !== license.appId) {
+    set.status = 403;
+    return {
+      success: false,
+      error: "APP_MISMATCH",
+      message: "Lisensi ini tidak berlaku untuk aplikasi yang diminta.",
+    };
+  }
+  const appId = license.appId;
 
   // 2. Strict Request Rate Limiter (FR-3.2)
   // Nilai maxRequestsPerMin diambil dari config app di DB (kolom max_requests_per_min);
   // fallback 15 req/menit untuk config default. Nilai 0/negatif diartikan unlimited.
   let maxRequestsPerMin = 15;
-  if (body.appId) {
-    const reqLimitConfig = await db.query.aiAppConfigs.findFirst({
-      where: and(
-        eq(aiAppConfigs.appId, body.appId),
-        eq(aiAppConfigs.modelAlias, body.modelAlias || "default")
-      ),
-    });
-    if (reqLimitConfig?.maxRequestsPerMin && reqLimitConfig.maxRequestsPerMin > 0) {
-      maxRequestsPerMin = reqLimitConfig.maxRequestsPerMin;
-    }
+  const reqLimitConfig = await db.query.aiAppConfigs.findFirst({
+    where: and(
+      eq(aiAppConfigs.appId, appId),
+      eq(aiAppConfigs.modelAlias, body.modelAlias || "default")
+    ),
+  });
+  if (reqLimitConfig?.maxRequestsPerMin && reqLimitConfig.maxRequestsPerMin > 0) {
+    maxRequestsPerMin = reqLimitConfig.maxRequestsPerMin;
   }
   const rateLimit = AiGatewayService.checkRateLimit(
     license.id || license.licenseKey,

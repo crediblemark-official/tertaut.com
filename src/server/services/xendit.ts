@@ -7,6 +7,8 @@ export interface CreateInvoiceParams {
   description: string;
   successRedirectUrl?: string;
   failureRedirectUrl?: string;
+  /** Batasi kanal pembayaran invoice (mis. ["QRIS"], ["BCA"], ["OVO"]). */
+  paymentMethods?: string[];
   /** Paksa respons invoice mock untuk aplikasi yang berjalan dalam mode sandbox. */
   forceMock?: boolean;
 }
@@ -130,6 +132,9 @@ export class XenditService {
         description: params.description,
         success_redirect_url: params.successRedirectUrl,
         failure_redirect_url: params.failureRedirectUrl,
+        ...(params.paymentMethods && params.paymentMethods.length > 0
+          ? { payment_methods: params.paymentMethods }
+          : {}),
       }),
     });
 

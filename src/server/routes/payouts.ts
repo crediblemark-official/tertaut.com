@@ -23,7 +23,7 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
    */
   .post(
     "/trigger",
-    async ({ body, set }) => {
+    async ({ body, set, request }) => {
       const { amount, builderId, mode } = body || {};
 
       // Environment Sandbox tidak boleh mencairkan dana nyata.
@@ -35,15 +35,32 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
         };
       }
 
-      // Dapatkan profil builder. Tanpa sesi terautentikasi, pemanggil wajib
-      // menyebut builder mana yang dicairkan supaya saldo tidak pernah tercampur.
-      const builder = builderId
+      // Jangan pernah menebak builder: saldo harus selalu milik pemanggil.
+      // Admin boleh menyebut builder mana pun; non-admin hanya builder miliknya.
+      const authResult = await authenticate(request.headers);
+      if ("status" in authResult) {
+        set.status = authResult.status;
+        return { success: false, error: authResult.error };
+      }
+      const isAdmin = authResult.user.role === "admin";
+
+      let builder = builderId
         ? await db.query.builders.findFirst({ where: eq(builders.id, builderId) })
-        : await db.query.builders.findFirst();
+        : await db.query.builders.findFirst({ where: eq(builders.userId, authResult.user.id) });
+
+      if (builder && !isAdmin && builder.userId !== authResult.user.id) {
+        set.status = 403;
+        return { success: false, error: "Anda hanya dapat mencairkan saldo builder milik sendiri." };
+      }
 
       if (!builder) {
-        set.status = 404;
-        return { success: false, error: "Builder account not found" };
+        set.status = builderId ? 404 : 400;
+        return {
+          success: false,
+          error: builderId
+            ? "Builder account not found"
+            : "builderId wajib diisi: tidak ada profil builder yang tertaut ke akun ini.",
+        };
       }
 
       // Hanya transaksi dari aplikasi mode LIVE yang boleh dicairkan.

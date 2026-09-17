@@ -404,7 +404,7 @@ Path traversal (`index.ts`), CORS whitelist, atomic disbursement lock + pemetaan
 9. **`drizzle.config.ts` fallback ke DB `tertaut`** sedangkan config server fallback `tertautv2` — inkonsistensi lama #10 luput di drizzle config.
 
 ### Test Coverage
-- `src/server/__test/server.test.ts`: **41 test** — 29 di atas + auth Better Auth, seat race atomik, migrasi HWID salted, Ed25519 offline token + denylist `jti` + JWKS + verifikasi lokal SDK.
+- `src/server/__test/server.test.ts`: **44 test** — 29 di atas + auth Better Auth, seat race atomik, migrasi HWID salted, Ed25519 offline token + denylist `jti` + JWKS + verifikasi lokal SDK, cross-app AI guard, status terminal webhook invoice/disbursement.
 - Catatan: test E2E butuh server berjalan di `localhost:3000` + Postgres; test kupon aman di sandbox karena `XENDIT_SECRET_KEY` mock → invoice mock, bukan tagihan nyata.
 
 ---
@@ -419,9 +419,16 @@ Sudah diperbaiki:
 - ✅ **Token offline HS256 → Ed25519** — `LicenseTokenService` (EdDSA, `kid`, `jti`), JWKS + public key PEM, revoke via denylist `revoked_tokens`, verifikasi lokal SDK via Web Crypto.
 - ✅ **Deviasi SDK** — hapus fallback email demo; `customerEmail` wajib saat checkout.
 - ✅ **HWID hash tanpa salt** — kini HMAC-SHA256 (`HWID_SALT`/`JWT_SECRET`, prefix `hw2:`) dengan migrasi transparan untuk binding legacy.
-- ✅ **Data demo/hardcode** — `pembeli@tertaut.com`, `customer@example.com` dihapus dari checkout/portal/SDK.
+- ✅ **Data demo/hardcode** — `pembeli@tertaut.com`, `customer@example.com` dihapus dari checkout/portal/SDK; social-proof widget di `DocsView` kini menarik angka asli dari `/widgets/badge/:slug`.
+- ✅ **Cross-app entitlement leak AI** — `body.appId` tidak lagi dipercaya; lisensi app A tidak bisa memakai vault app B (`APP_MISMATCH`).
+- ✅ **Webhook status terminal** — invoice Xendit `FAILED`/`EXPIRED` kini ditandai dan tidak menurunkan transaksi `PAID`; callback disbursement Xendit ditambahkan (`/webhook/xendit/disbursement`) + guard status terminal DANA.
+- ✅ **Payout tanpa builder** — `/payouts/trigger` tidak lagi menebak builder pertama; non-admin hanya boleh mencairkan builder miliknya.
+- ✅ **N+1 panel** — `/panel/stats` (agregasi SQL), `/panel/builders`, dan `/panel/transactions` memakai batch query.
+- ✅ **Clipboard non-secure** — `useClipboard` (dengan fallback `execCommand`) dipakai di Landing/Docs/Licensing/CustomerPortal.
+- ✅ **`selectedPaymentRail`** — pilihan QRIS/VA/E-Wallet kini dikirim `paymentRail` → `payment_methods` Xendit.
+- ✅ **Docker Compose** — service `app` (build Dockerfile) ditambahkan, depend on Postgres sehat; default DB diselaraskan ke `tertautv2`.
 
 Masih tertunda:
 - ⏳ **`grantCredits` inert** — hanya disimpan di `transactions`, belum ada ledger/saldo kredit; penegakan menunggu spek produk (ditandai TODO di `schema/transactions.ts` & `routes/checkout.ts`).
+- ⏳ **Email delivery hilang** — pilih provider (Resend/SMTP) sebelum mengembalikan janji kirim lisensi via email.
 - ⏳ Publish SDK ke npm dan ganti endpoint docs `localhost:3000`.
-- ⏳ Hapus hardcode "89 Lisensi Terjual" (`DocsView.vue`).

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useClipboard } from '../composables/useClipboard'
 import {
   CreditCard,
   KeyRound,
@@ -19,18 +20,14 @@ import {
   X
 } from 'lucide-vue-next'
 
-const copiedSdk = ref(false)
+const { copied: copiedSdk, copy: writeClipboard } = useClipboard()
 const isMobileMenuOpen = ref(false)
 const activeDemoTab = ref<'checkout' | 'badge'>('checkout')
 const selectedDemoChannel = ref('QRIS Instan')
 const selectedDemoBadge = ref('verified')
 
 function copySdkInstall() {
-  navigator.clipboard.writeText('npm install @tertaut/sdk')
-  copiedSdk.value = true
-  setTimeout(() => {
-    copiedSdk.value = false
-  }, 2000)
+  writeClipboard('npm install @tertaut/sdk')
 }
 </script>
 

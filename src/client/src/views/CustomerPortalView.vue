@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   AlertTriangle
 } from 'lucide-vue-next'
+import { useClipboard } from '../composables/useClipboard'
 import PortalSearchHero from '../components/portal/PortalSearchHero.vue'
 import CustomerLicenseCard from '../components/portal/CustomerLicenseCard.vue'
 import CustomerTransactionTable from '../components/portal/CustomerTransactionTable.vue'
@@ -35,6 +36,7 @@ const activeTab = ref<'licenses' | 'transactions'>('licenses')
 const alertMessage = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 const copiedKey = ref<string | null>(null)
 const deactivatingHwid = ref<string | null>(null)
+const { copy: writeClipboard } = useClipboard()
 
 // Offline Token Modal State
 const selectedJwtLicense = ref<PortalLicenseItem | null>(null)
@@ -49,8 +51,12 @@ function showAlert(type: 'success' | 'error', text: string) {
   }, 4000)
 }
 
-function copyToClipboard(text: string, id: string) {
-  navigator.clipboard.writeText(text)
+async function copyToClipboard(text: string, id: string) {
+  const ok = await writeClipboard(text)
+  if (!ok) {
+    showAlert('error', 'Gagal menyalin ke clipboard. Salin manual dari kartu lisensi.')
+    return
+  }
   copiedKey.value = id
   showAlert('success', 'Berhasil disalin ke clipboard!')
   setTimeout(() => {
