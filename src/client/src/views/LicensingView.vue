@@ -2,9 +2,8 @@
 import { ref, onMounted, watch } from 'vue'
 import { api, type AppItem, type LicenseItem, type LicensePlatform } from '../lib/api'
 import { dashboardEnv } from '../lib/environment'
-import { KeyRound, Plus, CheckCircle2 } from 'lucide-vue-next'
+import { CheckCircle2 } from 'lucide-vue-next'
 import { useClipboard } from '../composables/useClipboard'
-import PlatformBadges from '../components/licensing/PlatformBadges.vue'
 import LicenseTable from '../components/licensing/LicenseTable.vue'
 import LicenseValidatorPanel from '../components/licensing/LicenseValidatorPanel.vue'
 import IssueLicenseModal from '../components/licensing/IssueLicenseModal.vue'
@@ -225,29 +224,6 @@ watch(dashboardEnv, () => {
 
 <template>
   <div class="space-y-6 animate-fadeIn pb-12">
-    <!-- Compact Action Bar -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1 border-b border-[#111111]/10">
-      <div class="flex items-center gap-2">
-        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[#111111] text-xs font-bold">
-          <KeyRound class="w-3.5 h-3.5 text-[#D4AF37]" />
-          <span>Universal Licensing</span>
-        </span>
-        <span class="text-xs text-[#111111]/50 font-medium hidden sm:inline">
-          Hardware ID Binding • Device Seats • 30-Day Offline JWT Grace
-        </span>
-      </div>
-
-      <div class="flex items-center gap-2">
-        <button
-          @click="isIssueModalOpen = true"
-          class="btn-gold px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-sm"
-        >
-          <Plus class="w-3.5 h-3.5 stroke-[3]" />
-          <span>Terbitkan Lisensi Baru</span>
-        </button>
-      </div>
-    </div>
-
     <!-- Alert Feedback -->
     <div
       v-if="actionFeedback"
@@ -257,14 +233,12 @@ watch(dashboardEnv, () => {
       <span>{{ actionFeedback }}</span>
     </div>
 
-    <!-- Architectural Multi-Platform Badges -->
-    <PlatformBadges />
-
     <!-- Active Licenses Table Component -->
     <LicenseTable
       :licenses-list="licensesList"
       :loading="loadingLicenses"
       @refresh="loadData"
+      @issue="isIssueModalOpen = true"
       @copy="copyToClipboard"
       @select-test="selectLicenseForTest"
       @unbind-hardware="unbindHardware"

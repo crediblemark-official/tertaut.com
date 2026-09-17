@@ -4,7 +4,8 @@ import {
   RefreshCw,
   Search,
   Copy,
-  Monitor
+  Monitor,
+  Plus
 } from 'lucide-vue-next'
 import type { LicenseItem } from '../../types'
 
@@ -15,6 +16,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'refresh'): void
+  (e: 'issue'): void
   (e: 'copy', key: string): void
   (e: 'selectTest', lic: LicenseItem): void
   (e: 'unbindHardware', lic: LicenseItem): void
@@ -49,24 +51,28 @@ const filteredLicenses = computed(() => {
 <template>
   <div class="space-y-4">
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#111111]/10">
-      <div>
-        <h2 class="text-sm font-bold text-[#111111]">Daftar Kunci Lisensi Aktif</h2>
-        <p class="text-xs text-[#111111]/60">Daftar kunci lisensi yang diterbitkan di database, status hardware binding, dan kuota perangkat.</p>
-      </div>
+    <div class="flex items-center justify-between gap-3 pb-2 border-b border-[#111111]/10">
+      <h2 class="text-sm font-bold text-[#111111]">Daftar Kunci Lisensi Aktif</h2>
       <div class="flex items-center gap-2">
         <button
           @click="emit('refresh')"
-          class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 text-xs font-bold text-[#111111] cursor-pointer"
+          class="inline-flex items-center gap-1 px-2.5 h-9 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 text-xs font-bold text-[#111111] cursor-pointer transition"
         >
           <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': loading }" />
           <span>Segarkan</span>
+        </button>
+        <button
+          @click="emit('issue')"
+          class="btn-gold px-3 h-9 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-sm"
+        >
+          <Plus class="w-3.5 h-3.5 stroke-[3]" />
+          <span>Terbitkan Lisensi</span>
         </button>
       </div>
     </div>
 
     <!-- Search & Filters Toolbar -->
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-[#111111]/10">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-[#111111]/10">
       <!-- Search Input -->
       <div class="relative flex-1 max-w-sm">
         <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#111111]/40" />
@@ -74,57 +80,57 @@ const filteredLicenses = computed(() => {
           v-model="searchQuery"
           type="text"
           placeholder="Cari Kunci (TT-...), Email, atau App ID..."
-          class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#111111]/5 border border-[#111111]/10 text-xs text-[#111111] placeholder:text-[#111111]/40 focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
+          class="w-full h-9 pl-8 pr-3 rounded-lg bg-white border border-slate-300/80 hover:border-slate-400 text-xs text-[#111111] placeholder:text-[#111111]/40 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] shadow-2xs transition"
         />
       </div>
 
       <!-- Platform & Status Filter Tabs -->
       <div class="flex flex-wrap items-center gap-1.5 text-xs">
         <!-- Platform Filter -->
-        <div class="flex items-center rounded-lg bg-[#111111]/5 p-0.5 text-[11px] font-medium">
+        <div class="flex items-center h-9 rounded-lg bg-[#111111]/5 p-0.5 text-[11px] font-medium">
           <button
             @click="platformFilter = 'ALL'"
-            :class="['px-2 py-0.5 rounded-md transition cursor-pointer', platformFilter === 'ALL' ? 'bg-white font-bold shadow-xs text-[#111111]' : 'text-[#111111]/60 hover:text-[#111111]']"
+            :class="['px-2 h-full rounded-md transition cursor-pointer flex items-center', platformFilter === 'ALL' ? 'bg-white font-bold shadow-xs text-[#111111]' : 'text-[#111111]/60 hover:text-[#111111]']"
           >
-            Semua Platform
+            Semua
           </button>
           <button
             @click="platformFilter = 'desktop'"
-            :class="['px-2 py-0.5 rounded-md transition cursor-pointer', platformFilter === 'desktop' ? 'bg-white font-bold shadow-xs text-[#111111]' : 'text-[#111111]/60 hover:text-[#111111]']"
+            :class="['px-2 h-full rounded-md transition cursor-pointer flex items-center', platformFilter === 'desktop' ? 'bg-white font-bold shadow-xs text-[#111111]' : 'text-[#111111]/60 hover:text-[#111111]']"
           >
             Desktop
           </button>
           <button
             @click="platformFilter = 'chrome_extension'"
-            :class="['px-2 py-0.5 rounded-md transition cursor-pointer', platformFilter === 'chrome_extension' ? 'bg-white font-bold shadow-xs text-[#111111]' : 'text-[#111111]/60 hover:text-[#111111]']"
+            :class="['px-2 h-full rounded-md transition cursor-pointer flex items-center', platformFilter === 'chrome_extension' ? 'bg-white font-bold shadow-xs text-[#111111]' : 'text-[#111111]/60 hover:text-[#111111]']"
           >
             Chrome
           </button>
           <button
             @click="platformFilter = 'android'"
-            :class="['px-2 py-0.5 rounded-md transition cursor-pointer', platformFilter === 'android' ? 'bg-white font-bold shadow-xs text-[#111111]' : 'text-[#111111]/60 hover:text-[#111111]']"
+            :class="['px-2 h-full rounded-md transition cursor-pointer flex items-center', platformFilter === 'android' ? 'bg-white font-bold shadow-xs text-[#111111]' : 'text-[#111111]/60 hover:text-[#111111]']"
           >
             Android
           </button>
         </div>
 
         <!-- Status Filter -->
-        <div class="flex items-center rounded-lg bg-[#111111]/5 p-0.5 text-[11px] font-medium">
+        <div class="flex items-center h-9 rounded-lg bg-[#111111]/5 p-0.5 text-[11px] font-medium">
           <button
             @click="statusFilter = 'ALL'"
-            :class="['px-2 py-0.5 rounded-md transition cursor-pointer', statusFilter === 'ALL' ? 'bg-white font-bold shadow-xs text-[#111111]' : 'text-[#111111]/60 hover:text-[#111111]']"
+            :class="['px-2 h-full rounded-md transition cursor-pointer flex items-center', statusFilter === 'ALL' ? 'bg-white font-bold shadow-xs text-[#111111]' : 'text-[#111111]/60 hover:text-[#111111]']"
           >
-            Semua Status
+            Semua
           </button>
           <button
             @click="statusFilter = 'ACTIVE'"
-            :class="['px-2 py-0.5 rounded-md transition cursor-pointer', statusFilter === 'ACTIVE' ? 'bg-[#0F4C3A] font-bold text-white shadow-xs' : 'text-[#0F4C3A] hover:bg-[#0F4C3A]/10']"
+            :class="['px-2 h-full rounded-md transition cursor-pointer flex items-center', statusFilter === 'ACTIVE' ? 'bg-[#0F4C3A] font-bold text-white shadow-xs' : 'text-[#0F4C3A] hover:bg-[#0F4C3A]/10']"
           >
             Active
           </button>
           <button
             @click="statusFilter = 'REVOKED'"
-            :class="['px-2 py-0.5 rounded-md transition cursor-pointer', statusFilter === 'REVOKED' ? 'bg-[#8B0000] font-bold text-white shadow-xs' : 'text-[#8B0000] hover:bg-[#8B0000]/10']"
+            :class="['px-2 h-full rounded-md transition cursor-pointer flex items-center', statusFilter === 'REVOKED' ? 'bg-[#8B0000] font-bold text-white shadow-xs' : 'text-[#8B0000] hover:bg-[#8B0000]/10']"
           >
             Revoked
           </button>
@@ -137,13 +143,13 @@ const filteredLicenses = computed(() => {
       <table class="w-full text-left text-xs whitespace-nowrap">
         <thead class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
           <tr>
-            <th class="py-2.5 pr-3 pl-0">Kunci Lisensi</th>
-            <th class="py-2.5 px-3">Aplikasi</th>
-            <th class="py-2.5 px-3">Email Pemilik</th>
-            <th class="py-2.5 px-3">Platform</th>
-            <th class="py-2.5 px-3">Device Seats</th>
-            <th class="py-2.5 px-3">Status</th>
-            <th class="py-2.5 pl-3 pr-0 text-right">Aksi</th>
+            <th class="py-2 pr-3 pl-0">Kunci Lisensi</th>
+            <th class="py-2 px-3">Aplikasi</th>
+            <th class="py-2 px-3">Email Pemilik</th>
+            <th class="py-2 px-3">Platform</th>
+            <th class="py-2 px-3">Device Seats</th>
+            <th class="py-2 px-3">Status</th>
+            <th class="py-2 pl-3 pr-0 text-right">Aksi</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[#111111]/5">
@@ -158,7 +164,7 @@ const filteredLicenses = computed(() => {
             </td>
           </tr>
           <tr v-for="lic in filteredLicenses" :key="lic.id" class="hover:bg-[#111111]/[0.02]">
-            <td class="py-3 pr-3 pl-0 font-mono">
+            <td class="py-2 pr-3 pl-0 font-mono">
               <div class="inline-flex items-center gap-1.5 font-bold text-[#111111]">
                 <span>{{ lic.licenseKey }}</span>
                 <button
@@ -170,10 +176,10 @@ const filteredLicenses = computed(() => {
                 </button>
               </div>
             </td>
-            <td class="py-3 px-3 text-[#111111]/70 font-mono text-[11px]">{{ lic.appId }}</td>
-            <td class="py-3 px-3 text-[#111111]/80">{{ lic.customerEmail }}</td>
-            <td class="py-3 px-3 capitalize font-mono text-[11px] text-[#111111]/70">{{ lic.platform }}</td>
-            <td class="py-3 px-3">
+            <td class="py-2 px-3 text-[#111111]/70 font-mono text-[11px]">{{ lic.appId }}</td>
+            <td class="py-2 px-3 text-[#111111]/80">{{ lic.customerEmail }}</td>
+            <td class="py-2 px-3 capitalize font-mono text-[11px] text-[#111111]/70">{{ lic.platform }}</td>
+            <td class="py-2 px-3">
               <div
                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
                 :class="lic.seatsUsed && lic.seatsUsed >= (lic.maxSeats || 3) ? 'bg-[#8B0000]/10 text-[#8B0000]' : 'bg-[#111111]/5 text-[#111111]'"
@@ -201,7 +207,7 @@ const filteredLicenses = computed(() => {
                 Primary HWID: {{ lic.hardwareId.substring(0, 8) }}...
               </div>
             </td>
-            <td class="py-3 px-3">
+            <td class="py-2 px-3">
               <span
                 class="px-2 py-0.5 rounded-full text-[10px] font-bold"
                 :class="{
@@ -213,7 +219,7 @@ const filteredLicenses = computed(() => {
                 {{ lic.status }}
               </span>
             </td>
-            <td class="py-3 pl-3 pr-0 text-right space-x-1.5">
+            <td class="py-2 pl-3 pr-0 text-right space-x-1.5">
               <button
                 @click="emit('selectTest', lic)"
                 title="Gunakan untuk uji validasi"

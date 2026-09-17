@@ -1,73 +1,99 @@
 <script setup lang="ts">
 import { Sparkles } from 'lucide-vue-next'
 import { formatRupiah } from '../../lib/utils'
+import type { AppItem } from '../../lib/api'
+import SearchPicker from '../common/SearchPicker.vue'
 
 defineProps<{
   loading: boolean
+  appsList?: AppItem[]
 }>()
 
+const selectedAppId = defineModel<string>('selectedAppId', { default: '' })
 const amount = defineModel<number>('amount', { default: 49000 })
 const customerEmail = defineModel<string>('customerEmail', { default: '' })
 const grantDays = defineModel<number>('grantDays', { default: 30 })
 
 const emit = defineEmits<{
   (e: 'createCheckout'): void
+  (e: 'appChange'): void
 }>()
 </script>
 
 <template>
-  <div class="space-y-4">
-    <h2 class="text-sm font-bold text-[#111111]">Buat Sesi Dynamic Checkout</h2>
+  <div class="space-y-3">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xs font-bold uppercase tracking-wider text-[#111111]/80">Buat Sesi Dynamic Checkout</h2>
+    </div>
 
-    <div class="space-y-3 text-xs">
-      <div>
-        <label class="block font-bold text-[#111111]/70 mb-1">Nominal Pembayaran (IDR)</label>
-        <input
-          v-model.number="amount"
-          type="number"
-          step="1000"
-          class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] font-mono font-bold focus:outline-none focus:border-[#D4AF37]"
-        />
-      </div>
-
-      <div>
-        <label class="block font-bold text-[#111111]/70 mb-1">Email Pembeli</label>
-        <input
-          v-model="customerEmail"
-          type="email"
-          class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] focus:outline-none focus:border-[#D4AF37]"
-        />
-      </div>
-
-      <div>
-        <label class="block font-bold text-[#111111]/70 mb-1">Masa Aktif Lisensi (Hari)</label>
-        <input
-          v-model.number="grantDays"
-          type="number"
-          class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] font-mono focus:outline-none focus:border-[#D4AF37]"
-        />
-      </div>
-
-      <!-- Fee Breakdown Live Preview (Compact Luxury) -->
-      <div class="p-3 rounded-lg bg-[#111111]/[0.02] border border-[#111111]/10 space-y-1.5 text-xs">
-        <div class="flex justify-between text-[#111111]/70">
-          <span>Gross Amount:</span>
-          <span class="font-mono font-bold text-[#111111]">{{ formatRupiah(amount) }}</span>
+    <div class="space-y-2.5 text-xs">
+      <!-- 2-Column Input Grid for Compact Density & Perfect Alignment -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <!-- Target Software Selector (Integrated with form) -->
+        <div v-if="appsList && appsList.length > 0">
+          <label class="block font-bold text-[11px] text-[#111111]/70 mb-1">Target Software</label>
+          <SearchPicker
+            v-model="selectedAppId"
+            :items="appsList"
+            @change="emit('appChange')"
+            placeholder="Pilih software..."
+            search-placeholder="Cari software..."
+            button-class="w-full !h-9 !rounded-lg !min-w-0 justify-between px-3 text-xs border-slate-300/80 hover:border-slate-400 bg-white shadow-2xs focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37]"
+          />
         </div>
-        <div class="flex justify-between text-[#111111]/70">
-          <span>Platform Fee (5%):</span>
-          <span class="font-mono font-bold text-[#8B0000]">- {{ formatRupiah(Math.round(amount * 0.05)) }}</span>
+
+        <div>
+          <label class="block font-bold text-[11px] text-[#111111]/70 mb-1">Nominal Pembayaran (IDR)</label>
+          <input
+            v-model.number="amount"
+            type="number"
+            step="1000"
+            class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] shadow-2xs transition"
+          />
         </div>
-        <div class="border-t border-[#111111]/10 pt-1.5 flex justify-between font-bold text-xs">
-          <span class="text-[#111111]">Net Pencairan Builder (95%):</span>
-          <span class="font-mono text-[#0F4C3A] bg-[#0F4C3A]/10 px-1.5 py-0.5 rounded">{{ formatRupiah(amount - Math.round(amount * 0.05)) }}</span>
+
+        <div>
+          <label class="block font-bold text-[11px] text-[#111111]/70 mb-1">Email Pembeli (Opsional)</label>
+          <input
+            v-model="customerEmail"
+            type="email"
+            placeholder="buyer@example.com"
+            class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] shadow-2xs transition"
+          />
+        </div>
+
+        <div>
+          <label class="block font-bold text-[11px] text-[#111111]/70 mb-1">Masa Aktif Lisensi (Hari)</label>
+          <input
+            v-model.number="grantDays"
+            type="number"
+            class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] shadow-2xs transition"
+          />
         </div>
       </div>
 
+      <!-- Compact Fee Breakdown Live Preview Strip -->
+      <div class="px-3 py-2 rounded-lg bg-[#111111]/[0.02] border border-[#111111]/10 text-xs">
+        <div class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
+          <div class="flex items-center gap-3 text-[#111111]/70 text-[11px]">
+            <span>Gross: <strong class="font-mono text-[#111111] font-bold">{{ formatRupiah(amount) }}</strong></span>
+            <span class="text-[#111111]/30">•</span>
+            <span>Fee 5%: <strong class="font-mono text-[#8B0000] font-bold">-{{ formatRupiah(Math.round(amount * 0.05)) }}</strong></span>
+          </div>
+          <div class="flex items-center gap-1.5 font-bold">
+            <span class="text-[11px] text-[#111111]/60">Net Payout (95%):</span>
+            <span class="font-mono text-[#0F4C3A] bg-[#0F4C3A]/10 px-2 py-0.5 rounded text-xs font-black">
+              {{ formatRupiah(amount - Math.round(amount * 0.05)) }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Button -->
       <button
         @click="emit('createCheckout')"
         :disabled="loading"
-        class="w-full py-2.5 rounded-lg btn-gold text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
+        class="w-full py-2 rounded-lg btn-gold text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs active:scale-95 cursor-pointer disabled:opacity-50"
       >
         <Sparkles class="w-3.5 h-3.5" />
         <span>{{ loading ? 'Menghubungkan ke API Xendit...' : 'Generate Dynamic Checkout Link' }}</span>

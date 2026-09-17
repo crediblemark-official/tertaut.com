@@ -101,65 +101,59 @@ watch(dashboardEnv, () => {
 </script>
 
 <template>
-  <div class="space-y-5 animate-fadeIn">
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-[#111111]/10">
-      <div>
-        <h1 class="text-base font-extrabold text-[#111111] tracking-tight">Katalog Aplikasi Builder</h1>
-        <p class="text-xs text-[#111111]/60">Kelola status peluncuran, endpoint vanity slug, dan badge lisensi terverifikasi.</p>
-      </div>
+  <div class="space-y-3.5 animate-fadeIn pb-8">
+    <!-- Unified Header & Toolbar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-[#111111]/10">
       <div class="flex items-center gap-2">
-        <button
-          @click="isCreateModalOpen = true"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gold text-xs font-bold transition shadow-sm cursor-pointer active:scale-95"
-        >
-          <Plus class="w-3.5 h-3.5 stroke-[3]" />
-          <span>Tambah Produk</span>
-        </button>
-        <span class="text-[10px] px-2 py-0.5 rounded-full bg-[#111111]/5 text-[#111111] font-bold">
+        <h1 class="text-xs font-bold uppercase tracking-wider text-[#111111]/80">Katalog Aplikasi</h1>
+        <span class="text-[10px] px-2 py-0.5 rounded-full bg-[#111111]/5 text-[#111111]/70 font-mono font-bold">
           {{ appsList.length }} apps
         </span>
-      </div>
-    </div>
-
-    <!-- Search & Environment Badge Toolbar -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#111111]/10">
-      <div class="relative flex-1 max-w-sm">
-        <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#111111]/40" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Cari nama atau slug aplikasi..."
-          class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#111111]/5 border border-[#111111]/10 text-xs text-[#111111] placeholder:text-[#111111]/40 focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
-        />
-      </div>
-
-      <div class="flex items-center gap-2 text-xs">
         <span
-          class="px-2.5 py-1 rounded-md font-bold text-[11px]"
-          :class="dashboardEnv === 'sandbox' ? 'bg-[#D4AF37]/15 text-[#8a6d1f] border border-[#D4AF37]/35' : 'bg-[#0F4C3A]/10 text-[#0F4C3A] border border-[#0F4C3A]/25'"
+          class="px-2 py-0.5 rounded-md font-bold text-[10px]"
+          :class="dashboardEnv === 'sandbox' ? 'bg-[#D4AF37]/15 text-[#8a6d1f]' : 'bg-[#0F4C3A]/10 text-[#0F4C3A]'"
         >
-          {{ dashboardEnv === 'sandbox' ? 'Sandbox' : 'Live' }} ({{ appsList.length }})
+          {{ dashboardEnv === 'sandbox' ? 'Sandbox' : 'Live' }}
         </span>
       </div>
+
+      <div class="flex items-center gap-2">
+        <div class="relative w-full sm:w-56">
+          <Search class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#111111]/40" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Cari nama atau slug..."
+            class="w-full pl-8 pr-2.5 py-1 rounded-lg bg-[#111111]/5 border border-[#111111]/10 text-xs text-[#111111] placeholder:text-[#111111]/40 focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
+          />
+        </div>
+
+        <button
+          @click="isCreateModalOpen = true"
+          class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg btn-gold text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95 shrink-0"
+        >
+          <Plus class="w-3 h-3 stroke-[3]" />
+          <span>Tambah</span>
+        </button>
+      </div>
     </div>
 
-    <!-- Desktop Table -->
+    <!-- Desktop Table (Flat & Compact) -->
     <div class="hidden sm:block overflow-x-auto w-full top-scrollbar">
       <table class="w-full text-left text-xs whitespace-nowrap">
         <thead class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
           <tr>
-            <th class="py-2.5 pr-3 pl-0">Nama Produk</th>
-            <th class="py-2.5 px-3">Status Mode</th>
-            <th class="py-2.5 px-3">Target Harga</th>
-            <th class="py-2.5 px-3">Launch Link</th>
-            <th class="py-2.5 px-3">Badge</th>
-            <th class="py-2.5 pl-3 pr-0 text-right">Aksi</th>
+            <th class="py-2 pr-3 pl-0">Nama Produk</th>
+            <th class="py-2 px-3">Status Mode</th>
+            <th class="py-2 px-3">Target Harga</th>
+            <th class="py-2 px-3">Launch Link</th>
+            <th class="py-2 px-3">Badge</th>
+            <th class="py-2 pl-3 pr-0 text-right">Aksi</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[#111111]/5">
           <tr v-if="filteredApps.length === 0">
-            <td colspan="6" class="py-8 text-center text-[#111111]/40">
+            <td colspan="6" class="py-6 text-center text-[#111111]/40">
               <p class="font-semibold text-xs text-[#111111]/60">Tidak ada aplikasi ditemukan.</p>
               <p class="text-[11px] text-[#111111]/40" v-if="searchQuery">
                 Coba sesuaikan kata kunci pencarian.
@@ -167,38 +161,38 @@ watch(dashboardEnv, () => {
             </td>
           </tr>
           <tr v-for="app in filteredApps" :key="app.id" class="hover:bg-[#111111]/[0.02]">
-            <td class="py-3 pr-3 pl-0">
-              <div class="font-bold text-[#111111]">{{ app.name }}</div>
-              <div class="text-[10px] text-[#111111]/50 font-mono">{{ app.id }}</div>
+            <td class="py-2 pr-3 pl-0">
+              <div class="font-bold text-[#111111] leading-tight">{{ app.name }}</div>
+              <div class="text-[9.5px] text-[#111111]/50 font-mono">{{ app.id }}</div>
             </td>
-            <td class="py-3 px-3">
+            <td class="py-2 px-3">
               <span
-                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold"
-                :class="app.mode === 'sandbox' ? 'bg-[#D4AF37]/15 text-[#8a6d1f] border border-[#D4AF37]/30' : 'bg-[#0F4C3A]/10 text-[#0F4C3A] border border-[#0F4C3A]/25'"
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                :class="app.mode === 'sandbox' ? 'bg-[#D4AF37]/15 text-[#8a6d1f]' : 'bg-[#0F4C3A]/10 text-[#0F4C3A]'"
               >
                 <span class="w-1.5 h-1.5 rounded-full" :class="app.mode === 'sandbox' ? 'bg-[#D4AF37]' : 'bg-[#0F4C3A]'"></span>
-                <span>{{ app.mode === 'sandbox' ? 'Mode Sandbox' : 'Live Checkout' }}</span>
+                <span>{{ app.mode === 'sandbox' ? 'Sandbox' : 'Live' }}</span>
               </span>
             </td>
-            <td class="py-3 px-3 font-mono font-bold text-[#111111]">
+            <td class="py-2 px-3 font-mono font-bold text-[#111111]">
               {{ formatRupiah(app.targetPrice) }}
             </td>
-            <td class="py-3 px-3">
-              <router-link
-                :to="`/pay/${app.slug}`"
+            <td class="py-2 px-3 font-mono text-[11px]">
+              <a
+                :href="`/pay/${app.slug}`"
                 target="_blank"
-                class="inline-flex items-center gap-1 text-[11px] font-mono text-[#D4AF37] hover:underline font-bold"
+                class="text-[#D4AF37] hover:underline inline-flex items-center gap-1"
               >
-                /pay/{{ app.slug }}
-                <ExternalLink class="w-3 h-3" />
-              </router-link>
-            </td>
-            <td class="py-3 px-3">
-              <a :href="`/badge/${app.slug}.svg`" target="_blank">
-                <img :src="`/badge/${app.slug}.svg`" :alt="app.name" class="h-5" />
+                <span>/pay/{{ app.slug }}</span>
+                <ExternalLink class="w-2.5 h-2.5" />
               </a>
             </td>
-            <td class="py-3 pl-3 pr-0 text-right">
+            <td class="py-2 px-3">
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#111111]/5 text-[#111111]/80 text-[10px] font-mono">
+                tertaut-verified
+              </span>
+            </td>
+            <td class="py-2 pl-3 pr-0 text-right">
               <router-link
                 :to="envPath(dashboardEnv, '/checkout')"
                 class="inline-flex items-center gap-1 text-[11px] font-bold text-[#111111] hover:text-[#D4AF37] transition"
@@ -214,23 +208,23 @@ watch(dashboardEnv, () => {
 
     <!-- Mobile Cards View -->
     <div class="sm:hidden divide-y divide-[#111111]/10">
-      <div v-for="app in filteredApps" :key="app.id" class="py-3 space-y-2">
+      <div v-for="app in filteredApps" :key="app.id" class="py-2 space-y-1.5">
         <div class="flex items-start justify-between">
           <div>
             <div class="font-bold text-xs text-[#111111]">{{ app.name }}</div>
-            <div class="text-[10px] text-[#111111]/50 font-mono">{{ app.id }}</div>
+            <div class="text-[9.5px] text-[#111111]/50 font-mono">{{ app.id }}</div>
           </div>
           <div class="font-mono font-extrabold text-xs text-[#111111]">
             {{ formatRupiah(app.targetPrice) }}
           </div>
         </div>
 
-        <div class="flex items-center justify-between pt-1">
+        <div class="flex items-center justify-between pt-0.5">
           <span
-            class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold"
+            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
             :class="app.mode === 'sandbox' ? 'bg-[#D4AF37]/15 text-[#8a6d1f]' : 'bg-[#0F4C3A]/10 text-[#0F4C3A]'"
           >
-            <span class="w-1.5 h-1.5 rounded-full" :class="app.mode === 'sandbox' ? 'bg-[#D4AF37]' : 'bg-[#0F4C3A]'"></span>
+            <span class="w-1 h-1 rounded-full" :class="app.mode === 'sandbox' ? 'bg-[#D4AF37]' : 'bg-[#0F4C3A]'"></span>
             <span>{{ app.mode === 'sandbox' ? 'Sandbox' : 'Live' }}</span>
           </span>
 

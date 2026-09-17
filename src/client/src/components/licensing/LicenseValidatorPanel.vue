@@ -33,10 +33,10 @@ const emit = defineEmits<{
 <template>
   <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[#111111]/10 border-t border-b border-[#111111]/10 py-6">
     <!-- Input Form Section -->
-    <div class="pb-6 lg:pb-0 pr-0 lg:pr-6 space-y-4">
+    <div class="pb-6 lg:pb-0 pr-0 lg:pr-6 space-y-3.5">
       <div class="flex items-center gap-2">
         <Search class="w-4 h-4 text-[#D4AF37]" />
-        <h2 class="text-sm font-bold text-[#111111]">Verifikasi &amp; Diagnostic Lisensi (Engine Validator)</h2>
+        <h2 class="text-sm font-bold text-[#111111]">Verifikasi &amp; Diagnostic Lisensi</h2>
       </div>
 
       <div class="space-y-3 text-xs">
@@ -47,7 +47,7 @@ const emit = defineEmits<{
             :items="appsList"
             placeholder="Pilih aplikasi..."
             search-placeholder="Cari software..."
-            button-class="w-full"
+            button-class="w-full !h-9 !rounded-lg"
           />
         </div>
 
@@ -56,7 +56,7 @@ const emit = defineEmits<{
           <input
             v-model="licenseKey"
             placeholder="TT-XXXX-XXXX-XXXX"
-            class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] font-mono font-bold focus:outline-none focus:border-[#D4AF37]"
+            class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs shadow-2xs focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] focus:outline-none text-[#111111] font-mono font-bold transition"
           />
         </div>
 
@@ -65,16 +65,16 @@ const emit = defineEmits<{
             <label class="block font-bold text-[#111111]/70 mb-1">Hardware ID (HWID)</label>
             <input
               v-model="hardwareId"
-              placeholder="Contoh: hash HWID perangkat (mis. sha256...)"
-              class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] font-mono focus:outline-none focus:border-[#D4AF37]"
+              placeholder="Hash HWID perangkat"
+              class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs shadow-2xs focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] focus:outline-none text-[#111111] font-mono transition"
             />
           </div>
           <div>
             <label class="block font-bold text-[#111111]/70 mb-1">Nama Perangkat</label>
             <input
               v-model="deviceName"
-              placeholder="Contoh: work-mac-pro (opsional)"
-              class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+              placeholder="work-mac-pro (opsional)"
+              class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs shadow-2xs focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] focus:outline-none text-[#111111] transition"
             />
           </div>
         </div>
@@ -84,44 +84,44 @@ const emit = defineEmits<{
           <button
             @click="emit('activateSeat')"
             :disabled="loadingValidation || !licenseKey"
-            class="w-full py-2.5 rounded-lg btn-gold text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
+            class="w-full h-9 rounded-lg btn-gold text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
           >
             <Monitor class="w-3.5 h-3.5" />
-            <span>Aktifkan Perangkat (FR-2.1)</span>
+            <span>Aktifkan Perangkat</span>
           </button>
 
           <button
             @click="emit('verifyOnline')"
             :disabled="loadingValidation || !licenseKey"
-            class="w-full py-2.5 rounded-lg bg-[#111111] hover:bg-[#222222] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
+            class="w-full h-9 rounded-lg bg-[#111111] hover:bg-[#222222] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
           >
             <CheckCircle2 class="w-3.5 h-3.5 text-[#D4AF37]" />
-            <span>Verifikasi Online (FR-3.3)</span>
+            <span>Verifikasi Online</span>
           </button>
 
           <button
             @click="emit('deactivateSeat')"
             :disabled="loadingValidation || !licenseKey"
-            class="w-full py-2 rounded-lg border border-[#8B0000]/30 hover:bg-[#8B0000]/10 text-[#8B0000] text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+            class="w-full h-9 rounded-lg border border-[#8B0000]/30 hover:bg-[#8B0000]/10 text-[#8B0000] text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             <Trash2 class="w-3 h-3" />
-            <span>Lepas Perangkat (FR-2.3)</span>
+            <span>Lepas Perangkat</span>
           </button>
 
           <button
             @click="emit('validateStandard')"
             :disabled="loadingValidation || !licenseKey"
-            class="w-full py-2 rounded-lg border border-[#111111]/20 hover:bg-[#111111]/5 text-[#111111] text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+            class="w-full h-9 rounded-lg border border-[#111111]/20 hover:bg-[#111111]/5 text-[#111111] text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': loadingValidation }" />
-            <span>Validasi SDK Standar</span>
+            <span>Validasi Standar</span>
           </button>
         </div>
       </div>
     </div>
 
     <!-- Result Terminal Section -->
-    <div class="pt-6 lg:pt-0 pl-0 lg:pl-6 space-y-4">
+    <div class="pt-6 lg:pt-0 pl-0 lg:pl-6 space-y-3.5">
       <h2 class="text-sm font-bold text-[#111111]">Hasil Respon Engine</h2>
 
       <div v-if="validationResult" class="p-3.5 rounded-xl bg-[#111111] text-white font-mono text-xs space-y-2">
@@ -141,9 +141,9 @@ const emit = defineEmits<{
         </div>
       </div>
 
-      <div v-else class="h-48 flex flex-col items-center justify-center text-center text-[#111111]/40 p-4 border border-dashed border-[#111111]/15 rounded-xl">
-        <KeyRound class="w-8 h-8 mb-1.5 opacity-30" />
-        <p class="text-xs">Klik tombol "Eksekusi Validasi Lisensi" atau pilih salah satu lisensi dari tabel di atas.</p>
+      <div v-else class="h-44 flex flex-col items-center justify-center text-center text-[#111111]/40 p-4 border border-[#111111]/10 rounded-lg">
+        <KeyRound class="w-7 h-7 mb-1.5 opacity-25" />
+        <p class="text-xs">Pilih salah satu lisensi dari tabel di atas atau masukkan kunci untuk menguji.</p>
       </div>
     </div>
   </div>

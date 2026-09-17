@@ -14,7 +14,6 @@ import {
   Code2,
   ExternalLink,
   Globe,
-  ShieldCheck,
   ShieldAlert,
   ChevronRight,
   Search,
@@ -38,7 +37,7 @@ async function handleLogout() {
   router.push('/login')
 }
 
-const isPublicPage = computed(() => !!route.meta.public)
+const isStandaloneLayout = computed(() => !!route.meta.public || !!route.meta.standalone || route.path.startsWith('/panel'))
 
 // Kunci halaman tanpa prefix environment, mis. '/dashboard/sandbox/checkout' -> '/checkout'
 function pageKey(path: string): string {
@@ -61,6 +60,7 @@ const currentPage = computed(() => {
     case '/licensing': return { title: 'Lisensi & Anti-Piracy', category: 'Lisensi' }
     case '/ai-proxy': return { title: 'AI API Proxy Shield', category: 'AI Shield' }
     case '/docs': return { title: 'Dokumentasi & SDK', category: 'Docs' }
+    case '/panel': return { title: 'Super Admin Panel', category: 'Admin Panel' }
     default: return { title: 'Workspace', category: 'Dashboard' }
   }
 })
@@ -155,8 +155,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- Public Full-Width Layout (for /, /pay/:slug, /dashboard/portal, /panel) -->
-  <div v-if="isPublicPage" class="min-h-screen bg-white text-[#111111] font-sans">
+  <!-- Standalone Full-Width Layout (for /, /login, /pay/:slug, /panel) -->
+  <div v-if="isStandaloneLayout" class="min-h-screen bg-white text-[#111111] font-sans">
     <router-view />
   </div>
 
@@ -270,17 +270,6 @@ onUnmounted(() => {
       <!-- Bottom Card & Status -->
       <div class="space-y-2 pt-3 border-t border-[#111111]/10">
         <router-link
-          to="/dashboard/portal"
-          class="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 text-xs font-semibold text-[#111111] transition border border-[#111111]/10"
-        >
-          <div class="flex items-center gap-2">
-            <ShieldCheck class="w-3.5 h-3.5 text-[#0F4C3A]" />
-            <span>Portal Pembeli</span>
-          </div>
-          <ExternalLink class="w-3 h-3 text-[#111111]/40" />
-        </router-link>
-
-        <router-link
           to="/panel"
           class="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 text-xs font-semibold text-[#111111] transition border border-[#111111]/10"
         >
@@ -288,7 +277,7 @@ onUnmounted(() => {
             <ShieldAlert class="w-3.5 h-3.5 text-[#D4AF37]" />
             <span>Admin Panel</span>
           </div>
-          <ExternalLink class="w-3 h-3 text-[#111111]/40" />
+          <ChevronRight class="w-3 h-3 text-[#111111]/40" />
         </router-link>
 
         <router-link

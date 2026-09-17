@@ -134,304 +134,310 @@ function submitCreate() {
 </script>
 
 <template>
-  <div class="space-y-5">
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#111111]/10">
-      <div class="flex items-center gap-2">
-        <div class="p-1.5 rounded-lg bg-[#D4AF37]/15 border border-[#D4AF37]/35">
-          <Ticket class="w-4 h-4 text-[#D4AF37]" />
+  <div class="space-y-6">
+    <!-- Top 2-Column Split: Kiri Form Buat Kupon, Kanan Grafik & Statistik -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[#111111]/10 border-b border-[#111111]/10 pb-6 pt-1">
+      <!-- Kolom Kiri: Form Buat Kupon Baru -->
+      <div class="pb-6 lg:pb-0 pr-0 lg:pr-6 space-y-3.5">
+        <div class="flex items-center gap-2">
+          <Plus class="w-4 h-4 text-[#D4AF37]" />
+          <h2 class="text-sm font-bold text-[#111111]">Buat Kupon Baru</h2>
         </div>
-        <div>
-          <h2 class="text-sm font-bold text-[#111111]">Kupon Diskon</h2>
-          <p class="text-xs text-[#111111]/60">Kupon yang dibuat di sini langsung bisa ditebus pembeli di halaman checkout.</p>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block font-bold text-[#111111]/70 mb-1">Target Aplikasi</label>
+            <SearchPicker
+              v-model="form.appId"
+              :items="appsList"
+              placeholder="Pilih software..."
+              search-placeholder="Cari software..."
+              button-class="w-full !h-9 !rounded-lg !min-w-0 justify-between px-3 text-xs border-slate-300/80 hover:border-slate-400 bg-white shadow-2xs focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37]"
+            />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block font-bold text-[#111111]/70 mb-1">Kode Kupon</label>
+              <input
+                v-model="form.code"
+                type="text"
+                placeholder="PROMO50"
+                class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs font-mono font-bold uppercase text-[#111111] placeholder:normal-case placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] shadow-2xs transition"
+              />
+            </div>
+            <div>
+              <label class="block font-bold text-[#111111]/70 mb-1">Diskon (%)</label>
+              <input
+                v-model.number="form.discountPercent"
+                type="number"
+                min="1"
+                max="100"
+                class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs font-mono text-[#111111] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] shadow-2xs transition"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block font-bold text-[#111111]/70 mb-1">Kuota Penebusan (0 = ∞)</label>
+              <input
+                v-model.number="form.maxRedemptions"
+                type="number"
+                min="0"
+                placeholder="0 untuk tanpa batas"
+                class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs font-mono text-[#111111] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] shadow-2xs transition"
+              />
+            </div>
+            <div>
+              <label class="block font-bold text-[#111111]/70 mb-1">Kedaluwarsa (Opsional)</label>
+              <input
+                v-model="form.expiresAt"
+                type="datetime-local"
+                class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-2 text-xs text-[#111111] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] shadow-2xs transition"
+              />
+            </div>
+          </div>
+
+          <div class="pt-1">
+            <button
+              @click="submitCreate"
+              :disabled="isCreating || !form.appId || !form.code.trim()"
+              class="w-full h-9 btn-gold rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95 transition shadow-2xs"
+            >
+              <Plus class="w-3.5 h-3.5 stroke-[3]" />
+              <span>{{ isCreating ? 'Menyimpan...' : 'Terbitkan Kupon Diskon' }}</span>
+            </button>
+          </div>
         </div>
       </div>
-      <button
-        @click="emit('refresh'); loadStats()"
-        class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 text-xs font-bold text-[#111111] cursor-pointer self-start sm:self-auto"
-      >
-        <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': loading || statsLoading }" />
-        <span>Segarkan</span>
-      </button>
+
+      <!-- Kolom Kanan: Statistik & Grafik Penebusan -->
+      <div class="pt-6 lg:pt-0 pl-0 lg:pl-6 space-y-3.5 flex flex-col justify-between">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <BarChart3 class="w-4 h-4 text-[#D4AF37]" />
+              <h2 class="text-sm font-bold text-[#111111]">Statistik Penebusan</h2>
+            </div>
+            <div class="flex items-center gap-1 text-[11px]">
+              <button
+                v-for="d in [7, 14, 30]"
+                :key="d"
+                @click="statsDays = d"
+                :class="[
+                  'px-2 py-0.5 rounded-md font-bold transition cursor-pointer text-[10px]',
+                  statsDays === d ? 'bg-[#111111] text-white shadow-2xs' : 'bg-[#111111]/5 text-[#111111]/60 hover:bg-[#111111]/10'
+                ]"
+              >{{ d }} hari</button>
+            </div>
+          </div>
+
+          <!-- Ringkasan Periode -->
+          <div class="grid grid-cols-2 divide-x divide-[#111111]/10 py-1">
+            <div class="pr-3 pl-0">
+              <div class="text-[10px] font-bold uppercase text-[#111111]/50">Penebusan ({{ statsDays }} hari)</div>
+              <div class="text-xl font-black font-mono text-[#111111]">{{ stats?.totalRedemptions ?? '—' }}</div>
+            </div>
+            <div class="pl-3 pr-0">
+              <div class="text-[10px] font-bold uppercase text-[#111111]/50">Total Diskon Diberikan</div>
+              <div class="text-xl font-black font-mono text-[#8B0000]">{{ stats ? formatRupiah(stats.totalDiscountIdr) : '—' }}</div>
+            </div>
+          </div>
+
+          <!-- Bar Chart Harian -->
+          <div v-if="stats && stats.daily.length > 0" class="flex items-end gap-1 h-20 px-0.5 pt-2">
+            <div
+              v-for="d in stats.daily"
+              :key="d.day"
+              class="flex-1 flex flex-col items-center justify-end gap-1 group relative"
+            >
+              <div class="absolute bottom-full mb-1 hidden group-hover:block z-10 whitespace-nowrap px-2 py-0.5 rounded bg-[#111111] text-white text-[9.5px] font-bold shadow-sm">
+                {{ dayLabel(d.day) }}: {{ d.redemptions }}x — {{ formatRupiah(d.totalDiscount) }}
+              </div>
+              <div
+                class="w-full max-w-[28px] rounded-t bg-[#D4AF37]/85 group-hover:bg-[#D4AF37] transition-colors"
+                :style="{ height: `${Math.max(4, (d.redemptions / maxDailyRedemptions) * 56)}px` }"
+              ></div>
+              <span class="text-[8px] text-[#111111]/45 font-mono leading-none">{{ dayLabel(d.day) }}</span>
+            </div>
+          </div>
+          <div v-else class="h-20 flex items-center justify-center text-[11px] text-[#111111]/40 border border-[#111111]/10 rounded-lg">
+            Belum ada penebusan kupon dalam {{ statsDays }} hari terakhir.
+          </div>
+        </div>
+
+        <!-- Kupon Teratas -->
+        <div v-if="stats && stats.topCoupons.length > 0" class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[#111111]/10">
+          <span class="text-[10px] font-bold uppercase text-[#111111]/50 mr-1">Teratas:</span>
+          <span
+            v-for="(tc, idx) in stats.topCoupons.slice(0, 3)"
+            :key="tc.code || `idx-${idx}`"
+            class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[10px] font-bold text-[#111111] font-mono"
+          >
+            <TicketPercent class="w-2.5 h-2.5" />
+            {{ tc.code }} · {{ tc.redemptions }}x
+          </span>
+        </div>
+      </div>
     </div>
 
-    <!-- Create Form Section -->
-    <div class="space-y-3 pb-5 border-b border-[#111111]/10">
-      <div class="flex items-center gap-1.5 text-[11px] font-bold text-[#111111]/70 uppercase tracking-wide">
-        <Plus class="w-3.5 h-3.5 text-[#D4AF37]" />
-        <span>Buat Kupon Baru</span>
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-        <div class="lg:col-span-2">
-          <label class="block text-[10px] font-bold text-[#111111]/60 mb-1">Aplikasi</label>
-          <SearchPicker
-            v-model="form.appId"
-            :items="appsList"
-            placeholder="Pilih aplikasi..."
-            search-placeholder="Cari software..."
-            button-class="w-full bg-[#111111]/5 border-[#111111]/10"
-          />
+    <!-- Bagian Bawah: Header Tabel & Toolbar -->
+    <div class="space-y-3 pt-1">
+      <div class="flex items-center justify-between gap-3 pb-1 border-b border-[#111111]/10">
+        <div class="flex items-center gap-2">
+          <h2 class="text-sm font-bold text-[#111111]">Daftar Kupon Diskon</h2>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#111111]/5 text-[#111111]/70">
+            {{ couponsList.length }} kupon
+          </span>
         </div>
-
-        <div>
-          <label class="block text-[10px] font-bold text-[#111111]/60 mb-1">Kode Kupon</label>
-          <input
-            v-model="form.code"
-            type="text"
-            placeholder="EARLY50"
-            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold uppercase text-[#111111] placeholder:normal-case placeholder:font-sans placeholder:text-[#111111]/35 focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
-          />
-        </div>
-
-        <div>
-          <label class="block text-[10px] font-bold text-[#111111]/60 mb-1">Diskon (%)</label>
-          <input
-            v-model.number="form.discountPercent"
-            type="number"
-            min="1"
-            max="100"
-            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#111111] focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
-          />
-        </div>
-
-        <div>
-          <label class="block text-[10px] font-bold text-[#111111]/60 mb-1">Kuota (0 = ∞)</label>
-          <input
-            v-model.number="form.maxRedemptions"
-            type="number"
-            min="0"
-            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#111111] focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
-          />
-        </div>
-      </div>
-
-      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
-        <div class="sm:w-56">
-          <label class="block text-[10px] font-bold text-[#111111]/60 mb-1">Kedaluwarsa (opsional)</label>
-          <input
-            v-model="form.expiresAt"
-            type="datetime-local"
-            class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg px-2.5 py-1.5 text-xs text-[#111111] focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
-          />
-        </div>
-
         <button
-          @click="submitCreate"
-          :disabled="isCreating || !form.appId || !form.code.trim()"
-          class="btn-gold px-3.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95 transition shadow-sm self-start sm:self-auto"
+          @click="emit('refresh'); loadStats()"
+          class="inline-flex items-center gap-1.5 px-2.5 h-9 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 text-xs font-bold text-[#111111] cursor-pointer transition shrink-0"
         >
-          <TicketPercent class="w-3.5 h-3.5" />
-          <span>{{ isCreating ? 'Membuat...' : 'Buat Kupon' }}</span>
+          <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': loading || statsLoading }" />
+          <span>Segarkan</span>
         </button>
       </div>
-    </div>
 
-    <!-- Statistik Pemakaian (Redeem per Hari) Divider Strip -->
-    <div class="space-y-3 pb-5 border-b border-[#111111]/10">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div class="flex items-center gap-1.5 text-[11px] font-bold text-[#111111]/70 uppercase tracking-wide">
-          <BarChart3 class="w-3.5 h-3.5 text-[#D4AF37]" />
-          <span>Statistik Penebusan</span>
+      <!-- Search & Filter Toolbar -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-[#111111]/10">
+        <div class="relative flex-1 max-w-sm">
+          <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#111111]/40" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Cari kode kupon..."
+            class="w-full h-9 pl-8 pr-3 rounded-lg bg-white border border-slate-300/80 hover:border-slate-400 text-xs text-[#111111] placeholder:text-[#111111]/40 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] shadow-2xs transition"
+          />
         </div>
-        <div class="flex items-center gap-1 text-[11px]">
-          <button
-            v-for="d in [7, 14, 30]"
-            :key="d"
-            @click="statsDays = d"
-            :class="[
-              'px-2 py-0.5 rounded-md font-bold transition cursor-pointer',
-              statsDays === d ? 'bg-[#111111] text-white' : 'bg-[#111111]/5 text-[#111111]/60 hover:bg-[#111111]/10'
-            ]"
-          >{{ d }} hari</button>
-        </div>
-      </div>
-
-      <!-- Ringkasan Periode (Divided Grid) -->
-      <div class="grid grid-cols-2 divide-x divide-[#111111]/10 py-1">
-        <div class="pr-4 pl-0">
-          <div class="text-[10px] font-bold uppercase text-[#111111]/50">Penebusan ({{ statsDays }} hari)</div>
-          <div class="text-xl font-black font-mono text-[#111111]">{{ stats?.totalRedemptions ?? '—' }}</div>
-        </div>
-        <div class="pl-4 pr-0">
-          <div class="text-[10px] font-bold uppercase text-[#111111]/50">Total Diskon Diberikan</div>
-          <div class="text-xl font-black font-mono text-[#8B0000]">{{ stats ? formatRupiah(stats.totalDiscountIdr) : '—' }}</div>
-        </div>
-      </div>
-
-      <!-- Bar Chart Harian -->
-      <div v-if="stats && stats.daily.length > 0" class="flex items-end gap-1 h-20 px-0.5 pt-2">
-        <div
-          v-for="d in stats.daily"
-          :key="d.day"
-          class="flex-1 flex flex-col items-center justify-end gap-1 group relative"
-        >
-          <!-- Tooltip saat hover -->
-          <div class="absolute bottom-full mb-1 hidden group-hover:block z-10 whitespace-nowrap px-2 py-1 rounded-md bg-[#111111] text-white text-[10px] font-bold">
-            {{ dayLabel(d.day) }}: {{ d.redemptions }}x — diskon {{ formatRupiah(d.totalDiscount) }}
-          </div>
-          <div
-            class="w-full max-w-[28px] rounded-t-md bg-[#D4AF37]/85 group-hover:bg-[#D4AF37] transition-colors"
-            :style="{ height: `${Math.max(6, (d.redemptions / maxDailyRedemptions) * 60)}px` }"
-          ></div>
-          <span class="text-[8px] text-[#111111]/45 font-mono leading-none">{{ dayLabel(d.day) }}</span>
-        </div>
-      </div>
-      <p v-else class="text-[11px] text-[#111111]/40 text-center py-2">
-        Belum ada penebusan kupon dalam {{ statsDays }} hari terakhir.
-      </p>
-
-      <!-- Kupon Teratas -->
-      <div v-if="stats && stats.topCoupons.length > 0" class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[#111111]/10">
-        <span class="text-[10px] font-bold uppercase text-[#111111]/50 mr-1">Teratas:</span>
-        <span
-          v-for="(tc, idx) in stats.topCoupons.slice(0, 3)"
-          :key="tc.code || `idx-${idx}`"
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[10px] font-bold text-[#111111] font-mono"
-        >
-          <TicketPercent class="w-2.5 h-2.5" />
-          {{ tc.code }} · {{ tc.redemptions }}x
-        </span>
-      </div>
-    </div>
-
-    <!-- Search & Filter Toolbar -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#111111]/10">
-      <div class="relative flex-1 max-w-sm">
-        <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#111111]/40" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Cari kode kupon..."
-          class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#111111]/5 border border-[#111111]/10 text-xs text-[#111111] placeholder:text-[#111111]/40 focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
+        <SearchPicker
+          v-model="filterAppId"
+          :items="appsList"
+          all-option-label="Semua Aplikasi"
+          placeholder="Semua Aplikasi"
+          search-placeholder="Cari software..."
+          button-class="!h-9 !rounded-lg !min-w-[160px] bg-white border-slate-300/80 hover:border-slate-400 shadow-2xs text-xs"
         />
       </div>
-      <SearchPicker
-        v-model="filterAppId"
-        :items="appsList"
-        all-option-label="Semua Aplikasi"
-        placeholder="Semua Aplikasi"
-        search-placeholder="Cari software..."
-        button-class="bg-[#111111]/5 border-[#111111]/10"
-      />
-    </div>
 
-    <!-- Desktop Coupons Table (Flush left/right) -->
-    <div class="hidden sm:block overflow-x-auto w-full top-scrollbar">
-      <table class="w-full text-left text-xs whitespace-nowrap">
-        <thead class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
-          <tr>
-            <th class="py-2.5 pr-3 pl-0">Kode</th>
-            <th class="py-2.5 px-3">Aplikasi</th>
-            <th class="py-2.5 px-3">Diskon</th>
-            <th class="py-2.5 px-3">Terpakai</th>
-            <th class="py-2.5 px-3">Kedaluwarsa</th>
-            <th class="py-2.5 px-3">Status</th>
-            <th class="py-2.5 pl-3 pr-0 text-right">Aksi</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-[#111111]/5">
-          <tr v-if="filteredCoupons.length === 0">
-            <td colspan="7" class="py-8 text-center text-[#111111]/40">
-              <div class="space-y-1">
-                <Ticket class="w-6 h-6 mx-auto opacity-40" />
-                <p class="font-semibold text-xs text-[#111111]/60">Belum ada kupon.</p>
-                <p class="text-[11px] text-[#111111]/40">Buat kupon pertama Anda lewat formulir di atas, atau gunakan One-Click Live Launch.</p>
-              </div>
-            </td>
-          </tr>
-          <tr v-for="c in filteredCoupons" :key="c.id" class="hover:bg-[#111111]/[0.02]">
-            <td class="py-3 pr-3 pl-0">
-              <span class="font-mono font-bold text-[#111111]">{{ c.code }}</span>
-            </td>
-            <td class="py-3 px-3 text-[#111111]/80">{{ appLabel(c.appId) }}</td>
-            <td class="py-3 px-3">
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[#111111] text-[10px] font-bold">
-                <TicketPercent class="w-2.5 h-2.5" />
-                {{ c.discountPercent }}%
-              </span>
-            </td>
-            <td class="py-3 px-3 font-mono text-[#111111]/80">
-              {{ c.redemptionCount }} / {{ remainingQuota(c) }}
-            </td>
-            <td class="py-3 px-3 text-[11px]">
-              <span v-if="c.expiresAt" class="inline-flex items-center gap-1" :class="isExpiringSoon(c) ? 'text-[#8B0000] font-bold' : 'text-[#111111]/60'">
-                <Clock class="w-3 h-3" />
-                {{ new Date(c.expiresAt).toLocaleDateString('id-ID') }}
-              </span>
-              <span v-else class="text-[#111111]/40">Tanpa batas</span>
-            </td>
-            <td class="py-3 px-3">
+      <!-- Desktop Coupons Table (Flat Flush) -->
+      <div class="hidden sm:block overflow-x-auto w-full top-scrollbar">
+        <table class="w-full text-left text-xs whitespace-nowrap">
+          <thead class="border-b border-[#111111]/10 text-[#111111]/60 font-bold uppercase text-[10px]">
+            <tr>
+              <th class="py-2 pr-3 pl-0">Kode</th>
+              <th class="py-2 px-3">Aplikasi</th>
+              <th class="py-2 px-3">Diskon</th>
+              <th class="py-2 px-3">Terpakai</th>
+              <th class="py-2 px-3">Kedaluwarsa</th>
+              <th class="py-2 px-3">Status</th>
+              <th class="py-2 pl-3 pr-0 text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#111111]/5">
+            <tr v-if="filteredCoupons.length === 0">
+              <td colspan="7" class="py-6 text-center text-[#111111]/40">
+                <div class="space-y-0.5">
+                  <Ticket class="w-5 h-5 mx-auto opacity-30" />
+                  <p class="font-semibold text-xs text-[#111111]/60">Belum ada kupon.</p>
+                  <p class="text-[11px] text-[#111111]/40">Buat kupon pertama Anda lewat formulir di samping.</p>
+                </div>
+              </td>
+            </tr>
+            <tr v-for="c in filteredCoupons" :key="c.id" class="hover:bg-[#111111]/[0.02]">
+              <td class="py-2 pr-3 pl-0">
+                <span class="font-mono font-bold text-[#111111]">{{ c.code }}</span>
+              </td>
+              <td class="py-2 px-3 text-[#111111]/80">{{ appLabel(c.appId) }}</td>
+              <td class="py-2 px-3">
+                <span class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[#111111] text-[10px] font-bold">
+                  <TicketPercent class="w-2.5 h-2.5" />
+                  {{ c.discountPercent }}%
+                </span>
+              </td>
+              <td class="py-2 px-3 font-mono text-[#111111]/80">
+                {{ c.redemptionCount }} / {{ remainingQuota(c) }}
+              </td>
+              <td class="py-2 px-3 text-[11px]">
+                <span v-if="c.expiresAt" class="inline-flex items-center gap-1" :class="isExpiringSoon(c) ? 'text-[#8B0000] font-bold' : 'text-[#111111]/60'">
+                  <Clock class="w-3 h-3" />
+                  {{ new Date(c.expiresAt).toLocaleDateString('id-ID') }}
+                </span>
+                <span v-else class="text-[#111111]/40">Tanpa batas</span>
+              </td>
+              <td class="py-2 px-3">
+                <span
+                  class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                  :class="c.isActive ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]' : 'bg-[#111111]/5 text-[#111111]/50'"
+                >
+                  {{ c.isActive ? 'AKTIF' : 'NONAKTIF' }}
+                </span>
+              </td>
+              <td class="py-2 pl-3 pr-0 text-right">
+                <div class="flex items-center justify-end gap-1">
+                  <button
+                    @click="emit('toggle', c)"
+                    :title="c.isActive ? 'Nonaktifkan kupon' : 'Aktifkan kupon'"
+                    class="p-1 rounded-md transition cursor-pointer"
+                    :class="c.isActive
+                      ? 'bg-[#111111]/5 text-[#111111]/60 hover:bg-[#D4AF37]/20 hover:text-[#111111]'
+                      : 'bg-[#0F4C3A]/10 text-[#0F4C3A] hover:bg-[#0F4C3A]/20'"
+                  >
+                    <Power class="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    @click="emit('delete', c)"
+                    title="Hapus kupon"
+                    class="p-1 rounded-md bg-[#8B0000]/10 text-[#8B0000] hover:bg-[#8B0000]/20 transition cursor-pointer"
+                  >
+                    <Trash2 class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mobile Coupons List View -->
+      <div class="sm:hidden divide-y divide-[#111111]/10">
+        <div v-for="c in filteredCoupons" :key="c.id" class="py-2 space-y-1.5">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-mono font-bold text-xs text-[#111111]">{{ c.code }}</div>
+              <div class="text-[10px] text-[#111111]/50">{{ appLabel(c.appId) }}</div>
+            </div>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[#111111] text-[10px] font-bold">
+              <TicketPercent class="w-2.5 h-2.5" />
+              {{ c.discountPercent }}%
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between text-[10px] text-[#111111]/70 pt-1">
+            <span>Terpakai: {{ c.redemptionCount }} / {{ remainingQuota(c) }}</span>
+            <div class="flex items-center gap-2">
               <span
-                class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                class="px-2 py-0.5 rounded-full text-[9px] font-bold"
                 :class="c.isActive ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]' : 'bg-[#111111]/5 text-[#111111]/50'"
               >
                 {{ c.isActive ? 'AKTIF' : 'NONAKTIF' }}
               </span>
-            </td>
-            <td class="py-3 pl-3 pr-0 text-right">
-              <div class="flex items-center justify-end gap-1.5">
-                <button
-                  @click="emit('toggle', c)"
-                  :title="c.isActive ? 'Nonaktifkan kupon' : 'Aktifkan kupon'"
-                  class="p-1.5 rounded-lg transition cursor-pointer"
-                  :class="c.isActive
-                    ? 'bg-[#111111]/5 text-[#111111]/60 hover:bg-[#D4AF37]/20 hover:text-[#111111]'
-                    : 'bg-[#0F4C3A]/10 text-[#0F4C3A] hover:bg-[#0F4C3A]/20'"
-                >
-                  <Power class="w-3.5 h-3.5" />
-                </button>
-                <button
-                  @click="emit('delete', c)"
-                  title="Hapus kupon"
-                  class="p-1.5 rounded-lg bg-[#8B0000]/10 text-[#8B0000] hover:bg-[#8B0000]/20 transition cursor-pointer"
-                >
-                  <Trash2 class="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Mobile Coupons List View -->
-    <div class="sm:hidden divide-y divide-[#111111]/10">
-      <div v-for="c in filteredCoupons" :key="c.id" class="py-3 space-y-2">
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="font-mono font-bold text-xs text-[#111111]">{{ c.code }}</div>
-            <div class="text-[10px] text-[#111111]/50">{{ appLabel(c.appId) }}</div>
-          </div>
-          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[#111111] text-[10px] font-bold">
-            <TicketPercent class="w-2.5 h-2.5" />
-            {{ c.discountPercent }}%
-          </span>
-        </div>
-
-        <div class="flex items-center justify-between text-[10px] text-[#111111]/70 pt-1">
-          <span>Terpakai: {{ c.redemptionCount }} / {{ remainingQuota(c) }}</span>
-          <div class="flex items-center gap-2">
-            <span
-              class="px-2 py-0.5 rounded-full text-[9px] font-bold"
-              :class="c.isActive ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]' : 'bg-[#111111]/5 text-[#111111]/50'"
-            >
-              {{ c.isActive ? 'AKTIF' : 'NONAKTIF' }}
-            </span>
-            <button
-              @click="emit('toggle', c)"
-              class="p-1 rounded bg-[#111111]/5 hover:bg-[#D4AF37]/20"
-              :title="c.isActive ? 'Nonaktifkan' : 'Aktifkan'"
-            >
-              <Power class="w-3 h-3" />
-            </button>
-            <button
-              @click="emit('delete', c)"
-              class="p-1 rounded bg-[#8B0000]/10 text-[#8B0000]"
-              title="Hapus"
-            >
-              <Trash2 class="w-3 h-3" />
-            </button>
+              <button
+                @click="emit('toggle', c)"
+                class="p-1 rounded bg-[#111111]/5 hover:bg-[#D4AF37]/20"
+                :title="c.isActive ? 'Nonaktifkan' : 'Aktifkan'"
+              >
+                <Power class="w-3 h-3" />
+              </button>
+              <button
+                @click="emit('delete', c)"
+                class="p-1 rounded bg-[#8B0000]/10 text-[#8B0000]"
+                title="Hapus"
+              >
+                <Trash2 class="w-3 h-3" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

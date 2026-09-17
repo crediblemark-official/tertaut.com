@@ -11,8 +11,6 @@ import type {
   VaultCredentialItem,
   AiProxyLogItem,
   AiQuotaStatus,
-  PortalLicenseItem,
-  PortalTransactionItem,
   PanelStats,
   PanelBuilderItem,
   PanelTransactionItem,
@@ -338,35 +336,6 @@ export const api = {
 
   async getWidgetBadge(appSlug: string) {
     const res = await fetch(`/api/v1/widgets/badge/${appSlug}`);
-    return parseJson(res);
-  },
-
-  // Customer Portal
-  async portalAccess(email: string, licenseKey: string): Promise<{ success: boolean; token?: string; expiresInSeconds?: number; error?: string }> {
-    const res = await fetch("/api/v1/portal/access", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, licenseKey }),
-    });
-    return parseJson(res);
-  },
-
-  async getPortalLicenses(token: string): Promise<{ success: boolean; count: number; licenses: PortalLicenseItem[]; error?: string }> {
-    const res = await fetch(`/api/v1/portal/licenses?token=${encodeURIComponent(token)}`);
-    return parseJson(res);
-  },
-
-  async deactivatePortalDevice(data: { licenseKey: string; hwidHash: string; customerEmail: string }): Promise<{ success: boolean; message: string; remainingSeats: number; error?: string }> {
-    const res = await fetch("/api/v1/portal/deactivate-device", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    return parseJson(res);
-  },
-
-  async getPortalTransactions(token: string): Promise<{ success: boolean; count: number; transactions: PortalTransactionItem[]; error?: string }> {
-    const res = await fetch(`/api/v1/portal/transactions?token=${encodeURIComponent(token)}`);
     return parseJson(res);
   },
 

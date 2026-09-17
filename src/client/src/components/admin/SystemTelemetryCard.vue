@@ -15,15 +15,15 @@ function formatUptime(seconds: number) {
 </script>
 
 <template>
-  <section class="space-y-4">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <section class="pt-2">
+    <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[#111111]/10 border-b border-[#111111]/10 pb-6">
       <!-- Runtime Details -->
-      <div class="bg-white rounded-2xl border border-[#111111]/10 p-5 space-y-3">
+      <div class="md:pr-8 space-y-3 pb-6 md:pb-0">
         <div class="flex items-center gap-2 text-xs font-bold text-[#111111]">
           <Cpu class="w-4 h-4 text-[#D4AF37]" />
           <span>Bun &amp; V8 Engine Runtime</span>
         </div>
-        <div class="space-y-2 text-xs divide-y divide-[#111111]/5">
+        <div class="space-y-2 text-xs divide-y divide-[#111111]/10">
           <div class="flex items-center justify-between pt-1">
             <span class="text-[#111111]/60">Environment</span>
             <span class="font-mono font-semibold">{{ stats?.system.nodeEnv }}</span>
@@ -44,12 +44,12 @@ function formatUptime(seconds: number) {
       </div>
 
       <!-- Memory Profile -->
-      <div class="bg-white rounded-2xl border border-[#111111]/10 p-5 space-y-3">
+      <div class="md:pl-8 space-y-3 pt-6 md:pt-0">
         <div class="flex items-center gap-2 text-xs font-bold text-[#111111]">
           <Activity class="w-4 h-4 text-[#0F4C3A]" />
           <span>Penggunaan Memori (RAM)</span>
         </div>
-        <div class="space-y-2 text-xs divide-y divide-[#111111]/5">
+        <div class="space-y-2 text-xs divide-y divide-[#111111]/10">
           <div class="flex items-center justify-between pt-1">
             <span class="text-[#111111]/60">Resident Set Size (RSS)</span>
             <span class="font-mono font-bold">{{ stats?.system.memoryUsageMB.rss }} MB</span>

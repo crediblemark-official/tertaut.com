@@ -75,16 +75,10 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
-    path: "/dashboard/portal",
-    name: "customer-portal",
-    component: () => import("../views/CustomerPortalView.vue"),
-    meta: { requiresAuth: true },
-  },
-  {
     path: "/panel",
     name: "admin-panel",
     component: () => import("../views/AdminPanelView.vue"),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, standalone: true },
   },
 ];
 

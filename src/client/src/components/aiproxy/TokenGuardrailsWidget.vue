@@ -82,7 +82,7 @@ const quotaPercent = computed(() => {
     <!-- Privasi Prompt -->
     <div class="py-2 pl-0 sm:pl-4 pr-0 flex flex-col justify-between">
       <div class="flex items-center justify-between text-xs text-[#111111]/60 font-medium">
-        <span>Privasi Prompt (FR-4.2)</span>
+        <span>Privasi Prompt</span>
         <ShieldCheck class="w-4 h-4 text-[#0F4C3A]" />
       </div>
       <div class="mt-2">
@@ -91,7 +91,7 @@ const quotaPercent = computed(() => {
           <span>Zero Prompt Retention</span>
         </div>
         <p class="text-[10px] text-[#111111]/50 mt-1">
-          Konten prompt &amp; output AI tidak pernah disimpan di database.
+          Konten prompt &amp; output AI tidak disimpan di database.
         </p>
       </div>
     </div>

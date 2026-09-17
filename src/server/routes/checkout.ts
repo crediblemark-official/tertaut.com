@@ -316,7 +316,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
 
       const identifier = externalId || orderId;
       if (!identifier) {
-        return { message: "Pembayaran DANA selesai. Silakan cek portal Anda untuk lisensi." };
+        return { message: "Pembayaran DANA selesai. Silakan cek email Anda untuk kunci lisensi." };
       }
 
       const tx = await db.query.transactions.findFirst({
@@ -342,7 +342,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
 
       const targetUrl =
         app?.redirectUrl ||
-        `${checkoutConfig.publicAppUrl}/portal?email=${encodeURIComponent(tx.customerEmail)}`;
+        `${checkoutConfig.publicAppUrl}/pay/${app?.slug || ''}?status=success`;
 
       set.redirect = targetUrl;
     }

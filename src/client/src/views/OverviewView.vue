@@ -8,8 +8,7 @@ import {
   KeyRound,
   TrendingUp,
   Zap,
-  Boxes,
-  Sparkles
+  Boxes
 } from 'lucide-vue-next'
 
 const stats = ref<DashboardStats | null>(null)
@@ -38,21 +37,13 @@ watch(dashboardEnv, () => {
 
 <template>
   <div class="space-y-5 animate-fadeIn">
-    <!-- Compact Top Action Strip -->
-    <div class="flex items-center justify-between gap-3 pb-1">
-      <div class="flex items-center gap-2">
-        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[#111111] text-xs font-bold">
-          <Sparkles class="w-3.5 h-3.5 text-[#D4AF37]" />
-          <span>MoR Engine Active</span>
-        </span>
-        <span class="text-xs text-[#111111]/50 font-medium hidden sm:inline">
-          5% Platform Fee • Automated Payout • Zero PT/CV
-        </span>
-      </div>
+    <!-- Top Action Strip -->
+    <div class="flex items-center justify-between gap-3 pb-1 border-b border-[#111111]/10">
+      <h1 class="text-base font-extrabold text-[#111111]">Ringkasan Bisnis</h1>
 
       <router-link
         :to="envPath(dashboardEnv, '/apps')"
-        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gold text-xs font-bold transition shadow-gold-glow active:scale-95 cursor-pointer"
+        class="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg btn-gold text-xs font-bold transition shadow-gold-glow active:scale-95 cursor-pointer"
       >
         <Boxes class="w-3.5 h-3.5 stroke-[3]" />
         <span>Kelola Aplikasi</span>

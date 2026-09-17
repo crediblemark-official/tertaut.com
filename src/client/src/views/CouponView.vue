@@ -2,7 +2,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { api } from '../lib/api'
 import { dashboardEnv } from '../lib/environment'
-import { Ticket, CheckCircle2 } from 'lucide-vue-next'
+import { CheckCircle2 } from 'lucide-vue-next'
 import type { AppItem, CouponItem } from '../types'
 import CouponManager from '../components/checkout/CouponManager.vue'
 
@@ -132,19 +132,7 @@ watch(dashboardEnv, () => {
 </script>
 
 <template>
-  <div class="space-y-6 animate-fadeIn pb-16">
-    <!-- Compact Action Bar -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1 border-b border-[#111111]/10">
-      <div class="flex items-center gap-2">
-        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[#111111] text-xs font-bold">
-          <Ticket class="w-3.5 h-3.5 text-[#D4AF37]" />
-          <span>Kupon Diskon</span>
-        </span>
-        <span class="text-xs text-[#111111]/50 font-medium hidden sm:inline">
-          Penebusan Otomatis di Checkout • Kuota Atomik • Statistik Harian
-        </span>
-      </div>
-    </div>
+  <div class="space-y-3.5 animate-fadeIn pb-8">
 
     <!-- Alert Feedback -->
     <div

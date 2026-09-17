@@ -94,7 +94,6 @@ export class EmailService {
     const licenseKey = escapeHtml(params.licenseKey);
     const greeting = params.customerName ? `Halo ${escapeHtml(params.customerName)},` : "Halo,";
     const expires = formatDate(params.expiresAt);
-    const portalUrl = `${config.publicAppUrl.replace(/\/$/, "")}/portal`;
 
     const html = `<!doctype html>
 <html lang="id">
@@ -109,10 +108,7 @@ export class EmailService {
           <tr><td style="padding:4px 0;">Produk</td><td style="padding:4px 0;text-align:right;color:#e5e7eb;">${appName}</td></tr>
           <tr><td style="padding:4px 0;">Berlaku sampai</td><td style="padding:4px 0;text-align:right;color:#e5e7eb;">${expires}</td></tr>
         </table>
-        <p style="margin:24px 0 0;">
-          <a href="${portalUrl}" style="display:inline-block;padding:12px 20px;background:#22d3ee;color:#04141a;border-radius:8px;font-weight:bold;text-decoration:none;">Kelola lisensi &amp; perangkat</a>
-        </p>
-        <p style="margin:20px 0 0;font-size:12px;color:#71717a;">Simpan kunci ini. Jangan bagikan ke siapa pun.</p>
+        <p style="margin:20px 0 0;font-size:12px;color:#71717a;">Salin kunci lisensi di atas dan masukkan langsung ke dalam aplikasi ${appName} untuk mengaktifkan.</p>
       </td></tr>
     </table>
   </body>
@@ -128,7 +124,7 @@ export class EmailService {
       `Produk        : ${params.appName}`,
       `Berlaku s/d   : ${expires}`,
       "",
-      `Kelola lisensi & perangkat: ${portalUrl}`,
+      `Masukkan kunci lisensi di atas langsung ke aplikasi ${params.appName} untuk mengaktifkan.`,
     ].join("\n");
 
     return this.send({

@@ -8,6 +8,9 @@ import {
   aiVaultCredentials,
   aiProxyLogs,
 } from "./schema";
+import { user } from "./schema/auth";
+import { auth } from "../auth";
+import { eq } from "drizzle-orm";
 import { CryptoService } from "../services/crypto";
 import { LicenseService } from "../services/license";
 import { XenditService } from "../services/xendit";
@@ -16,7 +19,25 @@ import { randomBytes } from "crypto";
 export async function seed() {
   console.log("🌱 Mulai seeding database PostgreSQL tertautv2...");
 
-  // 1. Bersihkan data lama jika ada (urutan child ke parent)
+  // 1. Pastikan akun Super Admin default tersedia
+  try {
+    const existingAdmin = await db.select().from(user).where(eq(user.email, "admin@tertaut.com"));
+    if (existingAdmin.length === 0) {
+      await auth.api.signUpEmail({
+        body: {
+          email: "admin@tertaut.com",
+          password: "AdminPassword123!",
+          name: "Super Admin",
+        },
+      });
+    }
+    await db.update(user).set({ role: "admin" }).where(eq(user.email, "admin@tertaut.com"));
+    console.log("✅ Super Admin terverifikasi: admin@tertaut.com (role: admin)");
+  } catch (err: any) {
+    console.warn("⚠️ Info Super Admin:", err?.message);
+  }
+
+  // 2. Bersihkan data lama jika ada (urutan child ke parent)
   await db.delete(licenseActivations);
   await db.delete(aiProxyLogs);
   await db.delete(aiVaultCredentials);

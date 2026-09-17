@@ -35,22 +35,22 @@ const filteredTransactions = computed(() => {
 <template>
   <section class="space-y-4">
     <!-- Filter and Search Bar -->
-    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-[#111111]/10">
-      <div class="relative flex-1 w-full">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-[#111111]/10">
+      <div class="relative flex-1 max-w-sm">
         <Search class="w-3.5 h-3.5 text-[#111111]/40 absolute left-3 top-1/2 -translate-y-1/2" />
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Cari transaksi, app, pembeli, atau builder..."
-          class="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-[#111111]/15 focus:border-[#111111] outline-none"
+          placeholder="Cari transaksi, app, pembeli, builder..."
+          class="w-full h-9 pl-8 pr-3 text-xs rounded-lg bg-white border border-slate-300/80 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] shadow-2xs transition"
         />
       </div>
 
-      <div class="flex items-center gap-2 w-full sm:w-auto">
+      <div class="flex items-center gap-2">
         <select
           v-model="statusFilter"
           @change="emit('filterChange')"
-          class="px-3 py-1.5 text-xs rounded-xl border border-[#111111]/15 bg-white font-medium text-[#111111]"
+          class="h-9 px-3 text-xs rounded-lg border border-slate-300/80 hover:border-slate-400 bg-white font-medium text-[#111111] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] shadow-2xs transition"
         >
           <option value="">Semua Status</option>
           <option value="PAID">PAID</option>
@@ -60,80 +60,72 @@ const filteredTransactions = computed(() => {
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-[#111111]/10 overflow-hidden shadow-xs">
-      <div class="overflow-x-auto top-scrollbar">
-        <table class="w-full text-left text-xs border-collapse whitespace-nowrap">
-          <thead>
-            <tr class="bg-[#FAFAFA] border-b border-[#111111]/10 text-[#111111]/60 uppercase tracking-wider text-[10px]">
-              <th class="py-3 px-4 font-bold">ID / Tanggal</th>
-              <th class="py-3 px-4 font-bold">Aplikasi</th>
-              <th class="py-3 px-4 font-bold">Builder</th>
-              <th class="py-3 px-4 font-bold">Pelanggan</th>
-              <th class="py-3 px-4 font-bold">Gross (GMV)</th>
-              <th class="py-3 px-4 font-bold">MoR 5%</th>
-              <th class="py-3 px-4 font-bold">Net 95%</th>
-              <th class="py-3 px-4 font-bold">Status Bayar</th>
-              <th class="py-3 px-4 font-bold text-right">Disbursement</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-[#111111]/5">
-            <tr
-              v-for="tx in filteredTransactions"
-              :key="tx.id"
-              class="hover:bg-[#111111]/2 transition"
-            >
-              <td class="py-3 px-4">
-                <div class="font-mono font-bold text-[11px] text-[#111111]">{{ tx.id.slice(0, 8) }}...</div>
-                <div class="text-[10px] text-[#111111]/50">{{ new Date(tx.createdAt).toLocaleDateString('id-ID') }}</div>
-              </td>
-              <td class="py-3 px-4 font-semibold text-[#111111]">
-                {{ tx.appName }}
-              </td>
-              <td class="py-3 px-4 text-[#111111]/70 font-mono text-[11px]">
-                {{ tx.builderEmail }}
-              </td>
-              <td class="py-3 px-4 text-[#111111]/70 font-mono text-[11px]">
-                {{ tx.customerEmail }}
-              </td>
-              <td class="py-3 px-4 font-mono font-bold text-[#111111]">
-                Rp {{ tx.grossAmount.toLocaleString('id-ID') }}
-              </td>
-              <td class="py-3 px-4 font-mono font-bold text-[#996515]">
-                Rp {{ tx.platformFee.toLocaleString('id-ID') }}
-              </td>
-              <td class="py-3 px-4 font-mono font-bold text-[#0F4C3A]">
-                Rp {{ tx.netAmount.toLocaleString('id-ID') }}
-              </td>
-              <td class="py-3 px-4">
-                <span
-                  :class="[
-                    'px-2 py-0.5 rounded-full text-[10px] font-bold',
-                    tx.paymentStatus === 'PAID'
-                      ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]'
-                      : tx.paymentStatus === 'PENDING'
-                      ? 'bg-[#D4AF37]/20 text-[#996515]'
-                      : 'bg-[#B91C1C]/10 text-[#B91C1C]'
-                  ]"
-                >
-                  {{ tx.paymentStatus }}
-                </span>
-              </td>
-              <td class="py-3 px-4 text-right">
-                <span
-                  :class="[
-                    'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
-                    tx.disbursementStatus === 'COMPLETED'
-                      ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]'
-                      : 'bg-[#111111]/10 text-[#111111]/70'
-                  ]"
-                >
-                  {{ tx.disbursementStatus }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <!-- Desktop Table (Flush left/right) -->
+    <div class="overflow-x-auto w-full top-scrollbar">
+      <table class="w-full text-left text-xs whitespace-nowrap">
+        <thead class="border-b border-[#111111]/10 text-[#111111]/60 uppercase tracking-wider text-[10px] font-bold">
+          <tr>
+            <th class="py-2 pr-3 pl-0">ID / Tanggal</th>
+            <th class="py-2 px-3">Aplikasi</th>
+            <th class="py-2 px-3">Builder</th>
+            <th class="py-2 px-3">Pelanggan</th>
+            <th class="py-2 px-3">Gross (GMV)</th>
+            <th class="py-2 px-3">MoR 5%</th>
+            <th class="py-2 px-3">Net 95%</th>
+            <th class="py-2 px-3">Status</th>
+            <th class="py-2 pl-3 pr-0 text-right">Disbursement</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[#111111]/5">
+          <tr v-if="filteredTransactions.length === 0">
+            <td colspan="9" class="py-8 text-center text-[#111111]/40">
+              Tidak ada transaksi ditemukan.
+            </td>
+          </tr>
+          <tr
+            v-for="tx in filteredTransactions"
+            :key="tx.id"
+            class="hover:bg-[#111111]/[0.02] transition"
+          >
+            <td class="py-2 pr-3 pl-0">
+              <div class="font-mono font-bold text-[11px] text-[#111111]">{{ tx.id.slice(0, 8) }}...</div>
+              <div class="text-[10px] text-[#111111]/50">{{ new Date(tx.createdAt).toLocaleDateString('id-ID') }}</div>
+            </td>
+            <td class="py-2 px-3 font-semibold text-[#111111]">{{ tx.appName }}</td>
+            <td class="py-2 px-3 text-[#111111]/70 font-mono text-[11px]">{{ tx.builderEmail }}</td>
+            <td class="py-2 px-3 text-[#111111]/70 font-mono text-[11px]">{{ tx.customerEmail }}</td>
+            <td class="py-2 px-3 font-mono font-bold text-[#111111]">Rp {{ tx.grossAmount.toLocaleString('id-ID') }}</td>
+            <td class="py-2 px-3 font-mono font-bold text-[#996515]">Rp {{ tx.platformFee.toLocaleString('id-ID') }}</td>
+            <td class="py-2 px-3 font-mono font-bold text-[#0F4C3A]">Rp {{ tx.netAmount.toLocaleString('id-ID') }}</td>
+            <td class="py-2 px-3">
+              <span
+                :class="[
+                  'px-2 py-0.5 rounded-full text-[10px] font-bold',
+                  tx.paymentStatus === 'PAID'
+                    ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]'
+                    : tx.paymentStatus === 'PENDING'
+                    ? 'bg-[#D4AF37]/20 text-[#996515]'
+                    : 'bg-[#B91C1C]/10 text-[#B91C1C]'
+                ]"
+              >
+                {{ tx.paymentStatus }}
+              </span>
+            </td>
+            <td class="py-2 pl-3 pr-0 text-right">
+              <span
+                :class="[
+                  'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
+                  tx.disbursementStatus === 'COMPLETED'
+                    ? 'bg-[#0F4C3A]/10 text-[#0F4C3A]'
+                    : 'bg-[#111111]/10 text-[#111111]/70'
+                ]"
+              >
+                {{ tx.disbursementStatus }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </section>
 </template>

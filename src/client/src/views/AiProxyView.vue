@@ -3,21 +3,21 @@ import { ref, onMounted, watch } from 'vue'
 import {
   api,
   type AppItem,
+  type LicenseItem,
   type VaultCredentialItem,
   type AiProxyLogItem,
   type AiQuotaStatus,
   type AiProvider
 } from '../lib/api'
 import { dashboardEnv } from '../lib/environment'
-import { Bot, RefreshCw, CheckCircle2 } from 'lucide-vue-next'
+import { RefreshCw, CheckCircle2, KeyRound, Receipt, ShieldCheck, Bot } from 'lucide-vue-next'
 import TokenGuardrailsWidget from '../components/aiproxy/TokenGuardrailsWidget.vue'
-import SecurityPillars from '../components/aiproxy/SecurityPillars.vue'
 import VaultCredentialsManager from '../components/aiproxy/VaultCredentialsManager.vue'
 import AiProxyAuditTable from '../components/aiproxy/AiProxyAuditTable.vue'
 import AiStreamingPlayground from '../components/aiproxy/AiStreamingPlayground.vue'
-import SearchPicker from '../components/common/SearchPicker.vue'
 
 const appsList = ref<AppItem[]>([])
+const allLicenses = ref<LicenseItem[]>([])
 const selectedAppId = ref('')
 
 const vaultCreds = ref<VaultCredentialItem[]>([])
@@ -41,6 +41,24 @@ const aiResult = ref<any>(null)
 const streamedText = ref('')
 const quotaStatus = ref<AiQuotaStatus | null>(null)
 
+const activeTab = ref<'vault' | 'playground' | 'guardrails' | 'audit'>('vault')
+
+function syncLicenseForApp() {
+  const matchingLic = allLicenses.value.find(
+    (l) => l.appId === selectedAppId.value && l.status === 'ACTIVE'
+  )
+  if (matchingLic) {
+    licenseKey.value = matchingLic.licenseKey
+  } else if (allLicenses.value.length > 0) {
+    licenseKey.value = allLicenses.value[0].licenseKey
+  }
+}
+
+async function onAppChange() {
+  syncLicenseForApp()
+  await fetchData()
+}
+
 async function loadAppsAndData() {
   try {
     const [appsRes, licRes] = await Promise.all([
@@ -48,17 +66,12 @@ async function loadAppsAndData() {
       api.getLicenses(),
     ])
     appsList.value = appsRes.apps || []
+    allLicenses.value = licRes.licenses || []
+
     if (appsRes.apps && appsRes.apps.length > 0 && !selectedAppId.value) {
       selectedAppId.value = appsRes.apps[0].id
     }
-    const matchingLic = (licRes.licenses || []).find(
-      (l) => l.appId === selectedAppId.value && l.status === 'ACTIVE'
-    )
-    if (matchingLic) {
-      licenseKey.value = matchingLic.licenseKey
-    } else if ((licRes.licenses || []).length > 0) {
-      licenseKey.value = licRes.licenses[0].licenseKey
-    }
+    syncLicenseForApp()
   } catch (err) {
     console.error('Failed to load apps & licenses:', err)
   }
@@ -202,35 +215,17 @@ watch(dashboardEnv, () => {
 
 <template>
   <div class="space-y-6 animate-fadeIn pb-12">
-    <!-- Compact Action Bar -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1 border-b border-[#111111]/10">
-      <div class="flex items-center gap-2">
-        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[#111111] text-xs font-bold">
-          <Bot class="w-3.5 h-3.5 text-[#D4AF37]" />
-          <span>AI Proxy Shield</span>
-        </span>
-        <span class="text-xs text-[#111111]/50 font-medium hidden sm:inline">
-          AES-256-GCM Vault • SSE Streaming • Zero Prompt Retention
-        </span>
-      </div>
+    <!-- Action Bar -->
+    <div class="flex items-center justify-between gap-3 pb-1 border-b border-[#111111]/10">
+      <h1 class="text-base font-extrabold text-[#111111]">AI Proxy Shield</h1>
 
-      <div class="flex items-center gap-2">
-        <SearchPicker
-          v-model="selectedAppId"
-          :items="appsList"
-          @change="fetchData"
-          placeholder="Pilih aplikasi..."
-          search-placeholder="Cari software..."
-        />
-
-        <button
-          @click="fetchData"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 text-[#111111] text-xs font-bold transition shrink-0 cursor-pointer"
-        >
-          <RefreshCw class="w-3 h-3" />
-          <span>Segarkan</span>
-        </button>
-      </div>
+      <button
+        @click="fetchData"
+        class="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 text-[#111111] text-xs font-bold transition shrink-0 cursor-pointer"
+      >
+        <RefreshCw class="w-3 h-3" />
+        <span>Segarkan Data</span>
+      </button>
     </div>
 
     <!-- Alert Banner -->
@@ -245,38 +240,119 @@ watch(dashboardEnv, () => {
       <button @click="vaultAlert = null" class="text-xs underline cursor-pointer">Tutup</button>
     </div>
 
-    <!-- Token Metering & Guardrails Live Widget Component -->
-    <TokenGuardrailsWidget :quota-status="quotaStatus" />
+    <!-- Navigation Tabs -->
+    <div class="flex items-center gap-1.5 border-b border-[#111111]/10 pb-2 overflow-x-auto no-scrollbar">
+      <button
+        type="button"
+        @click="activeTab = 'vault'"
+        :class="[
+          'flex items-center gap-2 px-3 h-9 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap',
+          activeTab === 'vault'
+            ? 'bg-[#111111] text-white shadow-xs'
+            : 'text-[#111111]/60 hover:text-[#111111] hover:bg-[#111111]/5'
+        ]"
+      >
+        <KeyRound class="w-3.5 h-3.5" :class="activeTab === 'vault' ? 'text-[#D4AF37]' : ''" />
+        <span>Vault Kredensial</span>
+      </button>
 
-    <!-- Security Pillars Component -->
-    <SecurityPillars />
+      <button
+        type="button"
+        @click="activeTab = 'playground'"
+        :class="[
+          'flex items-center gap-2 px-3 h-9 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap',
+          activeTab === 'playground'
+            ? 'bg-[#111111] text-white shadow-xs'
+            : 'text-[#111111]/60 hover:text-[#111111] hover:bg-[#111111]/5'
+        ]"
+      >
+        <Bot class="w-3.5 h-3.5" :class="activeTab === 'playground' ? 'text-[#D4AF37]' : ''" />
+        <span>Uji Coba AI</span>
+      </button>
 
-    <!-- Vault Manager & Cost Guardrail Component -->
-    <VaultCredentialsManager
-      :vault-creds="vaultCreds"
-      :is-saving-key="isSavingKey"
-      v-model:provider="newProvider"
-      v-model:raw-key="newRawKey"
-      v-model:budget="newBudget"
-      @save="saveKeyToVault"
-      @toggle-kill-switch="toggleKillSwitch"
-    />
+      <button
+        type="button"
+        @click="activeTab = 'guardrails'"
+        :class="[
+          'flex items-center gap-2 px-3 h-9 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap',
+          activeTab === 'guardrails'
+            ? 'bg-[#111111] text-white shadow-xs'
+            : 'text-[#111111]/60 hover:text-[#111111] hover:bg-[#111111]/5'
+        ]"
+      >
+        <ShieldCheck class="w-3.5 h-3.5" :class="activeTab === 'guardrails' ? 'text-[#D4AF37]' : ''" />
+        <span>Token &amp; Guardrails</span>
+      </button>
 
-    <!-- Live Proxy Audit Logs Table Component -->
-    <AiProxyAuditTable
-      :proxy-logs="proxyLogs"
-      @refresh="fetchData"
-    />
+      <button
+        type="button"
+        @click="activeTab = 'audit'"
+        :class="[
+          'flex items-center gap-2 px-3 h-9 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap',
+          activeTab === 'audit'
+            ? 'bg-[#111111] text-white shadow-xs'
+            : 'text-[#111111]/60 hover:text-[#111111] hover:bg-[#111111]/5'
+        ]"
+      >
+        <Receipt class="w-3.5 h-3.5" :class="activeTab === 'audit' ? 'text-[#D4AF37]' : ''" />
+        <span>Audit Log Pemanggilan AI</span>
+        <span
+          :class="[
+            'px-1.5 py-0.2 rounded-full text-[10px] font-mono',
+            activeTab === 'audit' ? 'bg-white/20 text-white' : 'bg-[#111111]/10 text-[#111111]'
+          ]"
+        >
+          {{ proxyLogs.length }}
+        </span>
+      </button>
+    </div>
 
-    <!-- Interactive AI Chat Shield Test Component -->
-    <AiStreamingPlayground
-      :loading="loading"
-      :ai-result="aiResult"
-      v-model:license-key="licenseKey"
-      v-model:model-alias="modelAlias"
-      v-model:stream-mode="streamMode"
-      v-model:user-prompt="userPrompt"
-      @test-ai-call="testAiCall"
-    />
+    <!-- TAB 1: VAULT KREDENSIAL -->
+    <div v-if="activeTab === 'vault'" class="space-y-6 animate-fadeIn">
+      <VaultCredentialsManager
+        :vault-creds="vaultCreds"
+        :is-saving-key="isSavingKey"
+        :apps-list="appsList"
+        v-model:selected-app-id="selectedAppId"
+        v-model:provider="newProvider"
+        v-model:raw-key="newRawKey"
+        v-model:budget="newBudget"
+        @save="saveKeyToVault"
+        @toggle-kill-switch="toggleKillSwitch"
+        @app-change="onAppChange"
+      />
+    </div>
+
+    <!-- TAB 2: UJI CBOA AI -->
+    <div v-if="activeTab === 'playground'" class="space-y-6 animate-fadeIn">
+      <AiStreamingPlayground
+        :loading="loading"
+        :ai-result="aiResult"
+        :apps-list="appsList"
+        v-model:selected-app-id="selectedAppId"
+        v-model:license-key="licenseKey"
+        v-model:model-alias="modelAlias"
+        v-model:stream-mode="streamMode"
+        v-model:user-prompt="userPrompt"
+        @test-ai-call="testAiCall"
+        @app-change="onAppChange"
+      />
+    </div>
+
+    <!-- TAB 3: TOKEN & GUARDRAILS -->
+    <div v-if="activeTab === 'guardrails'" class="space-y-6 animate-fadeIn">
+      <TokenGuardrailsWidget :quota-status="quotaStatus" />
+    </div>
+
+    <!-- TAB 4: AUDIT LOG PEMANGGILAN AI -->
+    <div v-if="activeTab === 'audit'" class="space-y-6 animate-fadeIn">
+      <AiProxyAuditTable
+        :proxy-logs="proxyLogs"
+        :apps-list="appsList"
+        v-model:selected-app-id="selectedAppId"
+        @app-change="onAppChange"
+        @refresh="fetchData"
+      />
+    </div>
   </div>
 </template>
