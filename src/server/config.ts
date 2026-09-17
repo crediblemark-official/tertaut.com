@@ -38,6 +38,28 @@ function resolveSecret(envName: string, devFallback: string): string {
   return value || devFallback;
 }
 
+/**
+ * Membaca nilai kunci/sertifikat, mendukung file path lokal (mis. keys/*.pem)
+ * maupun nilai string inline dari environment variable.
+ */
+function resolveKeyOrFile(envName: string, defaultFilePath?: string): string {
+  const value = getEnv(envName);
+  if (value) {
+    if (existsSync(value)) {
+      try {
+        return readFileSync(value, "utf8").trim();
+      } catch {}
+    }
+    return value;
+  }
+  if (defaultFilePath && existsSync(defaultFilePath)) {
+    try {
+      return readFileSync(defaultFilePath, "utf8").trim();
+    } catch {}
+  }
+  return "";
+}
+
 export const config = {
   port: Number(getEnv("PORT", "3000")),
   nodeEnv,
@@ -45,9 +67,10 @@ export const config = {
   isProd,
   /**
    * Sandbox mode: mengaktifkan fitur dev (mock payment, simulasi, auto-seed demo).
-   * Aktif otomatis di development, atau eksplisit via SANDBOX_MODE=true di production.
+   * Hanya aktif di non-production. Di production (NODE_ENV === "production"),
+   * sandbox dilarang keras aktif demi mencegah bypass pembayaran riil.
    */
-  isSandbox: nodeEnv !== "production" || getEnv("SANDBOX_MODE") === "true",
+  isSandbox: !isProd,
   publicAppUrl: getEnv("PUBLIC_APP_URL", "http://localhost:3000"),
   publicStoreUrl: getEnv("PUBLIC_STORE_URL", "https://situsbisnis.com"),
   /** Harga default (IDR) untuk produk yang belum menetapkan target_price. */
@@ -57,17 +80,14 @@ export const config = {
     url: getEnv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/tertautv2"),
   },
 
-  redis: {
-    url: getEnv("REDIS_URL", "redis://localhost:6379"),
-  },
 
   security: {
     jwtSecret: resolveSecret("JWT_SECRET", DEFAULT_JWT_SECRET),
     vaultEncryptionKey: resolveSecret("VAULT_ENCRYPTION_KEY", DEFAULT_VAULT_KEY),
     /** Secret untuk Better Auth (sesi & token). Fallback ke JWT_SECRET bila tidak disetel. */
     betterAuthSecret: getEnv("BETTER_AUTH_SECRET") || resolveSecret("JWT_SECRET", DEFAULT_JWT_SECRET),
-    /** Private key Ed25519 (base64/PEM) untuk menandatangani offline license token. */
-    licensePrivateKey: getEnv("LICENSE_SIGNING_PRIVATE_KEY"),
+    /** Private key Ed25519 (base64/PEM atau path ke keys/license_signing_private.pem). */
+    licensePrivateKey: resolveKeyOrFile("LICENSE_SIGNING_PRIVATE_KEY", "keys/license_signing_private.pem"),
     /**
      * Salt untuk hashing hardware ID (HMAC). Fallback ke JWT_SECRET agar konsisten
      * antar-proses. Setel HWID_SALT terpisah untuk rotasi mandiri.
@@ -97,8 +117,8 @@ export const config = {
     clientSecret: getEnv("DANA_CLIENT_SECRET"),
     merchantId: getEnv("DANA_MERCHANT_ID"),
     baseUrl: getEnv("DANA_BASE_URL", "https://api-sandbox.dana.id"),
-    publicKey: getEnv("DANA_PUBLIC_KEY"),
-    privateKey: getEnv("DANA_PRIVATE_KEY"),
+    publicKey: resolveKeyOrFile("DANA_PUBLIC_KEY", "keys/dana_production_public.pem"),
+    privateKey: resolveKeyOrFile("DANA_PRIVATE_KEY", "keys/dana_production_private.pem"),
     platformFeePercent: 5, // 5% Merchant of Record platform fee
   },
 } as const;

@@ -346,39 +346,76 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
           continue;
         }
 
+        // Atomic lock using conditional UPDATE to prevent double disbursement race conditions
+        const txIds = txs.map((t) => t.id);
+        const lockedRows = await db
+          .update(transactions)
+          .set({
+            disbursementStatus: "PROCESSING",
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              inArray(transactions.id, txIds),
+              eq(transactions.paymentStatus, "PAID"),
+              eq(transactions.disbursementStatus, "PENDING")
+            )
+          )
+          .returning();
+
+        if (lockedRows.length === 0) {
+          // Already locked or processed by another concurrent request
+          continue;
+        }
+
+        const lockedNet = lockedRows.reduce((sum, t) => sum + t.netAmount, 0);
         const externalId = `batch_disb_${builderId.substring(0, 8)}_${Date.now()}`;
         try {
           const disb = await XenditService.createDisbursement({
             externalId,
-            amount: totalNet,
+            amount: lockedNet,
             ...bankInfo,
-            description: `Batch Payout tertaut.com MoR (${txs.length} txs)`,
+            description: `Batch Payout tertaut.com MoR (${lockedRows.length} txs)`,
           });
 
-          for (const tx of txs) {
-            await db
-              .update(transactions)
-              .set({
-                disbursementStatus: "COMPLETED",
-                disbursementId: disb.id,
-                updatedAt: new Date(),
-              })
-              .where(eq(transactions.id, tx.id));
-          }
+          const finalStatus =
+            disb.status === "FAILED"
+              ? "FAILED"
+              : disb.status === "PENDING"
+                ? "PROCESSING"
+                : "COMPLETED";
 
-          totalDisbursedAmount += totalNet;
+          await db
+            .update(transactions)
+            .set({
+              disbursementStatus: finalStatus,
+              disbursementId: disb.id,
+              updatedAt: new Date(),
+            })
+            .where(inArray(transactions.id, lockedRows.map((r) => r.id)));
+
+          totalDisbursedAmount += lockedNet;
           results.push({
             builderId,
             builderName: builder?.name,
-            amount: totalNet,
+            amount: lockedNet,
             disbursementId: disb.id,
-            status: "SUCCESS",
+            status: finalStatus === "FAILED" ? "FAILED" : "SUCCESS",
           });
         } catch (err: any) {
+          // Rollback status to PENDING on unhandled error so it can be retried
+          await db
+            .update(transactions)
+            .set({
+              disbursementStatus: "PENDING",
+              updatedAt: new Date(),
+            })
+            .where(inArray(transactions.id, lockedRows.map((r) => r.id)));
+
           results.push({
             builderId,
             builderName: builder?.name,
-            amount: totalNet,
+            amount: lockedNet,
             error: err.message,
             status: "FAILED",
           });

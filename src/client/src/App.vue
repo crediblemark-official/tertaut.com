@@ -292,7 +292,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Bottom Card & Status -->
-      <div class="space-y-2 pt-3 border-t border-[#111111]/10">
+      <div class="space-y-1.5 pt-3 border-t border-[#111111]/10">
         <router-link
           to="/panel"
           class="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 text-xs font-semibold text-[#111111] transition border border-[#111111]/10"
@@ -302,17 +302,6 @@ onUnmounted(() => {
             <span>Admin Panel</span>
           </div>
           <ChevronRight class="w-3 h-3 text-[#111111]/40" />
-        </router-link>
-
-        <router-link
-          to="/"
-          class="flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-[#111111]/5 text-xs font-medium text-[#111111]/70 transition"
-        >
-          <div class="flex items-center gap-2">
-            <Globe class="w-3.5 h-3.5" />
-            <span>Beranda Publik</span>
-          </div>
-          <ExternalLink class="w-3 h-3 text-[#111111]/40" />
         </router-link>
 
         <a
@@ -326,47 +315,6 @@ onUnmounted(() => {
           </div>
           <ExternalLink class="w-3 h-3 text-[#111111]/40" />
         </a>
-
-        <div class="p-2.5 rounded-lg bg-[#111111] text-white space-y-1 text-[11px] shadow-sm">
-          <div class="flex items-center justify-between">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">MoR Engine</span>
-            <span class="w-1.5 h-1.5 rounded-full bg-[#0F4C3A] ring-2 ring-[#0F4C3A]/40 animate-pulse"></span>
-          </div>
-          <div class="text-[10px] text-white/75 font-mono">Bun + Xendit Rail</div>
-        </div>
-
-        <!-- Sidebar Auth & Profile Section -->
-        <div class="pt-2 border-t border-[#111111]/10 space-y-1.5">
-          <div v-if="authUser" class="p-2 rounded-lg bg-[#111111]/5 space-y-2">
-            <div class="flex items-center gap-2 min-w-0">
-              <div class="w-7 h-7 rounded-full bg-[#111111] text-white flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-[#D4AF37]/40">
-                {{ authInitial }}
-              </div>
-              <div class="min-w-0 text-left flex-1">
-                <div class="text-xs font-bold text-[#111111] truncate">{{ authUser?.name || 'Builder' }}</div>
-                <div class="text-[10px] text-[#111111]/50 font-medium truncate">{{ authUser?.email }}</div>
-              </div>
-            </div>
-            <button
-              type="button"
-              class="flex items-center justify-center gap-1.5 w-full py-1.5 px-2 rounded-md bg-white border border-[#111111]/10 hover:border-red-500/30 hover:bg-red-50 hover:text-red-600 text-xs font-semibold text-[#111111]/70 transition shadow-xs"
-              title="Keluar dari akun"
-              @click="handleLogout"
-            >
-              <LogOut class="w-3.5 h-3.5" />
-              <span>Keluar (Log Out)</span>
-            </button>
-          </div>
-          <div v-else class="space-y-1">
-            <router-link
-              to="/login"
-              class="flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-lg bg-[#111111] hover:bg-[#222222] text-white text-xs font-bold transition shadow-sm"
-            >
-              <LogIn class="w-3.5 h-3.5 text-[#D4AF37]" />
-              <span>Masuk ke Akun</span>
-            </router-link>
-          </div>
-        </div>
       </div>
     </aside>
 

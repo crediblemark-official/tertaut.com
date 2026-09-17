@@ -586,14 +586,17 @@ async function handleAiChat({
  * Route Handler untuk AI Proxy Shield & Quota Guardrails
  * Dipasang pada `/ai-proxy` dan `/ai`
  */
-/** Endpoint AI yang publik (dipakai end-user via license JWT, bukan dashboard). */
-const PUBLIC_AI_PATHS = ["/chat", "quota-status"];
-
 export function createAiRoutes(prefix: string) {
   return new Elysia({ prefix })
     // Manajemen vault/config/logs hanya untuk dashboard builder yang login.
     .onBeforeHandle(async ({ request: { headers }, status, path }) => {
-      if (PUBLIC_AI_PATHS.some((p) => path.includes(p))) return;
+      // Pengecekan presisi ketat (hanya /chat atau /quota-status) demi mencegah bypass auth pada endpoint internal
+      const isPublicAiEndpoint =
+        path === `/api/v1${prefix}/chat` ||
+        path === `/api/v1${prefix}/quota-status` ||
+        path === `${prefix}/chat` ||
+        path === `${prefix}/quota-status`;
+      if (isPublicAiEndpoint) return;
       const res = await authenticate(headers);
       if ("status" in res) return status(res.status, { error: res.error });
     })

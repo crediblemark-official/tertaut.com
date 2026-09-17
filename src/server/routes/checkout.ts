@@ -336,7 +336,8 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
       });
 
       // Jika mock mode pada sandbox browser test, simulasi auto-paid
-      if (mock === "true" && tx.paymentStatus === "PENDING") {
+      // Kritis: Di-gate checkoutConfig.isSandbox agar pembayaran tidak bisa di-bypass di production
+      if (checkoutConfig.isSandbox && mock === "true" && tx.paymentStatus === "PENDING") {
         await fulfillPaymentTransaction(tx, "DANA_MOCK");
       }
 

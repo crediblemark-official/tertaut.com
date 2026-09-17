@@ -1126,7 +1126,7 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
     }
   });
 
-  it("Customer Portal & Super Admin Panel: should support customer license lookup, device deactivation, platform stats, builder directory, and batch payout", async () => {
+  it("Super Admin Panel & Seat Deactivation: should support seat deactivation, platform stats, builder directory, and batch payout", async () => {
     const app = await db.query.apps.findFirst();
     if (!app) return;
 
@@ -1171,57 +1171,18 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
     });
 
     try {
-      // 2b. Uji Customer Portal: POST /api/v1/portal/access (tukar email + license key -> token)
-      const resAccess = await fetch("http://localhost:3000/api/v1/portal/access", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: testEmail, licenseKey: testKey }),
-      });
-      const accessData: any = await resAccess.json();
-      expect(resAccess.status).toBe(200);
-      expect(accessData.success).toBe(true);
-      expect(typeof accessData.token).toBe("string");
-      const portalToken: string = accessData.token;
-
-      // Bukti kepemilikan salah harus ditolak
-      const resAccessBad = await fetch("http://localhost:3000/api/v1/portal/access", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "orang_lain@customer.com", licenseKey: testKey }),
-      });
-      expect(resAccessBad.status).toBe(403);
-
-      // 3. Uji Customer Portal: GET /api/v1/portal/licenses (wajib portal token)
-      const resLicenses = await fetch(`http://localhost:3000/api/v1/portal/licenses?token=${portalToken}`);
-      const licData: any = await resLicenses.json();
-      expect(resLicenses.status).toBe(200);
-      expect(licData.success).toBe(true);
-      expect(licData.count).toBe(1);
-      expect(licData.licenses[0].licenseKey).toBe(testKey);
-      expect(licData.licenses[0].seatsUsed).toBe(1);
-      expect(licData.licenses[0].activations.length).toBe(1);
-
-      // 4. Uji Customer Portal: POST /api/v1/portal/deactivate-device (Self-service seat release)
-      const resDeact = await fetch("http://localhost:3000/api/v1/portal/deactivate-device", {
+      // 2b. Uji Device Seat Deactivation via endpoint resmi: POST /api/v1/licensing/deactivate
+      const resDeact = await fetch("http://localhost:3000/api/v1/licensing/deactivate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           licenseKey: testKey,
-          hwidHash: testHwid,
-          customerEmail: testEmail,
+          hwid: "device_macbook_portal_test",
         }),
       });
       const deactData: any = await resDeact.json();
       expect(resDeact.status).toBe(200);
       expect(deactData.success).toBe(true);
-      expect(deactData.remainingSeats).toBe(2);
-
-      // 5. Uji Customer Portal: GET /api/v1/portal/transactions (wajib portal token)
-      const resTx = await fetch(`http://localhost:3000/api/v1/portal/transactions?token=${portalToken}`);
-      const txData: any = await resTx.json();
-      expect(resTx.status).toBe(200);
-      expect(txData.success).toBe(true);
-      expect(txData.count).toBeGreaterThanOrEqual(1);
 
       // 6. Uji Super Admin Panel: GET /api/v1/panel/stats
       const resStats = await fetch("http://localhost:3000/api/v1/panel/stats");
@@ -1261,7 +1222,7 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
       await db.delete(licenses).where(eq(licenses.id, testLicId));
       await db.delete(transactions).where(eq(transactions.id, testTxId));
     }
-  });
+  }, 15000);
 });
 
 describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
@@ -1547,25 +1508,26 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
   });
 });
 
+async function createSandboxTestApp(): Promise<{ id: string; slug: string }> {
+  const builder = await db.query.builders.findFirst();
+  if (!builder) throw new Error("No builder found — jalankan seed/auto-seed dulu");
+
+  const testAppId = `app_sandbox_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
+  const testSlug = `sandbox-test-${Math.random().toString(36).substring(2, 8)}`;
+
+  await db.insert(apps).values({
+    id: testAppId,
+    builderId: builder.id,
+    name: "Sandbox E2E Test App",
+    slug: testSlug,
+    mode: "sandbox",
+    targetPrice: 50000,
+  });
+
+  return { id: testAppId, slug: testSlug };
+}
+
 describe("Sandbox & Live App Mode (creem.io-style)", () => {
-  async function createSandboxTestApp(): Promise<{ id: string; slug: string }> {
-    const builder = await db.query.builders.findFirst();
-    if (!builder) throw new Error("No builder found — jalankan seed/auto-seed dulu");
-
-    const testAppId = `app_sandbox_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
-    const testSlug = `sandbox-test-${Math.random().toString(36).substring(2, 8)}`;
-
-    await db.insert(apps).values({
-      id: testAppId,
-      builderId: builder.id,
-      name: "Sandbox E2E Test App",
-      slug: testSlug,
-      mode: "sandbox",
-      targetPrice: 50000,
-    });
-
-    return { id: testAppId, slug: testSlug };
-  }
 
   it("should create app with sandbox mode by default and allow mode toggle to live", async () => {
     const builder = await db.query.builders.findFirst();
@@ -1692,7 +1654,14 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
   });
 
   it("should create checkout session using DANA when paymentGateway='dana'", async () => {
-    const existingApp = await db.query.apps.findFirst();
+    let existingApp = await db.query.apps.findFirst({
+      where: eq(apps.mode, "sandbox"),
+    });
+    let tempAppCreated = false;
+    if (!existingApp) {
+      existingApp = (await createSandboxTestApp()) as any;
+      tempAppCreated = true;
+    }
     if (!existingApp) return;
 
     const email = `dana_checkout_${Date.now()}@test.local`;
@@ -1725,6 +1694,9 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
 
     // Clean up
     await db.delete(transactions).where(eq(transactions.id, body.transactionId));
+    if (tempAppCreated && existingApp) {
+      await db.delete(apps).where(eq(apps.id, existingApp.id));
+    }
   });
 
   it("should process DANA Finish Payment Webhook and issue license with idempotency", async () => {

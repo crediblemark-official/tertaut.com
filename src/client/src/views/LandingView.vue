@@ -498,7 +498,7 @@ function copySdkInstall() {
 
         <div class="flex items-center gap-2 font-mono text-[11px]">
           <span class="w-2 h-2 rounded-full bg-[#0F4C3A]"></span>
-          <span>Engine Online (Bun {{ '1.3' }})</span>
+          <span>Engine Online (v2.2 Production Monolith)</span>
         </div>
       </div>
     </footer>

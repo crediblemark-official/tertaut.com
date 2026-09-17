@@ -18,10 +18,9 @@ const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'issue'): void
   (e: 'copy', key: string): void
-  (e: 'selectTest', lic: LicenseItem): void
   (e: 'unbindHardware', lic: LicenseItem): void
-  (e: 'revoke', lic: LicenseItem): void
   (e: 'deactivateSeat', key: string, hwid: string): void
+  (e: 'revoke', lic: LicenseItem): void
 }>()
 
 const searchQuery = ref('')
@@ -199,13 +198,6 @@ const filteredLicenses = computed(() => {
               </span>
             </td>
             <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right space-x-1.5">
-              <button
-                @click="emit('selectTest', lic)"
-                title="Gunakan untuk uji validasi"
-                class="px-2 py-0.5 rounded bg-[#D4AF37]/15 hover:bg-[#D4AF37]/30 text-[10px] font-bold text-[#111111] transition cursor-pointer"
-              >
-                Uji di Validator
-              </button>
               <button
                 v-if="lic.hardwareId || (lic.seatsUsed && lic.seatsUsed > 0)"
                 @click="emit('unbindHardware', lic)"

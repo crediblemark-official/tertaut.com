@@ -90,7 +90,10 @@ export const aiVaultCredentials = pgTable("ai_vault_credentials", {
   isKillSwitchActive: boolean("is_kill_switch_active").default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [index("idx_ai_vault_credentials_app_id").on(table.appId)]);
+}, (table) => [
+  index("idx_ai_vault_credentials_app_id").on(table.appId),
+  index("idx_ai_vault_credentials_provider").on(table.provider),
+]);
 
 export const aiProxyLogs = pgTable("ai_proxy_logs", {
   id: uuid("id").defaultRandom().primaryKey(),

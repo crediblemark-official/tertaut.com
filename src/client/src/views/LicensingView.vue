@@ -1,30 +1,38 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { api, type AppItem, type LicenseItem, type LicensePlatform } from '../lib/api'
 import { dashboardEnv } from '../lib/environment'
 import { CheckCircle2 } from 'lucide-vue-next'
 import { useClipboard } from '../composables/useClipboard'
 import LicenseTable from '../components/licensing/LicenseTable.vue'
-import LicenseValidatorPanel from '../components/licensing/LicenseValidatorPanel.vue'
 import IssueLicenseModal from '../components/licensing/IssueLicenseModal.vue'
 
 const appsList = ref<AppItem[]>([])
 const licensesList = ref<LicenseItem[]>([])
 const loadingLicenses = ref(false)
 const actionFeedback = ref<string | null>(null)
+let feedbackTimer: ReturnType<typeof setTimeout> | null = null
 const { copy: writeClipboard } = useClipboard()
-
-// Validation & Diagnostic Engine State
-const licenseKey = ref('')
-const hardwareId = ref('')
-const deviceName = ref('')
-const validationAppId = ref('')
-const validationResult = ref<any>(null)
-const loadingValidation = ref(false)
 
 // Issue Modal State
 const isIssueModalOpen = ref(false)
 const isIssuing = ref(false)
+
+function setFeedback(msg: string, timeoutMs = 4000) {
+  if (feedbackTimer) clearTimeout(feedbackTimer)
+  actionFeedback.value = msg
+  feedbackTimer = setTimeout(() => {
+    actionFeedback.value = null
+    feedbackTimer = null
+  }, timeoutMs)
+}
+
+onUnmounted(() => {
+  if (feedbackTimer) {
+    clearTimeout(feedbackTimer)
+    feedbackTimer = null
+  }
+})
 
 async function loadData() {
   loadingLicenses.value = true
@@ -34,112 +42,11 @@ async function loadData() {
       api.getLicenses()
     ])
     appsList.value = appsRes.apps || []
-    if (appsRes.apps && appsRes.apps.length > 0 && !validationAppId.value) {
-      validationAppId.value = appsRes.apps[0].id
-    }
     licensesList.value = licRes.licenses || []
-
-    if (licensesList.value.length > 0 && !licenseKey.value) {
-      selectLicenseForTest(licensesList.value[0])
-    }
   } catch (err) {
     console.error('Failed to load licenses data:', err)
   } finally {
     loadingLicenses.value = false
-  }
-}
-
-function selectLicenseForTest(lic: LicenseItem) {
-  licenseKey.value = lic.licenseKey
-  validationAppId.value = lic.appId
-  hardwareId.value = lic.hardwareId || ''
-  validationResult.value = null
-}
-
-async function testActivateSeat() {
-  if (!licenseKey.value) return
-  if (!hardwareId.value) {
-    validationResult.value = { success: false, error: 'Hardware ID wajib diisi untuk aktivasi seat.' }
-    return
-  }
-  loadingValidation.value = true
-  try {
-    const res = await api.activateLicense({
-      licenseKey: licenseKey.value,
-      appId: validationAppId.value,
-      hwid: hardwareId.value,
-      deviceName: deviceName.value || 'UserDevice',
-    })
-    validationResult.value = res
-    if (res.success) {
-      actionFeedback.value = 'Perangkat berhasil diaktivasi!'
-      setTimeout(() => { actionFeedback.value = null }, 4000)
-    }
-    await loadData()
-  } catch (err: any) {
-    validationResult.value = { success: false, error: err.message || 'Activation failed' }
-  } finally {
-    loadingValidation.value = false
-  }
-}
-
-async function testVerifyOnline() {
-  if (!licenseKey.value) return
-  loadingValidation.value = true
-  try {
-    const res = await api.verifyLicense({
-      licenseKey: licenseKey.value,
-      hwid: hardwareId.value || undefined,
-    })
-    validationResult.value = res
-  } catch (err: any) {
-    validationResult.value = { valid: false, error: err.message || 'Verify failed' }
-  } finally {
-    loadingValidation.value = false
-  }
-}
-
-async function testDeactivateSeat(targetKey?: string, targetHwid?: string) {
-  const licKey = targetKey || licenseKey.value
-  const hw = targetHwid || hardwareId.value
-  if (!licKey) return
-  if (!hw) {
-    validationResult.value = { success: false, error: 'Hardware ID wajib diisi untuk deaktivasi seat.' }
-    return
-  }
-  loadingValidation.value = true
-  try {
-    const res = await api.deactivateLicense({
-      licenseKey: licKey,
-      hwid: hw,
-    })
-    validationResult.value = res
-    if (res.success) {
-      actionFeedback.value = 'Device seat berhasil dilepas!'
-      setTimeout(() => { actionFeedback.value = null }, 4000)
-    }
-    await loadData()
-  } catch (err: any) {
-    validationResult.value = { success: false, error: err.message || 'Deactivation failed' }
-  } finally {
-    loadingValidation.value = false
-  }
-}
-
-async function testValidation() {
-  if (!licenseKey.value) return
-  loadingValidation.value = true
-  try {
-    const res = await api.validateLicense({
-      licenseKey: licenseKey.value,
-      appId: validationAppId.value,
-      hardwareId: hardwareId.value || undefined,
-    })
-    validationResult.value = res
-  } catch {
-    validationResult.value = { valid: false, error: 'Network error' }
-  } finally {
-    loadingValidation.value = false
   }
 }
 
@@ -153,10 +60,9 @@ async function handleIssueLicense(payload: {
   isIssuing.value = true
   try {
     const res = await api.issueLicense(payload)
-    if (res.success) {
+    if (res.success && res.license) {
       isIssueModalOpen.value = false
-      actionFeedback.value = `Lisensi baru ${res.license.licenseKey} berhasil diterbitkan!`
-      setTimeout(() => { actionFeedback.value = null }, 5000)
+      setFeedback(`Lisensi baru ${res.license.licenseKey || ''} berhasil diterbitkan!`, 5000)
       await loadData()
       notifyLicensesChanged()
     }
@@ -170,8 +76,7 @@ async function revokeLicense(lic: LicenseItem) {
   try {
     const res = await api.revokeLicense(lic.licenseKey)
     if (res.success) {
-      actionFeedback.value = `Lisensi ${lic.licenseKey} berhasil dicabut.`
-      setTimeout(() => { actionFeedback.value = null }, 4000)
+      setFeedback(`Lisensi ${lic.licenseKey} berhasil dicabut.`, 4000)
       await loadData()
       notifyLicensesChanged()
     }
@@ -184,12 +89,25 @@ async function unbindHardware(lic: LicenseItem) {
   try {
     const res = await api.unbindHardware(lic.licenseKey)
     if (res.success) {
-      actionFeedback.value = `Hardware binding untuk ${lic.licenseKey} berhasil di-reset. Pengguna dapat aktivasi di device baru.`
-      setTimeout(() => { actionFeedback.value = null }, 4000)
+      setFeedback(`Hardware binding untuk ${lic.licenseKey} berhasil di-reset. Pengguna dapat aktivasi di device baru.`, 4000)
       await loadData()
     }
   } catch (e) {
     console.error(e)
+  }
+}
+
+async function handleDeactivateSeat(licenseKey: string, hwid: string) {
+  try {
+    const res = await api.deactivateLicense({ licenseKey, hwid })
+    if (res.success) {
+      setFeedback('Device seat berhasil dilepas!', 4000)
+      await loadData()
+    } else {
+      setFeedback(`Gagal: ${res.error || 'Seat tidak bisa dilepas'}`, 4000)
+    }
+  } catch (e: any) {
+    setFeedback(`Error: ${e?.message || 'Terjadi kesalahan'}`, 4000)
   }
 }
 
@@ -201,12 +119,10 @@ function notifyLicensesChanged() {
 async function copyToClipboard(text: string) {
   const ok = await writeClipboard(text)
   if (!ok) {
-    actionFeedback.value = 'Gagal menyalin ke clipboard. Salin manual dari tabel.'
-    setTimeout(() => { actionFeedback.value = null }, 3000)
+    setFeedback('Gagal menyalin ke clipboard. Salin manual dari tabel.', 3000)
     return
   }
-  actionFeedback.value = `Kunci lisensi ${text} disalin ke clipboard!`
-  setTimeout(() => { actionFeedback.value = null }, 3000)
+  setFeedback(`Kunci lisensi ${text} disalin ke clipboard!`, 3000)
 }
 
 onMounted(() => {
@@ -215,9 +131,6 @@ onMounted(() => {
 
 // Muat ulang saat environment Live/Sandbox berganti
 watch(dashboardEnv, () => {
-  validationAppId.value = ''
-  licenseKey.value = ''
-  validationResult.value = null
   loadData()
 })
 </script>
@@ -231,10 +144,9 @@ watch(dashboardEnv, () => {
       @refresh="loadData"
       @issue="isIssueModalOpen = true"
       @copy="copyToClipboard"
-      @select-test="selectLicenseForTest"
       @unbind-hardware="unbindHardware"
+      @deactivate-seat="handleDeactivateSeat"
       @revoke="revokeLicense"
-      @deactivate-seat="(k, h) => testDeactivateSeat(k, h)"
     />
 
     <!-- Alert Feedback -->
@@ -246,31 +158,15 @@ watch(dashboardEnv, () => {
       <span>{{ actionFeedback }}</span>
     </div>
 
-    <!-- Diagnostic & Validation Engine Component -->
-    <div class="mt-6">
-      <LicenseValidatorPanel
-      :apps-list="appsList"
-      :loading-validation="loadingValidation"
-      :validation-result="validationResult"
-      v-model:license-key="licenseKey"
-      v-model:hardware-id="hardwareId"
-      v-model:device-name="deviceName"
-      v-model:app-id="validationAppId"
-      @activate-seat="testActivateSeat"
-      @verify-online="testVerifyOnline"
-      @deactivate-seat="() => testDeactivateSeat()"
-      @validate-standard="testValidation"
-    />
-    </div>
-
     <!-- Issue License Modal Component -->
     <IssueLicenseModal
       :show="isIssueModalOpen"
       :apps-list="appsList"
       :is-issuing="isIssuing"
-      :default-app-id="validationAppId"
+      :default-app-id="appsList.length > 0 ? appsList[0].id : ''"
       @close="isIssueModalOpen = false"
       @issue="handleIssueLicense"
     />
   </div>
 </template>
+

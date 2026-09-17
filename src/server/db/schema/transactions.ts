@@ -47,6 +47,9 @@ export const transactions = pgTable("transactions", {
     table.disbursementStatus
   ),
   index("idx_transactions_app_id").on(table.appId),
+  index("idx_transactions_app_payment_status").on(table.appId, table.paymentStatus),
+  index("idx_transactions_customer_email").on(table.customerEmail),
+  index("idx_transactions_xendit_ext_id").on(table.xenditExternalId),
   index("idx_transactions_created_at").on(table.createdAt),
 ]);
 

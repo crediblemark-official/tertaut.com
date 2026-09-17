@@ -8,7 +8,6 @@ import { licensingRoutes, licenseLegacyRoutes } from "./licensing";
 import { aiProxyRoutes, aiRoutes } from "./aiproxy";
 import { badgeRoutes, widgetRoutes } from "./badge";
 import { launchRoutes } from "./launch";
-import { portalRoutes } from "./portal";
 import { panelRoutes } from "./panel";
 import { couponRoutes } from "./coupons";
 import { authMiddleware, authenticate } from "../middleware/auth";
@@ -19,8 +18,6 @@ const PUBLIC_PREFIXES = [
   "/api/v1/widgets",
   "/api/v1/webhook",
   "/api/v1/webhooks",
-  "/api/v1/portal/access",
-  "/api/v1/portal/",
   "/api/v1/checkout/session",
   "/api/v1/apps/by-slug",
   "/api/v1/licensing/verify",
@@ -51,6 +48,5 @@ export const apiV1Routes = new Elysia({ prefix: "/api/v1" })
   .use(badgeRoutes)
   .use(widgetRoutes)
   .use(launchRoutes)
-  .use(portalRoutes)
   .use(panelRoutes)
   .use(couponRoutes);

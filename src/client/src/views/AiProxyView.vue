@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import {
   api,
   type AppItem,
@@ -30,6 +30,23 @@ const newRawKey = ref('')
 const newBudget = ref(500000)
 const isSavingKey = ref(false)
 const vaultAlert = ref<string | null>(null)
+let alertTimer: ReturnType<typeof setTimeout> | null = null
+
+function setVaultAlert(msg: string, timeoutMs = 4000) {
+  if (alertTimer) clearTimeout(alertTimer)
+  vaultAlert.value = msg
+  alertTimer = setTimeout(() => {
+    vaultAlert.value = null
+    alertTimer = null
+  }, timeoutMs)
+}
+
+onUnmounted(() => {
+  if (alertTimer) {
+    clearTimeout(alertTimer)
+    alertTimer = null
+  }
+})
 
 // AI Chat Playground & Guardrails State
 const licenseKey = ref('')
@@ -119,11 +136,8 @@ async function saveKeyToVault() {
       monthlyBudgetLimit: newBudget.value,
     })
     if (res.success) {
-      vaultAlert.value = res.message || 'Kredensial berhasil disimpan ke Vault!'
+      setVaultAlert(res.message || 'Kredensial berhasil disimpan ke Vault!', 5000)
       newRawKey.value = ''
-      setTimeout(() => {
-        vaultAlert.value = null
-      }, 5000)
       await fetchData()
     }
   } finally {
@@ -138,10 +152,7 @@ async function toggleKillSwitch(cred: VaultCredentialItem) {
       provider: cred.provider,
     })
     if (res.success) {
-      vaultAlert.value = res.message || 'Status Kill-Switch berhasil diubah.'
-      setTimeout(() => {
-        vaultAlert.value = null
-      }, 4000)
+      setVaultAlert(res.message || 'Status Kill-Switch berhasil diubah.', 4000)
       await fetchData()
     }
   } catch (e) {

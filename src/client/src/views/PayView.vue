@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { api } from '../lib/api'
 import { formatRupiah } from '../lib/utils'
 import {
   ShieldCheck,
@@ -75,8 +76,7 @@ async function loadCheckoutData() {
     const identifier = slug.value || queryAppId.value
     if (!identifier) {
       // Jika tidak ada parameter, coba ambil aplikasi live pertama
-      const res = await fetch('/api/v1/apps')
-      const json = await res.json()
+      const json = await api.getApps()
       if (json.apps && json.apps.length > 0) {
         const liveApp = json.apps.find((a: any) => a.mode === 'live') || json.apps[0]
         setProductData(liveApp)
@@ -86,22 +86,24 @@ async function loadCheckoutData() {
       return
     }
 
-    const res = await fetch(`/api/v1/apps/by-slug/${identifier}`)
-    if (res.ok) {
-      const data = await res.json()
-      setProductData(data)
-    } else {
-      // Coba fetch via ID
-      const appsRes = await fetch('/api/v1/apps')
-      const appsJson = await appsRes.json()
-      const matched = appsJson.apps?.find((a: any) => a.id === identifier || a.slug === identifier)
-      if (matched) {
-        setProductData(matched)
-      } else {
-        notFound.value = true
+    try {
+      const data = await api.getAppBySlug(identifier)
+      if (data && data.id) {
+        setProductData(data)
+        return
       }
+    } catch {
+      // Coba cari di list apps jika by-slug gagal
     }
-  } catch (err: any) {
+
+    const appsJson = await api.getApps()
+    const matched = appsJson.apps?.find((a: any) => a.id === identifier || a.slug === identifier)
+    if (matched) {
+      setProductData(matched)
+    } else {
+      notFound.value = true
+    }
+  } catch {
     notFound.value = true
   } finally {
     loading.value = false
@@ -118,27 +120,22 @@ async function applyCoupon() {
   appliedCoupon.value = null
 
   try {
-    const res = await fetch('/api/v1/checkout/preview-coupon', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        appId: product.value.id,
-        couponCode: couponInput.value.trim(),
-        amount: product.value.targetPrice
-      })
+    const data = await api.previewCoupon({
+      appId: product.value.id,
+      couponCode: couponInput.value.trim(),
+      amount: product.value.targetPrice
     })
-    const data = await res.json()
-    if (!res.ok || !data.valid) {
+    if (!data.valid || !data.coupon) {
       couponError.value = data.message || data.error || 'Kupon tidak valid'
       return
     }
     appliedCoupon.value = {
       code: data.coupon.code,
-      discountPercent: data.discountPercent,
-      discountAmount: data.discountAmount
+      discountPercent: data.discountPercent || 0,
+      discountAmount: data.discountAmount || 0
     }
-  } catch {
-    couponError.value = 'Gagal memvalidasi kupon. Coba lagi.'
+  } catch (err: any) {
+    couponError.value = err.message || 'Gagal memvalidasi kupon. Coba lagi.'
   }
 }
 
@@ -148,7 +145,7 @@ function setProductData(app: any) {
     name: queryProductName.value || app.name,
     slug: app.slug || '',
     mode: app.mode || 'live',
-    targetPrice: queryAmount.value || app.targetPrice || 49000,
+    targetPrice: queryAmount.value || app.targetPrice || 0,
     description: app.description || 'Solusi software premium otomatis & berlisensi resmi.',
     headline: app.headline || null,
     subheadline: app.subheadline || null,
@@ -169,28 +166,23 @@ async function handlePay() {
   sandboxResult.value = null
 
   try {
-    const res = await fetch('/api/v1/checkout/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        appId: product.value.id,
-        customerEmail: emailInput.value,
-        amount: payableAmount.value,
-        grantDays: queryGrantDays.value,
-        preferredPaymentChannel: selectedPaymentRail.value,
-        redirectUrl: product.value.redirectUrl || `${window.location.origin}/dashboard`,
-        couponCode: appliedCoupon.value?.code || couponInput.value.trim() || undefined
-      })
+    const data = await api.createCheckoutSession({
+      appId: product.value.id,
+      customerEmail: emailInput.value,
+      amount: payableAmount.value,
+      grantDays: queryGrantDays.value,
+      preferredPaymentChannel: selectedPaymentRail.value,
+      redirectUrl: product.value.redirectUrl || `${window.location.origin}/dashboard`,
+      couponCode: appliedCoupon.value?.code || couponInput.value.trim() || undefined
     })
 
-    const data = await res.json()
-    if (!res.ok || !data.success) {
+    if (!data.success) {
       errorMessage.value = data.error || 'Gagal menyiapkan sesi checkout'
       return
     }
 
     if (product.value.mode === 'sandbox') {
-      sandboxSessionId.value = data.transactionId
+      sandboxSessionId.value = data.transactionId || ''
     } else if (data.checkoutUrl) {
       window.location.href = data.checkoutUrl
     }
@@ -207,15 +199,14 @@ async function simulateSandboxPayment() {
   isSimulating.value = true
   errorMessage.value = ''
   try {
-    const res = await fetch(`/api/v1/checkout/simulate-paid/${txId}`, { method: 'POST' })
-    const data = await res.json()
-    if (!res.ok || !data.success) {
-      errorMessage.value = data.error || 'Gagal mensimulasikan pembayaran'
+    const data = await api.simulatePayment(txId)
+    if (!data.success) {
+      errorMessage.value = data.message || 'Gagal mensimulasikan pembayaran'
       return
     }
     sandboxResult.value = {
       message: data.message,
-      licenseKey: data.licenseKey,
+      licenseKey: data.licenseKey || '',
     }
   } catch (err: any) {
     errorMessage.value = err.message || 'Terjadi kesalahan jaringan'

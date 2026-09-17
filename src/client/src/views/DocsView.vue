@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useClipboard } from '../composables/useClipboard'
 import {
   Terminal,
@@ -16,13 +16,25 @@ import {
   Layers,
 } from 'lucide-vue-next'
 
+import { api, type AppItem } from '../lib/api'
+
 const copiedIndex = ref<number | null>(null)
-const selectedAppSlug = ref('fastmail-ai')
+const appsList = ref<AppItem[]>([])
+const selectedAppSlug = ref('')
 const selectedWidgetType = ref<'verified' | 'sales_counter' | 'status'>('verified')
 const widgetCustomers = ref<number | null>(null)
 const { copy: writeClipboard } = useClipboard()
+let copyTimer: ReturnType<typeof setTimeout> | null = null
+
+const currentApp = computed(() => {
+  return appsList.value.find((a) => a.slug === selectedAppSlug.value) || appsList.value[0] || null
+})
+
+const currentAppId = computed(() => currentApp.value?.id || 'app_sample_id')
+const currentAppPrice = computed(() => currentApp.value?.targetPrice || 49000)
 
 async function loadWidgetSales() {
+  if (!selectedAppSlug.value) return
   try {
     const res = await fetch(`/api/v1/widgets/badge/${selectedAppSlug.value}`)
     if (!res.ok) {
@@ -36,32 +48,58 @@ async function loadWidgetSales() {
   }
 }
 
-onMounted(loadWidgetSales)
+async function loadApps() {
+  try {
+    const res = await api.getApps()
+    appsList.value = res.apps || []
+    if (res.apps && res.apps.length > 0 && !selectedAppSlug.value) {
+      selectedAppSlug.value = res.apps[0].slug
+    }
+  } catch {
+    // fallback
+  }
+  if (!selectedAppSlug.value) {
+    selectedAppSlug.value = 'fastmail-ai'
+  }
+  await loadWidgetSales()
+}
+
+onMounted(loadApps)
 watch(selectedAppSlug, loadWidgetSales)
+
+onUnmounted(() => {
+  if (copyTimer) {
+    clearTimeout(copyTimer)
+    copyTimer = null
+  }
+})
 
 async function copyCode(text: string, index: number) {
   const ok = await writeClipboard(text)
   if (!ok) return
   copiedIndex.value = index
-  setTimeout(() => {
+  if (copyTimer) clearTimeout(copyTimer)
+  copyTimer = setTimeout(() => {
     if (copiedIndex.value === index) copiedIndex.value = null
+    copyTimer = null
   }, 2000)
 }
 
 const aiPromptCursor = computed(() => {
+  const activeSlug = selectedAppSlug.value || 'my-app'
   return `Kamu adalah Senior Fullstack Engineer. Tugasmu adalah mengintegrasikan infrastruktur tertaut.com ke dalam aplikasi ini menggunakan @tertaut/sdk.
 
 Informasi Proyek:
-- App ID: app_prod_${selectedAppSlug.value.replace(/-/g, '_')}
- - API Endpoint: ${typeof window !== 'undefined' ? window.location.origin : 'https://tertaut.com'}
+- App ID: ${currentAppId.value}
+- API Endpoint: ${typeof window !== 'undefined' ? window.location.origin : 'https://tertaut.com'}
 - Target Model AI: fast-summary-model
 
 Langkah Integrasi:
 1. Pasang SDK: npm install @tertaut/sdk
 2. Inisialisasi SDK:
    import { Tertaut } from '@tertaut/sdk';
-   const tertaut = new Tertaut({ appId: 'app_prod_${selectedAppSlug.value.replace(/-/g, '_')}', environment: 'production' });
-3. Modul 1 (Checkout): Di tombol upgrade/beli, panggil tertaut.checkout({ amount: 49000, grantDays: 30, redirectUrl: window.location.origin + '/dashboard' });
+   const tertaut = new Tertaut({ appId: '${currentAppId.value}', environment: 'production' });
+3. Modul 1 (Checkout): Di tombol upgrade/beli, panggil tertaut.checkout({ amount: ${currentAppPrice.value}, grantDays: 30, redirectUrl: window.location.origin + '/dashboard' });
 4. Modul 2 (Lisensi): Di startup aplikasi, validasi lisensi:
    const status = await tertaut.licensing.verify({ licenseKey: userSavedKey, hwid: deviceHardwareId });
 5. Modul 3 (Streaming AI Gateway): Panggil LLM tanpa ekspos API key:
@@ -74,21 +112,21 @@ const widgetEmbedScript = computed(() => {
   const host = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
   return `<!-- Tertaut.com Embeddable Trust & Sales Badge -->
 <script src="${host}/api/v1/widgets/embed.js" async><\/script>
-<tertaut-badge app="${selectedAppSlug.value}" type="${selectedWidgetType.value}"></tertaut-badge>`
+<tertaut-badge app="${selectedAppSlug.value || 'my-app'}" type="${selectedWidgetType.value}"></tertaut-badge>`
 })
 
-const sdkFullSnippet = `import { Tertaut } from '@tertaut/sdk';
+const sdkFullSnippet = computed(() => `import { Tertaut } from '@tertaut/sdk';
 
 // Inisialisasi client library (< 15KB)
 export const tertaut = new Tertaut({
-  appId: 'app_987123',
+  appId: '${currentAppId.value}',
   environment: 'production'
 });
 
 // 1. Modul 1: Direct Live Checkout (MoR Engine via Xendit)
 export async function buyProduct() {
   await tertaut.checkout({
-    amount: 49000,
+    amount: ${currentAppPrice.value},
     grantDays: 30,
     redirectUrl: 'https://myapp.com/dashboard'
   });
@@ -112,7 +150,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
     console.log(chunk.text);
   }
 }
-`
+`)
 </script>
 
 <template>

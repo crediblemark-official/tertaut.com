@@ -60,19 +60,14 @@ async function createApp() {
   isCreating.value = true
   createError.value = null
   try {
-    const res = await fetch('/api/v1/apps', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: newAppName.value,
-        slug: newAppSlug.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-        targetPrice: newAppPrice.value,
-        mode: dashboardEnv.value,
-        description: newAppDesc.value
-      })
+    const data = await api.createCampaign({
+      name: newAppName.value,
+      slug: newAppSlug.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+      targetPrice: newAppPrice.value,
+      mode: dashboardEnv.value,
+      description: newAppDesc.value
     })
-    const data = await res.json()
-    if (res.ok && (data.success || data.app)) {
+    if (data && (data.success || data.app)) {
       isCreateModalOpen.value = false
       newAppName.value = ''
       newAppSlug.value = ''
@@ -80,7 +75,7 @@ async function createApp() {
       slugManuallyEdited.value = false
       await loadData()
     } else {
-      createError.value = data.error || 'Gagal membuat produk'
+      createError.value = data?.error || 'Gagal membuat produk'
     }
   } catch (err: any) {
     createError.value = err.message || 'Terjadi kesalahan jaringan'

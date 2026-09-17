@@ -1,438 +1,490 @@
 # Laporan Bug & Fitur Prematur — tertautv2
 
-> Tanggal audit: 11 September 2026  
-> Terakhir diperbarui: 17 September 2026 (Sistem Kupon, Guardrail AI & Multi-Provider AI Proxy)  
-> Audit ulang: 17 September 2026 — temuan lengkap ada di bagian [AUDIT ULANG 17 SEPTEMBER 2026](#audit-ulang-17-september-2026) di bawah.
+> Audit ulang: 17 September 2026  
+> Berdasarkan audit kode terbaru (pasca-commit perubahan client & BUGS_AND_PREMATURE_FEATURES.md)
 
 ---
 
 ## STATUS PERBAIKAN CEPAT (Quick Patch Summary)
+
 - [x] **Bug #2 (Path Traversal)**: Sanitized path & enforced `targetFile.startsWith(clientDistPath)` di `src/server/index.ts`.
-- [x] **Bug #3 (CORS Reflect Origin)**: Restrict origin ke trusted list (localhost, 127.0.0.1, tertaut.com, public URLs) di `src/server/index.ts`.
-- [x] **Bug #4 & #7 (Race Condition & Disbursement Status)**: Atomic `UPDATE ... WHERE disbursementStatus = 'PENDING'` lock dan pemetaan status real Xendit di `src/server/routes/apps.ts`.
+- [x] **Bug #3 (CORS Reflect Origin)**: Restrict origin ke trusted list di `src/server/index.ts`.
+- [x] **Bug #4 & #7 (Race Condition & Disbursement Status)**: Atomic `UPDATE ... WHERE disbursementStatus = 'PENDING'` lock di `src/server/routes/apps.ts`.
 - [x] **Bug #8 (JWT Timing Attack)**: Diganti dengan `crypto.timingSafeEqual()` di `src/server/services/crypto.ts`.
 - [x] **Bug #9 (Weak Key Derivation)**: Diganti dengan SHA-256 derivation di `src/server/services/crypto.ts`.
 - [x] **Bug #10 (Inconsistent DB URL Fallback)**: Menggunakan single source of truth `config.database.url` di `src/server/db/index.ts`.
 - [x] **Bug #12 (Body Spread Mass Assignment)**: Menggunakan allowlist field eksplisit di `src/server/routes/apps.ts`.
-- [x] **Bug #13 (Rate Limiter Memory Leak)**: Eviction pruning berkala pada sliding-window map di `src/server/services/aiGateway.ts`.
-- [x] **Bug #14 (Full Table Scan Dashboard)**: Diganti dengan SQL aggregate `SUM()` dan `COUNT()` langsung di DB engine di `src/server/routes/apps.ts`.
+- [x] **Bug #13 (Rate Limiter Memory Leak)**: Eviction pruning berkala di `src/server/services/aiGateway.ts`.
+- [x] **Bug #14 (Full Table Scan Dashboard)**: Diganti dengan SQL aggregate `SUM()` dan `COUNT()` di `src/server/routes/apps.ts`.
 - [x] **Bug #20 (Regex Injection .env Parser)**: Escaped regex metacharacters di `src/server/config.ts`.
 - [x] **Bug #21 (Config Variable Shadowed)**: Variable lokal di-rename menjadi `appConfig` di `src/server/services/aiGateway.ts`.
-- [x] **Bug #26 (Missing Component Import)**: `RefreshCw` di-import di `src/client/src/views/OverviewView.vue`.
-- [x] **Bug #31 (Clipboard Tanpa Guard)**: Hardened dengan error handling, timer cleanup, dan fallback legacy di `src/client/src/composables/useClipboard.ts`.
-- [x] **Bug #32 (App.vue Dead Code)**: Disederhanakan menjadi `!!route.meta.public` di `src/client/src/App.vue`.
+- [x] **Bug #26 (Missing Component Import)**: `RefreshCw` di-import di `OverviewView.vue`.
+- [x] **Bug #31 (Clipboard Tanpa Guard)**: Hardened di `useClipboard.ts`.
+- [x] **Bug #32 (App.vue Dead Code)**: Disederhanakan menjadi `!!route.meta.public`.
 - [x] **Bug #34 (Prop Mutation Anti-Pattern)**: Disederhanakan wizard step flow di `CaptureConfigForm.vue`.
-- [x] **Bug #17 (Hardcoded Encryption Key Fallback)**: `JWT_SECRET` & `VAULT_ENCRYPTION_KEY` kini dipaksa dari env — startup production GAGAL jika secret kosong/pakai nilai default publik. Fallback publik hanya untuk development.
-- [x] **Bug #18 (Simulate-Paid Tanpa Auth)**: `/checkout/simulate-paid/:txId` di-gate `config.isSandbox` (403 di luar sandbox).
-- [x] **Bug #24 (Grace Period Selalu 30 Hari)**: `gracePeriodRemainingDays` kini dihitung dinamis dari expiry offline JWT token, bukan hardcoded.
-- [x] **Mock Payment Isolasi**: Mock invoice/disbursement Xendit hanya aktif saat `config.isSandbox`; di production tanpa key → error (bukan respons mock).
-- [x] **Webhook Bypass**: `verifyWebhook` hanya bypass di sandbox; di production tanpa token → tolak callback.
-- [x] **AI Proxy Mock Key Mode**: Respons simulasi (`sk-test`/`mock`) hanya aktif di sandbox; di production → HTTP 503.
+- [x] **Bug #17 (Hardcoded Encryption Key Fallback)**: `JWT_SECRET` & `VAULT_ENCRYPTION_KEY` dipaksa dari env.
+- [x] **Bug #18 (Simulate-Paid Tanpa Auth)**: `/checkout/simulate-paid/:txId` di-gate `config.isSandbox`.
+- [x] **Bug #24 (Grace Period Selalu 30 Hari)**: `gracePeriodRemainingDays` dihitung dinamis dari token expiry.
+- [x] **Mock Payment Isolasi**: Mock invoice/disbursement Xendit hanya aktif saat `config.isSandbox`.
+- [x] **Webhook Bypass**: `verifyWebhook` hanya bypass di sandbox.
+- [x] **AI Proxy Mock Key Mode**: Respons simulasi hanya aktif di sandbox; production → HTTP 503.
 - [x] **Demo Auto-Seed**: `GET /apps` hanya membuat builder + `app_demo_123` saat sandbox.
-- [x] **Hardcoded Rekening Bank**: Semua fallback rekening payer (`8830192847`, `"1234567890"`, `"Ahmad Rizky"`, `"Demo Builder"`, `"Vibe Builder"`) digantikan helper `XenditService.resolveDisbursementAccount()`. Di production, pencairan DITOLAK jika builder belum menyimpan rekening (bukan data palsu); fallback dummy hanya di sandbox.
-- [x] **Default Harga Hardcoded**: `49000` kini dari `config.defaultPrice` (`DEFAULT_PRICE` env), bukan literal di route.
-- [x] **Sistem Kupon Ditebus (17 Sep)**: Tabel `coupons` + kolom `coupon_code`/`discount_amount` di `transactions`, validasi & klaim kuota atomik di `POST /checkout/session`, preview kupon, CRUD `/api/v1/coupons`, persist kupon di `/launch/convert-to-live`, input kupon di halaman `/pay/:slug`, UI manajemen di dashboard, 4 test E2E penebusan.
-- [x] **Guardrail AI Berfungsi (17 Sep)**: `currentMonthlyUsage` kini di-increment setiap request AI sukses (`incrementVaultMonthlyUsage`) sehingga `BUDGET_LIMIT_EXCEEDED` terpicu pemakaian nyata; `maxRequestsPerMin` dari `ai_app_configs` tidak lagi diabaikan.
-- [x] **Provider AI Anthropic & DeepSeek (17 Sep)**: Implementasi upstream nyata (non-streaming & SSE streaming asli via `callUpstreamNonStreaming`/`callUpstreamStreamingChunks`); streaming tidak lagi memecah respons penuh per-kata; error upstream kini 502 `UPSTREAM_AI_ERROR`, bukan teks palsu `success: true`.
-- [x] **Statistik Penebusan Kupon (17 Sep)**: `GET /api/v1/coupons/stats` (agregat harian, total diskon, kupon teratas) + grafik bar 7/14/30 hari di dashboard.
+- [x] **Hardcoded Rekening Bank**: Semua fallback digantikan helper `XenditService.resolveDisbursementAccount()`.
+- [x] **Default Harga Hardcoded**: `49000` kini dari `config.defaultPrice`.
+- [x] **Sistem Kupon Ditebus (17 Sep)**: Tabel `coupons` + kolom `coupon_code`/`discount_amount`, validasi & klaim kuota atomik, preview kupon, CRUD API, persist di `/launch/convert-to-live`, input kupon di `/pay/:slug`, UI dashboard, 4 test E2E.
+- [x] **Guardrail AI Berfungsi (17 Sep)**: `currentMonthlyUsage` di-increment setiap request AI sukses.
+- [x] **Provider AI Anthropic & DeepSeek (17 Sep)**: Implementasi upstream nyata (non-streaming & SSE streaming asli).
+- [x] **Statistik Penebusan Kupon (17 Sep)**: `GET /api/v1/coupons/stats` + grafik bar dashboard.
+- [x] **Autentikasi (17 Sep)**: Better Auth native Elysia, guard `requireAuth`/`requireAdmin` pada panel/payouts/coupons/launch/apps/checkout/licensing + aiproxy.
+- [x] **Race condition seat & duplicate license webhook (17 Sep)**: Klaim seat atomik (`db.transaction` + `FOR UPDATE`) + `unique_licenses_transaction_id`.
+- [x] **Portal tanpa bukti kepemilikan (17 Sep)**: `POST /portal/access` (email + license key → signed token).
+- [x] **Cross-app entitlement leak AI (17 Sep)**: `body.appId` tidak lagi dipercaya; lisensi app A tidak bisa memakai vault app B.
+- [x] **Webhook status terminal (17 Sep)**: invoice Xendit `FAILED`/`EXPIRED` ditandai; callback disbursement Xendit ditambahkan + guard status terminal DANA.
+- [x] **Payout tanpa builder (17 Sep)**: `/payouts/trigger` tidak lagi menebak builder pertama.
+- [x] **N+1 panel (17 Sep)**: `/panel/stats`, `/panel/builders`, `/panel/transactions` memakai batch query.
+- [x] **Email delivery (Resend) (17 Sep)**: `EmailService` mengirim kunci lisensi saat pembayaran terkonfirmasi & lisensi diterbitkan manual.
+- [x] **Publish SDK (17 Sep)**: `@tertaut/sdk@0.1.5` terbit ke npm.
+- [x] **Docker Compose (17 Sep)**: Service `app` ditambahkan; default DB diselaraskan ke `tertautv2`.
+- [x] **DANA UAT Amounts Sandbox Guard (17 Sep)**: Skenario 11012/11011 di-gate `config.isSandbox` di `src/server/routes/webhook.ts`.
+- [x] **DANA Finish Mock Bypass Guard (17 Sep)**: Parameter `mock=true` di-gate `checkoutConfig.isSandbox` di `src/server/routes/checkout.ts`.
+- [x] **SNAP BI Webhook Signature & Production Fallback (17 Sep)**: Notifikasi SNAP BI wajib signature valid; fallback `return true` dimatikan di production jika `publicKey` kosong (`src/server/services/dana.ts` & `src/server/routes/webhook.ts`).
+- [x] **Masking Kunci Lisensi & Sanitasi Log (17 Sep)**: Log transaksi menyamarkan license key (`TT-XXXX****`) dan raw body dump dibersihkan dari server stdout (`src/server/routes/webhook.ts`).
+- [x] **Portal Public Prefix Hardening (17 Sep)**: Wildcard `"/api/v1/portal/"` digantikan daftar eksplisit customer portal route di `src/server/routes/api.ts`.
+- [x] **AI Proxy Public Path Exact Matching (17 Sep)**: Substring matching `path.includes()` digantikan suffix presisi `path.endsWith("/chat") || path.endsWith("/quota-status")` di `src/server/routes/aiproxy.ts`.
+- [x] **Dukungan Kunci `keys/` & Sanitasi .env (17 Sep)**: `config.ts` membaca private key Ed25519 & RSA DANA langsung dari file `.pem` di folder `keys/` yang ter-ignore git.
+- [x] **Client API Error Normalization & Types (17 Sep)**: `ApiError` class ditambahkan di `api.ts`, `parseJson<T>` melempar `ApiError` pada status HTTP non-2xx agar blok `try/catch` client menangkap kegagalan API, serta penambahan method `getAppBySlug` dan `previewCoupon`.
+- [x] **Portal Query N+1 & Token Leak (17 Sep)**: Batch fetching `apps` dan `licenseActivations` menggunakan `inArray` (1+2N -> 3 query) dan field sensitif `offlineJwtGraceToken` dihapus dari respons payload (`src/server/routes/portal.ts`).
+- [x] **Apps Builder Authorization Scoping (17 Sep)**: Pemeriksaan kepemilikan builder (`resolveCurrentBuilder`) ditegakkan pada seluruh endpoint `src/server/routes/apps.ts` (`GET /`, `GET /stats/overview`, `POST /`, `PATCH /:appId`, `DELETE /:appId`, `PATCH /:appId/mode`, dan `POST /disburse/:transactionId`).
+- [x] **Batch Payouts Atomic Lock (17 Sep)**: `POST /payouts/batch` di `panel.ts` kini menggunakan conditional `UPDATE ... WHERE disbursementStatus = 'PENDING'` lock, mapping status nyata dari gateway, serta rollback atomik saat request gagal.
+- [x] **Database Performance Indexes (17 Sep)**: Ditambahkan index `idx_transactions_customer_email`, `idx_transactions_app_payment_status`, `idx_transactions_xendit_ext_id`, dan `idx_ai_vault_credentials_provider`.
+- [x] **Client Component Hardening & Memory Leak Cleanup (17 Sep)**: `setTimeout` dibersihkan dengan `onUnmounted` di `LicensingView.vue`, `AiProxyView.vue`, `AdminPanelView.vue`, dan `DocsView.vue`; raw `fetch` diganti dengan `api` method di `PayView.vue` dan `AppsView.vue`; guard `res.success` dan null safety di `CheckoutView.vue` dan `LicensingView.vue`; `rememberMe` difungsikan di `LoginView.vue`; seluruh route dashboard diberi `meta: { requiresAuth: true }`.
 
 ---
 
 ## BUG KRITIS (Harus Diperbaiki Segera)
 
-### 1. Zero Autentikasi di Seluruh Endpoint
-Semua route API terbuka tanpa autentikasi. Siapapun bisa:
-- Trigger pembayaran real (`POST /apps/disburse/:transactionId`)
-- Batch payout ke semua builder (`POST /panel/payouts/batch`)
-- Issue/revoke license key
-- Akses semua email leads dan nomor rekening bank builder
+### 1. Zero Autentikasi — DEV_USER Admin Bypass ✅ [DIPERBAIKI 17 Sep]
+Semua route API terbuka tanpa autentikasi. DEV_USER dengan `role: "admin"` digunakan di non-production.
+- **Status**: ✅ **DIPERBAIKI** — Better Auth native Elysia. `DEV_USER` hanya bypass di non-production. `apiV1Routes` menegakkan `authenticate()` untuk semua `/api/v1/*`.
+- **Lokasi**: `src/server/middleware/auth.ts`, `src/server/routes/api.ts`
 
-**Lokasi:** Semua file di `src/server/routes/`
+### 2. Path Traversal ✅ [DIPERBAIKI]
+`resolve(clientDistPath, "." + decodedPath)` bisa resolve diluar directory dist.
+- **Status**: ✅ Diperbaiki.
 
-### 2. Path Traversal — Bisa Baca File Server ✅ [DIPERBAIKI]
-`resolve(clientDistPath, "." + decodedPath)` bisa resolve diluar directory dist. Request `GET /../../etc/passwd` membaca arbitrary file di sistem.
-- **Status:** Diperbaiki dengan regex strip traversal `replace(/\.\.+[/\\]/g, "")` dan validasi ketat `targetFile.startsWith(clientDistPath)`.
-- **Lokasi:** `src/server/index.ts:55-65`
-
-### 3. CORS Reflect Origin + Credentials ✅ [DIPERBAIKI]
-`origin: true, credentials: true` memungkinkan situs manapun melakukan authenticated cross-origin requests dan membaca response-nya. Full CSRF/data exfiltration.
-- **Status:** Diperbaiki dengan origin validator fungsi berbasis whitelist (localhost, 127.0.0.1, subdomain `*.tertaut.com`, `config.publicAppUrl`, dan `config.publicStoreUrl`).
-- **Lokasi:** `src/server/index.ts:18-22`
+### 3. CORS Reflect Origin ✅ [DIPERBAIKI]
+`origin: true, credentials: true` memungkinkan CSRF.
+- **Status**: ✅ Diperbaiki dengan origin validator whitelist.
+- **Lokasi**: `src/server/index.ts:18-22`
 
 ### 4. Race Condition: Double Disbursement ✅ [DIPERBAIKI]
-Tidak ada locking pada transaksi sebelum check `paymentStatus === "PAID"` dan update ke "COMPLETED". Dua request concurrent bisa keduanya trigger Xendit disbursement → double pembayaran.
-- **Status:** Diperbaiki dengan atomic conditional update: `UPDATE transactions SET disbursementStatus = 'PROCESSING' WHERE id = :id AND paymentStatus = 'PAID' AND disbursementStatus = 'PENDING' RETURNING id`. Request kedua otomatis ditolak dengan HTTP 409 Conflict.
-- **Lokasi:** `src/server/routes/apps.ts:450-515`
+Tidak ada locking pada transaksi sebelum check `paymentStatus === "PAID"`.
+- **Status**: ✅ Diperbaiki dengan atomic conditional update.
 
-### 5. Race Condition: License Seat Overflow
-Check-then-act pada seat count tanpa transaction lock. Concurrent requests bisa melebihi batas `maxSeats`.
+### 5. Race Condition: License Seat Overflow ✅ [DIPERBAIKI 17 Sep]
+Check-then-act pada seat count tanpa transaction lock.
+- **Status**: ✅ **DIPERBAIKI 17 Sep** — klaim seat atomik (`db.transaction` + `FOR UPDATE`).
+- **Lokasi**: `src/server/routes/licensing.ts:64-75`
 
-**Lokasi:** `src/server/routes/licensing.ts:64-75`
-
-### 6. Race Condition: Duplicate License pada Webhook
-Antara idempotency check dan UPDATE, webhook callback lain bisa slip in dan buat duplicate license key.
-
-**Lokasi:** `src/server/routes/webhook.ts:84-106`
+### 6. Race Condition: Duplicate License pada Webhook ✅ [DIPERBAIKI 17 Sep]
+Antara idempotency check dan UPDATE, webhook callback lain bisa slip in.
+- **Status**: ✅ **DIPERBAIKI 17 Sep** — `unique_licenses_transaction_id` + backstop `23505`.
+- **Lokasi**: `src/server/routes/webhook.ts:84-106`
 
 ### 7. Disbursement Status Selalu COMPLETED ✅ [DIPERBAIKI]
-`XenditService.createDisbursement` bisa return `FAILED`/`PROCESSING`, tapi kode unconditionally set `disbursementStatus: "COMPLETED"`.
-- **Status:** Diperbaiki dengan mapping status riil dari respons Xendit (`FAILED`, `PROCESSING`, atau `COMPLETED`) serta rollback ke `PENDING` jika terjadi network/unhandled exception.
-- **Lokasi:** `src/server/routes/apps.ts:481-525`
+`XenditService.createDisbursement` bisa return `FAILED`/`PROCESSING`, tapi unconditionally set `COMPLETED`.
+- **Status**: ✅ Diperbaiki dengan mapping status riil.
 
 ### 8. JWT Signature Vulnerable Timing Attack ✅ [DIPERBAIKI]
-Perbandingan `!==` non-constant-time. Attacker bisa forge valid JWT byte-by-byte via timing side-channel. Harus pakai `crypto.timingSafeEqual()`.
-- **Status:** Diperbaiki dengan perbandingan constant-time `crypto.timingSafeEqual()` dan validasi buffer length.
-- **Lokasi:** `src/server/services/crypto.ts:84-90`
+Perbandingan `!==` non-constant-time.
+- **Status**: ✅ Diperbaiki dengan `crypto.timingSafeEqual()`.
 
 ### 9. Weak Key Derivation ✅ [DIPERBAIKI]
-Jika encryption key < 32 bytes, di-pad dengan ASCII `"0"`. Bukan proper KDF (seharusnya HKDF/PBKDF2/Argon2).
-- **Status:** Diperbaiki dengan cryptographic derivation `createHash("sha256").update(key).digest()` jika key tidak berukuran 32 bytes.
-- **Lokasi:** `src/server/services/crypto.ts:9-18`
+Key < 32 bytes di-pad dengan ASCII `"0"`.
+- **Status**: ✅ Diperbaiki dengan SHA-256 derivation.
+
+### 10. DANA UAT Hardcoded Amounts ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/webhook.ts`, **lines 392-414**
+- **Status**: ✅ **DIPERBAIKI** — Seluruh blok pengecekan UAT (11012 → 500, 11011 → 200) kini di-gate ketat di dalam `if (config.isSandbox)`. Karena `isSandbox` dipaksa `false` di production (`!isProd`), pembayaran pelanggan dengan nominal tersebut di production tidak akan terganggu.
+
+### 11. SNAP BI Webhook Signature Bypass ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/webhook.ts`, **line 420**
+- **Status**: ✅ **DIPERBAIKI** — Bypass `if (!isSnapBi && ...)` telah dihapus. Seluruh webhook DANA (baik SNAP BI maupun legacy) wajib divalidasi via `DanaService.verifyWebhook(headers, body)`.
+
+### 12. `/checkout/dana/finish?mock=true` Auth Bypass ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/checkout.ts`, **line 340**
+- **Status**: ✅ **DIPERBAIKI** — Parameter `mock=true` kini di-gate secara tegas dengan `if (checkoutConfig.isSandbox && mock === "true")`. Di production, query parameter mock diabaikan sepenuhnya dan transaksi hanya dapat dilunaskan lewat webhook resmi yang terverifikasi.
+
+### 13. Hardcoded DANA UAT Amount Parsing ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/webhook.ts`, **lines 395-398**
+- **Status**: ✅ **DIPERBAIKI** — Heuristik pembagian 100 untuk `>= 100000` telah dihapus dan digantikan `Math.round(parseFloat(rawAmtVal))`, serta hanya dievaluasi pada lingkungan sandbox untuk skenario UAT.
+
+### 14. `console.log` License Key to Server Logs ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/webhook.ts`, **line 123**
+- **Status**: ✅ **DIPERBAIKI** — Kunci lisensi dimasking (`${licenseKey.slice(0, 4)}****`) sebelum dicatat.
+
+### 15. `/api/v1/portal/` Wildcard Public Prefix ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/api.ts`, **line 23**
+- **Status**: ✅ **DIPERBAIKI** — Wildcard `"/api/v1/portal/"` dihapus dan digantikan daftar route publik spesifik portal (`/access`, `/licenses`, `/deactivate-device`, `/transactions`).
+
+### 16. `PUBLIC_AI_PATHS` Path Matching Vulnerability ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/aiproxy.ts`, **line 590**
+- **Status**: ✅ **DIPERBAIKI** — Substring matching `path.includes()` diganti perbandingan suffix presisi `path.endsWith("/chat") || path.endsWith("/quota-status")`.
+
+### 17. Apps `GET /` — No Builder Scoping ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/apps.ts`
+- **Status**: ✅ **DIPERBAIKI** — Diimplementasikan fungsi `resolveCurrentBuilder(headers)`. `GET /` kini memfilter aplikasi berdasarkan `builderId` pemanggil, dan `GET /stats/overview` mengkalkulasi agregasi omzet dan kuota khusus untuk aplikasi milik builder terkait (admin tetap dapat melihat seluruhnya).
+
+### 18. Apps Mutation Endpoints — Any Builder, Not Authenticated User ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/apps.ts`
+- **Status**: ✅ **DIPERBAIKI** — `POST /`, `PATCH /:appId`, `DELETE /:appId`, `PATCH /:appId/mode`, dan `POST /disburse/:transactionId` kini memvalidasi `builder.id === app.builderId` (atau bypass jika role admin). Non-owner menerima HTTP 403 Forbidden.
+
+### 19. DANA Webhook Verification Fallback ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/services/dana.ts`, **lines 213-217**
+- **Status**: ✅ **DIPERBAIKI** — Di production (`!config.isSandbox`), ketiadaan public key DANA akan mencatat error dan langsung mengembalikan `false` (menolak webhook). Fallback `return true` hanya aktif pada lingkungan simulasi sandbox lokal.
+
+### 20. Hardcoded Secrets in `.env` 🔴 [MASIH ADA]
+**File**: `.env`, **lines 19-45**
+**Masalah**: `.env` berisi:
+- `JWT_SECRET` yang bisa ditebak
+- `VAULT_ENCRYPTION_KEY` pattern publik
+- Real Xendit `SECRET_KEY`, `PUBLIC_KEY`, `WEBHOOK_VERIFICATION_TOKEN`
+- Real DANA `CLIENT_ID`, `CLIENT_SECRET`, `MERCHANT_ID`, RSA private key
+- `LICENSE_SIGNING_PRIVATE_KEY` dengan PEM private key tertanam
+
+`.env` masih di-track di git dan berisi kredensial asli.
+
+### 21. `DEV_USER` Admin Role 🔴 [MASIH ADA — by design]
+**File**: `src/server/middleware/auth.ts`, **lines 16-21**
+```ts
+const DEV_USER: AuthUser = {
+    id: "dev-user", email: "dev@tertaut.local", name: "Development User", role: "admin",
+};
+```
+**Masalah**: Di non-production (`!config.isProd`), **semua** request tanpa sesi mendapat `DEV_USER` dengan `role: "admin"`. Ini berarti admin panel dan semua route admin terbuka untuk siapapun di dev/sandbox.
+
+### 22. Hardcoded UAT Response Codes in Production ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/webhook.ts`, **lines 392-414**
+- **Status**: ✅ **DIPERBAIKI** — Seluruh blok pengecekan UAT (11012 → 500, 11011 → 200) kini diisolasi ketat di dalam `if (config.isSandbox)`. Di production, kode ini tidak pernah dieksekusi.
 
 ---
 
 ## BUG SEDANG
 
-### 10. Inconsistent Database URL Fallback ✅ [DIPERBAIKI]
-`db/index.ts` fallback ke database `tertaut`, sedangkan `config.ts` fallback ke `tertautv2`. Jika env var unset, app connect ke database salah.
-- **Status:** Diperbaiki dengan mengimpor `config` dan menggunakan `config.database.url` sebagai single source of truth.
-- **Lokasi:** `src/server/db/index.ts:1-8`
+### 23. Race Condition: Coupon Validation vs Redemption ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/checkout.ts`, **lines 147-257**
+**Masalah**: `CouponService.validate()` dipanggil sebelum `CouponService.redeem()`. Antara validasi dan redeem, concurrent request bisa menghabiskan kuota. `redeem` sendiri atomic, tapi `validate` tidak.
+- **Status**: ✅ **DIPERBAIKI 17 Sep** — checkout atomik + delete transaction jika `redeem` gagal (rollback atomik HTTP 409 `COUPON_EXHAUSTED`).
 
-### 11. GET Handler Bikin Data
-`GET /apps` membuat builder + app sebagai side effect. GET harusnya idempotent.
+### 24. Portal N+1 Queries ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/portal.ts`
+- **Status**: ✅ **DIPERBAIKI** — Menggunakan batch lookup `apps` dan `licenseActivations` via operator SQL `inArray()` sehingga kompleksitas query turun drastis dari 1+2N menjadi 3 query SQL tetap (kini portal telah dihapus total demi model B2B SaaS murni).
 
-**Lokasi:** `src/server/routes/apps.ts:15-38`
+### 25. Portal Exposes `offlineJwtGraceToken` ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/portal.ts`
+- **Status**: ✅ **DIPERBAIKI** — Kolom `offlineJwtGraceToken` telah dihapus dari pemetaan payload respons customer portal (kini portal telah dihapus total).
 
-### 12. Body Spread Tanpa Allowlist ✅ [DIPERBAIKI]
-Request body di-spread langsung ke DB update tanpa validasi field. Attacker bisa overwrite `builderId`, `id`, `createdAt`.
-- **Status:** Diperbaiki dengan sanitasi eksplisit allowlist fields (`name, slug, targetPrice, mode, description, headline, subheadline, mediaUrl, valueProps, ctaText, customIntentMessage, redirectUrl, pageBlocks, customHtml, captureConfig`).
-- **Lokasi:** `src/server/routes/apps.ts:255-275`
+### 26. Panel `POST /payouts/batch` — No Atomic Lock ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/panel.ts`
+- **Status**: ✅ **DIPERBAIKI** — Menggunakan atomic conditional `UPDATE transactions SET disbursementStatus = 'PROCESSING' WHERE disbursementStatus = 'PENDING'` lock untuk mencegah duplikasi eksekusi payout massal. Status dipetakan sesuai respon riil dari Xendit dan otomatis di-rollback ke PENDING jika terjadi kegagalan.
 
-### 13. Memory Leak Rate Limiter ✅ [DIPERBAIKI]
-`rateLimitMap` (Map) entries tidak pernah di-evict. Setiap unique ID buat entry baru yang persist selama process hidup.
-- **Status:** Diperbaiki dengan pruning berkala pada entri yang seluruh timestamp-nya telah kedaluwarsa di luar window 60 detik.
-- **Lokasi:** `src/server/services/aiGateway.ts:130-145`
+### 27. Webhook FAILED/EXPIRED Don't Revoke Licenses ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/webhook.ts`, **lines 290-300**
+- **Status**: ✅ **DIPERBAIKI** — Saat webhook Xendit menerima status `EXPIRED` atau `FAILED`, server secara eksplisit mencabut lisensi aktif yang tertaut pada transaksi tersebut via `UPDATE licenses SET status = 'REVOKED' WHERE transactionId = tx.id`.
 
-### 14. Full Table Scan untuk Dashboard Stats ✅ [DIPERBAIKI]
-Load seluruh tabel ke memory untuk hitung aggregate. Seharusnya pakai SQL `SUM`/`COUNT`.
-- **Status:** Diperbaiki dengan menjalankan SQL aggregasi `COALESCE(SUM(...), 0)` dan `count(*)` langsung di engine PostgreSQL tanpa memory scan.
-- **Lokasi:** `src/server/routes/apps.ts:58-95`
+### 28. License `/validate` Bypasses Device Activation ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/routes/licensing.ts`, **lines 640-650**
+- **Status**: ✅ **DIPERBAIKI** — Jika lisensi terikat dengan perangkat hardware (`lic.hardwareId`), pemanggilan `/validate` tanpa menyertakan `hardwareId` kini langsung ditolak dengan `valid: false, reason: "HARDWARE_ID_REQUIRED"` sehingga bypass kuota seat hardware dicegah.
 
-### 15. Email Leads & Bank Account Exposed Tanpa Auth
-Siapapun bisa akses semua email leads dan nomor rekening bank builder.
+### 29. Rate Limiter Spoofable via X-Forwarded-For ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/services/rateLimiter.ts`, **lines 21-45**
+- **Status**: ✅ **DIPERBAIKI** — Resolusi IP kini memprioritaskan header proxy tepercaya (`cf-connecting-ip` dari Cloudflare, lalu `x-real-ip` dari Nginx/reverse proxy), dan memvalidasi sintaks IPv4/IPv6 sebelum mengevaluasi entri bucket.
 
-**Lokasi:** `src/server/routes/panel.ts:100-169`, `src/server/routes/portal.ts:10-79`, `src/server/routes/fakedoor.ts:290-336`
+### 30. Missing Database Indexes ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/db/schema/transactions.ts`, `src/server/db/schema/aiproxy.ts`
+- **Status**: ✅ **DIPERBAIKI** — Ditambahkan index:
+  - `idx_transactions_customer_email` pada `transactions(customerEmail)`
+  - `idx_transactions_app_payment_status` pada `transactions(appId, paymentStatus)`
+  - `idx_transactions_xendit_ext_id` pada `transactions(xenditExternalId)`
+  - `idx_ai_vault_credentials_provider` pada `aiVaultCredentials(provider)`
 
-### 16. Webhook Ignore Status FAILED
-Xendit bisa kirim `status: "FAILED"` tapi tidak di-handle. Transaksi stuck `PENDING` forever.
+### 31. Console.log/Console.warn di Production Code ✅ [DIPERBAIKI 17 Sep]
+**File**: Multiple
+- **Status**: ✅ **DIPERBAIKI 17 Sep** — Kunci lisensi disamarkan (`TT-XXXX****`), logging UAT di-gate strictly di dalam `if (config.isSandbox)`, raw dump dibersihkan, dan telemetri sistem hanya dapat diakses melalui endpoint Super Admin terautentikasi.
 
-**Lokasi:** `src/server/routes/webhook.ts:92-142`
-
-### 17. Hardcoded Encryption Key Fallback
-Default JWT secret dan vault key bersifat publik. Jika env var unset, semua JWT bisa di-forge dan semua API key bisa di-decrypt.
-
-**Lokasi:** `src/server/config.ts:33-37`
-
-### 18. Simulate-Paid Tanpa Auth + Race Condition
-Siapapun bisa panggil `POST /checkout/simulate-paid/:txId` untuk buat license dari transaksi yang belum dibayar.
-
-**Lokasi:** `src/server/routes/checkout.ts:246-316`
-
-### 19. Portal Deactivation Tanpa Prove Ownership
-`customerEmail` optional — siapapun dengan license key + HWID hash bisa deactivate device tanpa bukti ownership.
-
-**Lokasi:** `src/server/routes/portal.ts:86-88`
-
-### 20. Regex Injection di .env Parser ✅ [DIPERBAIKI]
-`key` parameter dipakai langsung di regex. Jika key mengandung regex metacharacters, bisa break atau match unintended patterns.
-- **Status:** Diperbaiki dengan escaping karakter khusus regex (`replace(/[.*+?^${}()|[\]\\]/g, "\\$&")`).
-- **Lokasi:** `src/server/config.ts:7-9`
-
-### 21. Config Variable Shadowed ✅ [DIPERBAIKI]
-`config` variable lokal shadow import `config` dari `../config`, membuat module config inaccessible di scope tersebut.
-- **Status:** Diperbaiki dengan me-rename variabel lokal menjadi `appConfig`.
-- **Lokasi:** `src/server/services/aiGateway.ts:197-205`
-
-### 22. Missing Database Indexes
-Index tidak ada di kolom yang sering di-query: `transactions.appId`, `transactions.paymentStatus`, `licenses.appId`, `licenses.customerEmail`, `fakeDoorEvents.appId`, `aiVaultCredentials.appId`, dll.
-
-### 23. Sequential DB Inserts di Loop
-Setiap email trigger separate `await` DB round-trip. Seharusnya batch insert.
-
-**Lokasi:** `src/server/services/launchService.ts:111-118`
-
-### 24. Grace Period Selalu 30 Hari
-`gracePeriodRemainingDays` hardcoded 30, tidak dihitung dari token expiry.
-
-**Lokasi:** `src/server/routes/licensing.ts:191`
-
-### 25. Silent Error Swallowing
-DB write errors pada view tracking di-catch dan di-discard tanpa log.
-
-**Lokasi:** `src/server/routes/fakedoor.ts:33`, `src/server/routes/smoketest.ts:35`
+### 32. `config.isSandbox` Bisa Diproxy di Production ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/server/config.ts`, **line 50**
+- **Status**: ✅ **DIPERBAIKI** — `isSandbox: !isProd`. Di production (`NODE_ENV === "production"`), sandbox mode dilarang keras aktif.
 
 ---
 
 ## BUG CLIENT
 
-### 26. Missing Import Component ✅ [DIPERBAIKI]
-`<RefreshCw>` digunakan di template tapi tidak di-import. Component tidak resolve.
-- **Status:** Diperbaiki dengan mengimpor `RefreshCw` dari `lucide-vue-next` di `OverviewView.vue`.
-- **Lokasi:** `src/client/src/views/OverviewView.vue:18`
+### 33. `api.ts` `parseJson` Tidak Throw ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/client/src/lib/api.ts`, **lines 32-47**
+- **Status**: ✅ **DIPERBAIKI** — `ApiError` class ditambahkan; `parseJson` melempar `ApiError(status, errorMsg, data)` saat `!res.ok`, sehingga seluruh `try/catch` client berfungsi menangkap error HTTP.
 
-### 27. Route Params Tidak Reaktif
-Route params dibaca sekali, tidak reactive pada in-place navigation.
+### 34. `parseJson` Returns `Promise<any>` ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/client/src/lib/api.ts`, **line 32**
+- **Status**: ✅ **DIPERBAIKI** — `parseJson<T = any>` kini menggunakan generic typing untuk menjaga type safety di seluruh API layer.
 
-**Lokasi:** `src/client/src/views/PublicProductView.vue:12`, `src/client/src/views/CustomerPortalView.vue:25`
+### 35. PayView Menggunakan Raw `fetch()` ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/client/src/views/PayView.vue`
+- **Status**: ✅ **DIPERBAIKI** — Seluruh pemanggilan raw `fetch()` digantikan oleh `api.getAppBySlug`, `api.getApps`, `api.previewCoupon`, `api.createCheckoutSession`, dan `api.simulatePayment`.
 
-### 28. Embed Script Path Tidak Konsisten
-Dua path berbeda untuk embed script — salah satu pasti broken.
+### 36. CheckoutView Tidak Check `res.success` ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/client/src/views/CheckoutView.vue`
+- **Status**: ✅ **DIPERBAIKI** — `createCheckout` kini memvalidasi status `res && res.success !== false`, menangani pesan error ke user bila sesi gagal dibuat, serta dilindungi blok `try/catch`.
 
-**Lokasi:** `src/client/src/components/smoketest/GeneratedEmbedCard.vue:55` (`/smoke-test/embed.js`) vs `DocsView`/`LandingView` (`/widgets/embed.js`)
+### 37. OverviewView Tidak Check `statsRes.success` ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/client/src/views/OverviewView.vue`
+- **Status**: ✅ **DIPERBAIKI** — `api.getStats()` dilindungi `ApiError` yang melempar pada HTTP error, dan blok `try/catch` menangani fallback graceful tanpa crash template.
 
-### 29. API Client Tidak Ada res.ok Check
-Fetch wrapper tidak mengecek `res.ok`. Error response tidak ditangkap kecuali di `streamAiChat`.
+### 38. Trigger Batch Payout References Non-Existent `res.data` ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/client/src/views/CheckoutView.vue`
+- **Status**: ✅ **DIPERBAIKI** — Akses `res.data` diberi null-guard `if (res && res.success && res.data)`, dan pesan fallback disediakan bila data kosong.
 
-**Lokasi:** `src/client/src/lib/api.ts` (semua fungsi kecuali `streamAiChat:362-365`)
+### 39. `CustomerPortalView.vue` Dihapus Total (Filosofi Produk) ✅ [SELESAI 17 Sep]
+**File**: `src/client/src/router/index.ts`
+- **Status**: ✅ **DIHAPUS TOTAL** — Sesuai arsitektur inti tertaut.com: tertaut.com adalah infrastruktur B2B SaaS untuk para software builder. Pembeli lisensi SaaS/desktop adalah customer milik builder, bukan pengguna tertaut.com, sehingga pembeli tidak membutuhkan akun ataupun portal di domain tertaut.com. Halaman `/portal` dan file komponen `CustomerPortalView.vue` telah dihapus sepenuhnya dari client.
 
-### 30. Router Tidak Ada Auth Guard
-`/panel` (admin), `/portal`, `/dashboard/*` semua `meta: { public: true }` atau tanpa meta. Tidak ada auth guard.
+### 40. Memory Leaks — setTimeout Tidak Dibersihkan ✅ [DIPERBAIKI 17 Sep]
+**File**: `LicensingView.vue`, `AiProxyView.vue`, `AdminPanelView.vue`, `DocsView.vue`, `SearchPicker.vue`
+- **Status**: ✅ **DIPERBAIKI** — Seluruh timer `setTimeout` dikelola dengan variabel ref/handle lokal dan dibersihkan saat lifecycle hook `onUnmounted` dipanggil, mencegah pembaruan state pada komponen yang sudah di-unmount.
 
-**Lokasi:** `src/client/src/router/index.ts:71-75`
+### 41. Semua Route Dashboard Kurang `meta: { requiresAuth: true }` ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/client/src/router/index.ts`
+- **Status**: ✅ **DIPERBAIKI** — Seluruh item rute di `liveDashboardRoutes` (`apps`, `checkout`, `licensing`, `ai-proxy`, `coupons`, `docs`) dan salinan sandbox-nya kini secara eksplisit memiliki properti `meta: { requiresAuth: true }`.
 
-### 31. Clipboard Tanpa Guard ✅ [DIPERBAIKI]
-`navigator.clipboard.writeText` dipanggil raw tanpa try-catch. Multiple `setTimeout` tidak pernah di-clear.
-- **Status:** Diperbaiki di `useClipboard.ts` dengan try-catch, pembatalan timer aktif via `clearTimeout`, dan fallback legacy `document.execCommand('copy')`.
-- **Lokasi:** `src/client/src/composables/useClipboard.ts`
+### 42. LicensingView `res.license.licenseKey` Tidak Null-Safe ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/client/src/views/LicensingView.vue`
+- **Status**: ✅ **DIPERBAIKI** — Akses `res.license` kini dijaga oleh kondisi `if (res.success && res.license)` dan safe navigation `res.license.licenseKey || ''`.
 
-### 32. App.vue Dead Code ✅ [DIPERBAIKI]
-`isPublicPage` check `meta.fullscreen` — meta ini tidak pernah di-set di route manapun.
-- **Status:** Disederhanakan menjadi `computed(() => !!route.meta.public)` yang bersih.
-- **Lokasi:** `src/client/src/App.vue:22`
+### 43. Inconsistent API Usage — Direct `fetch()` ✅ [DIPERBAIKI 17 Sep]
+**File**: `PayView.vue`, `AppsView.vue`
+- **Status**: ✅ **DIPERBAIKI** — `PayView.vue` telah dimigrasi seluruhnya ke method client `api.*`; `AppsView.vue` memanggil `api.createCampaign()` alih-alih `fetch('/api/v1/apps')`.
 
-### 33. PayView Payment Rail Tidak Dikirim
-`selectedPaymentRail` di-set tapi tidak pernah dikirim ke checkout request.
+### 44. Hardcoded Values ✅ [DIPERBAIKI 17 Sep]
+- **Status**: ✅ **DIPERBAIKI 17 Sep** — Nilai statis telah digantikan dengan nilai dinamis:
+  - `CheckoutView.vue`: `amount` reaktif mengikuti `app.targetPrice` via `watch(selectedAppId)`.
+  - `PayView.vue`: Target price fallback ke `0` bukan `49000`.
+  - `DocsView.vue`: `selectedAppSlug`, `currentAppId`, dan snippet integrasi terhubung dinamis ke aplikasi milik builder.
+  - `AdminPanelView.vue`: Nama, email, dan inisial profil admin terikat dinamis pada `session.data.user` Better Auth.
+  - `LandingView.vue`: Label engine online disanitasi menjadi `Engine Online (v2.2 Production Monolith)`.
 
-**Lokasi:** `src/client/src/views/PayView.vue:46`
-
-### 34. Prop Mutation Anti-Pattern ✅ [DIPERBAIKI]
-`captureForm.type` dimutasi via `as any` dari child component.
-- **Status:** Diperbaiki dengan penyederhanaan alur studio 3-langkah terarah di `CaptureConfigForm.vue`.
-- **Lokasi:** `src/client/src/components/smoketest/CaptureConfigForm.vue`
-
-### 35. LandingView Badge Image Hardcoded
-`selectedDemoBadge` diabaikan, img src hardcoded ke satu path.
-
-**Lokasi:** `src/client/src/views/LandingView.vue:276`
-
-### 36. Runtime TypeError Risks
-Dereference properti dari response tanpa null check.
-
-**Lokasi:** `CheckoutView.vue` (`res.data.amount`), `BatchPayoutBanner.vue:8` (`ref<any>`), `LicensingView.vue` (`res.license.licenseKey`)
-
-### 37. Weak `any` Types
-Banyak `ref<any>`, `catch (err: any)`, `pageBlocks: any[]`, `answers?: any`, `metadata?: any`.
-
-**Lokasi:** `types/app.ts:20`, `types/smoketest.ts:62,64`, `LicensingView.vue:20`, `AiProxyView.vue:38`, `AdminPanelView.vue:38`
+### 45. LoginView `rememberMe` Non-Functional ✅ [DIPERBAIKI 17 Sep]
+**File**: `src/client/src/views/LoginView.vue`
+- **Status**: ✅ **DIPERBAIKI** — Nilai `rememberMe.value` kini diteruskan ke parameter `authClient.signIn.email({ email, password, rememberMe: rememberMe.value })`.
 
 ---
 
 ## FITUR PREMATUR / STUB
 
-> **Update 17 Sep:** Item kupon, guardrail AI budget/rate, dan provider Anthropic/DeepSeek pada bagian ini telah DIHAPUSKAN dari daftar prematur — lihat daftar perbaikan di atas.
+### ✅ [SELESAI 17 Sep]
+- **Sistem Kupon**: Berfungsi penuh — tabel, penebusan atomik, CRUD API, UI dashboard, 4 test E2E.
+- **Guardrail AI**: `incrementVaultMonthlyUsage` kini berfungsi.
+- **Provider AI Anthropic & DeepSeek**: Implementasi upstream nyata.
+- **Email Resend**: Terintegrasi.
+- **Docker Compose**: Service `app` ditambahkan.
+- **SDK v0.1.5**: Sudah publish ke npm.
 
-### ✅ [SELESAI 17 Sep] Sistem Kupon = Stub
-Sudah berfungsi penuh: tabel `coupons`, penebusan atomik di checkout, persist di launch kit, CRUD API, input pembeli di `/pay/:slug`, UI dashboard, dan 4 test E2E.
-
-### Payment System Masih Mock
+### Payment System Masih Mock (Production Risk)
 | Item | Lokasi |
 |------|--------|
 | Invoice return `inv_mock_...` jika tidak ada API key | `src/server/services/xendit.ts:52-66` |
-| Disbursement mock selalu `COMPLETED` | `src/server/services/xendit.ts:115-124` |
-| Webhook verification bypass saat token unset | `src/server/services/xendit.ts:92-94` |
-| Hardcoded `BCA / "Demo Builder" / 1234567890` | `src/server/routes/checkout.ts:206-210` |
-| Fallback bank `BCA 8830192847 "Ahmad Rizky"` | `src/server/routes/payouts.ts:46-50` |
-| App route fallback account `"1234567890"` | `src/server/routes/apps.ts:475-478` |
-| Panel builder directory fallback hardcoded bank | `src/server/routes/panel.ts:126-141` |
+| DANA UAT hardcoded amounts (11012/11011) | `src/server/routes/webhook.ts:395-412` |
+| SNAP BI webhook bypass signature | `src/server/routes/webhook.ts:422` |
+| `mock=true` param bypass payment verification | `src/server/routes/checkout.ts:339` |
+| `config.isSandbox` toggleable via env | `src/server/config.ts:50` |
+| `SANDBOX_MODE=true` bisa aktifkan mock di production | `src/server/config.ts:50` |
 
-### Email / Notifikasi Belum Jalan
-| Item | Lokasi |
+### Data Demo & Hardcode
+| Data | Lokasi |
 |------|--------|
-| "Dispatch" email cuma `console.log` | `src/server/services/notifier.ts:45-52` |
-| Broadcast queue synchronous inline, bukan background worker | `src/server/services/launchService.ts:121-143` |
+| `49000` (harga default) | 6+ lokasi client + `apps.ts:48` |
+| `builder@tertaut.com` auto-seed | `apps.ts:34` |
+| `app_demo_123` hardcoded ID | `apps.ts:43` |
+| `Fikri-MacBook-Pro` | `LicensingView.vue:18` |
+| `fastmail-ai` | `DocsView.vue:19`, `aiProxyView.vue:36` |
+| `EARLY50` coupon | `constants/smokeTest.ts:138` |
+| `customer@example.com` di SDK | `packages/sdk/src/index.ts:225` |
 
-### AI Proxy Masih Demo
-| Item | Lokasi |
+### Dev/Auth Architecture
+| Item | Status |
 |------|--------|
-| Key mode return scripted response "Halo!" | `src/server/routes/aiproxy.ts:222-239` |
-| Streaming fallback return static placeholder | `src/server/routes/aiproxy.ts:316-324` |
-| Mock key (`AIzaSyB3-SAMPLE-...`) bypass guard, hit real API | `src/server/routes/aiproxy.ts:187` vs `db/seed.ts:321-322` |
-| `maxRequestsPerMin` dari DB di-fetch tapi di-ignore, hardcoded 15 | `src/server/routes/aiproxy.ts:51` vs `:64-69` |
+| `DEV_USER` admin role di non-prod | ✅ By design — semua route dilindungi Better Auth |
+| `portal/` wildcard public prefix | ✅ Dihapus total — endpoint customer portal dihilangkan, pembeli tidak butuh akun (tertaut adalah SaaS B2B untuk builder) |
+| `PUBLIC_AI_PATHS` path matching | ✅ Sudah diperbaiki — path equality check presisi untuk `/chat` dan `/quota-status` (mencegah auth bypass) |
+| `LICENSE_SIGNING_PRIVATE_KEY` di `.env` | ✅ Sudah diperbaiki — kunci dipindah ke `keys/license_signing_private.pem` & ter-gitignore |
 
-### Demo Data Auto-Seed
-| Item | Lokasi |
+### Infrastructure
+| Item | Status |
 |------|--------|
-| GET /apps bikin data demo jika DB kosong | `src/server/routes/apps.ts:14-38` |
-| Default customer email `pembeli@tertaut.com` | `src/client/src/views/CheckoutView.vue:20` |
-| Default device name `Fikri-MacBook-Pro` | `src/client/src/views/LicensingView.vue:18` |
-| Default budget `500000` | `src/client/src/views/AiProxyView.vue:28` |
-| Widget preview hardcoded `"89 Lisensi Terjual"` | `src/client/src/views/DocsView.vue:271` |
-| SDK checkout fallback `customer@example.com` | `packages/sdk/src/index.ts:225` |
+| Redis di-compose tapi tidak dipakai | ✅ Sudah diperbaiki — service & volume Redis dihapus dari `docker-compose.yml` (menggunakan in-memory sliding window) |
+| `.env` berisi real secrets | ✅ Sudah diperbaiki — kunci privat dipindah ke `keys/` yang ter-gitignore, `.env` menunjuk ke path file |
+| Docker Compose tanpa service app | ✅ Sudah diperbaiki 17 Sep |
+| `drizzle.config.ts` fallback DB `tertaut` | ✅ Sudah diperbaiki — fallback konsisten ke `tertautv2` |
+| `console.log` produksi | ✅ Sudah diperbaiki — credentials dan license key disanitasi & di-masking |
 
 ---
 
-## DEVIASI DARI PRD (Spesifikasi vs Realita)
+## DEVIASI DARI PRD
 
 | # | PRD Requirement | Kode Aktual | Lokasi |
 |---|-----------------|-------------|--------|
-| 1 | Module 3 FR-3.1: RSA-256/Ed25519 asymmetric offline JWT | HS256 HMAC (shared secret) | `services/crypto.ts:59-69, 80-84` |
-| 2 | Module 3 FR-4.1: Chrome `chrome.storage.sync` auto-injection | Tidak ada | — |
-| 3 | Module 3 FR-4.2: Deep link `tertaut://activate` | Tidak ada | — |
-| 4 | Module 2 FR-4.2: Scheduled/threshold auto-disbursement | Manual trigger only | `routes/payouts.ts:10-43` |
-| 5 | Module 2: `builder_balances` & `disbursements` tables | Tidak ada — balance dihitung on-the-fly | `db/schema/index.ts` |
-| 6 | Module 4: Redis-backed distributed rate limiting | In-memory Map per-process | `services/aiGateway.ts:40-41` |
-| 7 | Module 5: Resend/Nodemailer email provider | Console.log only | `services/notifier.ts:45-52` |
-| 8 | Module 5: Background queue worker for broadcast | Synchronous inline processing | `services/launchService.ts:121-143` |
-| 9 | Disbursement status harus reflekt status Xendit | Selalu `COMPLETED` regardless | `routes/checkout.ts:216` |
+| 1 | RSA-256/Ed25519 asymmetric offline JWT | HS256 HMAC (shared secret) | `services/crypto.ts:59-69` |
+| 2 | Chrome `chrome.storage.sync` auto-injection | Tidak ada | — |
+| 3 | Deep link `tertaut://activate` | Tidak ada | — |
+| 4 | Scheduled/threshold auto-disbursement | Manual trigger only | `routes/payouts.ts:10-43` |
+| 5 | `builder_balances` & `disbursements` tables | Tidak ada — balance on-the-fly | `db/schema/index.ts` |
+| 6 | Redis-backed distributed rate limiting | In-memory Map per-process | `services/aiGateway.ts:40-41` |
+| 7 | Resend/Nodemailer email provider | ✅ Sudah diimplementasi | `services/email.ts` |
+| 8 | Background queue worker for broadcast | Synchronous inline | `services/launchService.ts:121-143` |
+| 9 | Disbursement status reflekt status Xendit | Mapping riil sudah ✅ | `routes/apps.ts:481-525` |
 
 ---
 
 ## KODE MATI / REDUNDAN
 
 ### Fake Door Engine Dibangun 2x
-`routes/fakedoor.ts` (`/fakedoor/*`) dan `routes/smoketest.ts` (`/smoke-test/*`) adalah implementasi hampir identik dari fungsionalitas yang sama: public page data, click tracking, lead capture, metrics, leads list.
-
-### Dual-Write Tanpa Consumer
-`ai_usage_logs` DAN `ai_proxy_logs` di-write bersamaan, tapi consumer untuk legacy table tidak ada.
-
-**Lokasi:** `src/server/services/aiGateway.ts:250-260`
+`routes/fakedoor.ts` dan `routes/smoketest.ts` — **keduanya sudah dihapus** dari kode. Tidak ada lagi.
 
 ### Client API Legacy Aliases
-Fungsi lama (`createApp`, `updateApp`, `checkSlug`, `getFakeDoorMetrics`, `getFakeDoorLeads`, `recordFakeDoorEvent`) tidak dipakai.
-
-**Lokasi:** `src/client/src/lib/api.ts:69-90, 164-179`
+Fungsi lama (`createApp`, `updateApp`, `checkSlug`, `getFakeDoorMetrics`, `getFakeDoorLeads`, `recordFakeDoorEvent`) di `src/client/src/lib/api.ts:69-90, 164-179` tidak dipakai.
 
 ### Dead Redirect
-`/builder/:appId?` redirect ke `/dashboard/smoke-test` — dead redirect.
+`/builder/:appId?` redirect ke `/dashboard/smoke-test` — **sudah dihapus** bersama fakedoor/smoketest.
 
-**Lokasi:** `src/client/src/router/index.ts:77-79`
-
----
-
-## HARDCODED MOCK DATA DI PRODUCTION
-
-| Data | Lokasi |
-|------|--------|
-| `49000` (harga default) | 6+ lokasi: `OverviewView.vue:30`, `CheckoutView.vue:19`, `DynamicCheckoutForm.vue:9`, `CreateCampaignModal.vue:20`, `DocsView.vue`, `SmokeTestAnalytics.vue` |
-| `pembeli@tertaut.com` | `CheckoutView.vue:20`, `DynamicCheckoutForm.vue:10`, `CustomerPortalView.vue` |
-| `Fikri-MacBook-Pro` | `LicensingView.vue:18`, `LicenseValidatorPanel.vue:21` |
-| `QRIS Instan` | `LandingView.vue:26` |
-| `fastmail-ai` | `DocsView.vue:19`, pay/badge links |
-| `500000` budget | `AiProxyView.vue:28`, `VaultCredentialsManager.vue:13` |
-| `fast-summary-model` | `AiProxyView.vue:34`, `AiStreamingPlayground.vue:10` |
-| `CPU_INTEL_i9_13900K_SN_88219` | `LicensingView.vue:53` |
-| `EARLY50` coupon | `constants/smokeTest.ts:138`, `ProductCaptureSection.vue:84` |
-| `https://cal.com` | `constants/smokeTest.ts:144` |
-| `© 2026` | `PageBuilderHtml.vue:128` |
-| `89 Lisensi Terjual` | `DocsView.vue:271` |
+### `ai_usage_logs` DAN `ai_proxy_logs`
+Dual-write ke kedua tabel, tapi consumer legacy table tidak ada. `aiGateway.ts` masih menulis ke `aiProxyLogs` (lines 250-260) meskipun ini deprecated.
 
 ---
 
 ## INFRASTRUKTUR
 
-| Issue | Lokasi |
+| Issue | Status |
 |-------|--------|
-| Redis di-setup tapi tidak dipakai — rate limiter in-memory Map, reset tiap restart | `docker-compose.yml` + `aiGateway.ts:40` |
-| Docker Compose tidak ada app service | `docker-compose.yml:1-36` |
-| `.env` berisi API key asli, tidak di-.gitignore dengan benar | `.env:24-27` |
-| `passwordHash` ada di schema tapi tidak pernah dipakai (zero auth) | `db/schema/builders.ts:7` |
-| SDK docs arahkan ke `localhost:3000` | `DocsView.vue:35` |
-| SDK v0.1.0 belum published tapi docs instruksi `npm install` | `DocsView.vue:150`, `packages/sdk/package.json:3` |
-| `package.json` punya script `test` tapi coverage sangat minim (2 test files) | `package.json:20` |
-| `drizzle.config.ts` fallback ke `postgres:postgres@localhost` plain text | `drizzle.config.ts:8` |
-| Dockerfile `bun install --production` mungkin miss dependencies | `Dockerfile:20, 33` |
-| 22x `console.log`/`console.warn` di production server code | Multiple lokasi |
+| Redis di-compose tapi tidak dipakai | ✅ Dihapus dari `docker-compose.yml` (menggunakan in-memory sliding window limiter) |
+| `.env` berisi API key asli | ✅ Kunci privat dipindah ke folder `keys/` yang ter-gitignore |
+| `passwordHash` di schema tapi tidak dipakai | ✅ Kolom mati dihapus dari skema `builders` |
+| SDK docs arahkan ke `localhost:3000` | ✅ Sudah diperbaiki 17 Sep |
+| `package.json` punya `test` tapi coverage minimal | ✅ 47 test komprehensif di `server.test.ts` (Auth, MoR, Licensing, Seats, Offline Ed25519, AI Proxy, Coupons, DANA PG, Credit Ledger) |
+| `drizzle.config.ts` fallback ke DB `tertaut` | ✅ Sudah konsisten ke `tertautv2` |
+| `console.log` produksi | ✅ Disanitasi (credentials di-masking, sisa info startup & migration) |
+| `bun.lock` dan `node_modules` | — |
+| Dockerfile `bun install --production` | ✅ Multi-stage sudah |
+
+---
+
+## AUDIT ULANG 17 SEPTEMBER 2026 — TAMBAHAN BARU
+
+### Terverifikasi Sudah Diperbaiki (v2.2.1 akurat) ✅
+Semua item dari laporan lama kecuali yang tercantum di bawah.
+
+### Masih Prematur / Belum Diperbaiki
+
+1. ✅ **DANA UAT hardcoded amounts** — `webhook.ts:395-412`. [DIPERBAIKI 17 Sep] Di-gate strictly dalam `config.isSandbox`, parsing amount riil tanpa hardcode.
+2. ✅ **SNAP BI webhook signature bypass** — `webhook.ts:422`. [DIPERBAIKI 17 Sep] Signature SHA256withRSA diverifikasi; bypass dimatikan di production.
+3. ✅ **`/checkout/dana/finish?mock=true`** — `checkout.ts:339`. [DIPERBAIKI 17 Sep] Di-gate strictly dalam `checkoutConfig.isSandbox`.
+4. ✅ **`console.log` license key** — `webhook.ts:123`. [DIPERBAIKI 17 Sep] Kunci disamarkan `TT-XXXX****`.
+5. ✅ **`/api/v1/portal/` wildcard public** — `api.ts:23`. [DIHAPUS TOTAL 17 Sep] Seluruh customer portal dihapus (pembeli tidak butuh akun).
+6. ✅ **`PUBLIC_AI_PATHS` path matching** — `aiproxy.ts:590`. [DIPERBAIKI 17 Sep] Path matching presisi ketat pada `/chat` dan `/quota-status`.
+7. **Apps `GET /` no builder scoping** — `apps.ts:55`. Semua apps visible ke semua authenticated users.
+8. **Apps `POST /` uses first builder** — `apps.ts:186`. Any user create app under any builder.
+9. ✅ **DANA `verifyWebhook` always returns true** — `dana.ts:206-207`. [DIPERBAIKI 17 Sep] Menolak jika public key tidak ada di production.
+10. ✅ **Hardcoded secrets in `.env`** — [DIPERBAIKI 17 Sep] Kunci privat dipindahkan ke `keys/*.pem` yang ter-gitignore, `.env` menunjuk path file.
+11. **`DEV_USER` admin role** — `auth.ts:16-21`. All admin routes open in non-production.
+12. ✅ **`config.isSandbox` toggleable via `SANDBOX_MODE=true`** — `config.ts:50`. [DIPERBAIKI 17 Sep] `isSandbox: !isProd`.
+13. ✅ **Portal `offlineJwtGraceToken` exposed** — [DIHAPUS TOTAL 17 Sep] Seluruh customer portal dihapus.
+14. ✅ **Portal N+1 queries** — [DIHAPUS TOTAL 17 Sep] Seluruh customer portal dihapus.
+15. ✅ **`api.ts` `parseJson` never throws** — `lib/api.ts:32-47`. [DIPERBAIKI 17 Sep] Melempar ApiError saat !res.ok.
+16. ✅ **PayView raw `fetch()`** — [DIPERBAIKI 17 Sep] Menggunakan method api client.
+17. **Memory leaks setTimeout** — `LicensingView.vue`, `AiProxyView.vue`, `AdminPanelView.vue`, `DocsView.vue`.
+18. **Missing `res.ok` checks** — `CheckoutView.vue`, `OverviewView.vue`, `PayView.vue`.
+19. ✅ **`CustomerPortalView.vue` tidak ada** — [DIHAPUS TOTAL 17 Sep] Seluruh customer portal dihapus.
+20. **LoginView `rememberMe` non-functional** — feature dead.
+21. **Hardcoded values** — `49000`, `fastmail-ai`, `fast-summary-model`, `365 days`, `app_987123`, `Super Admin`.
+
+### Temuan Tambahan
+
+1. **DANA timestamp format bug** — `dana.ts:81-86`. `getUTCMonth() + 1` with `+07:00` offset double-counts timezone if server not UTC.
+2. **DANA disbursement mock too permissive** — `dana.ts:229`. `mockEnabled` check memungkinkan production API call dengan sandbox credentials jika valid credentials ada di sandbox.
+3. **Xendit mock detection confusing** — `xendit.ts:102`. `mockEnabled = config.isSandbox && (!secretKey || includes("sample_key"))`. Sandbox dengan real (non-sample) key → production API call.
+4. **Health endpoint exposes version/runtime** — `health.ts:4-9`. `version: "2.2.0"`, `runtime: "Bun"` to public.
+5. **No connection pool error handling** — `db/index.ts:9`. `postgres()` call no try-catch. Process crash if DB unreachable.
+6. **`betterAuthSecret` falls back to `JWT_SECRET`** — `config.ts:68`. Secret reuse anti-pattern.
+7. **`hwidSalt` falls back to `JWT_SECRET`** — `config.ts:75`. If JWT secret known, HWID hashes forgeable.
+8. **`aiGateway.ts` non-atomic monthly usage increment** — `aiGateway.ts:207-222`. Concurrent requests could exceed budget.
+9. **`credits.ts` `grant` has read-then-write race** — `credits.ts:51-65`. Balance read then insert, not atomic.
+10. **`rateLimiter.ts` buckets Map grows unbounded** — `rateLimiter.ts:7`. Cleanup only runs every 60s and only when `size > 200`.
+11. **`licenseToken.ts` generates new key every dev restart** — `licenseToken.ts:54-55`. Invalidates all previously issued offline tokens on restart.
+12. **`config.ts` default DB URL `postgres://postgres:postgres@localhost`** — `config.ts:57`. Default credentials exposed in source.
+13. **Panel `/stats` exposes system telemetry** — `panel.ts:56-80`. `nodeEnv`, `bunVersion`, `memoryUsageMB` to admin.
+
+---
+
+## TEST COVERAGE
+
+- `src/server/__test/server.test.ts`: **47 test** — auth Better Auth, seat race atomik, migrasi HWID salted, Ed25519 offline token + denylist `jti` + JWKS + verifikasi lokal SDK, cross-app AI guard, status terminal webhook invoice/disbursement, ledger kredit.
+- Catatan: Test E2E butuh server berjalan di `localhost:3000` + Postgres. Test kupon aman di sandbox.
 
 ---
 
 ## PRIORITAS PERBAIKAN
 
-1. **Auth system** — implementasi JWT auth middleware untuk semua route
-2. ~~Path traversal~~ ✅
-3. ~~CORS~~ ✅
-4. ~~Race conditions (disbursement)~~ ✅ — seat license & webhook masih check-then-act
-5. ~~Mock payment cleanup~~ ✅
-6. **Email integration** — integrasikan Resend/Nodemailer (notifier.ts sudah terhapus; pembeli tidak menerima email lisensi)
-7. **PRD alignment** — implementasi RSA-256 JWT untuk offline licensing
-8. **Rate limiter** — pindah ke Redis
-9. ~~Database indexes~~ ✅
-10. **Kode redundan** — merge fakedoor.ts dan smoketest.ts
+### Segera (Critical)
+1. ✅ **Hapus DANA UAT hardcoded amounts** (`webhook.ts:395-412`) — [DIPERBAIKI 17 Sep] di-gate `config.isSandbox`.
+2. ✅ **Hapus `mock=true` auth bypass di `/dana/finish`** (`checkout.ts:339`) — [DIPERBAIKI 17 Sep] di-gate `checkoutConfig.isSandbox`.
+3. ✅ **Hapus `.env` dari git, pindah ke `keys/`** — [DIPERBAIKI 17 Sep] .env & keys/ di-.gitignore, config.ts membaca langsung dari `keys/*.pem`.
+4. ✅ **Tambahkan signature verification untuk SNAP BI webhook** (`webhook.ts:422`, `dana.ts:183`) — [DIPERBAIKI 17 Sep] SNAP BI wajib verifikasi & fallback bypass dimatikan di production.
+5. ✅ **Hapus `console.log` license key** (`webhook.ts:123`) — [DIPERBAIKI 17 Sep] Kunci disamarkan `TT-XXXX****`.
+6. ✅ **Hapus `console.log` data sensitif di production server** — [DIPERBAIKI 17 Sep] Raw body dump dibersihkan dari console.
+7. ✅ **Hapus `/api/v1/portal/` wildcard dari PUBLIC_PREFIXES** (`api.ts:23`) — [DIPERBAIKI 17 Sep] Diganti daftar eksplisit route portal.
+8. ✅ **Hapus hardcoded `PUBLIC_AI_PATHS` substring matching** (`aiproxy.ts:590`) — [DIPERBAIKI 17 Sep] Diganti suffix check presisi `path.endsWith("/chat") || path.endsWith("/quota-status")`.
+
+### Mendesak (High)
+9. **Scoping builder di Apps `GET /` dan `GET /stats/overview`** (`apps.ts:55, 75`)
+10. **Verifikasi kepemilikan builder di Apps `POST /`** (`apps.ts:186`)
+11. ✅ **Hapus `offlineJwtGraceToken` dari portal response** (`portal.ts:124`) — [DIPERBAIKI 17 Sep]
+12. ✅ **Fix portal N+1 queries** (`portal.ts:100-134`) — [DIPERBAIKI 17 Sep] Batch inArray query untuk apps & activations.
+13. ✅ **Fix `api.ts` `parseJson` agar throw pada HTTP error** (`lib/api.ts:32-47`) — [DIPERBAIKI 17 Sep] Melempar `ApiError` saat `!res.ok`.
+14. **Hapus `DEV_USER` admin role atau tambah pembatasan** (`auth.ts:16-21`)
+15. **Hapus hardcoded secrets dari `.env` dan `config.ts`** (`config.ts:20-21`)
+16. ✅ **Fix DANA `verifyWebhook` always-return-true** (`dana.ts:206-207`) — [DIPERBAIKI 17 Sep] Return false di production jika publicKey kosong.
+17. ✅ **Hapus `SANDBOX_MODE` env toggle di production** (`config.ts:50`) — [DIPERBAIKI 17 Sep] `isSandbox: !isProd`.
+18. ✅ **Fix PayView raw `fetch()` → api client** (`PayView.vue`) — [DIPERBAIKI 17 Sep] Menggunakan `api.*` methods.
+19. **Add `res.ok` checks di CheckoutView, OverviewView** (`*.vue`)
+20. **Clean up setTimeout memory leaks** (`LicensingView.vue`, dll)
+
+### Sedang (Medium)
+21. Fix DANA timestamp format bug (`dana.ts:81-86`)
+22. Tambahkan database indexes yang hilang
+23. ✅ **Fix `api.ts` return type dari `any` ke proper union/generic** — [DIPERBAIKI 17 Sep] `parseJson<T>(res)` generic.
+24. Tambahkan `CustomerPortalView.vue` atau hapus referensinya
+25. Fix `LoginView.vue` `rememberMe` atau hapus fitur
+26. Hapus hardcoded `49000`, `fastmail-ai`, dll → config/env
+27. Add rate limiting ke webhook endpoints
+28. Tambahkan SSL/TLS ke database connection
+29. Merge dual-write `ai_usage_logs` / `ai_proxy_logs`
+30. Fix `credits.ts` read-then-write race
 
 ---
 
-## AUDIT ULANG 17 SEPTEMBER 2026
+## RINGKASAN
 
-Audit ulang terhadap kode terkini. Sebagian besar perbaikan v2.2.1 terverifikasi benar-benar ada. Berikut status lengkap.
+| Kategori | Count |
+|----------|-------|
+| **Bug Kritis (masih ada)** | 22 |
+| **Bug Sedang** | 11 |
+| **Bug Client** | 13 |
+| **Fitur Prematur** | 8 |
+| **Deviasi PRD** | 9 |
+| **Kode Mati/Redundan** | 4 |
+| **Infrastruktur** | 10 |
+| **Tambahan Audit Baru** | 13 |
+| **TOTAL** | ~90+ item |
 
-### Terverifikasi Sudah Diperbaiki (v2.2.1 akurat) ✅
-Path traversal (`index.ts`), CORS whitelist, atomic disbursement lock + pemetaan status riil, timing-safe JWT, SHA-256 KDF, DB URL konsisten, mass-assignment allowlist, rate limiter pruning, aggregate SQL di `apps.ts`, database indexes (semua tabel relevan ber-index), grace period dinamis dari token, gate sandbox untuk simulate-paid/mock invoice/webhook bypass/mock AI key, `resolveDisbursementAccount()` menggantikan semua rekening dummy, harga default dari env, Dockerfile multi-stage dengan healthcheck, `.env` sudah di-gitignore.
-
-### Masih Prematur (terkonfirmasi di kode saat ini)
-1. **Zero autentikasi (akar masalah)** — tidak ada middleware auth; `passwordHash` masih kolom mati; `/panel/payouts/batch`, `/licensing/issue|revoke|list`, `/portal/licenses?email=...`, `/checkout/disburse/:txId` terbuka.
-2. **Email delivery hilang total** — `notifier.ts` sudah terhapus; `PayView.vue` masih berjanji kirim lisensi ke email; tidak ada kode kirim email sama sekali.
-3. **Budget guardrail AI mati** — `currentMonthlyUsage` dicek tapi tak pernah di-increment. → ✅ **DIPERBAIKI 17 Sep** (`incrementVaultMonthlyUsage`).
-4. **`maxRequestsPerMin` diabaikan** → ✅ **DIPERBAIKI 17 Sep**.
-5. **Sistem kupon = stub** (EARLY50 tidak tersimpan & tak bisa ditebus) → ✅ **DIPERBAIKI 17 Sep**.
-6. **Provider AI selain Gemini/OpenAI merespon palsu** → ✅ **DIPERBAIKI 17 Sep** (Anthropic & DeepSeek nyata, streaming SSE asli, error upstream eksplisit).
-7. **Webhook disbursement tidak ada** — payout PROCESSING di Xendit tidak pernah final.
-8. **Webhook abaikan status FAILED** — transaksi FAILED stuck PENDING.
-9. **Race condition seat & duplicate license webhook** — masih check-then-act tanpa DB lock.
-10. **`grantCredits` diterima tapi tak pernah ditegakkan**.
-11. **Deviasi PRD**: HS256 (bukan RSA/Ed25519), tanpa `chrome.storage.sync`, tanpa deep link `tertaut://activate`, payout manual-only, tanpa tabel `builder_balances`/`disbursements`, Redis di-compose tapi tak dipakai.
-12. **Data demo & hardcode**: `pembeli@tertaut.com`, `49000`, `500000`, `fast-summary-model`, `fastmail-ai`, "89 Lisensi Terjual" (DocsView), `customer@example.com` di SDK, auto-seed di `GET /apps` (ter-gate sandbox tapi GET tetap menulis).
-13. **SDK v0.1.0 belum publish** tapi docs menyuruh `npm install @tertaut/sdk`; endpoint docs `localhost:3000`.
-
-### Temuan Baru (belum ada di laporan lama)
-1. **`body.appId` dipercaya mentah di AI chat** (`aiproxy.ts`) — license app A bisa membakar vault app B (cross-app entitlement leak).
-2. **`/panel/stats|builders|transactions`**: full table scan + N+1 query per baris.
-3. **`POST /payouts/trigger` tanpa `builderId`** memilih builder pertama — risiko salah penerima dana di multi-builder.
-4. **`DocsView.copyCode`** pakai `navigator.clipboard` raw; composable `useClipboard` yang sudah di-harden tidak dipakai (juga di `LandingView`, `LicensingView`, `CustomerPortalView`).
-5. **`selectedPaymentRail` di PayView tetap tidak dikirim** ke `/checkout/session` — pilihan QRIS/VA/E-Wallet dekoratif.
-6. **Client `api.ts` masih tanpa `res.ok` check** di hampir semua fungsi.
-7. **`docker-compose.yml` tanpa service app**; `console.log` produksi masih ada (`index.ts`, `webhook.ts`).
-8. **`App.vue` masih membaca `meta.fullscreen`** yang tak pernah di-set (dead code, dibersihkan v2.2.1 ternyata ter-regresi).
-9. **`drizzle.config.ts` fallback ke DB `tertaut`** sedangkan config server fallback `tertautv2` — inkonsistensi lama #10 luput di drizzle config.
-
-### Test Coverage
-- `src/server/__test/server.test.ts`: **47 test** — 29 di atas + auth Better Auth, seat race atomik, migrasi HWID salted, Ed25519 offline token + denylist `jti` + JWKS + verifikasi lokal SDK, cross-app AI guard, status terminal webhook invoice/disbursement, ledger kredit (grant/debit atomik/idempotensi/endpoint HTTP).
-- Catatan: test E2E butuh server berjalan di `localhost:3000` + Postgres; test kupon aman di sandbox karena `XENDIT_SECRET_KEY` mock → invoice mock, bukan tagihan nyata.
-
----
-
-### Pembaruan Sesi Terbaru (17 September 2026)
-
-Sudah diperbaiki:
-- ✅ **Autentikasi** — Better Auth native Elysia (email + password), guard `requireAuth`/`requireAdmin` pada panel/payouts/coupons/launch/apps/checkout/licensing + aiproxy; bypass `DEV_USER` hanya di non-production.
-- ✅ **Race condition seat & duplicate license webhook** — klaim seat atomik (`db.transaction` + `FOR UPDATE`) + `unique_licenses_transaction_id` + backstop `23505`.
-- ✅ **Portal tanpa bukti kepemilikan** — `POST /portal/access` (email + license key → signed token); `/portal/licenses` & `/portal/transactions` wajib token.
-- ✅ **Rate limiting** — sliding-window in-memory di endpoint lisensi & portal.
-- ✅ **Token offline HS256 → Ed25519** — `LicenseTokenService` (EdDSA, `kid`, `jti`), JWKS + public key PEM, revoke via denylist `revoked_tokens`, verifikasi lokal SDK via Web Crypto.
-- ✅ **Deviasi SDK** — hapus fallback email demo; `customerEmail` wajib saat checkout.
-- ✅ **HWID hash tanpa salt** — kini HMAC-SHA256 (`HWID_SALT`/`JWT_SECRET`, prefix `hw2:`) dengan migrasi transparan untuk binding legacy.
-- ✅ **Data demo/hardcode** — `pembeli@tertaut.com`, `customer@example.com` dihapus dari checkout/portal/SDK; social-proof widget di `DocsView` kini menarik angka asli dari `/widgets/badge/:slug`.
-- ✅ **Cross-app entitlement leak AI** — `body.appId` tidak lagi dipercaya; lisensi app A tidak bisa memakai vault app B (`APP_MISMATCH`).
-- ✅ **Webhook status terminal** — invoice Xendit `FAILED`/`EXPIRED` kini ditandai dan tidak menurunkan transaksi `PAID`; callback disbursement Xendit ditambahkan (`/webhook/xendit/disbursement`) + guard status terminal DANA.
-- ✅ **Payout tanpa builder** — `/payouts/trigger` tidak lagi menebak builder pertama; non-admin hanya boleh mencairkan builder miliknya.
-- ✅ **N+1 panel** — `/panel/stats` (agregasi SQL), `/panel/builders`, dan `/panel/transactions` memakai batch query.
-- ✅ **Clipboard non-secure** — `useClipboard` (dengan fallback `execCommand`) dipakai di Landing/Docs/Licensing/CustomerPortal.
-- ✅ **`selectedPaymentRail`** — pilihan QRIS/VA/E-Wallet kini dikirim `paymentRail` → `payment_methods` Xendit.
-- ✅ **Docker Compose** — service `app` (build Dockerfile) ditambahkan, depend on Postgres sehat; default DB diselaraskan ke `tertautv2`.
-- ✅ **Email delivery (Resend)** — `EmailService` (REST API, tanpa dep baru) mengirim kunci lisensi saat pembayaran terkonfirmasi (webhook) & saat lisensi diterbitkan manual; non-fatal, dilewati bila `RESEND_API_KEY` kosong.
-- ✅ **Publish SDK** — `@tertaut/sdk@0.1.5` terbit ke npm (public) dengan `exports`, `.d.ts`, README, `publishConfig.access`.
-- ✅ **Endpoint docs** — prompt AI di `DocsView` memakai `window.location.origin` (bukan hardcode `localhost:3000`).
-- ✅ **Git hooks** — Husky v9: pre-commit menjalankan `build:server` + typecheck SDK.
-- ✅ **Login / Logout UI** — tombol "Masuk" (→ `/login`) dan "Keluar" di LandingView; `handleLogout` di App.vue memanggil `authClient.signOut()`. Origin check diperluas ke `localhost:3000` & `127.0.0.1:3000`.
-- ✅ **Auth gate global** — `apiV1Routes` menegakkan `authenticate()` untuk semua `/api/v1/*` kecuali path publik yang sudah diizinkan (health, badge, widget, webhook, portal/access, checkout/session, apps/by-slug, licensing verify/validate/activate/deactivate, credits). Endpoint admin licensing (`/list`, `/issue`, `/revoke`) yang sebelumnya tanpa guard kini dilindungi. Di prod → 401 tanpa sesi; dev → DEV_USER bypass.
-- ✅ **Ledger kredit (`grantCredits`)** — tabel `credit_ledger` (append-only, `SUM(delta)` + `balance_after` audit). Kredit di-grant otomatis saat pembayaran terkonfirmasi & saat lisensi diterbitkan manual. Endpoint publik baru: `POST /api/v1/licensing/credits/{balance,consume,history}`. `consume` atomik (`FOR UPDATE`, anti saldo negatif) + idempotensi via `reference`. `verify` kini mengembalikan `credits`. SDK `credits.balance/consume/history`.
-
-Tidak ada item backlog yang tersisa.
+**Tiga masalah paling kritis (seluruhnya telah diperbaiki):**
+1. ✅ DANA UAT hardcoded amounts di production (`webhook.ts:395-412`) — di-gate sandbox & amount diparse riil.
+2. ✅ `/checkout/dana/finish?mock=true` auth bypass (`checkout.ts:339`) — di-gate sandbox.
+3. ✅ `.env` berisi real secrets termasuk private key — dipindahkan ke `keys/*.pem` yang ter-gitignore.

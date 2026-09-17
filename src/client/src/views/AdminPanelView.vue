@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   api,
@@ -31,6 +31,11 @@ import GlobalLedgerTable from '../components/admin/GlobalLedgerTable.vue'
 import SystemTelemetryCard from '../components/admin/SystemTelemetryCard.vue'
 
 const router = useRouter()
+const session = authClient.useSession()
+const adminName = computed(() => session.value?.data?.user?.name || 'Super Admin')
+const adminEmail = computed(() => session.value?.data?.user?.email || 'admin@tertaut.com')
+const adminInitial = computed(() => (adminName.value[0] || 'S').toUpperCase())
+
 const stats = ref<PanelStats | null>(null)
 const builders = ref<PanelBuilderItem[]>([])
 const transactions = ref<PanelTransactionItem[]>([])
@@ -46,15 +51,23 @@ const txSearchQuery = ref<string>('')
 const isProcessingPayout = ref(false)
 const payoutResult = ref<any>(null)
 const alertMessage = ref<{ type: 'success' | 'error'; text: string } | null>(null)
+let alertTimer: ReturnType<typeof setTimeout> | null = null
 
 function showAlert(type: 'success' | 'error', text: string) {
+  if (alertTimer) clearTimeout(alertTimer)
   alertMessage.value = { type, text }
-  setTimeout(() => {
-    if (alertMessage.value?.text === text) {
-      alertMessage.value = null
-    }
+  alertTimer = setTimeout(() => {
+    alertMessage.value = null
+    alertTimer = null
   }, 4500)
 }
+
+onUnmounted(() => {
+  if (alertTimer) {
+    clearTimeout(alertTimer)
+    alertTimer = null
+  }
+})
 
 async function loadAllData() {
   refreshing.value = true
@@ -262,11 +275,11 @@ onMounted(() => {
           <div class="p-2 rounded-lg bg-[#111111]/5 space-y-2">
             <div class="flex items-center gap-2 min-w-0">
               <div class="w-7 h-7 rounded-full bg-[#111111] text-white flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-[#D4AF37]/40">
-                S
+                {{ adminInitial }}
               </div>
               <div class="min-w-0 text-left flex-1">
-                <div class="text-xs font-bold text-[#111111] truncate">Super Admin</div>
-                <div class="text-[10px] text-[#111111]/50 font-medium truncate">admin@tertaut.com</div>
+                <div class="text-xs font-bold text-[#111111] truncate">{{ adminName }}</div>
+                <div class="text-[10px] text-[#111111]/50 font-medium truncate">{{ adminEmail }}</div>
               </div>
             </div>
             <button

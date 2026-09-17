@@ -7,7 +7,6 @@ export const builders = pgTable("builders", {
   userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
-  passwordHash: text("password_hash"),
   apiKey: text("api_key").notNull().unique(),
   disbursementAccount: jsonb("disbursement_account").$type<{
     bankCode?: string;

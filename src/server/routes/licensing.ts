@@ -14,7 +14,7 @@ async function handleActivateLicense(ctx: any) {
   const { body, set, request } = ctx;
   const { licenseKey, appId, hwid, deviceName } = body;
 
-  const rl = enforceRateLimit(request, "licensing:activate", 20, 60_000);
+  const rl = enforceRateLimit(request, "licensing:activate", 60, 60_000);
   if (!rl.allowed) {
     set.status = 429;
     return { success: false, error: `Terlalu banyak percobaan aktivasi. Coba lagi dalam ${rl.retryAfter} detik.` };
@@ -639,6 +639,14 @@ function createLicensingRouter(prefix: string) {
         // Validasi tidak boleh mengikat hardware secara implisit — binding wajib
         // melalui /activate agar kuota seat (N_active <= N_max) ditegakkan.
         let boundHardwareHash = lic.hardwareId;
+        if (lic.hardwareId && !hardwareId) {
+          return {
+            valid: false,
+            reason: "HARDWARE_ID_REQUIRED",
+            message: "Lisensi ini sudah terikat dengan perangkat hardware. Sertakan hardwareId untuk validasi.",
+          };
+        }
+
         if (hardwareId) {
           const lookupHashes = LicenseService.hwidLookupHashes(hardwareId);
           if (lic.hardwareId && !lookupHashes.includes(lic.hardwareId)) {

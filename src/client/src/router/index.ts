@@ -15,31 +15,37 @@ const liveDashboardRoutes: RouteRecordRaw[] = [
     path: "/dashboard/apps",
     name: "apps",
     component: () => import("../views/AppsView.vue"),
+    meta: { requiresAuth: true },
   },
   {
     path: "/dashboard/checkout",
     name: "checkout",
     component: () => import("../views/CheckoutView.vue"),
+    meta: { requiresAuth: true },
   },
   {
     path: "/dashboard/licensing",
     name: "licensing",
     component: () => import("../views/LicensingView.vue"),
+    meta: { requiresAuth: true },
   },
   {
     path: "/dashboard/ai-proxy",
     name: "ai-proxy",
     component: () => import("../views/AiProxyView.vue"),
+    meta: { requiresAuth: true },
   },
   {
     path: "/dashboard/coupons",
     name: "coupons",
     component: () => import("../views/CouponView.vue"),
+    meta: { requiresAuth: true },
   },
   {
     path: "/dashboard/docs",
     name: "docs",
     component: () => import("../views/DocsView.vue"),
+    meta: { requiresAuth: true },
   },
 ];
 

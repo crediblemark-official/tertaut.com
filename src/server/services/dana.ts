@@ -126,7 +126,9 @@ export class DanaService {
 
     const minified = JSON.stringify(payload);
     const rawKey = config.dana.privateKey;
-    const pem = `-----BEGIN PRIVATE KEY-----\n${rawKey.match(/.{1,64}/g)?.join("\n")}\n-----END PRIVATE KEY-----`;
+    const pem = rawKey.includes("-----BEGIN")
+      ? rawKey
+      : `-----BEGIN PRIVATE KEY-----\n${rawKey.match(/.{1,64}/g)?.join("\n")}\n-----END PRIVATE KEY-----`;
     const hash = crypto.createHash("sha256").update(minified).digest("hex");
     const stringToSign = `POST:${endpointPath}:${hash}:${ts}`;
     const sig = crypto.sign("sha256", Buffer.from(stringToSign), pem).toString("base64");
@@ -195,13 +197,23 @@ export class DanaService {
     // Jika public key RSA tersedia, verifikasi SHA256withRSA
     if (config.dana.publicKey) {
       try {
+        const rawPubKey = config.dana.publicKey;
+        const pubKeyPem = rawPubKey.includes("-----BEGIN")
+          ? rawPubKey
+          : `-----BEGIN PUBLIC KEY-----\n${rawPubKey.match(/.{1,64}/g)?.join("\n")}\n-----END PUBLIC KEY-----`;
         const verifier = crypto.createVerify("SHA256");
         verifier.update(typeof body === "string" ? body : JSON.stringify(body));
-        return verifier.verify(config.dana.publicKey, signature, "base64");
+        return verifier.verify(pubKeyPem, signature, "base64");
       } catch (err: any) {
         console.warn("[DanaService] Signature verification exception:", err.message);
         return false;
       }
+    }
+
+    // Kritis: Di production, jika publicKey tidak tersedia, TIDAK BOLEH bypass/fallback true!
+    if (!config.isSandbox) {
+      console.error("[DanaService] DANA public key tidak dikonfigurasi di production. Webhook ditolak demi keamanan.");
+      return false;
     }
 
     return true;

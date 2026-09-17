@@ -19,7 +19,7 @@ import { useClipboard } from '../composables/useClipboard'
 
 const appsList = ref<AppItem[]>([])
 const selectedAppId = ref('')
-const amount = ref(49000)
+const amount = ref(0)
 const customerEmail = ref('')
 const grantDays = ref(30)
 const loading = ref(false)
@@ -54,13 +54,20 @@ const currentApp = computed(() => {
   return appsList.value.find(a => a.id === selectedAppId.value)
 })
 
+watch(selectedAppId, (newId) => {
+  const matched = appsList.value.find(a => a.id === newId)
+  if (matched) {
+    amount.value = matched.targetPrice || 0
+  }
+})
+
 async function loadAppsAndTransactions() {
   try {
     const appsRes = await api.getApps()
     appsList.value = appsRes.apps || []
     if (appsRes.apps && appsRes.apps.length > 0) {
       selectedAppId.value = appsRes.apps[0].id
-      amount.value = appsRes.apps[0].targetPrice || 49000
+      amount.value = appsRes.apps[0].targetPrice || 0
     }
   } catch (e) {
     console.error('Failed to load apps:', e)
@@ -90,6 +97,7 @@ async function loadTransactions() {
 async function createCheckout() {
   if (!selectedAppId.value) return
   loading.value = true
+  disburseAlert.value = null
   try {
     const res = await api.createCheckoutSession({
       appId: selectedAppId.value,
@@ -97,8 +105,14 @@ async function createCheckout() {
       customerEmail: customerEmail.value,
       grantDays: grantDays.value
     })
-    checkoutResult.value = res
-    await loadTransactions()
+    if (res && res.success !== false) {
+      checkoutResult.value = res
+      await loadTransactions()
+    } else {
+      disburseAlert.value = `Error: ${res?.error || 'Gagal membuat sesi checkout.'}`
+    }
+  } catch (err: any) {
+    disburseAlert.value = `Error: ${err.message || 'Gagal membuat sesi checkout.'}`
   } finally {
     loading.value = false
   }
@@ -145,10 +159,10 @@ async function triggerBatchPayout() {
   disburseAlert.value = null
   try {
     const res = await api.triggerPayout()
-    if (res.success) {
+    if (res && res.success && res.data) {
       disburseAlert.value = `Berhasil! Pencairan ${formatRupiah(res.data.amount)} berhasil diproses ke rekening ${res.data.bankCode} (${res.data.recipientName}) via Xendit API.`
     } else {
-      disburseAlert.value = `Info: ${res.error || res.message}`
+      disburseAlert.value = `Info: ${res?.error || res?.message || 'Pencairan berhasil diproses.'}`
     }
     await loadTransactions()
   } catch (err: any) {

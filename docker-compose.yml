@@ -51,20 +51,6 @@ services:
     ports:
       - "${APP_PORT:-3000}:3000"
 
-  redis:
-    image: redis:7-alpine
-    container_name: tertaut_redis
-    restart: always
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
 volumes:
   postgres_data:
-  redis_data:
+

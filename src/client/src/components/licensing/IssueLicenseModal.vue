@@ -47,21 +47,21 @@ function submit() {
 </script>
 
 <template>
-  <div v-if="show" class="fixed inset-0 bg-[#111111]/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4 border border-[#111111]/10 animate-fadeIn">
-      <div class="flex items-center justify-between">
+  <div v-if="show" class="fixed inset-0 bg-[#111111]/50 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-xl max-w-sm w-full p-4 shadow-xl space-y-3 border border-[#111111]/10 animate-fadeIn">
+      <div class="flex items-center justify-between pb-1 border-b border-[#111111]/5">
         <div class="flex items-center gap-2">
           <KeyRound class="w-4 h-4 text-[#D4AF37]" />
-          <h3 class="text-sm font-bold text-[#111111]">Terbitkan Lisensi Manual</h3>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-[#111111]">Terbitkan Lisensi Manual</h3>
         </div>
-        <button @click="emit('close')" class="text-[#111111]/40 hover:text-[#111111] cursor-pointer">
+        <button @click="emit('close')" class="text-[#111111]/40 hover:text-[#111111] cursor-pointer p-0.5">
           <X class="w-4 h-4" />
         </button>
       </div>
 
-      <div class="space-y-3 text-xs">
+      <div class="space-y-2.5 text-xs">
         <div>
-          <label class="block font-bold text-[#111111]/70 mb-1">Pilih Aplikasi</label>
+          <label class="block font-semibold text-[11px] text-[#111111]/70 mb-1">Pilih Aplikasi</label>
           <SearchPicker
             v-model="issueAppId"
             :items="appsList"
@@ -72,49 +72,51 @@ function submit() {
         </div>
 
         <div>
-          <label class="block font-bold text-[#111111]/70 mb-1">Email Pembeli / Penerima</label>
+          <label class="block font-semibold text-[11px] text-[#111111]/70 mb-1">Email Pembeli / Penerima</label>
           <input
             v-model="issueEmail"
             type="email"
             placeholder="customer@example.com"
-            class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+            class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-xs text-[#111111] focus:outline-none focus:border-[#D4AF37]"
           />
         </div>
 
         <div class="grid grid-cols-3 gap-2">
           <div>
-            <label class="block font-bold text-[#111111]/70 mb-1">Masa Aktif (Hari)</label>
+            <label class="block font-semibold text-[11px] text-[#111111]/70 mb-1">Masa Aktif</label>
             <input
               v-model.number="issueGrantDays"
               type="number"
-              class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] font-mono focus:outline-none focus:border-[#D4AF37]"
+              placeholder="30"
+              class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-xs text-[#111111] font-mono focus:outline-none focus:border-[#D4AF37]"
             />
           </div>
           <div>
-            <label class="block font-bold text-[#111111]/70 mb-1">Max Seats</label>
+            <label class="block font-semibold text-[11px] text-[#111111]/70 mb-1">Max Seats</label>
             <input
               v-model.number="issueMaxSeats"
               type="number"
               min="1"
-              class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] font-mono focus:outline-none focus:border-[#D4AF37]"
+              placeholder="3"
+              class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-xs text-[#111111] font-mono focus:outline-none focus:border-[#D4AF37]"
             />
           </div>
           <div>
-            <label class="block font-bold text-[#111111]/70 mb-1">Platform</label>
+            <label class="block font-semibold text-[11px] text-[#111111]/70 mb-1">Platform</label>
             <select
               v-model="issuePlatform"
-              class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg p-2 text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+              class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg px-2 py-1.5 text-xs text-[#111111] focus:outline-none focus:border-[#D4AF37]"
             >
               <option value="general">General</option>
               <option value="desktop">Desktop</option>
-              <option value="chrome_extension">Chrome Ext</option>
+              <option value="chrome_extension">Chrome</option>
               <option value="android">Android</option>
               <option value="web">Web</option>
             </select>
           </div>
         </div>
 
-        <div class="pt-2 flex justify-end gap-2">
+        <div class="pt-1.5 flex justify-end gap-2 border-t border-[#111111]/5">
           <button
             @click="emit('close')"
             class="px-3 py-1.5 rounded-lg bg-[#111111]/5 text-xs font-bold text-[#111111] hover:bg-[#111111]/10 cursor-pointer"

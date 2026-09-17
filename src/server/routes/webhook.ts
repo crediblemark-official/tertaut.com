@@ -7,6 +7,7 @@ import { DanaService } from "../services/dana";
 import { LicenseService } from "../services/license";
 import { EmailService } from "../services/email";
 import { CreditService } from "../services/credits";
+import { config } from "../config";
 import { randomBytes } from "crypto";
 
 export const webhookSchema = {
@@ -120,7 +121,8 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         );
       }
 
-      console.log(`[Webhook] Payment confirmed for TX: ${tx.id}, License issued: ${licenseKey}`);
+      const maskedKey = licenseKey ? `${licenseKey.slice(0, 4)}****` : "N/A";
+      console.log(`[Webhook] Payment confirmed for TX: ${tx.id}, License issued: ${maskedKey}`);
 
       return {
         status: "success",
@@ -288,6 +290,12 @@ export async function handleXenditInvoiceWebhook({ headers, body, set }: any) {
   // EXPIRED/FAILED adalah status terminal. Jangan turunkan transaksi yang sudah
   // PAID, dan jangan biarkan transaksi gagal tersangkut PENDING selamanya.
   if (status === "EXPIRED" || status === "FAILED") {
+    // Cabut lisensi jika ada yang sempat aktif sebelum pembayaran dibatalkan/kedaluwarsa
+    await db
+      .update(licenses)
+      .set({ status: "REVOKED", updatedAt: new Date() })
+      .where(and(eq(licenses.transactionId, tx.id), eq(licenses.status, "ACTIVE")));
+
     await db
       .update(transactions)
       .set({
@@ -383,43 +391,37 @@ export async function handleDanaFinishPaymentWebhook({ headers, body, set }: any
   // Flatten so we can access fields uniformly.
   const data = (raw?.request?.body ? { ...raw.request.body, _legacy: true } : raw) as any;
 
-  console.log(`[DanaWebhook] Incoming /v1.0/debit/notify:`, JSON.stringify(data).substring(0, 500));
-
-  // --- DANA UAT Scenario: Internal Server Error Response from Partner (5005601) ---
-  // Check amount FIRST before any other logic, so sandbox-created orders work.
-  // Legacy format uses cents (1101200 = 11012.00), SNAP BI uses decimal string ("11012.00")
-  const rawAmtVal = data?.amount?.value || data?.transAmount?.value || data?.orderAmount?.value || "0";
-  const amountVal = parseFloat(rawAmtVal) >= 100000
-    ? parseFloat(rawAmtVal) / 100   // legacy cents → IDR
-    : parseFloat(rawAmtVal);         // SNAP BI already in IDR
-  if (amountVal === 11012) {
-    console.log(`[DanaWebhook] UAT 5005601 scenario triggered (amount=11012)`);
-    set.status = 500;
-    return {
-      responseCode: "5005601",
-      responseMessage: "Internal Server Error",
-    };
+  if (config.isSandbox) {
+    console.log(`[DanaWebhook] Incoming /v1.0/debit/notify (sandbox)`);
   }
 
-  // --- DANA UAT Scenario: Success Notify (2005600) ---
-  if (amountVal === 11011) {
-    console.log(`[DanaWebhook] UAT 2005600 success scenario triggered (amount=11011)`);
-    set.status = 200;
-    return {
-      responseCode: "2005600",
-      responseMessage: "Successful",
-    };
+  // --- DANA UAT Scenarios (HANYA AKTIF DI SANDBOX) ---
+  // Skenario pengujian UAT tidak boleh menginterupsi transaksi riil di production.
+  if (config.isSandbox) {
+    const rawAmtVal = data?.amount?.value || data?.transAmount?.value || data?.orderAmount?.value || "0";
+    const amountVal = Math.round(parseFloat(rawAmtVal));
+    if (amountVal === 11012) {
+      set.status = 500;
+      return {
+        responseCode: "5005601",
+        responseMessage: "Internal Server Error",
+      };
+    }
+
+    if (amountVal === 11011) {
+      set.status = 200;
+      return {
+        responseCode: "2005600",
+        responseMessage: "Successful",
+      };
+    }
   }
 
   // Deteksi format notifikasi: SNAP BI (punya latestTransactionStatus) atau legacy DANA Enterprise
   const isSnapBi = data?.latestTransactionStatus !== undefined;
-  if (isSnapBi) {
-    console.log(`[DanaWebhook] SNAP BI notify received, latestTransactionStatus=${data?.latestTransactionStatus}`);
-  }
 
-  // Verifikasi signature. Notifikasi SNAP BI dari DANA tidak memakai skema
-  // signature legacy, jadi hanya format legacy yang diverifikasi di sini.
-  if (!isSnapBi && !DanaService.verifyWebhook(headers, body)) {
+  // Verifikasi signature baik format SNAP BI maupun legacy DANA Enterprise
+  if (!DanaService.verifyWebhook(headers, body)) {
     set.status = 401;
     return {
       responseCode: "4015600",

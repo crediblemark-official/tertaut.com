@@ -24,26 +24,41 @@ function withMode(path: string): string {
   return `${path}${separator}mode=${dashboardEnv.value}`
 }
 
+export class ApiError extends Error {
+  status: number
+  data?: any
+
+  constructor(status: number, message: string, data?: any) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.data = data
+  }
+}
+
 /**
- * Parse respons JSON dengan aman: tidak pernah melempar saat body kosong/bukan JSON,
- * dan menormalkan error HTTP menjadi `{ success: false, error }` agar UI tetap bisa
- * menampilkan pesan alih-alih gagal senyap.
+ * Parse respons JSON dengan tipe terdefinisi.
+ * Melempar ApiError jika res.ok === false agar try/catch menangkap error HTTP.
  */
-async function parseJson(res: Response): Promise<any> {
+async function parseJson<T = any>(res: Response): Promise<T> {
   const text = await res.text()
-  if (!text.trim()) {
-    return res.ok ? {} : { success: false, error: `HTTP ${res.status}` }
-  }
-  try {
-    const data = JSON.parse(text)
-    if (!res.ok && data && typeof data === 'object' && data.success === undefined) {
-      data.success = false
-      if (!data.error) data.error = `HTTP ${res.status}`
+  let data: any = {}
+  if (text.trim()) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      data = { error: `HTTP ${res.status}: respons bukan format JSON valid` }
     }
-    return data
-  } catch {
-    return { success: false, error: `HTTP ${res.status}: respons bukan JSON` }
   }
+
+  if (!res.ok) {
+    const errorMsg =
+      (typeof data === 'object' && (data?.error || data?.message)) ||
+      `Permintaan gagal dengan status HTTP ${res.status}`
+    throw new ApiError(res.status, errorMsg, data)
+  }
+
+  return data as T
 }
 
 export const api = {
@@ -105,13 +120,46 @@ export const api = {
     return this.checkSlugAvailability(slug);
   },
 
+  async getAppBySlug(slug: string): Promise<AppItem> {
+    const res = await fetch(`/api/v1/apps/by-slug/${slug}`);
+    return parseJson<AppItem>(res);
+  },
+
+  async previewCoupon(data: {
+    appId: string;
+    couponCode: string;
+    amount: number;
+  }): Promise<{
+    valid: boolean;
+    coupon?: CouponItem;
+    discountPercent?: number;
+    discountAmount?: number;
+    finalAmount?: number;
+    message?: string;
+    error?: string;
+  }> {
+    const res = await fetch("/api/v1/checkout/preview-coupon", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return parseJson(res);
+  },
+
   async createCheckoutSession(data: {
     appId: string;
     amount: number;
     customerEmail: string;
     grantDays?: number;
+    preferredPaymentChannel?: string;
     redirectUrl?: string;
-  }) {
+    couponCode?: string;
+  }): Promise<{
+    success: boolean;
+    transactionId?: string;
+    checkoutUrl?: string;
+    error?: string;
+  }> {
     const res = await fetch("/api/v1/checkout/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -422,7 +470,5 @@ export const api = {
     });
     return parseJson(res);
   },
-
-
 };
 

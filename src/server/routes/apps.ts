@@ -10,6 +10,44 @@ const modeQuery = t.Object({
   mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
 });
 
+async function resolveCurrentBuilder(headers: Headers): Promise<{ builder: typeof builders.$inferSelect | null; isAdmin: boolean }> {
+  const authRes = await authenticate(headers);
+  if ("status" in authRes) return { builder: null, isAdmin: false };
+  const user = authRes.user;
+  const isAdmin = user.role === "admin";
+
+  // 1. Cari builder berdasarkan userId
+  if (user.id && user.id !== "dev-user") {
+    const b = await db.query.builders.findFirst({
+      where: eq(builders.userId, user.id),
+    });
+    if (b) return { builder: b, isAdmin };
+  }
+
+  // 2. Cari builder berdasarkan email
+  if (user.email) {
+    const b = await db.query.builders.findFirst({
+      where: eq(builders.email, user.email),
+    });
+    if (b) return { builder: b, isAdmin };
+  }
+
+  // 3. Fallback dev/sandbox: cari demo builder atau buatkan
+  let fallback = await db.query.builders.findFirst();
+  if (!fallback && appConfig.isSandbox) {
+    const [created] = await db
+      .insert(builders)
+      .values({
+        email: user.email || "builder@tertaut.com",
+        name: user.name || "Vibe Builder",
+        apiKey: `tt_live_${randomBytes(16).toString("hex")}`,
+      })
+      .returning();
+    fallback = created;
+  }
+  return { builder: fallback || null, isAdmin };
+}
+
 export const appRoutes = new Elysia({ prefix: "/apps" })
   // Semua endpoint apps privat KECUALI halaman produk publik /apps/by-slug/:slug
   .onBeforeHandle(async ({ request: { headers }, status, path }) => {
@@ -18,14 +56,15 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
     if ("status" in res) return status(res.status, { error: res.error });
   })
   /**
-   * Ambil daftar seluruh aplikasi yang terdaftar
+   * Ambil daftar aplikasi (scoped ke builder pemilik kecuali admin)
    */
   .get(
     "/",
-    async ({ query }) => {
+    async ({ query, request: { headers } }) => {
+      const { builder, isAdmin } = await resolveCurrentBuilder(headers);
+
       // Auto-seed builder & sample app HANYA di mode sandbox (development)
-      if (appConfig.isSandbox) {
-        // Pastikan ada builder demo jika DB baru diinisialisasi
+      if (appConfig.isSandbox && !builder) {
         let demoBuilder = await db.query.builders.findFirst();
         if (!demoBuilder) {
           const [createdBuilder] = await db
@@ -52,8 +91,16 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
         }
       }
 
+      const conditions: any[] = [];
+      if (query.mode) {
+        conditions.push(eq(apps.mode, query.mode));
+      }
+      if (builder && !isAdmin) {
+        conditions.push(eq(apps.builderId, builder.id));
+      }
+
       const allApps = await db.query.apps.findMany({
-        where: query.mode ? eq(apps.mode, query.mode) : undefined,
+        where: conditions.length > 0 ? and(...conditions) : undefined,
         orderBy: [desc(apps.createdAt)],
       });
 
@@ -74,7 +121,7 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
    */
   .get(
     "/stats/overview",
-    async ({ query }) => {
+    async ({ query, request: { headers } }) => {
       const emptyStats = {
         totalGMV: 0,
         netEarnings: 0,
@@ -83,12 +130,22 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
         totalTransactions: 0,
       };
 
-      let appIds: string[] | null = null;
+      const { builder, isAdmin } = await resolveCurrentBuilder(headers);
+
+      const appConditions: any[] = [];
       if (query.mode) {
+        appConditions.push(eq(apps.mode, query.mode));
+      }
+      if (builder && !isAdmin) {
+        appConditions.push(eq(apps.builderId, builder.id));
+      }
+
+      let appIds: string[] | null = null;
+      if (appConditions.length > 0) {
         const rows = await db
           .select({ id: apps.id })
           .from(apps)
-          .where(eq(apps.mode, query.mode));
+          .where(and(...appConditions));
         appIds = rows.map((r) => r.id);
         if (appIds.length === 0) return emptyStats;
       }
@@ -166,7 +223,7 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
    */
   .post(
     "/",
-    async ({ body, set }) => {
+    async ({ body, set, request: { headers } }) => {
       const {
         name,
         slug,
@@ -183,10 +240,10 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
         redirectUrl,
       } = body;
 
-      const builder = await db.query.builders.findFirst();
+      const { builder } = await resolveCurrentBuilder(headers);
       if (!builder) {
         set.status = 400;
-        return { error: "No builder found in database" };
+        return { error: "Profil builder tidak ditemukan untuk akun Anda." };
       }
 
       // Pastikan slug unik
@@ -254,7 +311,8 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
    */
   .patch(
     "/:appId",
-    async ({ params: { appId }, body, set }) => {
+    async ({ params: { appId }, body, set, request: { headers } }) => {
+      const { builder, isAdmin } = await resolveCurrentBuilder(headers);
       const existing = await db.query.apps.findFirst({
         where: eq(apps.id, appId),
       });
@@ -262,6 +320,11 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
       if (!existing) {
         set.status = 404;
         return { error: "App not found" };
+      }
+
+      if (builder && existing.builderId !== builder.id && !isAdmin) {
+        set.status = 403;
+        return { error: "Forbidden: Anda tidak memiliki hak akses mengubah aplikasi ini" };
       }
 
       // Jika ada perubahan slug, pastikan slug tidak bentrok dengan app lain
@@ -340,7 +403,8 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
    */
   .delete(
     "/:appId",
-    async ({ params: { appId }, set }) => {
+    async ({ params: { appId }, set, request: { headers } }) => {
+      const { builder, isAdmin } = await resolveCurrentBuilder(headers);
       const existing = await db.query.apps.findFirst({
         where: eq(apps.id, appId),
       });
@@ -348,6 +412,11 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
       if (!existing) {
         set.status = 404;
         return { error: "App not found" };
+      }
+
+      if (builder && existing.builderId !== builder.id && !isAdmin) {
+        set.status = 403;
+        return { error: "Forbidden: Anda tidak memiliki hak akses menghapus aplikasi ini" };
       }
 
       await db.delete(apps).where(eq(apps.id, appId));
@@ -410,7 +479,8 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
    */
   .patch(
     "/:appId/mode",
-    async ({ params: { appId }, body: { mode }, set }) => {
+    async ({ params: { appId }, body: { mode }, set, request: { headers } }) => {
+      const { builder, isAdmin } = await resolveCurrentBuilder(headers);
       const currentApp = await db.query.apps.findFirst({
         where: eq(apps.id, appId),
       });
@@ -418,6 +488,11 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
       if (!currentApp) {
         set.status = 404;
         return { error: "App not found" };
+      }
+
+      if (builder && currentApp.builderId !== builder.id && !isAdmin) {
+        set.status = 403;
+        return { error: "Forbidden: Anda tidak memiliki hak akses mengubah mode aplikasi ini" };
       }
 
       const [updated] = await db
@@ -449,7 +524,8 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
    */
   .post(
     "/disburse/:transactionId",
-    async ({ params: { transactionId }, set }) => {
+    async ({ params: { transactionId }, set, request: { headers } }) => {
+      const { builder: authBuilder, isAdmin } = await resolveCurrentBuilder(headers);
       const tx = await db.query.transactions.findFirst({
         where: eq(transactions.id, transactionId),
       });
@@ -457,6 +533,11 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
       if (!tx) {
         set.status = 404;
         return { error: "Transaction not found" };
+      }
+
+      if (authBuilder && tx.builderId !== authBuilder.id && !isAdmin) {
+        set.status = 403;
+        return { error: "Forbidden: Anda tidak memiliki hak akses mencairkan transaksi ini" };
       }
 
       if (tx.paymentStatus !== "PAID") {

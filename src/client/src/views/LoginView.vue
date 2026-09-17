@@ -61,6 +61,7 @@ async function submit() {
       const { error: err } = await authClient.signIn.email({
         email: email.value.trim(),
         password: password.value,
+        rememberMe: rememberMe.value,
       })
       if (err) throw new Error(err.message || 'Email atau password salah.')
     }
