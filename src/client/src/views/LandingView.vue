@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { authClient } from '../lib/auth'
 import { useClipboard } from '../composables/useClipboard'
 import {
   CreditCard,
@@ -25,6 +27,16 @@ const isMobileMenuOpen = ref(false)
 const activeDemoTab = ref<'checkout' | 'badge'>('checkout')
 const selectedDemoChannel = ref('QRIS Instan')
 const selectedDemoBadge = ref('verified')
+const router = useRouter()
+const authSession = authClient.useSession()
+const isLoggedIn = computed(() => !!authSession.value?.data?.user)
+
+async function handleLogout() {
+  try {
+    await authClient.signOut()
+  } catch {}
+  router.push('/')
+}
 
 function copySdkInstall() {
   writeClipboard('npm install @tertaut/sdk')
@@ -71,12 +83,29 @@ function copySdkInstall() {
           </router-link>
 
           <router-link
+            v-if="!isLoggedIn"
+            to="/login"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#D4AF37]/40 text-xs font-bold text-[#D4AF37] hover:bg-[#D4AF37]/10 transition active:scale-95"
+          >
+            <span>Masuk</span>
+          </router-link>
+
+          <router-link
             to="/dashboard"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-[#111111] text-white text-xs font-bold shadow-sm hover:bg-[#222222] transition active:scale-95"
           >
             <span>Buka Dashboard</span>
             <ArrowRight class="w-3.5 h-3.5 text-[#D4AF37]" />
           </router-link>
+
+          <button
+            v-if="isLoggedIn"
+            type="button"
+            @click="handleLogout"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-400/40 text-xs font-bold text-red-400 hover:bg-red-400/10 transition active:scale-95"
+          >
+            <span>Keluar</span>
+          </button>
 
           <!-- Mobile Hamburger Toggle -->
           <button
