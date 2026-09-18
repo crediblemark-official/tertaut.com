@@ -120,7 +120,7 @@ export const config = {
     /** API key Resend. Bila kosong, pengiriman email dilewati (skip) dengan peringatan. */
     resendApiKey: getEnv("RESEND_API_KEY"),
     /** Alamat pengirim terverifikasi di Resend, mis. "Tertaut <no-reply@mail.tertaut.com>". */
-    from: getEnv("MAIL_FROM") || getEnv("EMAIL_FROM") || "Tertaut <no-reply@mail.tertaut.com>",
+    from: getEnv("MAIL_FROM") || "Tertaut <no-reply@mail.tertaut.com>",
     replyTo: getEnv("EMAIL_REPLY_TO"),
   },
 
