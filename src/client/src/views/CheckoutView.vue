@@ -3,7 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { api } from '../lib/api'
 import type { AppItem } from '../types/app'
 import type { TransactionItem } from '../types/transaction'
-import { dashboardEnv } from '../lib/environment'
+import { dashboardEnv, envPath } from '../lib/environment'
 import { formatRupiah } from '../lib/utils'
 import {
   Sparkles,
@@ -12,7 +12,8 @@ import {
   CheckCircle2,
   Receipt,
   Copy,
-  Check
+  Check,
+  ArrowUpRight,
 } from 'lucide-vue-next'
 import DynamicCheckoutForm from '../components/checkout/DynamicCheckoutForm.vue'
 import CheckoutResultCard from '../components/checkout/CheckoutResultCard.vue'
@@ -195,7 +196,7 @@ const activeTab = ref<'generator' | 'history'>('generator')
 <template>
   <div class="animate-fadeIn pb-8">
     <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 -mt-4 sm:-mt-5 md:-mt-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-[#111111] text-white border-b border-[#111111] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-[#111111] text-white border-b border-[#111111] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
       <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
         <button type="button" @click="activeTab = 'generator'" :class="[
           'flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer',
@@ -282,6 +283,15 @@ const activeTab = ref<'generator' | 'history'>('generator')
 
     <!-- TAB 2: TRANSACTIONS & DISBURSEMENTS -->
     <div v-else-if="activeTab === 'history'" class="space-y-3.5 animate-fadeIn">
+      <!-- Role Clarification Notice -->
+      <div class="p-2.5 rounded-lg bg-[#111111]/[0.03] border border-[#111111]/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        <span class="text-[#111111]/70">Untuk pelacakan transaksi terpusat, filter status lengkap (PAID, PENDING, EXPIRED, FAILED), dan ekspor:</span>
+        <router-link :to="envPath(dashboardEnv, '/payments')" class="font-bold text-[#D4AF37] hover:underline inline-flex items-center gap-1 shrink-0">
+          <span>Buka Menu Payments</span>
+          <ArrowUpRight class="w-3.5 h-3.5" />
+        </router-link>
+      </div>
+
       <!-- Alert Disbursement Banner -->
       <div v-if="disburseAlert"
         class="p-2.5 rounded-lg bg-[#0F4C3A]/10 border border-[#0F4C3A]/25 text-[#0F4C3A] text-xs font-bold flex items-center justify-between">

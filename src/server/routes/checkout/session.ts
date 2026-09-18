@@ -24,22 +24,24 @@ export async function handleCreateSession({ body, set }: any) {
     customAmount,
     customerEmail,
     buyerEmail,
-    grantDays = 365,
+    grantDays: clientGrantDays,
     // Kredit ditambahkan ke ledger lisensi saat webhook pembayaran terkonfirmasi.
     grantCredits = 0,
     redirectUrl,
     couponCode,
     paymentRail,
+    preferredPaymentChannel,
   } = body;
 
-  // Pilihan kanal pembayaran di UI checkout diteruskan ke gateway (bukan dekoratif).
+  // B8: Dukung preferredPaymentChannel (dari PayView) maupun paymentRail secara konsisten
+  const selectedRail = paymentRail || preferredPaymentChannel;
   const RAIL_PAYMENT_METHODS: Record<string, string[]> = {
     qris: ["QRIS"],
     va: ["BCA", "BNI", "BRI", "MANDIRI", "PERMATA", "CIMB"],
     ewallet: ["OVO", "DANA", "SHOPEEPAY", "LINKAJA"],
   };
-  const paymentMethods = paymentRail
-    ? RAIL_PAYMENT_METHODS[String(paymentRail).toLowerCase()]
+  const paymentMethods = selectedRail
+    ? RAIL_PAYMENT_METHODS[String(selectedRail).toLowerCase()]
     : undefined;
 
   const targetIdentifier = appId || appSlug || slug;
@@ -66,31 +68,37 @@ export async function handleCreateSession({ body, set }: any) {
 
   const isSandboxApp = app.mode === "sandbox";
 
+  // B6: Guard produksi — aplikasi sandbox tidak boleh diperjualbelikan kepada publik di production
+  if (isSandboxApp && !checkoutConfig.isSandbox) {
+    set.status = 400;
+    return {
+      error:
+        "Aplikasi ini masih dalam mode Sandbox dan belum dipublikasikan untuk transaksi publik. Pengembang perlu mengubah status aplikasi menjadi Live di Dashboard.",
+    };
+  }
+
   const email = (buyerEmail || customerEmail || "").trim().toLowerCase();
   if (!email || !email.includes("@")) {
     set.status = 400;
     return { error: "Email pembeli tidak valid" };
   }
 
-  // Harga adalah otoritas server, bukan klien. Pembeli hanya boleh membayar
-  // sesuai harga resmi aplikasi atau lebih (mis. donasi/upgrade) — tidak pernah kurang.
+  // B2: grantDays sepenuhnya ditentukan oleh otoritas konfigurasi produk (deliveryConfig), bukan input klien.
+  const productGrantDays = app.deliveryConfig?.licenseKey?.expiresInDays;
+  const grantDays =
+    typeof productGrantDays === "number" && productGrantDays > 0
+      ? productGrantDays
+      : 365;
+
+  // B1: Harga resmi aplikasi adalah basis otoritas list price.
   const appPrice = app.targetPrice ?? 0;
   const requestedAmount = customAmount ?? amount ?? null;
 
-  if (appPrice > 0 && requestedAmount !== null && requestedAmount < appPrice) {
-    set.status = 400;
-    return {
-      error: `Nominal pembayaran tidak valid. Harga resmi "${app.name}" adalah ${formatIdr(appPrice)}.`,
-    };
-  }
-
-  const txAmount =
+  // List price sebelum diskon: gunakan appPrice (atau requestedAmount jika custom donation > appPrice)
+  const listPrice =
     appPrice > 0
-      ? Math.max(requestedAmount ?? appPrice, appPrice)
+      ? Math.max(requestedAmount && requestedAmount >= appPrice ? requestedAmount : appPrice, appPrice)
       : (requestedAmount ?? DEFAULT_PRICE);
-
-  // Harga list yang jadi basis diskon (sebelum kupon).
-  const listPrice = txAmount;
 
   // 1. Validasi & hitung diskon kupon (jika ada)
   let coupon: Awaited<ReturnType<typeof CouponService.validate>>["coupon"] = undefined;
@@ -108,6 +116,18 @@ export async function handleCreateSession({ body, set }: any) {
     coupon = couponResult.coupon;
     discountAmount = couponResult.discountAmount || 0;
     discountPercent = couponResult.discountPercent || 0;
+  }
+
+  // Validasi jika pembeli sengaja mengirim nominal di bawah listPrice tanpa kupon yang sah
+  if (appPrice > 0 && requestedAmount !== null && requestedAmount < appPrice) {
+    const expectedPayable = Math.max(0, listPrice - discountAmount);
+    // Jika requestedAmount tidak cocok dengan harga diskon kupon yang sah
+    if (!coupon || requestedAmount !== expectedPayable) {
+      set.status = 400;
+      return {
+        error: `Nominal pembayaran tidak valid. Harga resmi "${app.name}" adalah ${formatIdr(appPrice)}.`,
+      };
+    }
   }
 
   // 2. Nominal yang benar-benar dibayar setelah diskon

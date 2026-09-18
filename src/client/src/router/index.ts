@@ -42,6 +42,24 @@ const liveDashboardRoutes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: "/dashboard/payments",
+    name: "payments",
+    component: () => import("../views/PaymentsView.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/dashboard/subscriptions",
+    name: "subscriptions",
+    component: () => import("../views/SubscriptionsView.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/dashboard/balances",
+    name: "balances",
+    component: () => import("../views/BalancesView.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
     path: "/dashboard/docs",
     name: "docs",
     component: () => import("../views/DocsView.vue"),

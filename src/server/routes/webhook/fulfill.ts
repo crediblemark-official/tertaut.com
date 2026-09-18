@@ -10,11 +10,19 @@ async function sendLicenseIssuedEmail(result: any): Promise<void> {
   if (!result?.licenseKey || !result?.appId || !result?.customerEmail) return;
   try {
     const app = await db.query.apps.findFirst({ where: eq(apps.id, result.appId) });
+    const delivery = app?.deliveryConfig;
     await EmailService.sendLicenseIssued({
       to: result.customerEmail,
       appName: app?.name || "Lisensi",
       licenseKey: result.licenseKey,
       expiresAt: result.expiresAt,
+      deliveryDetails: delivery
+        ? {
+            fileDownload: delivery.fileDownload?.enabled ? delivery.fileDownload : undefined,
+            privateNote: delivery.privateNote?.enabled ? delivery.privateNote : undefined,
+            apiAccess: delivery.apiAccess?.enabled ? delivery.apiAccess : undefined,
+          }
+        : undefined,
     });
   } catch (err: any) {
     // Pengiriman email tidak boleh menggagalkan fulfillment pembayaran.
@@ -27,8 +35,6 @@ async function sendLicenseIssuedEmail(result: any): Promise<void> {
  */
 export async function fulfillPaymentTransaction(tx: any, paymentChannel: string = "QRIS") {
   const now = new Date();
-  const grantDays = tx.grantDays || 365;
-  const expiresAt = new Date(now.getTime() + grantDays * 24 * 60 * 60 * 1000);
 
   try {
     const result = await db.transaction(async (trx) => {
@@ -62,6 +68,16 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         })
         .where(eq(transactions.id, tx.id));
 
+      // Baca konfigurasi delivery produk untuk seat dan durasi
+      const app = await trx.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
+      const productGrantDays = app?.deliveryConfig?.licenseKey?.expiresInDays;
+      const grantDays =
+        typeof productGrantDays === "number" && productGrantDays > 0
+          ? productGrantDays
+          : (tx.grantDays || 365);
+      const expiresAt = new Date(now.getTime() + grantDays * 24 * 60 * 60 * 1000);
+      const maxSeats = app?.deliveryConfig?.licenseKey?.maxSeats ?? 3;
+
       // Generate Universal License Key (Modul 3 Integration)
       const licenseKey = LicenseService.generateLicenseKey();
       const offlineToken = LicenseService.createOfflineGraceToken(licenseKey, tx.appId);
@@ -74,6 +90,7 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         licenseKey,
         customerEmail: tx.customerEmail,
         status: "ACTIVE",
+        maxSeats,
         expiresAt,
         offlineJwtGraceToken: offlineToken,
       });

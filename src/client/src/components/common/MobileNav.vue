@@ -5,6 +5,7 @@ import { dashboardEnv, envPath, SANDBOX_PREFIX, type DashboardEnv } from '../../
 import {
   LayoutDashboard, CreditCard, KeyRound, Boxes, Bot, BookOpen,
   Ticket, MoreHorizontal, ShieldAlert, X, LogOut, LogIn,
+  Receipt, Repeat, Wallet,
 } from 'lucide-vue-next'
 
 interface NavItem { name: string; key: string; path: string; icon: any }
@@ -45,7 +46,7 @@ const mobileNavItems = computed<NavItem[]>(() => {
   ]
 })
 
-const isMoreActive = computed(() => ['/coupons', '/ai-proxy', '/docs'].includes(navKey.value))
+const isMoreActive = computed(() => ['/payments', '/subscriptions', '/balances', '/coupons', '/ai-proxy', '/docs'].includes(navKey.value))
 const moreBadgeCount = computed(() => props.activeCouponCount)
 </script>
 
@@ -109,6 +110,18 @@ const moreBadgeCount = computed(() => props.activeCouponCount)
         <button @click="emit('close-more')" class="p-1 rounded-md text-[#111111]/50 hover:bg-[#111111]/5 cursor-pointer"><X class="w-4 h-4" /></button>
       </div>
       <div class="grid grid-cols-2 gap-2">
+        <router-link :to="envPath(env, '/payments')" @click="emit('close-more')" class="flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left cursor-pointer active:scale-95" :class="navKey === '/payments' ? 'bg-[#D4AF37]/10 border-[#D4AF37]/40 text-[#111111] font-bold' : 'bg-[#111111]/[0.02] border-[#111111]/10 text-[#111111]/80 hover:bg-[#111111]/5'">
+          <div class="w-8 h-8 rounded-lg bg-[#D4AF37]/20 flex items-center justify-center text-[#111111] shrink-0"><Receipt class="w-4 h-4" /></div>
+          <div class="flex-1 min-w-0"><div class="text-xs font-bold leading-tight">Payments</div><div class="text-[10px] text-[#111111]/50 truncate">Transaksi &amp; Pembayaran</div></div>
+        </router-link>
+        <router-link :to="envPath(env, '/subscriptions')" @click="emit('close-more')" class="flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left cursor-pointer active:scale-95" :class="navKey === '/subscriptions' ? 'bg-[#D4AF37]/10 border-[#D4AF37]/40 text-[#111111] font-bold' : 'bg-[#111111]/[0.02] border-[#111111]/10 text-[#111111]/80 hover:bg-[#111111]/5'">
+          <div class="w-8 h-8 rounded-lg bg-[#D4AF37]/20 flex items-center justify-center text-[#111111] shrink-0"><Repeat class="w-4 h-4" /></div>
+          <div class="flex-1 min-w-0"><div class="text-xs font-bold leading-tight">Subscriptions</div><div class="text-[10px] text-[#111111]/50 truncate">MRR &amp; Lifetime Value</div></div>
+        </router-link>
+        <router-link :to="envPath(env, '/balances')" @click="emit('close-more')" class="flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left cursor-pointer active:scale-95" :class="navKey === '/balances' ? 'bg-[#0F4C3A]/10 border-[#0F4C3A]/40 text-[#111111] font-bold' : 'bg-[#111111]/[0.02] border-[#111111]/10 text-[#111111]/80 hover:bg-[#111111]/5'">
+          <div class="w-8 h-8 rounded-lg bg-[#0F4C3A]/15 flex items-center justify-center text-[#0F4C3A] shrink-0"><Wallet class="w-4 h-4" /></div>
+          <div class="flex-1 min-w-0"><div class="text-xs font-bold leading-tight">Balances</div><div class="text-[10px] text-[#111111]/50 truncate">Saldo &amp; Payouts</div></div>
+        </router-link>
         <router-link :to="envPath(env, '/coupons')" @click="emit('close-more')" class="flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left cursor-pointer active:scale-95" :class="navKey === '/coupons' ? 'bg-[#D4AF37]/10 border-[#D4AF37]/40 text-[#111111] font-bold' : 'bg-[#111111]/[0.02] border-[#111111]/10 text-[#111111]/80 hover:bg-[#111111]/5'">
           <div class="w-8 h-8 rounded-lg bg-[#D4AF37]/20 flex items-center justify-center text-[#111111] shrink-0"><Ticket class="w-4 h-4" /></div>
           <div class="flex-1 min-w-0"><div class="text-xs font-bold leading-tight">Kupon Diskon</div><div class="text-[10px] text-[#111111]/50 truncate">{{ activeCouponCount }} Aktif</div></div>

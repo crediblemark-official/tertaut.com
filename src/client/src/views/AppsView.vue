@@ -2,7 +2,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../lib/api'
-import type { AppItem } from '../types/app'
+import type { AppItem, CatalogKPIStats } from '../types/app'
 import { dashboardEnv } from '../lib/environment'
 import AppCatalog from '../components/apps/AppCatalog.vue'
 import AppCreateForm from '../components/apps/AppCreateForm.vue'
@@ -11,6 +11,7 @@ const route = useRoute()
 const router = useRouter()
 
 const appsList = ref<AppItem[]>([])
+const catalogStats = ref<CatalogKPIStats | null>(null)
 const loading = ref(true)
 const searchQuery = ref('')
 const viewMode = ref<'list' | 'create'>('list')
@@ -32,9 +33,17 @@ watch(() => route.query.action, (action) => {
 }, { immediate: true })
 
 async function loadData() {
+  loading.value = true
   try {
-    const appsRes = await api.getApps()
+    const [appsRes, statsRes] = await Promise.all([
+      api.getApps(),
+      api.getCatalogStats().catch((err) => {
+        console.error('Failed to load catalog stats:', err)
+        return null
+      })
+    ])
     appsList.value = appsRes.apps || []
+    catalogStats.value = statsRes
   } catch (err) {
     console.error('Failed to load apps:', err)
   } finally {
@@ -49,7 +58,6 @@ async function handleCreated() {
 
 onMounted(() => loadData())
 watch(dashboardEnv, () => {
-  loading.value = true
   loadData()
 })
 </script>
@@ -59,6 +67,7 @@ watch(dashboardEnv, () => {
     <AppCatalog
       v-if="viewMode === 'list'"
       :apps="appsList"
+      :stats="catalogStats"
       :loading="loading"
       :search-query="searchQuery"
       @update:search-query="searchQuery = $event"

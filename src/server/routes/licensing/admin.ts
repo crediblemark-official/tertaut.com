@@ -1,39 +1,67 @@
 import { db } from "../../db";
 import { licenses, licenseActivations, apps, revokedTokens } from "../../db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and, sql } from "drizzle-orm";
 import { LicenseService } from "../../services/license";
 import { LicenseTokenService } from "../../services/licenseToken";
 import { EmailService } from "../../services/email";
 import { CreditService } from "../../services/credits";
 import { randomBytes } from "crypto";
+import { resolveCurrentBuilder } from "../apps/builder";
 
-export async function handleListLicenses({ query }: any) {
-  const { appId, limit = 50, mode } = query;
-  let licList;
+export async function handleListLicenses({ query, request }: any) {
+  const { appId, limit = 200, offset = 0, page, mode } = query || {};
+  const headers = request?.headers;
+  const { builder, isAdmin } = headers
+    ? await resolveCurrentBuilder(headers)
+    : { builder: null, isAdmin: true };
+
+  const conditions: any[] = [];
+
+  // Scoping data ke builder login (kecuali admin)
+  if (!isAdmin && builder) {
+    const builderApps = await db
+      .select({ id: apps.id })
+      .from(apps)
+      .where(eq(apps.builderId, builder.id));
+    if (builderApps.length === 0) {
+      return { success: true, licenses: [], total: 0, hasMore: false };
+    }
+    conditions.push(inArray(licenses.appId, builderApps.map((a) => a.id)));
+  } else if (!isAdmin && !builder) {
+    return { success: true, licenses: [], total: 0, hasMore: false };
+  }
+
   if (appId) {
-    licList = await db.query.licenses.findMany({
-      where: eq(licenses.appId, appId),
-      orderBy: (lic, { desc }) => [desc(lic.createdAt)],
-      limit: Number(limit),
-    });
+    conditions.push(eq(licenses.appId, appId));
   } else if (mode) {
     const appRows = await db
       .select({ id: apps.id })
       .from(apps)
       .where(eq(apps.mode, mode));
-    licList = appRows.length
-      ? await db.query.licenses.findMany({
-          where: inArray(licenses.appId, appRows.map((a) => a.id)),
-          orderBy: (lic, { desc }) => [desc(lic.createdAt)],
-          limit: Number(limit),
-        })
-      : [];
-  } else {
-    licList = await db.query.licenses.findMany({
-      orderBy: (lic, { desc }) => [desc(lic.createdAt)],
-      limit: Number(limit),
-    });
+    if (appRows.length === 0) {
+      return { success: true, licenses: [], total: 0, hasMore: false };
+    }
+    conditions.push(inArray(licenses.appId, appRows.map((a) => a.id)));
   }
+
+  const parsedLimit = Math.max(1, Math.min(Number(limit) || 200, 500));
+  const parsedOffset = page ? (Math.max(1, Number(page)) - 1) * parsedLimit : Math.max(0, Number(offset) || 0);
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [totalRes] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(licenses)
+    .where(whereClause);
+
+  const total = totalRes?.count || 0;
+
+  const licList = await db.query.licenses.findMany({
+    where: whereClause,
+    orderBy: (lic, { desc }) => [desc(lic.createdAt)],
+    limit: parsedLimit,
+    offset: parsedOffset,
+  });
 
   // Batch-fetch seluruh aktivasi device seats (hindari N+1).
   const licenseIds = licList.map((lic) => lic.id);
@@ -59,6 +87,10 @@ export async function handleListLicenses({ query }: any) {
   return {
     success: true,
     licenses: licensesWithActivations,
+    total,
+    limit: parsedLimit,
+    offset: parsedOffset,
+    hasMore: parsedOffset + licList.length < total,
   };
 }
 

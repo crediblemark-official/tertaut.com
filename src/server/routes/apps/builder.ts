@@ -29,20 +29,42 @@ export async function resolveCurrentBuilder(
     if (b) return { builder: b, isAdmin };
   }
 
-  // 3. Fallback dev/sandbox: cari demo builder atau buatkan
-  let fallback = await db.query.builders.findFirst();
-  if (!fallback && appConfig.isSandbox) {
-    const [created] = await db
-      .insert(builders)
-      .values({
-        email: user.email || "builder@tertaut.com",
-        name: user.name || "Vibe Builder",
-        apiKey: `tt_live_${randomBytes(16).toString("hex")}`,
-      })
-      .returning();
-    fallback = created;
+  // 3. Jika user login belum memiliki profil builder, buatkan profil spesifik untuk user ini
+  if (user.id && user.id !== "dev-user") {
+    try {
+      const [created] = await db
+        .insert(builders)
+        .values({
+          userId: user.id,
+          email: user.email || `builder_${randomBytes(4).toString("hex")}@tertaut.com`,
+          name: user.name || "Vibe Builder",
+          apiKey: `tt_${appConfig.isSandbox ? "test" : "live"}_${randomBytes(16).toString("hex")}`,
+        })
+        .returning();
+      if (created) return { builder: created, isAdmin };
+    } catch {
+      // Abaikan jika unique constraint conflict
+    }
   }
-  return { builder: fallback || null, isAdmin };
+
+  // 4. Fallback dev-only: hanya diizinkan di mode sandbox (development)
+  if (appConfig.isSandbox) {
+    let fallback = await db.query.builders.findFirst();
+    if (!fallback) {
+      const [created] = await db
+        .insert(builders)
+        .values({
+          email: user.email || "builder@tertaut.com",
+          name: user.name || "Vibe Builder",
+          apiKey: `tt_test_${randomBytes(16).toString("hex")}`,
+        })
+        .returning();
+      fallback = created;
+    }
+    return { builder: fallback || null, isAdmin };
+  }
+
+  return { builder: null, isAdmin };
 }
 
 /**

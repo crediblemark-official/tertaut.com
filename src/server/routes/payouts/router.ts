@@ -277,4 +277,101 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
           "Disburses one builder's accumulated net earnings directly to their bank or e-wallet account via Xendit Payout API",
       },
     }
+  )
+  /**
+   * Ambil data rekening pencairan builder yang login
+   */
+  .get(
+    "/account",
+    async ({ request, set }) => {
+      const authResult = await authenticate(request.headers);
+      if ("status" in authResult) {
+        set.status = authResult.status;
+        return { success: false, error: authResult.error };
+      }
+
+      const builder = await db.query.builders.findFirst({
+        where: eq(builders.userId, authResult.user.id),
+      }) || await db.query.builders.findFirst({
+        where: eq(builders.email, authResult.user.email),
+      });
+
+      if (!builder) {
+        set.status = 404;
+        return { success: false, error: "Profil builder belum terdaftar." };
+      }
+
+      return {
+        success: true,
+        disbursementAccount: builder.disbursementAccount || null,
+        builderName: builder.name,
+      };
+    },
+    {
+      detail: {
+        tags: ["MoR Checkout"],
+        summary: "Get Builder Disbursement Account",
+      },
+    }
+  )
+  /**
+   * Simpan / Perbarui data rekening pencairan builder
+   */
+  .post(
+    "/account",
+    async ({ body, request, set }) => {
+      const authResult = await authenticate(request.headers);
+      if ("status" in authResult) {
+        set.status = authResult.status;
+        return { success: false, error: authResult.error };
+      }
+
+      let builder = await db.query.builders.findFirst({
+        where: eq(builders.userId, authResult.user.id),
+      }) || await db.query.builders.findFirst({
+        where: eq(builders.email, authResult.user.email),
+      });
+
+      if (!builder) {
+        set.status = 404;
+        return { success: false, error: "Profil builder belum terdaftar." };
+      }
+
+      const { bankCode, accountNumber, accountHolderName, eWalletType, phoneNumber } = body;
+
+      const updatedAccount = {
+        bankCode: bankCode || undefined,
+        accountNumber: accountNumber || undefined,
+        accountHolderName: accountHolderName || undefined,
+        eWalletType: eWalletType || undefined,
+        phoneNumber: phoneNumber || undefined,
+      };
+
+      await db
+        .update(builders)
+        .set({
+          disbursementAccount: updatedAccount,
+          updatedAt: new Date(),
+        })
+        .where(eq(builders.id, builder.id));
+
+      return {
+        success: true,
+        message: "Rekening pencairan berhasil disimpan.",
+        disbursementAccount: updatedAccount,
+      };
+    },
+    {
+      body: t.Object({
+        bankCode: t.Optional(t.String()),
+        accountNumber: t.Optional(t.String()),
+        accountHolderName: t.Optional(t.String()),
+        eWalletType: t.Optional(t.String()),
+        phoneNumber: t.Optional(t.String()),
+      }),
+      detail: {
+        tags: ["MoR Checkout"],
+        summary: "Update Builder Disbursement Account",
+      },
+    }
   );

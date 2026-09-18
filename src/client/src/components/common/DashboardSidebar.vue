@@ -5,6 +5,7 @@ import { dashboardEnv, envPath, SANDBOX_PREFIX, type DashboardEnv } from '../../
 import {
   LayoutDashboard, Boxes, CreditCard, KeyRound, Bot, BookOpen,
   Code2, ExternalLink, Globe, ShieldAlert, ChevronRight, Ticket,
+  Receipt, Repeat, Wallet,
 } from 'lucide-vue-next'
 
 interface NavSubItem { name: string; path: string }
@@ -32,7 +33,10 @@ const navItems = computed<NavItem[]>(() => {
   return [
     { name: 'Ringkasan', key: '/', path: envPath(e), icon: LayoutDashboard },
     { name: 'Aplikasi', key: '/apps', path: envPath(e, '/apps'), icon: Boxes },
-    { name: 'Checkout', key: '/checkout', path: envPath(e, '/checkout'), icon: CreditCard },
+    { name: 'Payments', key: '/payments', path: envPath(e, '/payments'), icon: Receipt },
+    { name: 'Subscription', key: '/subscriptions', path: envPath(e, '/subscriptions'), icon: Repeat },
+    { name: 'Balances', key: '/balances', path: envPath(e, '/balances'), icon: Wallet },
+    { name: 'Tautan Kasir', key: '/checkout', path: envPath(e, '/checkout'), icon: CreditCard },
     { name: 'Kupon', key: '/coupons', path: envPath(e, '/coupons'), icon: Ticket },
     { name: 'Lisensi', key: '/licensing', path: envPath(e, '/licensing'), icon: KeyRound },
     { name: 'AI Shield', key: '/ai-proxy', path: envPath(e, '/ai-proxy'), icon: Bot },

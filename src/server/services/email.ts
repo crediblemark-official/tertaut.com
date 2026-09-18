@@ -93,11 +93,54 @@ export class EmailService {
     licenseKey: string;
     expiresAt: Date;
     customerName?: string;
+    deliveryDetails?: {
+      fileDownload?: { title?: string; fileUrl?: string; fileName?: string };
+      privateNote?: { title?: string; note?: string };
+      apiAccess?: { endpointUrl?: string; instruction?: string };
+    };
   }): Promise<SendEmailResult> {
     const appName = escapeHtml(params.appName);
     const licenseKey = escapeHtml(params.licenseKey);
     const greeting = params.customerName ? `Halo ${escapeHtml(params.customerName)},` : "Halo,";
     const expires = formatDate(params.expiresAt);
+
+    let deliverySectionHtml = "";
+    const textExtra: string[] = [];
+
+    if (params.deliveryDetails?.fileDownload?.fileUrl) {
+      const fileTitle = escapeHtml(params.deliveryDetails.fileDownload.title || "Unduh Berkas Digital");
+      const fileUrl = escapeHtml(params.deliveryDetails.fileDownload.fileUrl);
+      deliverySectionHtml += `
+        <div style="margin:20px 0;padding:16px;background:#0b0b0f;border:1px solid #27272a;border-radius:8px;">
+          <p style="margin:0 0 6px;font-size:12px;font-weight:bold;text-transform:uppercase;color:#D4AF37;">Akses Berkas / File</p>
+          <p style="margin:0 0 10px;font-size:13px;color:#e5e7eb;">${fileTitle}</p>
+          <a href="${fileUrl}" style="display:inline-block;padding:8px 16px;background:#D4AF37;color:#111111;text-decoration:none;border-radius:6px;font-weight:bold;font-size:13px;">Unduh Berkas</a>
+        </div>`;
+      textExtra.push(`Akses Berkas: ${fileTitle} -> ${params.deliveryDetails.fileDownload.fileUrl}`);
+    }
+
+    if (params.deliveryDetails?.privateNote?.note) {
+      const noteTitle = escapeHtml(params.deliveryDetails.privateNote.title || "Catatan Rahasia / Panduan");
+      const noteContent = escapeHtml(params.deliveryDetails.privateNote.note);
+      deliverySectionHtml += `
+        <div style="margin:20px 0;padding:16px;background:#0b0b0f;border:1px solid #27272a;border-radius:8px;">
+          <p style="margin:0 0 6px;font-size:12px;font-weight:bold;text-transform:uppercase;color:#a5f3fc;">${noteTitle}</p>
+          <p style="margin:0;font-size:13px;color:#d4d4d8;white-space:pre-wrap;">${noteContent}</p>
+        </div>`;
+      textExtra.push(`Catatan: ${params.deliveryDetails.privateNote.title || "Panduan"} -> ${params.deliveryDetails.privateNote.note}`);
+    }
+
+    if (params.deliveryDetails?.apiAccess?.endpointUrl) {
+      const apiUrl = escapeHtml(params.deliveryDetails.apiAccess.endpointUrl);
+      const apiInstruction = escapeHtml(params.deliveryDetails.apiAccess.instruction || "");
+      deliverySectionHtml += `
+        <div style="margin:20px 0;padding:16px;background:#0b0b0f;border:1px solid #27272a;border-radius:8px;">
+          <p style="margin:0 0 6px;font-size:12px;font-weight:bold;text-transform:uppercase;color:#86efac;">Akses API</p>
+          <p style="margin:0 0 6px;font-size:13px;font-family:monospace;color:#e5e7eb;">${apiUrl}</p>
+          ${apiInstruction ? `<p style="margin:0;font-size:12px;color:#a1a1aa;">${apiInstruction}</p>` : ""}
+        </div>`;
+      textExtra.push(`Akses API: ${params.deliveryDetails.apiAccess.endpointUrl}`);
+    }
 
     const html = `<!doctype html>
 <html lang="id">
@@ -112,6 +155,7 @@ export class EmailService {
           <tr><td style="padding:4px 0;">Produk</td><td style="padding:4px 0;text-align:right;color:#e5e7eb;">${appName}</td></tr>
           <tr><td style="padding:4px 0;">Berlaku sampai</td><td style="padding:4px 0;text-align:right;color:#e5e7eb;">${expires}</td></tr>
         </table>
+        ${deliverySectionHtml}
         <p style="margin:20px 0 0;font-size:12px;color:#71717a;">Salin kunci lisensi di atas dan masukkan langsung ke dalam aplikasi ${appName} untuk mengaktifkan.</p>
       </td></tr>
     </table>
@@ -127,6 +171,7 @@ export class EmailService {
       `Kunci Lisensi : ${params.licenseKey}`,
       `Produk        : ${params.appName}`,
       `Berlaku s/d   : ${expires}`,
+      ...(textExtra.length > 0 ? ["", ...textExtra] : []),
       "",
       `Masukkan kunci lisensi di atas langsung ke aplikasi ${params.appName} untuk mengaktifkan.`,
     ].join("\n");

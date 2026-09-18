@@ -24,6 +24,7 @@ export async function handleCreateApp({ body, set, request: { headers } }: any) 
     redirectUrl,
     pricingType = "one_time",
     billingPeriod,
+    trialPeriodDays,
     deliveryConfig,
     meteringConfig,
   } = body;
@@ -56,6 +57,7 @@ export async function handleCreateApp({ body, set, request: { headers } }: any) 
       mode,
       pricingType,
       billingPeriod: billingPeriod || null,
+      trialPeriodDays: typeof trialPeriodDays === "number" ? trialPeriodDays : 0,
       deliveryConfig: deliveryConfig || null,
       meteringConfig: meteringConfig || null,
       description: description || null,
@@ -108,7 +110,7 @@ export async function handleUpdateApp({ params: { appId }, body, set, request: {
     name, slug, targetPrice, mode, description, headline, subheadline,
     mediaUrl, valueProps, ctaText, customIntentMessage, redirectUrl,
     pageBlocks, customHtml, captureConfig,
-    pricingType, billingPeriod, deliveryConfig, meteringConfig
+    pricingType, billingPeriod, trialPeriodDays, deliveryConfig, meteringConfig
   } = body as Record<string, any>;
 
   const updateData: Record<string, any> = { updatedAt: new Date() };
@@ -118,6 +120,7 @@ export async function handleUpdateApp({ params: { appId }, body, set, request: {
   if (mode !== undefined) updateData.mode = mode;
   if (pricingType !== undefined) updateData.pricingType = pricingType;
   if (billingPeriod !== undefined) updateData.billingPeriod = billingPeriod;
+  if (trialPeriodDays !== undefined) updateData.trialPeriodDays = trialPeriodDays;
   if (deliveryConfig !== undefined) updateData.deliveryConfig = deliveryConfig;
   if (meteringConfig !== undefined) updateData.meteringConfig = meteringConfig;
   if (description !== undefined) updateData.description = description;

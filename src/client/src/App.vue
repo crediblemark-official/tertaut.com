@@ -35,6 +35,9 @@ const currentPage = computed(() => {
   switch (navKey.value) {
     case '/': return { title: 'Ringkasan Ekosistem', category: 'Overview' }
     case '/apps': return { title: 'Katalog Aplikasi Builder', category: 'Apps' }
+    case '/payments': return { title: 'Pembayaran & Transaksi', category: 'Payments' }
+    case '/subscriptions': return { title: 'Langganan & Nilai Siklus Hidup', category: 'Subscriptions' }
+    case '/balances': return { title: 'Saldo & Permintaan Pencairan', category: 'Balances' }
     case '/checkout': return { title: 'Dynamic Checkout & MoR', category: 'Checkout' }
     case '/coupons': return { title: 'Kupon Diskon', category: 'Checkout' }
     case '/licensing': return { title: 'Lisensi & Anti-Piracy', category: 'Lisensi' }
@@ -128,7 +131,7 @@ onUnmounted(() => {
         @logout="handleLogout"
       />
 
-      <main class="flex-1 min-w-0 px-3.5 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6 overflow-y-auto w-full pb-28 md:pb-6">
+      <main class="flex-1 min-w-0 px-3.5 sm:px-4 md:px-6 pt-0 pb-28 md:pb-6 overflow-y-auto w-full">
         <router-view />
       </main>
     </div>

@@ -64,14 +64,8 @@ async function loadCheckoutData() {
   try {
     const identifier = slug.value || queryAppId.value
     if (!identifier) {
-      // Jika tidak ada parameter, coba ambil aplikasi live pertama
-      const json = await api.getApps()
-      if (json.apps && json.apps.length > 0) {
-        const liveApp = json.apps.find((a: any) => a.mode === 'live') || json.apps[0]
-        setProductData(liveApp)
-      } else {
-        notFound.value = true
-      }
+      // U7: Pengunjung publik tanpa parameter slug langsung diarahkan ke pesan ramah tanpa error auth
+      notFound.value = true
       return
     }
 
@@ -82,18 +76,23 @@ async function loadCheckoutData() {
         return
       }
     } catch {
-      // Coba cari di list apps jika by-slug gagal
-    }
-
-    const appsJson = await api.getApps()
-    const matched = appsJson.apps?.find((a: any) => a.id === identifier || a.slug === identifier)
-    if (matched) {
-      setProductData(matched)
-    } else {
+      // Coba cari di list apps jika by-slug gagal (untuk builder login)
+      try {
+        const json = await api.getApps()
+        if (json.apps) {
+          const found = json.apps.find((a: any) => a.slug === identifier || a.id === identifier)
+          if (found) {
+            setProductData(found)
+            return
+          }
+        }
+      } catch {
+        // Abaikan kegagalan getApps pada visitor publik
+      }
       notFound.value = true
     }
-  } catch {
-    notFound.value = true
+  } catch (err: any) {
+    errorMessage.value = err.message || 'Gagal memuat produk pembayaran'
   } finally {
     loading.value = false
   }
@@ -155,11 +154,12 @@ async function handlePay() {
   sandboxResult.value = null
 
   try {
+    // B1: Kirim targetPrice asli produk, biarkan server menghitung diskon kupon secara atomik.
+    // B2: grantDays dikontrol oleh konfigurasi produk di backend, bukan query param pembeli.
     const data = await api.createCheckoutSession({
       appId: product.value.id,
       customerEmail: emailInput.value,
-      amount: payableAmount.value,
-      grantDays: queryGrantDays.value,
+      amount: product.value.targetPrice,
       preferredPaymentChannel: selectedPaymentRail.value,
       redirectUrl: product.value.redirectUrl || `${window.location.origin}/dashboard`,
       couponCode: appliedCoupon.value?.code || couponInput.value.trim() || undefined

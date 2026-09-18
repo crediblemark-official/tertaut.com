@@ -1725,17 +1725,12 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
       });
       expect(disbRes.status).toBe(400);
 
-      // 5. Simulate-paid untuk app yang sudah LIVE hanya diizinkan saat sandbox
-      //    global aktif (development). Di luar itu harus ditolak (403).
+      // 5. Simulate-paid untuk app yang sudah LIVE harus selalu ditolak (403) demi keamanan (B5)
       await db.update(apps).set({ mode: "live" }).where(eq(apps.id, testApp.id));
       const simLiveRes = await fetch(`http://localhost:3000/api/v1/checkout/simulate-paid/${txId}`, {
         method: "POST",
       });
-      if (config.isSandbox) {
-        expect(simLiveRes.status).toBe(200);
-      } else {
-        expect(simLiveRes.status).toBe(403);
-      }
+      expect(simLiveRes.status).toBe(403);
     } finally {
       await db.delete(licenses).where(eq(licenses.appId, testApp.id));
       await db.delete(transactions).where(eq(transactions.appId, testApp.id));

@@ -1,4 +1,5 @@
 import { config } from "../config";
+import { calculateMor } from "../utils/payment";
 
 export interface CreateInvoiceParams {
   externalId: string;
@@ -82,15 +83,7 @@ export class XenditService {
    * Hitung kalkulasi Merchant of Record (MoR) fee 5%
    */
   static calculateMorBreakdown(amount: number) {
-    const feeRate = config.xendit.platformFeePercent / 100;
-    const platformFee = Math.round(amount * feeRate);
-    const netAmount = amount - platformFee;
-
-    return {
-      grossAmount: amount,
-      platformFee,
-      netAmount,
-    };
+    return calculateMor(amount, config.xendit.platformFeePercent);
   }
 
   /**

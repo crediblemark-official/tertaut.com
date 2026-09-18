@@ -98,6 +98,79 @@ export async function handleStatsOverview({ query, request: { headers } }: any) 
 }
 
 /**
+ * Ambil KPI ringkasan Katalog Produk riil dari DB (Active Products, Sales 30d, Subscriptions, Customers 30d)
+ */
+export async function handleStatsCatalog({ query, request: { headers } }: any) {
+  const emptyStats = {
+    activeProducts: 0,
+    archivedProducts: 0,
+    sales30d: 0,
+    activeSubscriptions: 0,
+    acrossProducts: 0,
+    customers30d: 0,
+  };
+
+  const { builder, isAdmin } = await resolveCurrentBuilder(headers);
+
+  const appConditions: any[] = [];
+  if (query.mode) {
+    appConditions.push(eq(apps.mode, query.mode));
+  }
+  if (builder && !isAdmin) {
+    appConditions.push(eq(apps.builderId, builder.id));
+  }
+
+  const appRows = await db
+    .select({ id: apps.id, pricingType: apps.pricingType })
+    .from(apps)
+    .where(appConditions.length > 0 ? and(...appConditions) : undefined);
+
+  const appIds = appRows.map((r) => r.id);
+  if (appIds.length === 0) return emptyStats;
+
+  const txScope = inArray(transactions.appId, appIds);
+  const licenseScope = inArray(licenses.appId, appIds);
+
+  const [txAgg] = await db
+    .select({
+      sales30d: sql<number>`count(*)::int`,
+      customers30d: sql<number>`count(distinct ${transactions.customerEmail})::int`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.paymentStatus, "PAID"),
+        sql`${transactions.createdAt} >= NOW() - INTERVAL '30 days'`,
+        txScope
+      )
+    );
+
+  // R2: Filter active subscriptions hanya dari produk yang bertipe subscription
+  const subAppIds = appRows
+    .filter((a) => a.pricingType === "subscription")
+    .map((a) => a.id);
+  const subLicenseScope =
+    subAppIds.length > 0 ? inArray(licenses.appId, subAppIds) : sql`1 = 0`;
+
+  const [licAgg] = await db
+    .select({
+      activeSubs: sql<number>`count(*)::int`,
+      acrossProducts: sql<number>`count(distinct ${licenses.appId})::int`,
+    })
+    .from(licenses)
+    .where(and(eq(licenses.status, "ACTIVE"), subLicenseScope));
+
+  return {
+    activeProducts: appIds.length,
+    archivedProducts: 0,
+    sales30d: txAgg?.sales30d || 0,
+    activeSubscriptions: licAgg?.activeSubs || 0,
+    acrossProducts: licAgg?.acrossProducts || 0,
+    customers30d: txAgg?.customers30d || 0,
+  };
+}
+
+/**
  * Cek ketersediaan slug unik secara real-time (FR-1.2)
  */
 export async function handleCheckSlug({ params: { slug } }: any) {

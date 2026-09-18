@@ -1,12 +1,13 @@
 import { db } from "../../db";
 import { apps, transactions, licenses } from "../../db/schema";
-import { eq, inArray, or } from "drizzle-orm";
+import { eq, inArray, or, and, sql } from "drizzle-orm";
 import { XenditService } from "../../services/xendit";
 import { LicenseService } from "../../services/license";
 import { CouponService } from "../../services/coupon";
 import { config as checkoutConfig } from "../../config";
 import { randomBytes } from "crypto";
-import { fulfillPaymentTransaction } from "../webhook/fulfill";
+import { resolveCurrentBuilder } from "../apps/builder";
+import { handleDisburse } from "../apps/disburse";
 
 /**
  * Endpoint Redirect pembeli setelah menyelesaikan pembayaran DANA (Finish Redirect URL)
@@ -18,38 +19,44 @@ export async function handleDanaFinish({ query, set }: any) {
     mock?: string;
   };
 
-  const identifier = externalId || orderId;
-  if (!identifier) {
-    return { message: "Pembayaran DANA selesai. Silakan cek email Anda untuk kunci lisensi." };
+  if (!externalId) {
+    set.status = 400;
+    return { error: "externalId parameter wajib disertakan" };
   }
 
   const tx = await db.query.transactions.findFirst({
     where: or(
-      eq(transactions.xenditExternalId, identifier),
-      eq(transactions.providerReferenceId, identifier),
-      eq(transactions.id, identifier)
+      eq(transactions.xenditExternalId, externalId),
+      eq(transactions.providerReferenceId, externalId),
+      eq(transactions.id, externalId)
     ),
   });
 
   if (!tx) {
-    return { message: "Transaksi tidak ditemukan." };
+    set.status = 404;
+    return { error: "Transaksi tidak ditemukan" };
   }
 
+  // Jika pembayaran sukses, arahkan ke returnUrl atau kembalikan response JSON
   const app = await db.query.apps.findFirst({
     where: eq(apps.id, tx.appId),
   });
 
-  // Jika mock mode pada sandbox browser test, simulasi auto-paid
-  // Kritis: Di-gate checkoutConfig.isSandbox agar pembayaran tidak bisa di-bypass di production
-  if (checkoutConfig.isSandbox && mock === "true" && tx.paymentStatus === "PENDING") {
-    await fulfillPaymentTransaction(tx, "DANA_MOCK");
-  }
+  const finalRedirect = app?.redirectUrl || `${checkoutConfig.publicAppUrl}/checkout/success?externalId=${externalId}`;
 
-  const targetUrl =
-    app?.redirectUrl ||
-    `${checkoutConfig.publicAppUrl}/pay/${app?.slug || ''}?status=success`;
+  // Ambil lisensi yang diterbitkan
+  const lic = await db.query.licenses.findFirst({
+    where: eq(licenses.transactionId, tx.id),
+  });
 
-  set.redirect = targetUrl;
+  return {
+    success: true,
+    message: "Pembayaran DANA berhasil diverifikasi",
+    transactionId: tx.id,
+    paymentStatus: tx.paymentStatus,
+    licenseKey: lic?.licenseKey || null,
+    redirectUrl: finalRedirect,
+  };
 }
 
 /**
@@ -81,130 +88,75 @@ export async function handlePreviewCoupon({ body, set }: any) {
 }
 
 /**
- * Daftar riwayat transaksi MoR
+ * Daftar riwayat transaksi MoR (scoped ke builder kecuali admin, dengan pagination & total count)
  */
-export async function handleListTransactions({ query }: any) {
-  const { appId, limit = 50, mode } = query;
-  let txs;
+export async function handleListTransactions({ query, request }: any) {
+  const { appId, limit = 200, offset = 0, page, mode } = query || {};
+  const headers = request?.headers;
+  const { builder, isAdmin } = headers
+    ? await resolveCurrentBuilder(headers)
+    : { builder: null, isAdmin: true };
+
+  const conditions: any[] = [];
+
+  // Scoping data ke builder login (kecuali admin)
+  if (!isAdmin && builder) {
+    conditions.push(eq(transactions.builderId, builder.id));
+  } else if (!isAdmin && !builder) {
+    return { success: true, transactions: [], total: 0, hasMore: false };
+  }
+
   if (appId) {
-    txs = await db.query.transactions.findMany({
-      where: eq(transactions.appId, appId),
-      orderBy: (tx, { desc }) => [desc(tx.createdAt)],
-      limit: Number(limit),
-    });
+    conditions.push(eq(transactions.appId, appId));
   } else if (mode) {
     const appRows = await db
       .select({ id: apps.id })
       .from(apps)
       .where(eq(apps.mode, mode));
-    txs = appRows.length
-      ? await db.query.transactions.findMany({
-          where: inArray(transactions.appId, appRows.map((a) => a.id)),
-          orderBy: (tx, { desc }) => [desc(tx.createdAt)],
-          limit: Number(limit),
-        })
-      : [];
-  } else {
-    txs = await db.query.transactions.findMany({
-      orderBy: (tx, { desc }) => [desc(tx.createdAt)],
-      limit: Number(limit),
-    });
+    if (appRows.length === 0) {
+      return { success: true, transactions: [], total: 0, hasMore: false };
+    }
+    conditions.push(inArray(transactions.appId, appRows.map((a) => a.id)));
   }
+
+  const parsedLimit = Math.max(1, Math.min(Number(limit) || 200, 500));
+  const parsedOffset = page ? (Math.max(1, Number(page)) - 1) * parsedLimit : Math.max(0, Number(offset) || 0);
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [totalRes] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(transactions)
+    .where(whereClause);
+
+  const total = totalRes?.count || 0;
+
+  const txs = await db.query.transactions.findMany({
+    where: whereClause,
+    orderBy: (tx, { desc }) => [desc(tx.createdAt)],
+    limit: parsedLimit,
+    offset: parsedOffset,
+  });
 
   return {
     success: true,
     transactions: txs,
+    total,
+    limit: parsedLimit,
+    offset: parsedOffset,
+    hasMore: parsedOffset + txs.length < total,
   };
 }
 
 /**
- * Trigger pencairan saldo (Xendit Disbursement) manual / instant payout
+ * Eksekusi pencairan saldo dari transaksi tunggal (DRY: delegasikan ke handleDisburse)
  */
-export async function handleDisburseTx({ params: { txId }, set }: any) {
-  const tx = await db.query.transactions.findFirst({
-    where: eq(transactions.id, txId),
+export async function handleDisburseTx(ctx: any) {
+  return handleDisburse({
+    params: { transactionId: ctx.params?.txId },
+    set: ctx.set,
+    request: ctx.request,
   });
-
-  if (!tx) {
-    set.status = 404;
-    return { error: "Transaction not found" };
-  }
-
-  if (tx.paymentStatus !== "PAID") {
-    set.status = 400;
-    return { error: "Hanya transaksi yang sudah lunas (PAID) yang dapat dicairkan." };
-  }
-
-  if (tx.disbursementStatus === "COMPLETED") {
-    return { success: true, message: "Pencairan dana sudah pernah diproses.", disbursementId: tx.disbursementId };
-  }
-
-  // Transaksi dari aplikasi sandbox hanyalah simulasi — tidak boleh dicairkan ke rekening asli.
-  const disbApp = await db.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
-  if (disbApp?.mode === "sandbox") {
-    set.status = 400;
-    return { error: "Transaksi sandbox (simulasi) tidak dapat dicairkan. Cairkan hanya transaksi live." };
-  }
-
-  const externalDisbId = `disb_${tx.id}_${Date.now()}`;
-  try {
-    const builder = await db.query.transactions.findFirst({
-      where: eq(transactions.id, txId),
-    });
-
-    const { builders } = await import("../../db/schema");
-    const { db: database } = await import("../../db");
-    const builderRow = await database.query.builders.findFirst({
-      where: eq(builders.id, tx.builderId),
-    });
-
-    const recipient = XenditService.resolveDisbursementAccount(builderRow);
-
-    // Production TANPA rekening tersimpan → tolak pencairan (jangan pakai data palsu)
-    if (!recipient) {
-      set.status = 400;
-      return {
-        error:
-          "Builder belum menyimpan rekening penerima disbursement. Lengkapi profil bank/e-wallet terlebih dahulu.",
-      };
-    }
-
-    const disbRes = await XenditService.createDisbursement({
-      externalId: externalDisbId,
-      amount: tx.netAmount,
-      ...recipient,
-      description: `Pencairan Saldo Bersih 95% tertaut.com ${tx.id}`,
-    });
-
-    // Kejujuran status: COMPLETED hanya kalau Xendit benar-benar menyelesaikannya.
-    const finalStatus =
-      disbRes.status === "COMPLETED"
-        ? "COMPLETED"
-        : disbRes.status === "FAILED"
-          ? "FAILED"
-          : "PROCESSING";
-
-    await db
-      .update(transactions)
-      .set({
-        disbursementStatus: finalStatus,
-        disbursementId: disbRes.id,
-        updatedAt: new Date(),
-      })
-      .where(eq(transactions.id, tx.id));
-
-    return {
-      success: true,
-      message:
-        finalStatus === "COMPLETED"
-          ? "Pencairan berhasil dipicu ke rekening builder via Xendit API."
-          : "Pencairan terkirim ke Xendit dan masih berstatus PROCESSING.",
-      disbursement: { ...disbRes, status: finalStatus },
-    };
-  } catch (err: any) {
-    set.status = 500;
-    return { error: err.message || "Gagal memproses pencairan Xendit." };
-  }
 }
 
 /**
@@ -222,7 +174,7 @@ export async function handleSimulatePaid({ params: { txId }, set }: any) {
 
   // Simulasi pembayaran hanya boleh untuk aplikasi yang sedang dalam mode sandbox.
   const txApp = await db.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
-  if (txApp?.mode !== "sandbox" && !checkoutConfig.isSandbox) {
+  if (txApp?.mode !== "sandbox") {
     set.status = 403;
     return { error: "Simulate paid hanya tersedia untuk aplikasi dalam mode sandbox." };
   }

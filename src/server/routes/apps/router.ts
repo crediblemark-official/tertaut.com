@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { authenticate } from "../../middleware/auth";
-import { handleListApps, handleStatsOverview, handleCheckSlug, handleGetBySlug } from "./queries";
+import { handleListApps, handleStatsOverview, handleStatsCatalog, handleCheckSlug, handleGetBySlug } from "./queries";
 import { handleCreateApp, handleUpdateApp, handleDeleteApp, handleUpdateMode } from "./mutations";
 import { handleDisburse } from "./disburse";
 
@@ -14,7 +14,18 @@ const appBodySchema = t.Object({
   targetPrice: t.Number(),
   mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
   pricingType: t.Optional(t.Union([t.Literal("one_time"), t.Literal("subscription"), t.Literal("free")])),
-  billingPeriod: t.Optional(t.Union([t.Literal("monthly"), t.Literal("yearly"), t.Null()])),
+  billingPeriod: t.Optional(t.Union([
+    t.Literal("daily"),
+    t.Literal("weekly"),
+    t.Literal("monthly"),
+    t.Literal("every_3_months"),
+    t.Literal("every_6_months"),
+    t.Literal("yearly"),
+    t.Literal("custom"),
+    t.String(),
+    t.Null()
+  ])),
+  trialPeriodDays: t.Optional(t.Union([t.Number(), t.Null()])),
   deliveryConfig: t.Optional(t.Any()),
   meteringConfig: t.Optional(t.Any()),
   description: t.Optional(t.String()),
@@ -60,6 +71,17 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
     },
   })
   /**
+   * Ambil ringkasan KPI Katalog Produk riil (Active Products, Sales 30d, Subscriptions, Customers 30d)
+   */
+  .get("/stats/catalog", handleStatsCatalog, {
+    query: modeQuery,
+    detail: {
+      tags: ["Apps"],
+      summary: "Product Catalog KPI Stats",
+      description: "Aggregates real-time active products, sales (30d), active subscriptions, and unique customers (30d)",
+    },
+  })
+  /**
    * Cek ketersediaan slug unik secara real-time (FR-1.2)
    */
   .get("/check-slug/:slug", handleCheckSlug, {
@@ -86,29 +108,7 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
    */
   .patch("/:appId", handleUpdateApp, {
     params: t.Object({ appId: t.String() }),
-    body: t.Partial(
-      t.Object({
-        name: t.String(),
-        slug: t.String(),
-        targetPrice: t.Number(),
-        mode: t.Union([t.Literal("sandbox"), t.Literal("live")]),
-        pricingType: t.Union([t.Literal("one_time"), t.Literal("subscription"), t.Literal("free")]),
-        billingPeriod: t.Union([t.Literal("monthly"), t.Literal("yearly"), t.Null()]),
-        deliveryConfig: t.Any(),
-        meteringConfig: t.Any(),
-        description: t.String(),
-        headline: t.String(),
-        subheadline: t.String(),
-        mediaUrl: t.String(),
-        valueProps: t.Array(t.String()),
-        ctaText: t.String(),
-        customIntentMessage: t.String(),
-        pageBlocks: t.Array(t.Any()),
-        customHtml: t.String(),
-        captureConfig: t.Any(),
-        redirectUrl: t.String(),
-      })
-    ),
+    body: t.Partial(appBodySchema),
     detail: {
       tags: ["Apps"],
       summary: "Update Campaign Configuration",

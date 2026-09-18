@@ -13,6 +13,12 @@ export interface DeliveryConfig {
     fileUrl?: string;
     fileName?: string;
   };
+  apiAccess?: {
+    enabled: boolean;
+    scope?: string;
+    endpointUrl?: string;
+    instruction?: string;
+  };
   privateNote?: {
     enabled: boolean;
     title?: string;
@@ -22,12 +28,19 @@ export interface DeliveryConfig {
 
 export interface MeteringConfig {
   enabled: boolean;
-  template: "llm_tokens" | "api_calls" | "compute_minutes" | "storage" | "active_seats" | "custom";
+  template: "llm_tokens" | "api_calls" | "compute_minutes" | "storage" | "active_seats" | "custom" | string;
   name: string;
   aggregation: string;
+  eventName?: string;
+  calculationType?: string;
+  unitLabel?: string;
+  filters?: Array<{ property: string; value: string }>;
   unitPrice?: number;
   metricUnit?: string;
+  freeAllowance?: number;
 }
+
+export type BillingPeriodType = "weekly" | "daily" | "monthly" | "every_3_months" | "every_6_months" | "yearly" | "custom";
 
 export interface AppItem {
   id: string;
@@ -37,7 +50,8 @@ export interface AppItem {
   mode: AppMode;
   targetPrice: number;
   pricingType?: "one_time" | "subscription" | "free";
-  billingPeriod?: "monthly" | "yearly" | null;
+  billingPeriod?: "daily" | "weekly" | "monthly" | "every_3_months" | "every_6_months" | "yearly" | "custom" | string | null;
+  trialPeriodDays?: number | null;
   deliveryConfig?: DeliveryConfig | null;
   meteringConfig?: MeteringConfig | null;
   description: string | null;
@@ -61,4 +75,13 @@ export interface DashboardStats {
   platformFeeCollected: number;
   activeLicenses: number;
   totalTransactions: number;
+}
+
+export interface CatalogKPIStats {
+  activeProducts: number;
+  archivedProducts: number;
+  sales30d: number;
+  activeSubscriptions: number;
+  acrossProducts: number;
+  customers30d: number;
 }

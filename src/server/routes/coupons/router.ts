@@ -4,6 +4,7 @@ import { coupons, apps, transactions } from "../../db/schema";
 import { eq, and, desc, gte, isNotNull, sql, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { authenticate } from "../../middleware/auth";
+import { resolveCurrentBuilder } from "../apps/builder";
 
 /**
  * Manajemen Kupon Diskon (Modul 1: Monetization)
@@ -16,35 +17,43 @@ export const couponRoutes = new Elysia({ prefix: "/coupons" })
     if ("status" in res) return status(res.status, { error: res.error });
   })
   /**
-   * Daftar kupon (opsional filter per app)
+   * Daftar kupon (opsional filter per app, scoped ke builder login)
    */
   .get(
     "/",
-    async ({ query }) => {
-      let rows;
+    async ({ query, request: { headers } }) => {
+      const { builder, isAdmin } = await resolveCurrentBuilder(headers);
+      const conditions: any[] = [];
+
+      if (!isAdmin && builder) {
+        const builderApps = await db
+          .select({ id: apps.id })
+          .from(apps)
+          .where(eq(apps.builderId, builder.id));
+        if (builderApps.length === 0) {
+          return { success: true, count: 0, coupons: [] };
+        }
+        conditions.push(inArray(coupons.appId, builderApps.map((a) => a.id)));
+      }
+
       if (query.appId) {
-        rows = await db.query.coupons.findMany({
-          where: eq(coupons.appId, query.appId),
-          orderBy: (c, { desc: d }) => [d(c.createdAt)],
-        });
+        conditions.push(eq(coupons.appId, query.appId));
       } else if (query.mode) {
         const appRows = await db
           .select({ id: apps.id })
           .from(apps)
           .where(eq(apps.mode, query.mode));
-        rows = appRows.length
-          ? await db.query.coupons.findMany({
-              where: inArray(coupons.appId, appRows.map((a) => a.id)),
-              orderBy: (c, { desc: d }) => [d(c.createdAt)],
-              limit: 200,
-            })
-          : [];
-      } else {
-        rows = await db.query.coupons.findMany({
-          orderBy: (c, { desc: d }) => [d(c.createdAt)],
-          limit: 200,
-        });
+        if (appRows.length === 0) {
+          return { success: true, count: 0, coupons: [] };
+        }
+        conditions.push(inArray(coupons.appId, appRows.map((a) => a.id)));
       }
+
+      const rows = await db.query.coupons.findMany({
+        where: conditions.length > 0 ? and(...conditions) : undefined,
+        orderBy: (c, { desc: d }) => [d(c.createdAt)],
+        limit: 200,
+      });
 
       return { success: true, count: rows.length, coupons: rows };
     },
@@ -66,13 +75,41 @@ export const couponRoutes = new Elysia({ prefix: "/coupons" })
    */
   .get(
     "/stats",
-    async ({ query }) => {
+    async ({ query, request: { headers } }) => {
       const days = Math.min(90, Math.max(1, Number(query.days) || 7));
       const since = new Date(Date.now() - days * 86_400_000);
+      const { builder, isAdmin } = await resolveCurrentBuilder(headers);
 
-      let appScope = null;
+      let builderAppIds: string[] | null = null;
+      if (!isAdmin && builder) {
+        const bApps = await db
+          .select({ id: apps.id })
+          .from(apps)
+          .where(eq(apps.builderId, builder.id));
+        builderAppIds = bApps.map((a) => a.id);
+        if (builderAppIds.length === 0) {
+          return {
+            success: true,
+            days,
+            totalRedemptions: 0,
+            totalDiscountIdr: 0,
+            daily: [],
+            topCoupons: [],
+          };
+        }
+      }
+
+      const scopeFilters: any[] = [
+        isNotNull(transactions.couponCode),
+        gte(transactions.createdAt, since),
+      ];
+
+      if (builderAppIds) {
+        scopeFilters.push(inArray(transactions.appId, builderAppIds));
+      }
+
       if (query.appId) {
-        appScope = eq(transactions.appId, query.appId);
+        scopeFilters.push(eq(transactions.appId, query.appId));
       } else if (query.mode) {
         const appRows = await db
           .select({ id: apps.id })
@@ -88,12 +125,10 @@ export const couponRoutes = new Elysia({ prefix: "/coupons" })
             topCoupons: [],
           };
         }
-        appScope = inArray(transactions.appId, appRows.map((a) => a.id));
+        scopeFilters.push(inArray(transactions.appId, appRows.map((a) => a.id)));
       }
 
-      const txFilter = appScope
-        ? and(isNotNull(transactions.couponCode), gte(transactions.createdAt, since), appScope)
-        : and(isNotNull(transactions.couponCode), gte(transactions.createdAt, since));
+      const txFilter = and(...scopeFilters);
 
       // 1. Agregat harian: jumlah redeem & total diskon yang diberikan
       const daily = await db

@@ -15,6 +15,10 @@ export interface TransactionItem {
   discountAmount?: number;
   grantDays: number;
   xenditInvoiceUrl: string | null;
+  xenditExternalId?: string | null;
+  paymentChannel?: string | null;
+  paymentProvider?: string | null;
+  paidAt?: string | null;
   createdAt: string;
 }
 

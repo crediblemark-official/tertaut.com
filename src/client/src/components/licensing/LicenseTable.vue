@@ -50,7 +50,7 @@ const filteredLicenses = computed(() => {
 <template>
   <div>
     <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 -mt-4 sm:-mt-5 md:-mt-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-[#111111] text-white border-b border-[#111111] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-1">
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-[#111111] text-white border-b border-[#111111] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-1">
       <div class="flex items-center gap-2">
         <h2 class="text-xs font-bold uppercase tracking-wider text-white">Daftar Lisensi</h2>
         <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold">

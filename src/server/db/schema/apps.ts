@@ -36,6 +36,12 @@ export interface DeliveryConfig {
     fileUrl?: string;
     fileName?: string;
   };
+  apiAccess?: {
+    enabled: boolean;
+    scope?: string;
+    endpointUrl?: string;
+    instruction?: string;
+  };
   privateNote?: {
     enabled: boolean;
     title?: string;
@@ -45,11 +51,16 @@ export interface DeliveryConfig {
 
 export interface MeteringConfig {
   enabled: boolean;
-  template: "llm_tokens" | "api_calls" | "compute_minutes" | "storage" | "active_seats" | "custom";
+  template: "llm_tokens" | "api_calls" | "compute_minutes" | "storage" | "active_seats" | "custom" | string;
   name: string;
   aggregation: string; // e.g. "sum(tokens) on ai_usage"
+  eventName?: string;
+  calculationType?: string;
+  unitLabel?: string;
+  filters?: Array<{ property: string; value: string }>;
   unitPrice?: number;
   metricUnit?: string;
+  freeAllowance?: number;
 }
 
 export const apps = pgTable("apps", {
@@ -66,7 +77,8 @@ export const apps = pgTable("apps", {
   pricingType: text("pricing_type", { enum: ["one_time", "subscription", "free"] })
     .default("one_time")
     .notNull(),
-  billingPeriod: text("billing_period", { enum: ["monthly", "yearly"] }),
+  billingPeriod: text("billing_period"),
+  trialPeriodDays: integer("trial_period_days").default(0),
   deliveryConfig: jsonb("delivery_config").$type<DeliveryConfig>(),
   meteringConfig: jsonb("metering_config").$type<MeteringConfig>(),
   description: text("description"),

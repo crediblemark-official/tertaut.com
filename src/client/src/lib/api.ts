@@ -2,7 +2,7 @@
  * Client API Client untuk tertaut.com Engine
  */
 
-import type { AppItem, DashboardStats } from '../types/app'
+import type { AppItem, DashboardStats, CatalogKPIStats } from '../types/app'
 import type { TransactionItem } from '../types/transaction'
 import type { LicenseItem } from '../types/licensing'
 import type { VaultCredentialItem, AiProxyLogItem, AiQuotaStatus } from '../types/aiproxy'
@@ -11,6 +11,7 @@ import type { CouponItem } from '../types/coupon'
 export type {
   AppItem,
   DashboardStats,
+  CatalogKPIStats,
   TransactionItem,
   LicenseItem,
   VaultCredentialItem,
@@ -80,6 +81,11 @@ export const api = {
   async getStats(): Promise<DashboardStats> {
     const res = await fetch(withMode("/api/v1/apps/stats/overview"));
     return parseJson(res);
+  },
+
+  async getCatalogStats(): Promise<CatalogKPIStats> {
+    const res = await fetch(withMode("/api/v1/apps/stats/catalog"));
+    return parseJson<CatalogKPIStats>(res);
   },
 
   async checkSlugAvailability(slug: string): Promise<{ slug: string; available: boolean }> {
@@ -198,6 +204,36 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ amount, mode: dashboardEnv.value }),
+    });
+    return parseJson(res);
+  },
+
+  async getPayoutAccount(): Promise<{
+    success: boolean;
+    disbursementAccount: {
+      bankCode?: string;
+      accountNumber?: string;
+      accountHolderName?: string;
+      eWalletType?: string;
+      phoneNumber?: string;
+    } | null;
+    builderName?: string;
+  }> {
+    const res = await fetch("/api/v1/payouts/account");
+    return parseJson(res);
+  },
+
+  async updatePayoutAccount(data: {
+    bankCode?: string;
+    accountNumber?: string;
+    accountHolderName?: string;
+    eWalletType?: string;
+    phoneNumber?: string;
+  }): Promise<{ success: boolean; message: string; disbursementAccount?: any; error?: string }> {
+    const res = await fetch("/api/v1/payouts/account", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
     });
     return parseJson(res);
   },

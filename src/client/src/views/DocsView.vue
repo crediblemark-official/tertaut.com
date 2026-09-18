@@ -152,7 +152,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
 </script>
 
 <template>
-  <div class="space-y-6 animate-fadeIn pb-16">
+  <div class="space-y-6 animate-fadeIn pt-4 sm:pt-5 md:pt-6 pb-16">
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>

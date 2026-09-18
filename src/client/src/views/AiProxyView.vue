@@ -222,7 +222,7 @@ watch(dashboardEnv, () => {
 <template>
   <div class="animate-fadeIn pb-12">
     <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 -mt-4 sm:-mt-5 md:-mt-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-[#111111] text-white border-b border-[#111111] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-[#111111] text-white border-b border-[#111111] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
       <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
         <button
           type="button"

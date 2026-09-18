@@ -9,7 +9,9 @@ export interface SearchPickerItem {
   mode?: string
   subtitle?: string
   targetPrice?: number
-  [key: string]: any
+  description?: string | null
+  pricingType?: string | null
+  status?: string | null
 }
 
 const props = withDefaults(

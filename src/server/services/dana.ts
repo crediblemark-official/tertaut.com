@@ -1,5 +1,6 @@
 import { config } from "../config";
 import crypto from "crypto";
+import { calculateMor } from "../utils/payment";
 
 export interface CreateDanaOrderParams {
   externalId: string;
@@ -28,15 +29,7 @@ export class DanaService {
    * Hitung kalkulasi Merchant of Record (MoR) fee 5% platform fee & 95% net
    */
   static calculateMorBreakdown(amount: number) {
-    const feeRate = config.dana.platformFeePercent / 100;
-    const platformFee = Math.round(amount * feeRate);
-    const netAmount = amount - platformFee;
-
-    return {
-      grossAmount: amount,
-      platformFee,
-      netAmount,
-    };
+    return calculateMor(amount, config.dana.platformFeePercent);
   }
 
   /**
