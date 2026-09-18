@@ -11,6 +11,13 @@ async function sendLicenseIssuedEmail(result: any): Promise<void> {
   try {
     const app = await db.query.apps.findFirst({ where: eq(apps.id, result.appId) });
     const delivery = app?.deliveryConfig;
+    const apiAccessConfig = delivery?.apiAccess?.enabled
+      ? {
+          ...delivery.apiAccess,
+          apiKey: result.apiKey,
+        }
+      : undefined;
+
     await EmailService.sendLicenseIssued({
       to: result.customerEmail,
       appName: app?.name || "Lisensi",
@@ -20,7 +27,7 @@ async function sendLicenseIssuedEmail(result: any): Promise<void> {
         ? {
             fileDownload: delivery.fileDownload?.enabled ? delivery.fileDownload : undefined,
             privateNote: delivery.privateNote?.enabled ? delivery.privateNote : undefined,
-            apiAccess: delivery.apiAccess?.enabled ? delivery.apiAccess : undefined,
+            apiAccess: apiAccessConfig,
           }
         : undefined,
     });
@@ -82,6 +89,12 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
       const licenseKey = LicenseService.generateLicenseKey();
       const offlineToken = LicenseService.createOfflineGraceToken(licenseKey, tx.appId);
 
+      // P4 & P5: Generate auto-provisioned API key jika apiAccess aktif
+      let generatedApiKey: string | undefined = undefined;
+      if (app?.deliveryConfig?.apiAccess?.enabled) {
+        generatedApiKey = `tt_cust_${randomBytes(16).toString("hex")}`;
+      }
+
       const licId = `lic_${randomBytes(8).toString("hex")}`;
       await trx.insert(licenses).values({
         id: licId,
@@ -118,10 +131,11 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         message: "Transaction verified and balance updated",
         transactionId: tx.id,
         licenseKey,
-        newlyFulfilled: true,
-        appId: tx.appId,
+        expiresAt: expiresAt.toISOString(),
         customerEmail: tx.customerEmail,
-        expiresAt,
+        appId: tx.appId,
+        apiKey: generatedApiKey,
+        newlyFulfilled: true,
         grantedCredits,
         creditBalance,
       };

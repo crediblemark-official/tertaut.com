@@ -179,8 +179,25 @@ export const api = {
     return parseJson(res);
   },
 
-  async getTransactions(appId?: string): Promise<{ success: boolean; transactions: TransactionItem[] }> {
-    const url = appId ? `/api/v1/checkout/transactions?appId=${appId}` : withMode("/api/v1/checkout/transactions");
+  async getTransactions(options?: { appId?: string; page?: number; limit?: number } | string): Promise<{
+    success: boolean;
+    transactions: TransactionItem[];
+    total?: number;
+    limit?: number;
+    offset?: number;
+    hasMore?: boolean;
+  }> {
+    const opts = typeof options === "string" ? { appId: options } : (options || {});
+    const params = new URLSearchParams();
+    if (opts.appId) params.append("appId", opts.appId);
+    if (opts.page) params.append("page", opts.page.toString());
+    if (opts.limit) params.append("limit", opts.limit.toString());
+
+    const base = withMode("/api/v1/checkout/transactions");
+    const sep = base.includes("?") ? "&" : "?";
+    const queryString = params.toString();
+    const url = queryString ? `${base}${sep}${queryString}` : base;
+
     const res = await fetch(url);
     return parseJson(res);
   },
@@ -238,8 +255,25 @@ export const api = {
     return parseJson(res);
   },
 
-  async getLicenses(appId?: string): Promise<{ success: boolean; licenses: LicenseItem[] }> {
-    const url = appId ? `/api/v1/license/list?appId=${appId}` : withMode("/api/v1/license/list");
+  async getLicenses(options?: { appId?: string; page?: number; limit?: number } | string): Promise<{
+    success: boolean;
+    licenses: LicenseItem[];
+    total?: number;
+    limit?: number;
+    offset?: number;
+    hasMore?: boolean;
+  }> {
+    const opts = typeof options === "string" ? { appId: options } : (options || {});
+    const params = new URLSearchParams();
+    if (opts.appId) params.append("appId", opts.appId);
+    if (opts.page) params.append("page", opts.page.toString());
+    if (opts.limit) params.append("limit", opts.limit.toString());
+
+    const base = withMode("/api/v1/license/list");
+    const sep = base.includes("?") ? "&" : "?";
+    const queryString = params.toString();
+    const url = queryString ? `${base}${sep}${queryString}` : base;
+
     const res = await fetch(url);
     return parseJson(res);
   },

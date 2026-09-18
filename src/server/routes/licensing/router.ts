@@ -16,6 +16,7 @@ import {
   handleListLicenses,
   handleIssueLicense,
   handleRevokeLicense,
+  handleRenewLicense,
 } from "./admin";
 
 export function createLicensingRouter(prefix: string) {
@@ -159,6 +160,8 @@ export function createLicensingRouter(prefix: string) {
       query: t.Object({
         appId: t.Optional(t.String()),
         limit: t.Optional(t.Numeric({ default: 50 })),
+        offset: t.Optional(t.Numeric()),
+        page: t.Optional(t.Numeric()),
         mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
       }),
       detail: {
@@ -219,6 +222,21 @@ export function createLicensingRouter(prefix: string) {
       detail: {
         tags: ["Universal Licensing"],
         summary: "Unbind Hardware ID & Release Seats",
+      },
+    })
+
+    /**
+     * Perpanjang Masa Aktif Lisensi (Renewal Subscription / License Extension)
+     */
+    .post("/renew", handleRenewLicense, {
+      requireAuth: true,
+      body: t.Object({
+        licenseKey: t.String(),
+        additionalDays: t.Optional(t.Number()),
+      }),
+      detail: {
+        tags: ["Universal Licensing"],
+        summary: "Renew Subscription & Extend Expiry",
       },
     });
 }

@@ -10,6 +10,7 @@ import { badgeRoutes, widgetRoutes } from "./badge/router";
 import { launchRoutes } from "./launch";
 import { panelRoutes } from "./panel/router";
 import { couponRoutes } from "./coupons/router";
+import { meteringRoutes } from "./metering/router";
 import { authMiddleware, authenticate } from "../middleware/auth";
 
 const PUBLIC_PREFIXES = [
@@ -26,6 +27,8 @@ const PUBLIC_PREFIXES = [
   "/api/v1/licensing/activate",
   "/api/v1/licensing/deactivate",
   "/api/v1/licensing/credits/",
+  "/api/v1/metering/events",
+  "/api/v1/metering/usage",
 ];
 
 export const apiV1Routes = new Elysia({ prefix: "/api/v1" })
@@ -49,4 +52,5 @@ export const apiV1Routes = new Elysia({ prefix: "/api/v1" })
   .use(widgetRoutes)
   .use(launchRoutes)
   .use(panelRoutes)
-  .use(couponRoutes);
+  .use(couponRoutes)
+  .use(meteringRoutes);

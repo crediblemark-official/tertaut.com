@@ -6,6 +6,7 @@ import { ArrowLeft, X } from 'lucide-vue-next'
 
 import AppBenefitsForm from './AppBenefitsForm.vue'
 import AppPricingSection from './AppPricingSection.vue'
+import AppDeliverySection from './AppDeliverySection.vue'
 import AppLivePreviewCard from './AppLivePreviewCard.vue'
 import AppMeteringModal, { type MeteringModalResult } from './AppMeteringModal.vue'
 
@@ -132,22 +133,32 @@ function resetForm() {
   returnUrl.value = ''
   abandonedCartRecovery.value = false
   autoAffiliateRegistration.value = false
+  deliveryConfigState.value = {
+    licenseKey: {
+      enabled: true,
+      description: 'Lisensi Universal Tertaut',
+      expiresInDays: 365,
+      maxSeats: 3,
+    },
+  }
   createError.value = null
 }
+
+const deliveryConfigState = ref<DeliveryConfig>({
+  licenseKey: {
+    enabled: true,
+    description: 'Lisensi Universal Tertaut',
+    expiresInDays: 365,
+    maxSeats: 3,
+  },
+})
 
 async function handleCreateProduct() {
   if (!newAppName.value || !newAppSlug.value) return
   isCreating.value = true
   createError.value = null
 
-  const deliveryConfig: DeliveryConfig = {
-    licenseKey: {
-      enabled: true,
-      description: 'Lisensi Software',
-      expiresInDays: 365,
-      maxSeats: 3,
-    },
-  }
+  const deliveryConfig: DeliveryConfig = deliveryConfigState.value
 
   const meteringConfig: MeteringConfig | undefined = meteringEnabled.value
     ? {
@@ -328,7 +339,10 @@ async function handleCreateProduct() {
           @removeMetering="removeMetering"
         />
 
-        <!-- 4. ALUR CHECKOUT & RETENSI -->
+        <!-- 4. PENGIRIMAN DIGITAL (DELIVERY CONFIG) -->
+        <AppDeliverySection v-model="deliveryConfigState" />
+
+        <!-- 5. ALUR CHECKOUT & RETENSI -->
         <div class="space-y-4">
           <div class="border-b border-[#111111]/10 pb-3">
             <div class="flex items-center gap-2">

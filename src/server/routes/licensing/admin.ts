@@ -196,3 +196,61 @@ export async function handleRevokeLicense({ body, set }: any) {
     license: updated,
   };
 }
+
+export async function handleRenewLicense({ body, set }: any) {
+  const { licenseKey, additionalDays, days } = body;
+
+  if (!licenseKey || typeof licenseKey !== "string") {
+    set.status = 400;
+    return { success: false, error: "licenseKey wajib disertakan" };
+  }
+
+  const lic = await db.query.licenses.findFirst({
+    where: eq(licenses.licenseKey, licenseKey.trim()),
+  });
+
+  if (!lic) {
+    set.status = 404;
+    return { success: false, error: "Lisensi tidak ditemukan" };
+  }
+
+  const app = await db.query.apps.findFirst({
+    where: eq(apps.id, lic.appId),
+  });
+
+  let daysToAdd = Number(additionalDays || days);
+  if (!daysToAdd || daysToAdd <= 0) {
+    switch (app?.billingPeriod) {
+      case "daily": daysToAdd = 1; break;
+      case "weekly": daysToAdd = 7; break;
+      case "monthly": daysToAdd = 30; break;
+      case "every_3_months": daysToAdd = 90; break;
+      case "every_6_months": daysToAdd = 180; break;
+      case "yearly": daysToAdd = 365; break;
+      default: daysToAdd = app?.deliveryConfig?.licenseKey?.expiresInDays || 30;
+    }
+  }
+
+  const currentExpiry = lic.expiresAt ? new Date(lic.expiresAt) : new Date();
+  const baseDate = currentExpiry.getTime() > Date.now() ? currentExpiry : new Date();
+  baseDate.setDate(baseDate.getDate() + daysToAdd);
+
+  const [updated] = await db
+    .update(licenses)
+    .set({
+      status: "ACTIVE",
+      expiresAt: baseDate,
+      updatedAt: new Date(),
+    })
+    .where(eq(licenses.id, lic.id))
+    .returning();
+
+  return {
+    success: true,
+    message: `Lisensi ${licenseKey} berhasil diperpanjang +${daysToAdd} hari.`,
+    newExpiry: baseDate.toISOString(),
+    extendedDays: daysToAdd,
+    additionalDays: daysToAdd,
+    license: updated,
+  };
+}

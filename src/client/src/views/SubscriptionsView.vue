@@ -40,6 +40,11 @@ const licenses = ref<LicenseItem[]>([])
 const transactions = ref<TransactionItem[]>([])
 const appsList = ref<AppItem[]>([])
 
+const page = ref(1)
+const limit = ref(25)
+const total = ref(0)
+const hasMore = ref(false)
+
 const searchQuery = ref('')
 const selectedStatus = ref<'ALL' | 'ACTIVE' | 'EXPIRED' | 'REVOKED'>('ALL')
 const selectedAppId = ref<string>('ALL')
@@ -54,11 +59,13 @@ async function loadData() {
   loading.value = true
   try {
     const [licRes, txRes, appRes] = await Promise.all([
-      api.getLicenses(),
-      api.getTransactions(),
+      api.getLicenses({ page: page.value, limit: limit.value }),
+      api.getTransactions({ limit: 200 }),
       api.getApps(),
     ])
     licenses.value = licRes.licenses || []
+    total.value = licRes.total ?? licenses.value.length
+    hasMore.value = licRes.hasMore ?? false
     transactions.value = txRes.transactions || []
     appsList.value = appRes.apps || []
   } catch (err) {
@@ -68,8 +75,27 @@ async function loadData() {
   }
 }
 
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / limit.value)))
+
+function prevPage() {
+  if (page.value > 1) {
+    page.value--
+    loadData()
+  }
+}
+
+function nextPage() {
+  if (page.value < totalPages.value) {
+    page.value++
+    loadData()
+  }
+}
+
 onMounted(loadData)
-watch(env, loadData)
+watch(env, () => {
+  page.value = 1
+  loadData()
+})
 
 // Map cumulative LTV per customerEmail & appId
 const customerLtvMap = computed(() => {
@@ -419,6 +445,36 @@ function formatDate(dateStr?: string | null): string {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Pagination Bar -->
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-3 border-b border-[#111111]/15 bg-white flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+      <div class="text-[#111111]/60">
+        Menampilkan <span class="font-semibold text-[#111111]">{{ total > 0 ? (page - 1) * limit + 1 : 0 }}</span> -
+        <span class="font-semibold text-[#111111]">{{ Math.min(page * limit, total) }}</span> dari
+        <span class="font-semibold text-[#111111]">{{ total }}</span> langganan
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          @click="prevPage"
+          :disabled="page <= 1 || loading"
+          class="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-[#111111] transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+        >
+          Sebelumnya
+        </button>
+        <span class="px-2 font-mono font-medium text-[#111111]">
+          Hal {{ page }} / {{ totalPages }}
+        </span>
+        <button
+          type="button"
+          @click="nextPage"
+          :disabled="page >= totalPages || loading"
+          class="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-[#111111] transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+        >
+          Selanjutnya
+        </button>
+      </div>
     </div>
 
     <!-- Subscription Detail Modal -->

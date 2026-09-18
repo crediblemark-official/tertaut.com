@@ -49,6 +49,8 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
       grantCredits: t.Optional(t.Number({ default: 0 })),
       redirectUrl: t.Optional(t.String()),
       couponCode: t.Optional(t.String({ maxLength: 64 })),
+      startTrial: t.Optional(t.Boolean()),
+      isTrial: t.Optional(t.Boolean()),
     }),
     detail: {
       tags: ["MoR Checkout"],

@@ -1,9 +1,12 @@
 import { db } from "../../db";
-import { apps, transactions } from "../../db/schema";
+import { apps, transactions, licenses } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { XenditService } from "../../services/xendit";
 import { DanaService } from "../../services/dana";
 import { CouponService } from "../../services/coupon";
+import { LicenseService } from "../../services/license";
+import { CreditService } from "../../services/credits";
+import { EmailService } from "../../services/email";
 import { config as checkoutConfig } from "../../config";
 import { randomBytes } from "crypto";
 
@@ -81,6 +84,90 @@ export async function handleCreateSession({ body, set }: any) {
   if (!email || !email.includes("@")) {
     set.status = 400;
     return { error: "Email pembeli tidak valid" };
+  }
+
+  // P1 & P2: Eksekusi Free Trial jika diminta dan produk memiliki trialPeriodDays > 0
+  const isTrialRequested = Boolean(body.startTrial || body.isTrial);
+  if (isTrialRequested && (app.trialPeriodDays ?? 0) > 0) {
+    const trialDays = app.trialPeriodDays!;
+    const licenseKey = LicenseService.generateLicenseKey();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + trialDays);
+
+    const txId = `tx_trial_${randomBytes(8).toString("hex")}`;
+    const licId = `lic_${randomBytes(8).toString("hex")}`;
+
+    const [trialTx] = await db
+      .insert(transactions)
+      .values({
+        id: txId,
+        appId: app.id,
+        builderId: app.builderId,
+        paymentProvider: "xendit",
+        paymentChannel: "FREE_TRIAL",
+        xenditExternalId: txId,
+        customerEmail: email,
+        grossAmount: 0,
+        platformFee: 0,
+        netAmount: 0,
+        paymentStatus: "PAID",
+        disbursementStatus: "COMPLETED",
+        grantDays: trialDays,
+        grantCredits,
+      })
+      .returning();
+
+    const [newLic] = await db
+      .insert(licenses)
+      .values({
+        id: licId,
+        appId: app.id,
+        transactionId: trialTx.id,
+        customerEmail: email,
+        licenseKey,
+        status: "ACTIVE",
+        expiresAt,
+        maxSeats: app.deliveryConfig?.licenseKey?.maxSeats ?? 3,
+      })
+      .returning();
+
+    if (grantCredits > 0) {
+      await CreditService.grant(
+        {
+          licenseId: newLic.id,
+          appId: app.id,
+          customerEmail: email,
+        },
+        grantCredits,
+        {
+          reference: trialTx.id,
+          description: `Trial initial credits: ${grantCredits}`,
+        }
+      ).catch(() => null);
+    }
+
+    await EmailService.sendLicenseIssued({
+      to: email,
+      appName: app.name,
+      licenseKey,
+      expiresAt,
+      deliveryDetails: {
+        fileDownload: app.deliveryConfig?.fileDownload,
+        privateNote: app.deliveryConfig?.privateNote,
+        apiAccess: app.deliveryConfig?.apiAccess,
+      },
+    }).catch(() => null);
+
+    return {
+      success: true,
+      isTrial: true,
+      trialPeriodDays: trialDays,
+      transactionId: trialTx.id,
+      licenseKey,
+      expiresAt: expiresAt.toISOString(),
+      message: `Masa uji coba gratis ${trialDays} hari berhasil diaktifkan!`,
+      redirectUrl: redirectUrl || app.redirectUrl || `${checkoutConfig.publicAppUrl}/checkout/success?licenseKey=${licenseKey}`,
+    };
   }
 
   // B2: grantDays sepenuhnya ditentukan oleh otoritas konfigurasi produk (deliveryConfig), bukan input klien.

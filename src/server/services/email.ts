@@ -96,7 +96,7 @@ export class EmailService {
     deliveryDetails?: {
       fileDownload?: { title?: string; fileUrl?: string; fileName?: string };
       privateNote?: { title?: string; note?: string };
-      apiAccess?: { endpointUrl?: string; instruction?: string };
+      apiAccess?: { endpointUrl?: string; instruction?: string; apiKey?: string };
     };
   }): Promise<SendEmailResult> {
     const appName = escapeHtml(params.appName);
@@ -108,15 +108,17 @@ export class EmailService {
     const textExtra: string[] = [];
 
     if (params.deliveryDetails?.fileDownload?.fileUrl) {
-      const fileTitle = escapeHtml(params.deliveryDetails.fileDownload.title || "Unduh Berkas Digital");
+      const fileTitle = escapeHtml(params.deliveryDetails.fileDownload.title || "Unduh Software / Aset");
       const fileUrl = escapeHtml(params.deliveryDetails.fileDownload.fileUrl);
+      const fileName = params.deliveryDetails.fileDownload.fileName
+        ? ` (${escapeHtml(params.deliveryDetails.fileDownload.fileName)})`
+        : "";
       deliverySectionHtml += `
         <div style="margin:20px 0;padding:16px;background:#0b0b0f;border:1px solid #27272a;border-radius:8px;">
-          <p style="margin:0 0 6px;font-size:12px;font-weight:bold;text-transform:uppercase;color:#D4AF37;">Akses Berkas / File</p>
-          <p style="margin:0 0 10px;font-size:13px;color:#e5e7eb;">${fileTitle}</p>
-          <a href="${fileUrl}" style="display:inline-block;padding:8px 16px;background:#D4AF37;color:#111111;text-decoration:none;border-radius:6px;font-weight:bold;font-size:13px;">Unduh Berkas</a>
+          <p style="margin:0 0 8px;font-size:12px;font-weight:bold;text-transform:uppercase;color:#93c5fd;">Berkas Digital</p>
+          <a href="${fileUrl}" style="display:inline-block;padding:8px 16px;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:bold;border-radius:6px;font-size:13px;">${fileTitle}${fileName}</a>
         </div>`;
-      textExtra.push(`Akses Berkas: ${fileTitle} -> ${params.deliveryDetails.fileDownload.fileUrl}`);
+      textExtra.push(`Unduh Berkas: ${params.deliveryDetails.fileDownload.title || "Download"} -> ${params.deliveryDetails.fileDownload.fileUrl}`);
     }
 
     if (params.deliveryDetails?.privateNote?.note) {
@@ -130,16 +132,19 @@ export class EmailService {
       textExtra.push(`Catatan: ${params.deliveryDetails.privateNote.title || "Panduan"} -> ${params.deliveryDetails.privateNote.note}`);
     }
 
-    if (params.deliveryDetails?.apiAccess?.endpointUrl) {
-      const apiUrl = escapeHtml(params.deliveryDetails.apiAccess.endpointUrl);
+    if (params.deliveryDetails?.apiAccess) {
+      const apiUrl = params.deliveryDetails.apiAccess.endpointUrl ? escapeHtml(params.deliveryDetails.apiAccess.endpointUrl) : "";
+      const apiKey = params.deliveryDetails.apiAccess.apiKey ? escapeHtml(params.deliveryDetails.apiAccess.apiKey) : "";
       const apiInstruction = escapeHtml(params.deliveryDetails.apiAccess.instruction || "");
       deliverySectionHtml += `
         <div style="margin:20px 0;padding:16px;background:#0b0b0f;border:1px solid #27272a;border-radius:8px;">
-          <p style="margin:0 0 6px;font-size:12px;font-weight:bold;text-transform:uppercase;color:#86efac;">Akses API</p>
-          <p style="margin:0 0 6px;font-size:13px;font-family:monospace;color:#e5e7eb;">${apiUrl}</p>
+          <p style="margin:0 0 8px;font-size:12px;font-weight:bold;text-transform:uppercase;color:#86efac;">Akses API</p>
+          ${apiKey ? `<p style="margin:0 0 8px;font-size:13px;font-family:monospace;color:#ffffff;"><strong>Kunci API:</strong> <span style="background:#18181b;padding:3px 8px;border-radius:4px;color:#34d399;font-weight:bold;">${apiKey}</span></p>` : ""}
+          ${apiUrl ? `<p style="margin:0 0 6px;font-size:12px;font-family:monospace;color:#e5e7eb;"><strong>Endpoint:</strong> ${apiUrl}</p>` : ""}
           ${apiInstruction ? `<p style="margin:0;font-size:12px;color:#a1a1aa;">${apiInstruction}</p>` : ""}
         </div>`;
-      textExtra.push(`Akses API: ${params.deliveryDetails.apiAccess.endpointUrl}`);
+      if (apiKey) textExtra.push(`Kunci API: ${params.deliveryDetails.apiAccess.apiKey}`);
+      if (apiUrl) textExtra.push(`Akses API: ${params.deliveryDetails.apiAccess.endpointUrl}`);
     }
 
     const html = `<!doctype html>
