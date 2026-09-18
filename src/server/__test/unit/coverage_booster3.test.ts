@@ -82,8 +82,8 @@ describe("Coverage Booster3: webhook/fulfill.ts", () => {
     await db.update(apps).set({
       deliveryConfig: {
         licenseKey: { enabled: true, expiresInDays: 30, maxSeats: 1 },
-        apiAccess: { enabled: true },
-      },
+        apiAccess: { enabled: true, endpointUrl: "https://api.example.com" },
+      } as any,
     }).where(eq(apps.id, a.id));
     const tx = await createTx(builder.id, a.id);
     const res = await fulfillPaymentTransaction(tx, "QRIS");
@@ -273,7 +273,7 @@ describe("Coverage Booster3: metering/router.ts edge cases", () => {
 
   it("POST /metering/events: 403 when license not ACTIVE", async () => {
     const { app: a } = await seedBuilderApp();
-    await db.update(apps).set({ meteringConfig: { enabled: true, unitPrice: 1, template: "test", name: "Test", aggregation: "sum" } }).where(eq(apps.id, a.id));
+    await db.update(apps).set({ meteringConfig: { enabled: true, unitPrice: 1, template: "test", name: "Test", aggregation: "sum" } as any }).where(eq(apps.id, a.id));
     const issueRes = await issueLicense(a.id);
     await db.update(licenses).set({ status: "REVOKED" }).where(eq(licenses.id, issueRes.license.id));
     const res = await app.handle(new Request("http://localhost:3000/api/v1/metering/events", {
@@ -395,7 +395,7 @@ describe("Coverage Booster3: licensing/device.ts handleActivateLicense", () => {
       request: new Request("http://localhost"),
     });
     expect(res.success).toBe(true);
-    expect((res.data ?? {}).status).toBe("ACTIVE");
+    expect((res as any).data?.status).toBe("ACTIVE");
   });
 
   it("re-activating same device (existing activation branch)", async () => {
@@ -787,7 +787,7 @@ describe("Coverage Booster3: services/credits.ts", () => {
       { reference: null, description: "test debit" }
     );
     expect(result.ok).toBe(false);
-    expect((result as any).reason).toBe("INSUFFICIENT_CREDITS");
+    expect((result as any).reason).toBe("INSUFFICIENT_CREDITS"); // DebitResult union - cast needed
   });
 });
 
