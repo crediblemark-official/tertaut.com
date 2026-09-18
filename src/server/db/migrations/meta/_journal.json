@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1789563291973,
-      "tag": "0000_gray_xavin",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1789576292451,
-      "tag": "0001_add_coupons_and_tx_discount",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1789588354712,
-      "tag": "0002_goofy_annihilus",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1789620096728,
-      "tag": "0003_free_rocket_racer",
+      "when": 1789703143977,
+      "tag": "0000_shallow_venus",
       "breakpoints": true
     }
   ]

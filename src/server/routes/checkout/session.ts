@@ -1,6 +1,6 @@
 import { db } from "../../db";
 import { apps, transactions, licenses } from "../../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { XenditService } from "../../services/xendit";
 import { DanaService } from "../../services/dana";
 import { CouponService } from "../../services/coupon";
@@ -89,7 +89,30 @@ export async function handleCreateSession({ body, set }: any) {
   // P1 & P2: Eksekusi Free Trial jika diminta dan produk memiliki trialPeriodDays > 0
   const isTrialRequested = Boolean(body.startTrial || body.isTrial);
   if (isTrialRequested && (app.trialPeriodDays ?? 0) > 0) {
+    const existingTrial = await db.query.transactions.findFirst({
+      where: and(
+        eq(transactions.appId, app.id),
+        eq(transactions.customerEmail, email),
+        eq(transactions.paymentChannel, "FREE_TRIAL")
+      ),
+    });
+
+    if (existingTrial) {
+      set.status = 409;
+      return {
+        success: false,
+        error: "Email ini sudah pernah mengaktifkan masa uji coba untuk produk ini.",
+      };
+    }
+
     const trialDays = app.trialPeriodDays!;
+    const trialGrantCredits = Math.max(
+      0,
+      Math.floor(Number(app.meteringConfig?.freeAllowance) || 0)
+    );
+    const trialApiKey = app.deliveryConfig?.apiAccess?.enabled
+      ? `tt_cust_${randomBytes(16).toString("hex")}`
+      : undefined;
     const licenseKey = LicenseService.generateLicenseKey();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + trialDays);
@@ -113,7 +136,7 @@ export async function handleCreateSession({ body, set }: any) {
         paymentStatus: "PAID",
         disbursementStatus: "COMPLETED",
         grantDays: trialDays,
-        grantCredits,
+        grantCredits: trialGrantCredits,
       })
       .returning();
 
@@ -128,20 +151,21 @@ export async function handleCreateSession({ body, set }: any) {
         status: "ACTIVE",
         expiresAt,
         maxSeats: app.deliveryConfig?.licenseKey?.maxSeats ?? 3,
+        apiKey: trialApiKey,
       })
       .returning();
 
-    if (grantCredits > 0) {
+    if (trialGrantCredits > 0) {
       await CreditService.grant(
         {
           licenseId: newLic.id,
           appId: app.id,
           customerEmail: email,
         },
-        grantCredits,
+        trialGrantCredits,
         {
           reference: trialTx.id,
-          description: `Trial initial credits: ${grantCredits}`,
+          description: `Trial initial credits: ${trialGrantCredits}`,
         }
       ).catch(() => null);
     }
@@ -154,7 +178,9 @@ export async function handleCreateSession({ body, set }: any) {
       deliveryDetails: {
         fileDownload: app.deliveryConfig?.fileDownload,
         privateNote: app.deliveryConfig?.privateNote,
-        apiAccess: app.deliveryConfig?.apiAccess,
+        apiAccess: app.deliveryConfig?.apiAccess
+          ? { ...app.deliveryConfig.apiAccess, apiKey: trialApiKey }
+          : undefined,
       },
     }).catch(() => null);
 

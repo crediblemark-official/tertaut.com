@@ -17,6 +17,7 @@ import {
   handleIssueLicense,
   handleRevokeLicense,
   handleRenewLicense,
+  handleVerifyApiKey,
 } from "./admin";
 
 export function createLicensingRouter(prefix: string) {
@@ -226,6 +227,20 @@ export function createLicensingRouter(prefix: string) {
     })
 
     /**
+     * Verifikasi Kunci API pelanggan (auto-provisioning delivery apiAccess).
+     */
+    .post("/api-key/verify", handleVerifyApiKey, {
+      body: t.Object({
+        apiKey: t.String(),
+      }),
+      detail: {
+        tags: ["Universal Licensing"],
+        summary: "Verify Customer API Key",
+        description: "Validates a customer API key issued via apiAccess delivery and returns license status & credits",
+      },
+    })
+
+    /**
      * Perpanjang Masa Aktif Lisensi (Renewal Subscription / License Extension)
      */
     .post("/renew", handleRenewLicense, {
@@ -233,6 +248,7 @@ export function createLicensingRouter(prefix: string) {
       body: t.Object({
         licenseKey: t.String(),
         additionalDays: t.Optional(t.Number()),
+        days: t.Optional(t.Number()),
       }),
       detail: {
         tags: ["Universal Licensing"],

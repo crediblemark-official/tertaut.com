@@ -174,7 +174,7 @@ export const meteringRoutes = new Elysia({ prefix: "/metering" })
         success: true,
         totalEvents: 0,
         totalCreditsConsumed: 0,
-        appsWithMetering: 0,
+        appsCount: 0,
       };
     }
 

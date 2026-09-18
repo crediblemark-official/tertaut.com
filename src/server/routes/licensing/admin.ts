@@ -108,6 +108,11 @@ export async function handleIssueLicense({ body, set }: any) {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + grantDays);
 
+  const app = await db.query.apps.findFirst({ where: eq(apps.id, appId) });
+  const issuedApiKey = app?.deliveryConfig?.apiAccess?.enabled
+    ? `tt_cust_${randomBytes(16).toString("hex")}`
+    : undefined;
+
   const licenseId = `lic_${randomBytes(8).toString("hex")}`;
   const offlineToken = LicenseService.createOfflineGraceToken(
     licenseKey,
@@ -129,6 +134,7 @@ export async function handleIssueLicense({ body, set }: any) {
       maxSeats,
       offlineJwtGraceToken: offlineToken,
       expiresAt,
+      apiKey: issuedApiKey,
     })
     .returning();
 
@@ -141,12 +147,20 @@ export async function handleIssueLicense({ body, set }: any) {
     );
   }
 
-  const app = await db.query.apps.findFirst({ where: eq(apps.id, appId) });
   await EmailService.sendLicenseIssued({
     to: customerEmail,
     appName: app?.name || "Lisensi",
     licenseKey,
     expiresAt,
+    deliveryDetails: app?.deliveryConfig
+      ? {
+          fileDownload: app.deliveryConfig.fileDownload?.enabled ? app.deliveryConfig.fileDownload : undefined,
+          privateNote: app.deliveryConfig.privateNote?.enabled ? app.deliveryConfig.privateNote : undefined,
+          apiAccess: app.deliveryConfig.apiAccess?.enabled
+            ? { ...app.deliveryConfig.apiAccess, apiKey: issuedApiKey }
+            : undefined,
+        }
+      : undefined,
   });
 
   return {
@@ -197,7 +211,39 @@ export async function handleRevokeLicense({ body, set }: any) {
   };
 }
 
-export async function handleRenewLicense({ body, set }: any) {
+export async function handleVerifyApiKey({ body, set }: any) {
+  const { apiKey } = body;
+
+  if (!apiKey || typeof apiKey !== "string") {
+    set.status = 400;
+    return { success: false, valid: false, error: "apiKey wajib disertakan" };
+  }
+
+  const lic = await db.query.licenses.findFirst({
+    where: eq(licenses.apiKey, apiKey.trim()),
+  });
+
+  if (!lic) {
+    set.status = 404;
+    return { success: false, valid: false, error: "Kunci API tidak ditemukan" };
+  }
+
+  const expired = lic.expiresAt ? new Date(lic.expiresAt).getTime() < Date.now() : false;
+  const valid = lic.status === "ACTIVE" && !expired;
+  const credits = valid ? await CreditService.getBalance(lic.id) : 0;
+
+  return {
+    success: true,
+    valid,
+    status: expired && lic.status === "ACTIVE" ? "EXPIRED" : lic.status,
+    appId: lic.appId,
+    customerEmail: lic.customerEmail,
+    expiresAt: lic.expiresAt,
+    credits,
+  };
+}
+
+export async function handleRenewLicense({ body, set, request }: any) {
   const { licenseKey, additionalDays, days } = body;
 
   if (!licenseKey || typeof licenseKey !== "string") {
@@ -217,6 +263,15 @@ export async function handleRenewLicense({ body, set }: any) {
   const app = await db.query.apps.findFirst({
     where: eq(apps.id, lic.appId),
   });
+
+  const { builder, isAdmin } = request?.headers
+    ? await resolveCurrentBuilder(request.headers)
+    : { builder: null, isAdmin: false };
+
+  if (!isAdmin && (!builder || app?.builderId !== builder.id)) {
+    set.status = 404;
+    return { success: false, error: "Lisensi tidak ditemukan" };
+  }
 
   let daysToAdd = Number(additionalDays || days);
   if (!daysToAdd || daysToAdd <= 0) {

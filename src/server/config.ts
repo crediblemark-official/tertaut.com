@@ -1,6 +1,11 @@
 import { existsSync, readFileSync } from "fs";
 
 function getEnv(key: string, fallback = ""): string {
+  // Environment proses (Docker/systemd/shell) selalu menang atas file .env,
+  // agar override runtime tidak diabaikan.
+  if (process.env[key] !== undefined) {
+    return process.env[key] as string;
+  }
   try {
     if (existsSync(".env")) {
       const content = readFileSync(".env", "utf8");
@@ -11,7 +16,7 @@ function getEnv(key: string, fallback = ""): string {
       }
     }
   } catch {}
-  return process.env[key] || fallback;
+  return fallback;
 }
 
 const nodeEnv = getEnv("NODE_ENV", "development");

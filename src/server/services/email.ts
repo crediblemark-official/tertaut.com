@@ -26,11 +26,13 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function formatDate(date: Date): string {
+function formatDate(date: Date | string): string {
+  const value = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(value.getTime())) return "-";
   return new Intl.DateTimeFormat("id-ID", {
     dateStyle: "long",
     timeZone: "Asia/Jakarta",
-  }).format(date);
+  }).format(value);
 }
 
 /**
@@ -91,7 +93,7 @@ export class EmailService {
     to: string;
     appName: string;
     licenseKey: string;
-    expiresAt: Date;
+    expiresAt: Date | string;
     customerName?: string;
     deliveryDetails?: {
       fileDownload?: { title?: string; fileUrl?: string; fileName?: string };

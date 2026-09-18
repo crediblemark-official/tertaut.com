@@ -72,6 +72,74 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
     }
   });
 
+  it("P4/P5: should persist auto-provisioned customer API key and verify it over HTTP", async () => {
+    const app = await db.query.apps.findFirst();
+    if (!app) return;
+
+    const originalDelivery = app.deliveryConfig;
+    await db
+      .update(apps)
+      .set({
+        deliveryConfig: {
+          licenseKey: { enabled: true, expiresInDays: 30, maxSeats: 1 },
+          apiAccess: {
+            enabled: true,
+            endpointUrl: "https://api.example.com/v1",
+            instruction: "Authorization: Bearer <API_KEY>",
+          },
+        },
+      })
+      .where(eq(apps.id, app.id));
+
+    const txId = `tx_apikey_${Date.now()}`;
+    const extId = `tt_apikey_${Date.now()}`;
+
+    await db.insert(transactions).values({
+      id: txId,
+      appId: app.id,
+      builderId: app.builderId,
+      xenditInvoiceId: `inv_${txId}`,
+      xenditExternalId: extId,
+      customerEmail: "apikey_buyer@tertaut.com",
+      grossAmount: 50000,
+      platformFee: 2500,
+      netAmount: 47500,
+      paymentStatus: "PENDING",
+      disbursementStatus: "PENDING",
+    });
+
+    try {
+      const result: any = await handleXenditInvoiceWebhook({
+        headers: { "x-callback-token": config.xendit.webhookToken || "" },
+        body: { id: `inv_${txId}`, external_id: extId, status: "PAID", payment_method: "QRIS" },
+        set: {},
+      });
+
+      expect(result.status).toBe("success");
+      expect(typeof result.apiKey).toBe("string");
+      expect(result.apiKey.startsWith("tt_cust_")).toBe(true);
+
+      const lic = await db.query.licenses.findFirst({ where: eq(licenses.transactionId, txId) });
+      expect(lic?.apiKey).toBe(result.apiKey);
+
+      const verifyRes = await fetch("http://localhost:3000/api/v1/licensing/api-key/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: result.apiKey }),
+      });
+      expect(verifyRes.status).toBe(200);
+      const verifyBody: any = await verifyRes.json();
+      expect(verifyBody.valid).toBe(true);
+      expect(verifyBody.appId).toBe(app.id);
+    } finally {
+      const lic = await db.query.licenses.findFirst({ where: eq(licenses.transactionId, txId) });
+      if (lic) await db.delete(creditLedger).where(eq(creditLedger.licenseId, lic.id));
+      await db.delete(licenses).where(eq(licenses.transactionId, txId));
+      await db.delete(transactions).where(eq(transactions.id, txId));
+      await db.update(apps).set({ deliveryConfig: originalDelivery }).where(eq(apps.id, app.id));
+    }
+  });
+
   it("should debit atomically (no negative balance) and be idempotent per reference", async () => {
     const app = await db.query.apps.findFirst();
     if (!app) return;
@@ -223,6 +291,18 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
     expect(trialLic).toBeDefined();
     expect(trialLic?.status).toBe("ACTIVE");
     const oldExpiresAt = new Date(trialLic!.expiresAt!).getTime();
+
+    // 1b. Trial kedua dengan email & produk sama harus ditolak (anti-abuse).
+    const dupTrialRes = await fetch("http://localhost:3000/api/v1/checkout/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        appId: app.id,
+        customerEmail: trialEmail,
+        startTrial: true,
+      }),
+    });
+    expect(dupTrialRes.status).toBe(409);
 
     // 2. Renew license
     const renewRes = await fetch("http://localhost:3000/api/v1/licensing/renew", {

@@ -106,6 +106,7 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         maxSeats,
         expiresAt,
         offlineJwtGraceToken: offlineToken,
+        apiKey: generatedApiKey,
       });
 
       // Tambahkan kredit lisensi (jika paket membawa grantCredits) ke ledger.

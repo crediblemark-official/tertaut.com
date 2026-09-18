@@ -27,6 +27,8 @@ const PUBLIC_PREFIXES = [
   "/api/v1/licensing/activate",
   "/api/v1/licensing/deactivate",
   "/api/v1/licensing/credits/",
+  "/api/v1/licensing/api-key",
+  "/api/v1/license/api-key",
   "/api/v1/metering/events",
   "/api/v1/metering/usage",
 ];

@@ -24,12 +24,14 @@ export const licenses = pgTable("licenses", {
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   lastValidatedAt: timestamp("last_validated_at", { withTimezone: true }),
   offlineJwtGraceToken: text("offline_jwt_grace_token"), // Offline 30 days fallback token
+  apiKey: text("api_key"), // Kunci API pelanggan (auto-provisioning apiAccess)
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("idx_licenses_app_id").on(table.appId),
   // Satu transaksi hanya boleh melahirkan satu lisensi (cegah double-issue).
   unique("unique_licenses_transaction_id").on(table.transactionId),
+  unique("unique_licenses_api_key").on(table.apiKey),
   index("idx_licenses_customer_email").on(table.customerEmail),
   index("idx_licenses_status").on(table.status),
 ]);
