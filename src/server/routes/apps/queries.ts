@@ -4,10 +4,49 @@ import { eq, desc, count, sql, and, inArray } from "drizzle-orm";
 import { config as appConfig } from "../../config";
 import { resolveCurrentBuilder, seedSandboxBuilderIfNeeded } from "./builder";
 
+interface RequestHeadersContext {
+  request: { headers: Headers };
+  set: { status?: number | string };
+}
+
+interface ModeQueryContext {
+  query: { mode?: "sandbox" | "live" };
+  request: { headers: Headers };
+}
+
+interface SlugParamContext {
+  params: { slug: string };
+  set: { status?: number | string };
+}
+
+/**
+ * Profil builder saat ini (sinyal dashboard) — termasuk secret API key untuk S2S
+ */
+export async function handleGetBuilderMyself({ request: { headers }, set }: RequestHeadersContext) {
+  const { builder, isAdmin } = await resolveCurrentBuilder(headers);
+  if (!builder && !isAdmin) {
+    set.status = 401;
+    return { error: "Sesi tidak ditemukan." };
+  }
+  if (!builder) {
+    set.status = 404;
+    return { error: "Profil builder tidak ditemukan." };
+  }
+  return {
+    success: true,
+    builder: {
+      id: builder.id,
+      email: builder.email,
+      name: builder.name,
+      secretApiKey: builder.secretApiKey || "",
+    },
+  };
+}
+
 /**
  * Ambil daftar aplikasi (scoped ke builder pemilik kecuali admin)
  */
-export async function handleListApps({ query, request: { headers } }: any) {
+export async function handleListApps({ query, request: { headers } }: ModeQueryContext) {
   const { builder, isAdmin } = await resolveCurrentBuilder(headers);
 
   // Auto-seed builder & sample app HANYA di mode sandbox (development)
@@ -34,7 +73,7 @@ export async function handleListApps({ query, request: { headers } }: any) {
 /**
  * Ambil ringkasan KPI Dashboard (GMV, Lisensi Aktif, Validasi Konversi)
  */
-export async function handleStatsOverview({ query, request: { headers } }: any) {
+export async function handleStatsOverview({ query, request: { headers } }: ModeQueryContext) {
   const emptyStats = {
     totalGMV: 0,
     netEarnings: 0,
@@ -100,7 +139,7 @@ export async function handleStatsOverview({ query, request: { headers } }: any) 
 /**
  * Ambil KPI ringkasan Katalog Produk riil dari DB (Active Products, Sales 30d, Subscriptions, Customers 30d)
  */
-export async function handleStatsCatalog({ query, request: { headers } }: any) {
+export async function handleStatsCatalog({ query, request: { headers } }: ModeQueryContext) {
   const emptyStats = {
     activeProducts: 0,
     archivedProducts: 0,
@@ -173,7 +212,7 @@ export async function handleStatsCatalog({ query, request: { headers } }: any) {
 /**
  * Cek ketersediaan slug unik secara real-time (FR-1.2)
  */
-export async function handleCheckSlug({ params: { slug } }: any) {
+export async function handleCheckSlug({ params: { slug } }: { params: { slug: string } }) {
   const existing = await db.query.apps.findFirst({
     where: eq(apps.slug, slug),
   });
@@ -183,7 +222,7 @@ export async function handleCheckSlug({ params: { slug } }: any) {
 /**
  * Ambil detail publik aplikasi berdasarkan slug (URL /pay/:slug)
  */
-export async function handleGetBySlug({ params: { slug }, set }: any) {
+export async function handleGetBySlug({ params: { slug }, set }: SlugParamContext) {
   const app = await db.query.apps.findFirst({
     where: eq(apps.slug, slug),
   });

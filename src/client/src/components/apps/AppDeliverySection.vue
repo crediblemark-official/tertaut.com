@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { KeyRound, Download, FileText, Zap, ChevronDown, ChevronUp } from 'lucide-vue-next'
+import { KeyRound, Download, FileText, Zap, Wifi } from 'lucide-vue-next'
 import type { DeliveryConfig } from '../../types/app'
 
 const props = defineProps<{
@@ -15,6 +15,10 @@ const emit = defineEmits<{
 const licenseEnabled = ref(props.modelValue.licenseKey?.enabled ?? true)
 const maxSeats = ref(props.modelValue.licenseKey?.maxSeats ?? 3)
 const expiresInDays = ref(props.modelValue.licenseKey?.expiresInDays ?? 365)
+const offlineGraceDays = ref(props.modelValue.licenseKey?.offlineGraceDays ?? 30)
+const floatingEnabled = ref(props.modelValue.licenseKey?.floating?.enabled ?? false)
+const leaseTtlSeconds = ref(props.modelValue.licenseKey?.floating?.leaseTtlSeconds ?? 300)
+const heartbeatIntervalSeconds = ref(props.modelValue.licenseKey?.floating?.heartbeatIntervalSeconds ?? 60)
 
 const fileEnabled = ref(props.modelValue.fileDownload?.enabled ?? false)
 const fileTitle = ref(props.modelValue.fileDownload?.title ?? 'Software Package')
@@ -36,6 +40,14 @@ function updateConfig() {
       description: 'Lisensi Universal Tertaut',
       maxSeats: Number(maxSeats.value) || 3,
       expiresInDays: Number(expiresInDays.value) || 365,
+      offlineGraceDays: Number(offlineGraceDays.value) || 30,
+      floating: floatingEnabled.value
+        ? {
+            enabled: true,
+            leaseTtlSeconds: Number(leaseTtlSeconds.value) || 300,
+            heartbeatIntervalSeconds: Number(heartbeatIntervalSeconds.value) || 60,
+          }
+        : undefined,
     },
     fileDownload: fileEnabled.value
       ? {
@@ -63,7 +75,7 @@ function updateConfig() {
   emit('update:modelValue', next)
 }
 
-watch([licenseEnabled, maxSeats, expiresInDays, fileEnabled, fileTitle, fileUrl, fileName, noteEnabled, noteTitle, noteContent, apiEnabled, apiEndpoint, apiInstruction], () => {
+watch([licenseEnabled, maxSeats, expiresInDays, offlineGraceDays, floatingEnabled, leaseTtlSeconds, heartbeatIntervalSeconds, fileEnabled, fileTitle, fileUrl, fileName, noteEnabled, noteTitle, noteContent, apiEnabled, apiEndpoint, apiInstruction], () => {
   updateConfig()
 })
 </script>
@@ -100,26 +112,81 @@ watch([licenseEnabled, maxSeats, expiresInDays, fileEnabled, fileTitle, fileUrl,
           </label>
         </div>
 
-        <div v-if="licenseEnabled" class="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-[#111111]/10">
-          <div>
-            <label class="block text-[10px] font-bold text-[#111111]/70 mb-1">Batas Perangkat (Seats)</label>
-            <input
-              type="number"
-              min="1"
-              max="100"
-              v-model="maxSeats"
-              class="w-full px-2.5 py-1.5 rounded-lg bg-white border border-[#111111]/15 text-xs font-mono font-bold text-[#111111] focus:outline-none focus:border-[#D4AF37]"
-            />
+        <div v-if="licenseEnabled" class="mt-3 pt-3 border-t border-[#111111]/10 space-y-3">
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="block text-[10px] font-bold text-[#111111]/70 mb-1">Batas Perangkat (Seats)</label>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                v-model="maxSeats"
+                class="w-full px-2.5 py-1.5 rounded-lg bg-white border border-[#111111]/15 text-xs font-mono font-bold text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+              />
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-[#111111]/70 mb-1">Masa Berlaku (Hari)</label>
+              <input
+                type="number"
+                min="1"
+                max="3650"
+                v-model="expiresInDays"
+                class="w-full px-2.5 py-1.5 rounded-lg bg-white border border-[#111111]/15 text-xs font-mono font-bold text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+              />
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-[#111111]/70 mb-1">Offline Grace (Hari)</label>
+              <input
+                type="number"
+                min="1"
+                max="90"
+                v-model="offlineGraceDays"
+                title="Masa berlaku token offline (off-book) antar validasi online"
+                class="w-full px-2.5 py-1.5 rounded-lg bg-white border border-[#111111]/15 text-xs font-mono font-bold text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+              />
+            </div>
           </div>
-          <div>
-            <label class="block text-[10px] font-bold text-[#111111]/70 mb-1">Masa Berlaku (Hari)</label>
-            <input
-              type="number"
-              min="1"
-              max="3650"
-              v-model="expiresInDays"
-              class="w-full px-2.5 py-1.5 rounded-lg bg-white border border-[#111111]/15 text-xs font-mono font-bold text-[#111111] focus:outline-none focus:border-[#D4AF37]"
-            />
+
+          <!-- Floating License -->
+          <div class="rounded-lg border p-2.5" :class="floatingEnabled ? 'bg-[#D4AF37]/5 border-[#D4AF37]/30' : 'bg-[#111111]/[0.02] border-[#111111]/10'">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-md bg-[#D4AF37]/15 flex items-center justify-center">
+                  <Wifi class="w-3 h-3 text-[#7a641a]" />
+                </div>
+                <div>
+                  <div class="text-[11px] font-bold text-[#111111]">Lisensi Floating (Lease &amp; Heartbeat)</div>
+                  <div class="text-[10px] text-[#111111]/60">Seat rolling: klien menyewa seat via lease TTL dan memperpanjang dengan heartbeat berkala</div>
+                </div>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                <input type="checkbox" v-model="floatingEnabled" class="sr-only peer" />
+                <div class="w-8 h-4.5 bg-slate-200 rounded-full peer peer-checked:bg-[#D4AF37] transition-colors after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white peer-checked:after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:after:translate-x-full shadow-inner"></div>
+              </label>
+            </div>
+
+            <div v-if="floatingEnabled" class="grid grid-cols-2 gap-3 mt-2.5 pt-2.5 border-t border-[#D4AF37]/20">
+              <div>
+                <label class="block text-[10px] font-bold text-[#111111]/70 mb-1">Lease TTL (Detik)</label>
+                <input
+                  type="number"
+                  min="30"
+                  max="86400"
+                  v-model="leaseTtlSeconds"
+                  class="w-full px-2.5 py-1.5 rounded-lg bg-white border border-[#111111]/15 text-xs font-mono font-bold text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+                />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-[#111111]/70 mb-1">Interval Heartbeat (Detik)</label>
+                <input
+                  type="number"
+                  min="10"
+                  max="3600"
+                  v-model="heartbeatIntervalSeconds"
+                  class="w-full px-2.5 py-1.5 rounded-lg bg-white border border-[#111111]/15 text-xs font-mono font-bold text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -26,10 +26,22 @@ export default defineConfig({
         target: "http://localhost:3000",
         changeOrigin: true,
       },
+      "/docs": {
+        target: "http://localhost:5174",
+        changeOrigin: true,
+      },
     },
   },
   build: {
     outDir: resolve(__dirname, "../../dist"),
     emptyOutDir: true,
+    minify: "terser",
+    sourcemap: false,
+    reportCompressedSize: false,
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
   },
 });

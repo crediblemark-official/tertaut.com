@@ -40,7 +40,7 @@ const navItems = computed<NavItem[]>(() => {
     { name: 'Kupon', key: '/coupons', path: envPath(e, '/coupons'), icon: Ticket },
     { name: 'Lisensi', key: '/licensing', path: envPath(e, '/licensing'), icon: KeyRound },
     { name: 'AI Shield', key: '/ai-proxy', path: envPath(e, '/ai-proxy'), icon: Bot },
-    { name: 'Docs', key: '/docs', path: envPath(e, '/docs'), icon: BookOpen },
+    { name: 'Dashboard Docs', key: '/docs', path: envPath(e, '/docs'), icon: BookOpen },
   ]
 })
 
@@ -101,6 +101,10 @@ const emit = defineEmits<{ 'switch-env': [target: DashboardEnv] }>()
         <div class="flex items-center gap-2"><ShieldAlert class="w-3.5 h-3.5 text-[#D4AF37]" /><span>Admin Panel</span></div>
         <ChevronRight class="w-3 h-3 text-[#111111]/40" />
       </router-link>
+      <a href="/docs/" target="_blank" class="flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-[#111111]/5 text-xs font-medium text-[#111111]/70 transition">
+        <div class="flex items-center gap-2"><BookOpen class="w-3.5 h-3.5 text-[#D4AF37]" /><span>Developer Docs</span></div>
+        <ExternalLink class="w-3 h-3 text-[#111111]/40" />
+      </a>
       <a href="/swagger" target="_blank" class="flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-[#111111]/5 text-xs font-medium text-[#111111]/70 transition">
         <div class="flex items-center gap-2"><Code2 class="w-3.5 h-3.5 text-[#D4AF37]" /><span>API Docs</span></div>
         <ExternalLink class="w-3 h-3 text-[#111111]/40" />

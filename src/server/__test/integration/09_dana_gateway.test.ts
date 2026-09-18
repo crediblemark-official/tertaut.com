@@ -70,7 +70,7 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         appId: existingApp.id,
-        amount: 80000,
+        amount: existingApp.targetPrice && existingApp.targetPrice > 0 ? existingApp.targetPrice : 80000,
         customerEmail: email,
         paymentGateway: "dana",
       }),
@@ -90,7 +90,7 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
     });
     expect(tx).toBeDefined();
     expect(tx?.paymentProvider).toBe("dana");
-    expect(tx?.grossAmount).toBe(80000);
+    expect(tx?.grossAmount).toBe(existingApp.targetPrice && existingApp.targetPrice > 0 ? existingApp.targetPrice : 80000);
 
     // Clean up
     await db.delete(transactions).where(eq(transactions.id, body.transactionId));

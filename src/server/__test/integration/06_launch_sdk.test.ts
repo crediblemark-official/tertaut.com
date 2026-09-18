@@ -83,8 +83,9 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
   it("FR-3.1 & FR-3.2: should verify @tertaut/sdk exports unified multi-module interface and bundle size is < 15 KB", () => {
     // 1. Inisialisasi SDK
     const sdk = new Tertaut({
+      apiKey: "tt_test_launch",
       appId: "app_sdk_test_123",
-      environment: "sandbox",
+      baseUrl: "http://localhost:3000",
     });
 
     // Verifikasi seluruh modul tertaut.com terintegrasi (FR-3.2)

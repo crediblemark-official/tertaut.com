@@ -10,6 +10,25 @@ export default {
     resolve(__dirname, "index.html"),
     resolve(__dirname, "src/**/*.{vue,js,ts,jsx,tsx}"),
   ],
+  corePlugins: {
+    preflight: false,
+    float: false,
+    opacity: false,
+    visibility: false,
+    zIndex: false,
+    inset: false,
+    aspectRatio: false,
+    order: false,
+    flexBasis: false,
+    placeContent: false,
+    placeItems: false,
+    placeSelf: false,
+    alignContent: false,
+    justifyItems: false,
+    justifySelf: false,
+    gap: false,
+    all: false,
+  },
   theme: {
     extend: {
       colors: {

@@ -23,12 +23,13 @@ export async function handleAiChat({
   body,
   set,
 }: {
-  headers: Record<string, string | undefined>;
+  headers?: Record<string, string | undefined>;
   body: any;
   set: any;
 }) {
   const startTime = Date.now();
-  const authHeader = headers["authorization"] || headers["Authorization"];
+  const safeHeaders = headers || {};
+  const authHeader = safeHeaders["authorization"] || safeHeaders["Authorization"];
 
   // 1. Verifikasi Lisensi JWT / Entitlement (FR-2.1 & FR-2.2)
   const validation = await AiGatewayService.validateLicense(

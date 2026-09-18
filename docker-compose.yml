@@ -4,26 +4,47 @@ services:
     container_name: tertaut_postgres
     restart: always
     environment:
-      # Wajib dari environment (tanpa default hardcoded) — lihat .env.example.
       POSTGRES_USER: ${DB_USER:?DB_USER wajib diisi}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib diisi}
       POSTGRES_DB: ${DB_NAME:?DB_NAME wajib diisi}
+      # Optimasi memori PostgreSQL untuk VPS kecil (512MB-1GB RAM)
+      shared_buffers: 128MB
+      effective_cache_size: 384MB
+      work_mem: 64kB
+      maintenance_work_mem: 64MB
+      # WAL & checkpoint
+      max_wal_size: 256MB
+      min_wal_size: 64MB
+      checkpoint_completion_target: 0.9
+      # Connection
+      max_connections: 30
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:?DB_USER wajib diisi} -d ${DB_NAME:?DB_NAME wajib diisi}"]
-      interval: 5s
+      interval: 15s
       timeout: 5s
-      retries: 5
+      retries: 3
+    # Prioritas rendah agar proses lain tidak terkikis
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+          cpus: "0.1"
+    # Jangan restart jika CPU terlalu tinggi
+    restart: unless-stopped
 
   app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: tertaut_app
-    restart: always
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -32,13 +53,11 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://${DB_USER:?DB_USER wajib diisi}:${DB_PASSWORD:?DB_PASSWORD wajib diisi}@postgres:5432/${DB_NAME:?DB_NAME wajib diisi}
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
-      # Wajib diisi di production (lihat .env.example) — nilai default akan ditolak config.
       JWT_SECRET: ${JWT_SECRET:-}
       VAULT_ENCRYPTION_KEY: ${VAULT_ENCRYPTION_KEY:-}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
       LICENSE_SIGNING_PRIVATE_KEY: ${LICENSE_SIGNING_PRIVATE_KEY:-}
       HWID_SALT: ${HWID_SALT:-}
-      # Payment gateway (xendit | dana)
       PAYMENT_GATEWAY: ${PAYMENT_GATEWAY:-xendit}
       XENDIT_SECRET_KEY: ${XENDIT_SECRET_KEY:-}
       XENDIT_PUBLIC_KEY: ${XENDIT_PUBLIC_KEY:-}
@@ -49,8 +68,28 @@ services:
       DANA_BASE_URL: ${DANA_BASE_URL:-https://api-sandbox.dana.id}
       DANA_PUBLIC_KEY: ${DANA_PUBLIC_KEY:-}
       DANA_PRIVATE_KEY: ${DANA_PRIVATE_KEY:-}
+      # Bun runtime optimasi
+      BUN_LOG_SCOPE: "*"
+      BUN_JSX_RUNTIME: "haste"
     ports:
       - "${APP_PORT:-3000}:3000"
+    # Prioritas rendah untuk proses Bun
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${PORT}/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    # Jangan restart berlebihan
+    restart: unless-stopped
 
 volumes:
   postgres_data:

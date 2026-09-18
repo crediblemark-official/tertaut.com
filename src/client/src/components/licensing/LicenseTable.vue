@@ -5,7 +5,8 @@ import {
   Search,
   Copy,
   Monitor,
-  Plus
+  Plus,
+  Activity
 } from 'lucide-vue-next'
 import type { LicenseItem } from '../../types/licensing'
 
@@ -21,6 +22,7 @@ const emit = defineEmits<{
   (e: 'unbindHardware', lic: LicenseItem): void
   (e: 'deactivateSeat', key: string, hwid: string): void
   (e: 'revoke', lic: LicenseItem): void
+  (e: 'detail', lic: LicenseItem): void
 }>()
 
 const searchQuery = ref('')
@@ -198,6 +200,14 @@ const filteredLicenses = computed(() => {
               </span>
             </td>
             <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right space-x-1.5">
+              <button
+                @click="emit('detail', lic)"
+                title="Detail Seats & Audit Trail"
+                class="px-2 py-0.5 rounded bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 text-[10px] font-bold text-[#7a641a] transition cursor-pointer inline-flex items-center gap-1"
+              >
+                <Activity class="w-2.5 h-2.5" />
+                Detail
+              </button>
               <button
                 v-if="lic.hardwareId || (lic.seatsUsed && lic.seatsUsed > 0)"
                 @click="emit('unbindHardware', lic)"

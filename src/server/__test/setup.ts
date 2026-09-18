@@ -21,21 +21,25 @@ export async function ensureAdminAuth(): Promise<string> {
   return authCookie;
 }
 
+import { app } from "../index";
+
 export function setupTestAuth() {
   beforeAll(async () => {
     await ensureAdminAuth();
   });
 
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = ((input: any, init?: any) => {
+  globalThis.fetch = (async (input: any, init?: any) => {
     const url = typeof input === "string" ? input : input?.url || "";
-    if (url.includes("http://localhost:3000") && authCookie) {
+    if (url.includes("http://localhost:3000")) {
       init = init || {};
-      const headers = new Headers(init.headers || {});
-      if (!headers.has("cookie")) {
+      const headers = new Headers(init.headers || (input instanceof Request ? input.headers : {}));
+      if (authCookie && !headers.has("cookie")) {
         headers.set("cookie", authCookie);
       }
       init.headers = headers;
+      const req = input instanceof Request ? new Request(input, init) : new Request(url, init);
+      return app.handle(req);
     }
     return originalFetch(input, init);
   }) as typeof globalThis.fetch;

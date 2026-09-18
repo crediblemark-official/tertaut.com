@@ -3,6 +3,8 @@ import { licenses, licenseActivations } from "../../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { LicenseService } from "../../services/license";
 import { CreditService } from "../../services/credits";
+import { AuditService } from "../../services/audit";
+import { WebhookService } from "../../services/webhooks";
 import { enforceRateLimit } from "../../services/rateLimiter";
 
 export type LicenseAuthResult =
@@ -112,6 +114,27 @@ export async function handleConsumeCredits({ body, set, request }: any) {
   );
 
   if (!result.ok) {
+    if (result.reason === "INSUFFICIENT_CREDITS") {
+      const ipAddress =
+        request?.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() ||
+        request?.headers?.get?.("x-real-ip") ||
+        null;
+      await WebhookService.emit("credits.insufficient", {
+        license: auth.license,
+        actorType: "CLIENT",
+        actorId: hwid,
+        ipAddress,
+        payload: { amount, requestedBy: reason || null, balance: result.balance },
+      });
+      await AuditService.record("credits.insufficient", {
+        licenseId: auth.license.id,
+        licenseKey: auth.license.licenseKey,
+        appId: auth.license.appId,
+        actorType: "CLIENT",
+        actorId: hwid,
+        ipAddress,
+      }, { amount, balance: result.balance, reference });
+    }
     set.status = result.reason === "INSUFFICIENT_CREDITS" ? 402 : 404;
     return { success: false, reason: result.reason, balance: result.balance };
   }

@@ -320,7 +320,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       expect(jwks.keys[0].crv).toBe("Ed25519");
 
       // 3. Verifikasi lokal SDK (Web Crypto Ed25519) tanpa server
-      const localVerify = await new Tertaut({ appId: app.id, environment: "sandbox" }).licensing.verifyOfflineToken(token);
+      const localVerify = await new Tertaut({ apiKey: "tt_test_int04", appId: app.id, baseUrl: "http://localhost:3000" }).licensing.verifyOfflineToken(token);
       expect(localVerify.valid).toBe(true);
       expect(localVerify.claims?.lic).toBe(testKey);
 

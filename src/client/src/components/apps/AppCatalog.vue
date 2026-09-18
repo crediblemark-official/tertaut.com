@@ -13,6 +13,7 @@ import {
   Lock,
   Zap,
   Sparkles,
+  Wifi,
 } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -187,6 +188,14 @@ function getPricingBadge(app: AppItem): string {
                 >
                   <Key class="w-2.5 h-2.5" />
                   <span>Lisensi</span>
+                </span>
+                <span
+                  v-if="app.deliveryConfig?.licenseKey?.floating?.enabled"
+                  title="Lisensi Floating: lease + heartbeat berkala"
+                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#0F4C3A]/10 text-[#0F4C3A] border border-[#0F4C3A]/25 text-[10px] font-semibold"
+                >
+                  <Wifi class="w-2.5 h-2.5" />
+                  <span>Floating</span>
                 </span>
                 <span
                   v-if="app.deliveryConfig?.fileDownload?.enabled"

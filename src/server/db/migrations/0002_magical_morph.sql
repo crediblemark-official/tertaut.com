@@ -1,0 +1,2 @@
+ALTER TABLE "builders" ADD COLUMN "secret_api_key" text DEFAULT '' NOT NULL;
+UPDATE "builders" SET "secret_api_key" = 'tt_secret_' || md5(random()::text || "id") WHERE "secret_api_key" = '';

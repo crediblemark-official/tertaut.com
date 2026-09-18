@@ -5,6 +5,7 @@ import { AiGatewayService } from "../../services/aiGateway";
 import { db } from "../../db";
 import { licenses, aiAppConfigs, aiUsageLogs, aiVaultCredentials } from "../../db/schema";
 import { eq, inArray } from "drizzle-orm";
+import { app } from "../../index";
 
 setupTestAuth();
 
@@ -308,5 +309,27 @@ describe("PRD Module 4: AI API Proxy Shield & Cost Guardrails", () => {
       await db.delete(aiUsageLogs).where(eq(aiUsageLogs.licenseId, testLicSseId));
       await db.delete(licenses).where(eq(licenses.id, testLicSseId));
     }
+  });
+
+  it("should allow public access to /api/v1/ai/chat and /quota-status without Better Auth session cookie", async () => {
+    // Request raw tanpa cookie Better Auth
+    const chatReq = new Request("http://localhost:3000/api/v1/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ licenseKey: "TT-NONEXISTENT", prompt: "halo" }),
+    });
+    const chatRes = await app.handle(chatReq);
+    // Tidak boleh 401 Unauthorized dari apiV1Routes onBeforeHandle, melainkan dievaluasi oleh handler AI (403 INVALID_LICENSE)
+    expect(chatRes.status).toBe(403);
+    const chatData: any = await chatRes.json();
+    expect(chatData.error).toBe("INVALID_LICENSE");
+
+    const quotaReq = new Request("http://localhost:3000/api/v1/ai/quota-status?licenseKey=TT-NONEXISTENT", {
+      method: "GET",
+    });
+    const quotaRes = await app.handle(quotaReq);
+    expect(quotaRes.status).toBe(403);
+    const quotaData: any = await quotaRes.json();
+    expect(quotaData.error).toBe("INVALID_LICENSE");
   });
 });

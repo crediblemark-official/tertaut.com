@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { authenticate } from "../../middleware/auth";
-import { handleListApps, handleStatsOverview, handleStatsCatalog, handleCheckSlug, handleGetBySlug } from "./queries";
-import { handleCreateApp, handleUpdateApp, handleDeleteApp, handleUpdateMode } from "./mutations";
+import { handleListApps, handleStatsOverview, handleStatsCatalog, handleCheckSlug, handleGetBySlug, handleGetBuilderMyself } from "./queries";
+import { handleCreateApp, handleUpdateApp, handleDeleteApp, handleUpdateMode, handleRotateApiKey, handleRotateBuilderSecret } from "./mutations";
 import { handleDisburse } from "./disburse";
 
 const modeQuery = t.Object({
@@ -81,11 +81,19 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
       description: "Aggregates real-time active products, sales (30d), active subscriptions, and unique customers (30d)",
     },
   })
-  /**
-   * Cek ketersediaan slug unik secara real-time (FR-1.2)
-   */
   .get("/check-slug/:slug", handleCheckSlug, {
-    params: t.Object({ slug: t.String() }),
+    params: t.Object({
+      slug: t.String({ description: "Vanity URL slug yang ingin dicek ketersediaannya" }),
+    }),
+    response: {
+      200: t.Object(
+        {
+          slug: t.String({ description: "Slug yang diperiksa" }),
+          available: t.Boolean({ description: "True jika slug masih tersedia, false jika sudah digunakan" }),
+        },
+        { description: "Hasil pemeriksaan ketersediaan slug unik" }
+      ),
+    },
     detail: {
       tags: ["Apps"],
       summary: "Check Slug Availability",
@@ -133,6 +141,37 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
       tags: ["Apps"],
       summary: "Get Public App by Slug",
       description: "Retrieves public metadata for tertaut.com/pay/:slug",
+    },
+  })
+  /**
+   * Profil builder saat ini (termasuk secret API key untuk S2S)
+   */
+  .get("/me", handleGetBuilderMyself, {
+    detail: {
+      tags: ["Apps"],
+      summary: "Builder profile (self)",
+      description: "Returns the current builder's profile including the server-to-server secret API key",
+    },
+  })
+  /**
+   * Rotasi secret API key builder (server-to-server) dari sesi dashboard
+   */
+  .post("/rotate-secret-api-key", handleRotateBuilderSecret, {
+    detail: {
+      tags: ["Apps"],
+      summary: "Rotate Builder Secret API Key",
+      description: "Regenerates the builder's server-to-server secret API key (tt_secret_...)",
+    },
+  })
+  /**
+   * Rotasi publishable API key aplikasi (pola publishable-key)
+   */
+  .post("/:appId/rotate-api-key", handleRotateApiKey, {
+    params: t.Object({ appId: t.String() }),
+    detail: {
+      tags: ["Apps"],
+      summary: "Rotate App API Key",
+      description: "Regenerates the publishable API key for an app (tt_live_... / tt_test_...)",
     },
   })
   /**

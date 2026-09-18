@@ -1,11 +1,46 @@
 import { db } from "../../db";
-import { licenses, licenseActivations } from "../../db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { licenses, licenseActivations, licenseLeases, revokedTokens, apps } from "../../db/schema";
+import { eq, and, inArray, sql, desc } from "drizzle-orm";
 import { LicenseService } from "../../services/license";
 import { LicenseTokenService } from "../../services/licenseToken";
 import { CreditService } from "../../services/credits";
+import {
+  LicenseLeaseService,
+  resolveFloatingConfig,
+  DEFAULT_LEASE_TTL_SECONDS,
+} from "../../services/licenseLease";
+import { AuditService } from "../../services/audit";
+import { WebhookService } from "../../services/webhooks";
 import { enforceRateLimit } from "../../services/rateLimiter";
 import { randomBytes } from "crypto";
+
+function parseSemver(v: string): number[] {
+  return v
+    .replace(/^v/i, "")
+    .split(".")
+    .map((part) => parseInt(part, 10) || 0);
+}
+
+export function isVersionOlder(current: string, min: string): boolean {
+  const c = parseSemver(current);
+  const m = parseSemver(min);
+  const len = Math.max(c.length, m.length);
+  for (let i = 0; i < len; i++) {
+    const cv = c[i] || 0;
+    const mv = m[i] || 0;
+    if (cv < mv) return true;
+    if (cv > mv) return false;
+  }
+  return false;
+}
+
+function clientIp(request?: any): string | null {
+  return (
+    request?.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request?.headers?.get?.("x-real-ip") ||
+    null
+  );
+}
 
 export async function handleActivateLicense(ctx: any) {
   const { body, set, request } = ctx;
@@ -50,10 +85,7 @@ export async function handleActivateLicense(ctx: any) {
   const hwidHash = LicenseService.hashHardwareIdSecure(hwid);
   const lookupHashes = LicenseService.hwidLookupHashes(hwid);
   const maxSeats = lic.maxSeats || 3;
-  const ipAddress =
-    request?.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request?.headers?.get?.("x-real-ip") ||
-    null;
+  const ipAddress = clientIp(request);
 
   try {
     const outcome = await db.transaction(async (trx) => {
@@ -67,6 +99,12 @@ export async function handleActivateLicense(ctx: any) {
       if (!locked || locked.status !== "ACTIVE") {
         return { error: `License is ${locked?.status || "UNKNOWN"}` };
       }
+
+      const appRow = await trx.query.apps.findFirst({ where: eq(apps.id, lic.appId) });
+      const floating = resolveFloatingConfig(appRow);
+      const leaseTtl = floating.enabled ? floating.leaseTtlSeconds : DEFAULT_LEASE_TTL_SECONDS;
+
+      let leaseKey: string | null = null;
 
       // Cek apakah perangkat dengan HWID ini sudah teraktivasi sebelumnya
       const existingActivation = await trx.query.licenseActivations.findFirst({
@@ -97,46 +135,110 @@ export async function handleActivateLicense(ctx: any) {
             .set({ hardwareId: hwidHash, updatedAt: now })
             .where(eq(licenses.id, lic.id));
         }
-      } else {
-        const allActivations = await trx.query.licenseActivations.findMany({
-          where: eq(licenseActivations.licenseId, lic.id),
-        });
 
-        if (allActivations.length >= maxSeats) {
-          return {
-            error: `Device seats quota exceeded (${allActivations.length}/${maxSeats}). Please deactivate another device first.`,
-          };
+        // Floating: renew/create lease untuk device yang sudah dikenal.
+        if (floating.enabled) {
+          const { lease } = await LicenseLeaseService.acquire(lic.id, hwidHash, {
+            deviceName: deviceName || existingActivation.deviceName,
+            ipAddress,
+            ttlSeconds: leaseTtl,
+            executor: trx,
+          });
+          leaseKey = lease.leaseKey;
         }
+      } else {
+        if (floating.enabled) {
+          // Floating: kuota dihitung dari lease yang masih hidup (rolling seat).
+          const liveLeases = await LicenseLeaseService.countLive(lic.id, trx);
+          if (liveLeases >= maxSeats) {
+            return {
+              error: `Device seats quota exceeded (${liveLeases}/${maxSeats}). Please wait for another lease to expire or deactivate another device first.`,
+              seatFull: true,
+            };
+          }
 
-        await trx.insert(licenseActivations).values({
-          id: `act_${randomBytes(8).toString("hex")}`,
-          licenseId: lic.id,
-          hwidHash,
-          deviceName: deviceName || "Unknown Device",
-          ipAddress,
-          lastValidatedAt: now,
-          createdAt: now,
-        });
+          await trx.insert(licenseActivations).values({
+            id: `act_${randomBytes(8).toString("hex")}`,
+            licenseId: lic.id,
+            hwidHash,
+            deviceName: deviceName || "Unknown Device",
+            ipAddress,
+            lastValidatedAt: now,
+            createdAt: now,
+          });
 
-        if (!locked.hardwareId) {
-          await trx
-            .update(licenses)
-            .set({ hardwareId: hwidHash, updatedAt: now })
-            .where(eq(licenses.id, lic.id));
+          await LicenseLeaseService.acquire(lic.id, hwidHash, {
+            deviceName,
+            ipAddress,
+            ttlSeconds: leaseTtl,
+            executor: trx,
+          }).then(({ lease }) => {
+            leaseKey = lease.leaseKey;
+          });
+
+          if (!locked.hardwareId) {
+            await trx
+              .update(licenses)
+              .set({ hardwareId: hwidHash, updatedAt: now })
+              .where(eq(licenses.id, lic.id));
+          }
+        } else {
+          const allActivations = await trx.query.licenseActivations.findMany({
+            where: eq(licenseActivations.licenseId, lic.id),
+          });
+
+          if (allActivations.length >= maxSeats) {
+            return {
+              error: `Device seats quota exceeded (${allActivations.length}/${maxSeats}). Please deactivate another device first.`,
+              seatFull: true,
+            };
+          }
+
+          await trx.insert(licenseActivations).values({
+            id: `act_${randomBytes(8).toString("hex")}`,
+            licenseId: lic.id,
+            hwidHash,
+            deviceName: deviceName || "Unknown Device",
+            ipAddress,
+            lastValidatedAt: now,
+            createdAt: now,
+          });
+
+          if (!locked.hardwareId) {
+            await trx
+              .update(licenses)
+              .set({ hardwareId: hwidHash, updatedAt: now })
+              .where(eq(licenses.id, lic.id));
+          }
         }
       }
 
-      const activeSeats = await trx.query.licenseActivations.findMany({
-        where: eq(licenseActivations.licenseId, lic.id),
-      });
+      // Rotasi token offline (Fase 5): denylist jti lama bila ada, lalu terbitkan yang baru.
+      if (locked.offlineJwtGraceToken) {
+        const decoded = LicenseTokenService.verify(locked.offlineJwtGraceToken);
+        if (decoded.valid && decoded.claims) {
+          await trx
+            .insert(revokedTokens)
+            .values({
+              jti: decoded.claims.jti,
+              licenseId: lic.id,
+              licenseKey: lic.licenseKey,
+              reason: "ROTATED",
+              expiresAt: decoded.claims.exp ? new Date(decoded.claims.exp * 1000) : null,
+            })
+            .onConflictDoNothing();
+        }
+      }
 
-      // Hasilkan Signed License JWT Token (dengan 30 days offline grace period)
+      const offlineGraceDays = appRow?.deliveryConfig?.licenseKey?.offlineGraceDays;
       const licenseToken = LicenseService.createOfflineGraceToken(
         lic.licenseKey,
         lic.appId,
         hwidHash,
         lic.customerEmail,
-        maxSeats
+        maxSeats,
+        lic.features,
+        offlineGraceDays
       );
 
       await trx
@@ -148,13 +250,55 @@ export async function handleActivateLicense(ctx: any) {
         })
         .where(eq(licenses.id, lic.id));
 
-      return { success: true as const, licenseToken, seatsUsed: activeSeats.length };
+      const seatsUsed = floating.enabled
+        ? await LicenseLeaseService.countLive(lic.id, trx)
+        : (
+            await trx.query.licenseActivations.findMany({
+              where: eq(licenseActivations.licenseId, lic.id),
+            })
+          ).length;
+
+      return { success: true as const, licenseToken, seatsUsed, floating: floating.enabled, leaseKey };
     });
 
     if ("error" in outcome) {
+      if (outcome.seatFull) {
+        await WebhookService.emit("license.seat_full", {
+          license: lic,
+          actorType: "CLIENT",
+          actorId: hwid,
+          ipAddress,
+          payload: { maxSeats, deviceName },
+        });
+        await AuditService.record("license.seat_full", {
+          licenseId: lic.id,
+          licenseKey: lic.licenseKey,
+          appId: lic.appId,
+          actorType: "CLIENT",
+          actorId: hwid,
+          ipAddress,
+        }, { maxSeats, deviceName });
+      }
       set.status = 403;
       return { success: false, error: outcome.error };
     }
+
+    await AuditService.record("license.activated", {
+      licenseId: lic.id,
+      licenseKey: lic.licenseKey,
+      appId: lic.appId,
+      actorType: "CLIENT",
+      actorId: hwid,
+      ipAddress,
+    }, { deviceName, seatsUsed: outcome.seatsUsed });
+
+    await WebhookService.emit("license.activated", {
+      license: lic,
+      actorType: "CLIENT",
+      actorId: hwid,
+      ipAddress,
+      payload: { deviceName, seatsUsed: outcome.seatsUsed },
+    });
 
     return {
       success: true,
@@ -165,6 +309,10 @@ export async function handleActivateLicense(ctx: any) {
         expiresAt: lic.expiresAt ? lic.expiresAt.toISOString() : null,
         seatsUsed: outcome.seatsUsed,
         maxSeats,
+        floating: outcome.floating === true,
+        ...(outcome.leaseKey ? { leaseKey: outcome.leaseKey } : {}),
+        entitlements: lic.features || {},
+        licenseVersion: lic.licenseVersion || 1,
       },
     };
   } catch (err: any) {
@@ -173,6 +321,18 @@ export async function handleActivateLicense(ctx: any) {
       const activeSeats = await db.query.licenseActivations.findMany({
         where: eq(licenseActivations.licenseId, lic.id),
       });
+      const appRow = await db.query.apps.findFirst({ where: eq(apps.id, lic.appId) });
+      const floating = resolveFloatingConfig(appRow);
+      let leaseKey: string | null = null;
+      if (floating.enabled) {
+        const lease = await db.query.licenseLeases.findFirst({
+          where: and(
+            eq(licenseLeases.licenseId, lic.id),
+            inArray(licenseLeases.hwidHash, lookupHashes)
+          ),
+        });
+        leaseKey = lease?.leaseKey ?? null;
+      }
       return {
         success: true,
         message: "Device already activated (idempotent)",
@@ -182,6 +342,10 @@ export async function handleActivateLicense(ctx: any) {
           expiresAt: lic.expiresAt ? lic.expiresAt.toISOString() : null,
           seatsUsed: activeSeats.length,
           maxSeats,
+          floating: floating.enabled,
+          ...(leaseKey ? { leaseKey } : {}),
+          entitlements: lic.features || {},
+          licenseVersion: lic.licenseVersion || 1,
         },
       };
     }
@@ -190,7 +354,7 @@ export async function handleActivateLicense(ctx: any) {
 }
 
 export async function handleVerifyLicense({ body, set, request }: any) {
-  const { licenseKey, hwid } = body;
+  const { licenseKey, hwid, appVersion } = body;
 
   const rl = enforceRateLimit(request, "licensing:verify", 120, 60_000);
   if (!rl.allowed) {
@@ -221,6 +385,22 @@ export async function handleVerifyLicense({ body, set, request }: any) {
     return { valid: false, status: "EXPIRED", message: "License has expired" };
   }
 
+  // Enforce version floor (Fase 1: min_version)
+  if (lic.features && typeof lic.features.min_version === "string" && appVersion) {
+    if (isVersionOlder(appVersion, lic.features.min_version)) {
+      set.status = 403;
+      return {
+        valid: false,
+        status: "APP_VERSION_TOO_OLD",
+        reason: "APP_VERSION_TOO_OLD",
+        message: `Versi aplikasi (${appVersion}) terlalu lama. Minimal versi yang didukung adalah ${lic.features.min_version}.`,
+        minVersion: lic.features.min_version,
+        currentVersion: appVersion,
+        entitlements: lic.features || {},
+      };
+    }
+  }
+
   if (hwid) {
     const lookupHashes = LicenseService.hwidLookupHashes(hwid);
     const activation = await db.query.licenseActivations.findFirst({
@@ -237,6 +417,24 @@ export async function handleVerifyLicense({ body, set, request }: any) {
         status: "DEVICE_NOT_ACTIVATED",
         message: "Perangkat ini belum teraktivasi untuk lisensi ini. Silakan aktivasi terlebih dahulu.",
       };
+    }
+
+    // Floating: perangkat harus memiliki lease yang masih hidup (rolling seat).
+    const appRow = await db.query.apps.findFirst({ where: eq(apps.id, lic.appId) });
+    if (resolveFloatingConfig(appRow).enabled) {
+      const lease = await db.query.licenseLeases.findFirst({
+        where: and(
+          eq(licenseLeases.licenseId, lic.id),
+          inArray(licenseLeases.hwidHash, lookupHashes)
+        ),
+      });
+      if (!lease || lease.expiresAt < now) {
+        return {
+          valid: false,
+          status: "LEASE_STALE",
+          message: "Lease perangkat sudah lepas karena tidak mengirim heartbeat. Silakan aktivasi ulang.",
+        };
+      }
     }
 
     if (activation) {
@@ -271,6 +469,8 @@ export async function handleVerifyLicense({ body, set, request }: any) {
     status: "ACTIVE",
     gracePeriodRemainingDays,
     credits,
+    entitlements: lic.features || {},
+    licenseVersion: lic.licenseVersion || 1,
   };
 }
 
@@ -281,6 +481,11 @@ export async function handleDeactivateLicense({ body, set, request }: any) {
   if (!rl.allowed) {
     set.status = 429;
     return { success: false, error: `Terlalu banyak permintaan. Coba lagi dalam ${rl.retryAfter} detik.` };
+  }
+
+  if (!licenseKey || typeof licenseKey !== "string") {
+    set.status = 400;
+    return { success: false, error: "licenseKey wajib disertakan" };
   }
 
   const lic = await db.query.licenses.findFirst({
@@ -304,6 +509,9 @@ export async function handleDeactivateLicense({ body, set, request }: any) {
       )
     );
 
+  // Floating: lepaskan lease seat (rolling seat).
+  await LicenseLeaseService.releaseSeat(lic.id, hwid);
+
   // Jika hardwareId utama sama dengan hwidHash yang di-deactivate, bersihkan
   if (lic.hardwareId && lookupHashes.includes(lic.hardwareId)) {
     const remainingAct = await db.query.licenseActivations.findFirst({
@@ -319,6 +527,23 @@ export async function handleDeactivateLicense({ body, set, request }: any) {
       .where(eq(licenses.id, lic.id));
   }
 
+  const ipAddress = clientIp(request);
+  await AuditService.record("license.deactivated", {
+    licenseId: lic.id,
+    licenseKey: lic.licenseKey,
+    appId: lic.appId,
+    actorType: "CLIENT",
+    actorId: hwid,
+    ipAddress,
+  });
+  await WebhookService.emit("license.deactivated", {
+    license: lic,
+    actorType: "CLIENT",
+    actorId: hwid,
+    ipAddress,
+    payload: { hwid },
+  });
+
   return {
     success: true,
     message: "Device seat released successfully",
@@ -326,7 +551,7 @@ export async function handleDeactivateLicense({ body, set, request }: any) {
 }
 
 export async function handleValidateLicense({ body, set, request }: any) {
-  const { licenseKey, appId, hardwareId, platform = "general" } = body;
+  const { licenseKey, appId, hardwareId, appVersion, platform = "general" } = body;
 
   const rl = enforceRateLimit(request, "licensing:validate", 120, 60_000);
   if (!rl.allowed) {
@@ -371,6 +596,21 @@ export async function handleValidateLicense({ body, set, request }: any) {
     return { valid: false, reason: "LICENSE_EXPIRED" };
   }
 
+  // Enforce version floor (Fase 1: min_version)
+  if (lic.features && typeof lic.features.min_version === "string" && appVersion) {
+    if (isVersionOlder(appVersion, lic.features.min_version)) {
+      set.status = 403;
+      return {
+        valid: false,
+        reason: "APP_VERSION_TOO_OLD",
+        message: `Versi aplikasi (${appVersion}) terlalu lama. Minimal versi yang didukung adalah ${lic.features.min_version}.`,
+        minVersion: lic.features.min_version,
+        currentVersion: appVersion,
+        entitlements: lic.features || {},
+      };
+    }
+  }
+
   // Validasi tidak boleh mengikat hardware secara implisit — binding wajib
   // melalui /activate agar kuota seat (N_active <= N_max) ditegakkan.
   let boundHardwareHash = lic.hardwareId;
@@ -405,12 +645,29 @@ export async function handleValidateLicense({ body, set, request }: any) {
     .set({ lastValidatedAt: now })
     .where(eq(licenses.id, lic.id));
 
+  // Fase 5: rotate offline token (denylist jti lama, terbitkan yang baru)
+  const appRowV = await db.query.apps.findFirst({ where: eq(apps.id, lic.appId) });
+  const offlineGraceDays = appRowV?.deliveryConfig?.licenseKey?.offlineGraceDays;
+  await LicenseService.rotateOfflineToken(
+    {
+      id: lic.id,
+      licenseKey: lic.licenseKey,
+      appId: lic.appId,
+      customerEmail: lic.customerEmail,
+      maxSeats: lic.maxSeats || 3,
+      features: lic.features || null,
+      offlineJwtGraceToken: lic.offlineJwtGraceToken,
+    },
+    offlineGraceDays
+  );
   const offlineToken = LicenseService.createOfflineGraceToken(
     lic.licenseKey,
     lic.appId,
     boundHardwareHash,
     lic.customerEmail,
-    lic.maxSeats || 3
+    lic.maxSeats || 3,
+    lic.features,
+    offlineGraceDays
   );
 
   return {
@@ -419,11 +676,18 @@ export async function handleValidateLicense({ body, set, request }: any) {
     status: "ACTIVE",
     expiresAt: lic.expiresAt?.toISOString() || null,
     offlineGraceToken: offlineToken,
+    entitlements: lic.features || {},
+    licenseVersion: lic.licenseVersion || 1,
   };
 }
 
-export async function handleUnbindHardware({ body, set }: any) {
+export async function handleUnbindHardware({ body, set, request }: any) {
   const { licenseKey } = body;
+
+  if (!licenseKey || typeof licenseKey !== "string") {
+    set.status = 400;
+    return { error: "licenseKey wajib disertakan" };
+  }
 
   const lic = await db.query.licenses.findFirst({
     where: eq(licenses.licenseKey, licenseKey.trim()),
@@ -434,10 +698,13 @@ export async function handleUnbindHardware({ body, set }: any) {
     return { error: "License not found" };
   }
 
-  // Hapus seluruh aktivasi perangkat
+  // Hapus seluruh aktivasi perangkat + lease floating
   await db
     .delete(licenseActivations)
     .where(eq(licenseActivations.licenseId, lic.id));
+  await db
+    .delete(licenseLeases)
+    .where(eq(licenseLeases.licenseId, lic.id));
 
   const [updated] = await db
     .update(licenses)
@@ -445,9 +712,190 @@ export async function handleUnbindHardware({ body, set }: any) {
     .where(eq(licenses.id, lic.id))
     .returning();
 
+  const ipAddress = clientIp(request);
+  await AuditService.record("license.unbound", {
+    licenseId: lic.id,
+    licenseKey: lic.licenseKey,
+    appId: lic.appId,
+    actorType: "ADMIN",
+    ipAddress,
+  });
+  await WebhookService.emit("license.unbound", {
+    license: lic,
+    actorType: "ADMIN",
+    ipAddress,
+    payload: { seatsReleased: true },
+  });
+
   return {
     success: true,
     message: `Hardware binding & seluruh seat perangkat untuk ${licenseKey} berhasil di-reset.`,
     license: updated,
+  };
+}
+
+/**
+ * Fase 2 — Floating License Heartbeat.
+ * Client dengan floating license wajib mengirim heartbeat berkala (mis. tiap 60 dtk)
+ * dengan leaseKey yang diterima saat /activate. Lease yang tidak diperbarui akan
+ * lepas otomatis dan slot seat kembali ke pool untuk device lain.
+ */
+export async function handleHeartbeat(ctx: any) {
+  const { body, set, request } = ctx;
+  const { appId, licenseKey, hwid, leaseKey, deviceName } = body;
+
+  const rl = enforceRateLimit(request, "licensing:heartbeat", 120, 60_000);
+  if (!rl.allowed) {
+    set.status = 429;
+    return { success: false, error: `Terlalu banyak permintaan heartbeat. Coba lagi dalam ${rl.retryAfter} detik.` };
+  }
+
+  if (!licenseKey || typeof licenseKey !== "string") {
+    set.status = 400;
+    return { success: false, error: "licenseKey wajib disertakan" };
+  }
+
+  const lic = await db.query.licenses.findFirst({
+    where: eq(licenses.licenseKey, licenseKey.trim()),
+  });
+
+  if (!lic) {
+    set.status = 404;
+    return { success: false, error: "License key not found" };
+  }
+
+  if (appId && lic.appId !== appId) {
+    set.status = 403;
+    return { success: false, error: "App mismatch for this license key" };
+  }
+
+  if (lic.status !== "ACTIVE") {
+    set.status = 403;
+    return { success: false, error: `License is ${lic.status}` };
+  }
+
+  const now = new Date();
+  if (lic.expiresAt && lic.expiresAt < now) {
+    await db
+      .update(licenses)
+      .set({ status: "EXPIRED", updatedAt: now })
+      .where(eq(licenses.id, lic.id));
+    set.status = 403;
+    return { success: false, error: "License has expired" };
+  }
+
+  const appRow = await db.query.apps.findFirst({ where: eq(apps.id, lic.appId) });
+  const floating = resolveFloatingConfig(appRow);
+  const ipAddress = clientIp(request);
+
+  if (floating.enabled) {
+    const lease = await LicenseLeaseService.heartbeat(lic.id, hwid, leaseKey, {
+      ipAddress,
+      deviceName,
+      ttlSeconds: floating.leaseTtlSeconds,
+    });
+
+    if (!lease) {
+      set.status = 409;
+      return {
+        success: false,
+        error: "Lease tidak ditemukan atau leaseKey tidak valid untuk perangkat ini. Jalankan aktivasi ulang.",
+        reason: "LEASE_MISMATCH",
+      };
+    }
+
+    await db
+      .update(licenses)
+      .set({ lastValidatedAt: now })
+      .where(eq(licenses.id, lic.id));
+
+    const liveSeats = await LicenseLeaseService.countLive(lic.id);
+    return {
+      success: true,
+      floating: true,
+      leaseKey,
+      leaseExpiresAt: lease.expiresAt.toISOString(),
+      lastHeartbeatAt: lease.lastHeartbeatAt.toISOString(),
+      seatsUsed: liveSeats,
+      status: "ACTIVE",
+    };
+  }
+
+  // Mode non-floating: heartbeat diterima sebagai keep-alive (tidak mengelola lease).
+  await db
+    .update(licenses)
+    .set({ lastValidatedAt: now })
+    .where(eq(licenses.id, lic.id));
+
+  return {
+    success: true,
+    floating: false,
+    message: "Heartbeat diterima (lisensi non-floating, tidak ada lease yang dikelola).",
+    status: "ACTIVE",
+  };
+}
+
+/**
+ * Fase 2/6 — Daftar seat & lease lisensi (dashboard, membutuhkan autentikasi).
+ */
+export async function handleListSeats({ query, set }: any) {
+  const { licenseKey } = query;
+  if (!licenseKey || typeof licenseKey !== "string") {
+    set.status = 400;
+    return { success: false, error: "licenseKey wajib disertakan" };
+  }
+
+  const lic = await db.query.licenses.findFirst({
+    where: eq(licenses.licenseKey, licenseKey.trim()),
+  });
+
+  if (!lic) {
+    set.status = 404;
+    return { success: false, error: "License not found" };
+  }
+
+  const appRow = await db.query.apps.findFirst({ where: eq(apps.id, lic.appId) });
+  const floating = resolveFloatingConfig(appRow);
+
+  const [activations, leases] = await Promise.all([
+    db.query.licenseActivations.findMany({
+      where: eq(licenseActivations.licenseId, lic.id),
+      orderBy: (a, { desc }) => [desc(a.lastValidatedAt)],
+    }),
+    db.query.licenseLeases.findMany({
+      where: eq(licenseLeases.licenseId, lic.id),
+      orderBy: (l, { desc }) => [desc(l.lastHeartbeatAt)],
+    }),
+  ]);
+
+  const now = new Date();
+  const liveLeaseCount = leases.filter((l) => l.expiresAt > now).length;
+
+  const seats = activations.map((act) => {
+    const lease = leases.find((l) => l.hwidHash === act.hwidHash);
+    const alive = Boolean(lease && lease.expiresAt > now && (floating.enabled || true));
+    return {
+      hwidHash: act.hwidHash,
+      deviceName: act.deviceName,
+      ipAddress: act.ipAddress,
+      lastValidatedAt: act.lastValidatedAt,
+      createdAt: act.createdAt,
+      leaseActive: floating.enabled ? alive : null,
+      leaseExpiresAt: lease?.expiresAt || null,
+      lastHeartbeatAt: lease?.lastHeartbeatAt || null,
+    };
+  });
+
+  return {
+    success: true,
+    licenseKey: lic.licenseKey,
+    appId: lic.appId,
+    customerEmail: lic.customerEmail,
+    status: lic.status,
+    floating: floating.enabled,
+    maxSeats: lic.maxSeats || 3,
+    seatsUsed: floating.enabled ? liveLeaseCount : activations.length,
+    leaseTtlSeconds: floating.enabled ? floating.leaseTtlSeconds : null,
+    seats,
   };
 }

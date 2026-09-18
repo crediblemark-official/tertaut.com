@@ -87,7 +87,15 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
 
       // Generate Universal License Key (Modul 3 Integration)
       const licenseKey = LicenseService.generateLicenseKey();
-      const offlineToken = LicenseService.createOfflineGraceToken(licenseKey, tx.appId);
+      const features = app?.deliveryConfig?.licenseKey?.defaultFeatures || {};
+      const offlineToken = LicenseService.createOfflineGraceToken(
+        licenseKey,
+        tx.appId,
+        null,
+        tx.customerEmail,
+        maxSeats,
+        features
+      );
 
       // P4 & P5: Generate auto-provisioned API key jika apiAccess aktif
       let generatedApiKey: string | undefined = undefined;
@@ -103,6 +111,8 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         licenseKey,
         customerEmail: tx.customerEmail,
         status: "ACTIVE",
+        licenseVersion: 1,
+        features,
         maxSeats,
         expiresAt,
         offlineJwtGraceToken: offlineToken,

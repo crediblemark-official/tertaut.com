@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  typecheck-and-build:
+    name: Typecheck & Build Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck Server
+        run: bun run build:server
+
+      - name: Typecheck Client (vue-tsc)
+        run: bunx vue-tsc -p src/client/tsconfig.json
+
+      - name: Build Docs
+        run: bun run build:docs
+
+  test:
+    name: Integration & Unit Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: tertaut_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/tertaut_test
+      JWT_SECRET: super_secret_jwt_key_at_least_32_characters_tertaut_dev
+      BETTER_AUTH_SECRET: super_secret_better_auth_key_at_least_32_chars
+      VAULT_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      PAYMENT_GATEWAY: xendit
+      XENDIT_SECRET_KEY: xnd_development_sample_key_tertaut
+      XENDIT_PUBLIC_KEY: xnd_public_development_sample_key_tertaut
+      XENDIT_WEBHOOK_VERIFICATION_TOKEN: tertaut_webhook_verification_token_dev
+      NODE_ENV: test
+      PORT: 3000
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Push Database Schema
+        run: bun run db:push
+
+      - name: Seed Database
+        run: bun run db:seed
+
+      - name: Run Test Suite
+        run: bun test

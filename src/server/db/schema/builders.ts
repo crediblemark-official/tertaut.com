@@ -8,6 +8,8 @@ export const builders = pgTable("builders", {
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
   apiKey: text("api_key").notNull().unique(),
+  /** Secret API key untuk server-to-server (S2S): `tt_secret_...`. Hanya dipakai di backend pembangun. */
+  secretApiKey: text("secret_api_key").notNull().default(""),
   disbursementAccount: jsonb("disbursement_account").$type<{
     bankCode?: string;
     accountNumber?: string;

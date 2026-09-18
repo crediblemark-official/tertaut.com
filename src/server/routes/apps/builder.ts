@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { authenticate } from "../../middleware/auth";
 import { config as appConfig } from "../../config";
+import { generateAppApiKey, generateBuilderSecretApiKey } from "./api-key";
 
 export async function resolveCurrentBuilder(
   headers: Headers
@@ -39,6 +40,7 @@ export async function resolveCurrentBuilder(
           email: user.email || `builder_${randomBytes(4).toString("hex")}@tertaut.com`,
           name: user.name || "Vibe Builder",
           apiKey: `tt_${appConfig.isSandbox ? "test" : "live"}_${randomBytes(16).toString("hex")}`,
+          secretApiKey: generateBuilderSecretApiKey(),
         })
         .returning();
       if (created) return { builder: created, isAdmin };
@@ -57,6 +59,7 @@ export async function resolveCurrentBuilder(
           email: user.email || "builder@tertaut.com",
           name: user.name || "Vibe Builder",
           apiKey: `tt_test_${randomBytes(16).toString("hex")}`,
+          secretApiKey: generateBuilderSecretApiKey(),
         })
         .returning();
       fallback = created;
@@ -80,6 +83,7 @@ export async function seedSandboxBuilderIfNeeded(): Promise<void> {
         email: "builder@tertaut.com",
         name: "Vibe Builder",
         apiKey: `tt_live_${randomBytes(16).toString("hex")}`,
+        secretApiKey: generateBuilderSecretApiKey(),
       })
       .returning();
     demoBuilder = createdBuilder;
@@ -88,6 +92,7 @@ export async function seedSandboxBuilderIfNeeded(): Promise<void> {
     await db.insert(apps).values({
       id: "app_demo_123",
       builderId: demoBuilder.id,
+      apiKey: generateAppApiKey("sandbox"),
       name: "FastMail AI Summarizer",
       slug: "fastmail-ai",
       mode: "sandbox",

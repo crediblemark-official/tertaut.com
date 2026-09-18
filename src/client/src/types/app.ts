@@ -6,6 +6,14 @@ export interface DeliveryConfig {
     description?: string;
     expiresInDays?: number;
     maxSeats?: number;
+    /** Cadangan offline token (hari). Default 30, kisaran 1–90. */
+    offlineGraceDays?: number;
+    /** Floating license: seat rolling via lease + heartbeat. */
+    floating?: {
+      enabled: boolean;
+      leaseTtlSeconds?: number;
+      heartbeatIntervalSeconds?: number;
+    };
   };
   fileDownload?: {
     enabled: boolean;
@@ -44,6 +52,8 @@ export type BillingPeriodType = "weekly" | "daily" | "monthly" | "every_3_months
 
 export interface AppItem {
   id: string;
+  /** Publishable API key aplikasi: `tt_live_...` / `tt_test_...` (untuk @tertaut/sdk). */
+  apiKey?: string;
   builderId: string;
   name: string;
   slug: string;

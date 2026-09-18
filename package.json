@@ -5,11 +5,14 @@
   "type": "module",
   "description": "Headless Developer Infrastructure Engine (Monetization, Licensing, AI Protection, Validation & Launch Kit)",
   "scripts": {
-    "dev": "concurrently -k -n \"SERVER,CLIENT\" -c \"cyan,yellow\" \"bun run dev:server\" \"bun run dev:client\"",
+    "dev": "concurrently -k -n \"SERVER,CLIENT,DOCS\" -c \"cyan,yellow,green\" \"bun run dev:server\" \"bun run dev:client\" \"bun run dev:docs\"",
     "dev:server": "bun --watch src/server/index.ts",
     "dev:client": "vite --config src/client/vite.config.ts src/client",
-    "build": "bun run build:client && bun run build:server",
+    "dev:docs": "vitepress dev docs --host localhost --port 5174",
+    "docs:preview": "vitepress preview docs --host localhost --port 5174",
+    "build": "bun run build:client && bun run build:docs && bun run build:server",
     "build:client": "vue-tsc -p src/client/tsconfig.json && vite build --config src/client/vite.config.ts src/client",
+    "build:docs": "vitepress build docs && rm -rf dist/docs && mkdir -p dist/docs && cp -r docs/.vitepress/dist/. dist/docs/",
     "build:server": "tsc --noEmit",
     "start": "NODE_ENV=production bun src/server/index.ts",
     "db:generate": "drizzle-kit generate",
@@ -47,8 +50,10 @@
     "postcss": "^8.5.28",
     "puppeteer-core": "^25.11.0",
     "tailwindcss": "^3.4.19",
+    "terser": "^5.51.2",
     "typescript": "^5.9.3",
     "vite": "^6.4.3",
+    "vitepress": "^1.6.4",
     "vue-tsc": "^2.2.12"
   }
 }

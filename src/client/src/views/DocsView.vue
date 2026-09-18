@@ -14,10 +14,16 @@ import {
   Bot,
   ExternalLink,
   Layers,
+  Key,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  KeyRound,
 } from 'lucide-vue-next'
 
 import { api } from '../lib/api'
 import type { AppItem } from '../types/app'
+import { dashboardEnv } from '../lib/environment'
 
 const copiedIndex = ref<number | null>(null)
 const appsList = ref<AppItem[]>([])
@@ -33,6 +39,83 @@ const currentApp = computed(() => {
 
 const currentAppId = computed(() => currentApp.value?.id || 'app_sample_id')
 const currentAppPrice = computed(() => currentApp.value?.targetPrice || 0)
+const currentAppApiKey = computed(() => currentApp.value?.apiKey?.trim() || '')
+const sampleApiKey = computed(() => currentAppApiKey.value || 'tt_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
+
+const revealKey = ref(false)
+const rotatingKey = ref(false)
+
+const builderSecret = ref('')
+const revealSecret = ref(false)
+const rotatingSecret = ref(false)
+
+const displayedAppKey = computed(() => {
+  const key = sampleApiKey.value
+  if (revealKey.value) return key
+  if (key.length <= 14) return '•'.repeat(16)
+  return key.slice(0, 10) + '•'.repeat(key.length - 14) + key.slice(-4)
+})
+
+async function rotateApiKey() {
+  const app = currentApp.value
+  if (!app?.id || rotatingKey.value) return
+  if (!window.confirm('Rotasi API key akan membuat key lama tidak berlaku untuk inisialisasi SDK baru. Lanjutkan?')) return
+  rotatingKey.value = true
+  try {
+    const res = await api.rotateApiKey(app.id)
+    if (res.success && res.app) {
+      const idx = appsList.value.findIndex((a) => a.id === res.app.id)
+      if (idx >= 0) appsList.value[idx] = res.app
+      revealKey.value = true
+    } else {
+      window.alert(res.error || 'Gagal merotasi API key.')
+    }
+  } catch {
+    window.alert('Terjadi kesalahan saat merotasi API key.')
+  } finally {
+    rotatingKey.value = false
+  }
+}
+
+const displayedSecretKey = computed(() => {
+  const key = builderSecret.value || 'tt_secret_........................'
+  if (revealSecret.value) return key
+  if (key.length <= 14) return '•'.repeat(16)
+  return key.slice(0, 10) + '•'.repeat(key.length - 14) + key.slice(-4)
+})
+
+const s2sCurlText = computed(() => `curl -X POST https://tertaut.com/api/v1/s2s/licenses/issue \\
+  -H "Authorization: Bearer ${builderSecret.value || 'tt_secret_...'}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"appId":"${currentAppId.value}","customerEmail":"buyer@site.com","grantDays":30}'`)
+
+async function loadBuilderSecret() {
+  try {
+    const res = await api.getBuilderMyself()
+    if (res.success && res.builder?.secretApiKey) builderSecret.value = res.builder.secretApiKey
+  } catch {
+    // fallback: sembunyikan key bila sesi tak memberi akses
+  }
+}
+
+async function rotateBuilderSecret() {
+  if (rotatingSecret.value) return
+  if (!window.confirm('Rotasi Secret API Key akan membuat semua request server-to-server dengan key lama gagal (401). Lanjutkan?')) return
+  rotatingSecret.value = true
+  try {
+    const res = await api.rotateBuilderSecret()
+    if (res.success && res.secretApiKey) {
+      builderSecret.value = res.secretApiKey
+      revealSecret.value = true
+    } else {
+      window.alert(res.error || 'Gagal merotasi Secret API Key.')
+    }
+  } catch {
+    window.alert('Terjadi kesalahan saat merotasi Secret API Key.')
+  } finally {
+    rotatingSecret.value = false
+  }
+}
 
 async function loadWidgetSales() {
   if (!selectedAppSlug.value) return
@@ -62,8 +145,15 @@ async function loadApps() {
   await loadWidgetSales()
 }
 
-onMounted(loadApps)
+onMounted(() => {
+  loadApps()
+  loadBuilderSecret()
+})
 watch(selectedAppSlug, loadWidgetSales)
+watch(dashboardEnv, () => {
+  selectedAppSlug.value = ''
+  loadApps()
+})
 
 onUnmounted(() => {
   if (copyTimer) {
@@ -96,7 +186,7 @@ Langkah Integrasi:
 1. Pasang SDK: npm install @tertaut/sdk
 2. Inisialisasi SDK:
    import { Tertaut } from '@tertaut/sdk';
-   const tertaut = new Tertaut({ appId: '${currentAppId.value}', environment: 'production' });
+   const tertaut = new Tertaut({ apiKey: '${sampleApiKey.value}', appId: '${currentAppId.value}', baseUrl: 'https://tertaut.com' });
 3. Modul 1 (Checkout): Di tombol upgrade/beli, panggil tertaut.checkout({ amount: ${currentAppPrice.value}, grantDays: 30, redirectUrl: window.location.origin + '/dashboard' });
 4. Modul 2 (Lisensi): Di startup aplikasi, validasi lisensi:
    const status = await tertaut.licensing.verify({ licenseKey: userSavedKey, hwid: deviceHardwareId });
@@ -117,8 +207,9 @@ const sdkFullSnippet = computed(() => `import { Tertaut } from '@tertaut/sdk';
 
 // Inisialisasi client library (< 15KB)
 export const tertaut = new Tertaut({
+  apiKey: '${sampleApiKey.value}',
   appId: '${currentAppId.value}',
-  environment: 'production'
+  baseUrl: 'https://tertaut.com'
 });
 
 // 1. Modul 1: Direct Live Checkout (MoR Engine via Xendit)
@@ -198,6 +289,128 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
       <div class="p-2.5 rounded-lg bg-[#111111] font-mono text-xs text-[#D4AF37] border border-[#111111]/20 flex items-center justify-between">
         <span>npm install @tertaut/sdk</span>
         <span class="text-white/40 text-[10px]"># Zero heavy dependencies • Cross-platform</span>
+      </div>
+    </div>
+
+    <!-- Publishable API Key -->
+    <div class="space-y-3 pb-6 border-b border-[#111111]/10">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <Key class="w-4 h-4 text-[#0F4C3A]" />
+          <div>
+            <h2 class="text-sm font-bold text-[#111111]">Publishable API Key</h2>
+            <p class="text-[11px] text-[#111111]/60">
+              Key inisialisasi <span class="font-mono">@tertaut/sdk</span> —
+              <span class="font-mono">tt_live_...</span> produksi / <span class="font-mono">tt_test_...</span> sandbox.
+              Sifatnya publik, aman dipasang di frontend. Rotasi membuat key lama tidak berlaku lagi.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button
+            @click="rotateApiKey"
+            :disabled="rotatingKey || !currentApp"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 border border-[#111111]/15 text-[#111111] text-[11px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Regenerasi publishable API key aplikasi ini"
+          >
+            <RefreshCw class="w-3 h-3" :class="rotatingKey ? 'animate-spin' : ''" />
+            <span>{{ rotatingKey ? 'Rotasi...' : 'Rotasi Key' }}</span>
+          </button>
+          <button
+            @click="revealKey = !revealKey"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 border border-[#111111]/15 text-[#111111] text-[11px] font-bold transition cursor-pointer"
+          >
+            <EyeOff v-if="revealKey" class="w-3 h-3" />
+            <Eye v-else class="w-3 h-3" />
+            <span>{{ revealKey ? 'Sembunyikan' : 'Lihat' }}</span>
+          </button>
+          <button
+            @click="copyCode(sampleApiKey, 10)"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg btn-gold text-[11px] font-bold transition cursor-pointer shadow-sm"
+          >
+            <Check v-if="copiedIndex === 10" class="w-3 h-3 text-[#0F4C3A]" />
+            <Copy v-else class="w-3 h-3" />
+            <span>{{ copiedIndex === 10 ? 'Tersalin' : 'Salin Key' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="p-2.5 rounded-lg bg-[#111111] font-mono text-base sm:text-sm text-[#D4AF37] border border-[#111111]/20 flex items-center justify-between gap-3">
+        <span class="truncate tracking-wide">{{ displayedAppKey }}</span>
+        <span class="text-white/40 text-[10px] font-sans whitespace-nowrap"># publik — aman di frontend</span>
+      </div>
+    </div>
+
+    <!-- Secret API Key (Server-to-Server) -->
+    <div class="space-y-3 pb-6 border-b border-[#111111]/10">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <KeyRound class="w-4 h-4 text-[#0F4C3A]" />
+          <div>
+            <h2 class="text-sm font-bold text-[#111111]">Secret API Key (Server-to-Server)</h2>
+            <p class="text-[11px] text-[#111111]/60">
+              Bearer token <span class="font-mono">tt_secret_...</span> untuk backend milik Anda —
+              terbitkan/cabut lisensi &amp; kelola kredit otomatis tanpa sesi dashboard.
+              <span class="font-bold">Jangan pernah pasang di frontend.</span>
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button
+            @click="rotateBuilderSecret"
+            :disabled="rotatingSecret || !builderSecret"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#B91C1C]/10 hover:bg-[#B91C1C]/15 border border-[#B91C1C]/25 text-[#B91C1C] text-[11px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Regenerasi Secret API Key (key lama langsung nonaktif)"
+          >
+            <RefreshCw class="w-3 h-3" :class="rotatingSecret ? 'animate-spin' : ''" />
+            <span>{{ rotatingSecret ? 'Rotasi...' : 'Rotasi Secret' }}</span>
+          </button>
+          <button
+            @click="revealSecret = !revealSecret"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 border border-[#111111]/15 text-[#111111] text-[11px] font-bold transition cursor-pointer"
+          >
+            <EyeOff v-if="revealSecret" class="w-3 h-3" />
+            <Eye v-else class="w-3 h-3" />
+            <span>{{ revealSecret ? 'Sembunyikan' : 'Lihat' }}</span>
+          </button>
+          <button
+            @click="copyCode(builderSecret, 11)"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg btn-gold text-[11px] font-bold transition cursor-pointer shadow-sm"
+          >
+            <Check v-if="copiedIndex === 11" class="w-3 h-3 text-[#0F4C3A]" />
+            <Copy v-else class="w-3 h-3" />
+            <span>{{ copiedIndex === 11 ? 'Tersalin' : 'Salin Key' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="p-2.5 rounded-lg bg-[#111111] font-mono text-base sm:text-sm text-[#B91C1C] border border-[#111111]/20 flex items-center justify-between gap-3">
+        <span class="truncate tracking-wide">{{ displayedSecretKey }}</span>
+        <span class="text-white/40 text-[10px] font-sans whitespace-nowrap"># rahasia — hanya untuk backend</span>
+      </div>
+
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-[#111111]/70 text-[11px]">Contoh panggilan server-to-server (issue lisensi otomatis):</span>
+          <button
+            @click="copyCode(s2sCurlText, 12)"
+            class="text-[11px] font-bold text-[#D4AF37] hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            <Check v-if="copiedIndex === 12" class="w-3 h-3 text-[#0F4C3A]" />
+            <Copy v-else class="w-3 h-3" />
+            <span>{{ copiedIndex === 12 ? 'Tersalin' : 'Salin cURL' }}</span>
+          </button>
+        </div>
+        <pre class="p-2.5 rounded-lg bg-[#111111] font-mono text-[11px] text-[#D4AF37] overflow-x-auto whitespace-pre-wrap leading-relaxed">{{ s2sCurlText }}</pre>
+        <p class="text-[10px] text-[#111111]/50">
+          Endpoint lain: <span class="font-mono">GET /s2s/apps</span> ·
+          <span class="font-mono">GET /s2s/licenses</span> ·
+          <span class="font-mono">POST /s2s/licenses/revoke</span> ·
+          <span class="font-mono">GET /s2s/credits/balance</span> ·
+          <span class="font-mono">POST /s2s/credits/consume</span>
+        </p>
       </div>
     </div>
 

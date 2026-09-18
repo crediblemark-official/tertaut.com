@@ -41,6 +41,8 @@ function formatDate(date: Date | string): string {
  * tidak pernah gagal karena email.
  */
 export class EmailService {
+  private static quotaBlockedUntil = 0;
+
   static isConfigured(): boolean {
     return Boolean(config.email.resendApiKey && config.email.from);
   }
@@ -51,6 +53,11 @@ export class EmailService {
         console.warn(`[Email] RESEND_API_KEY belum diset — email "${params.subject}" ke ${params.to} dilewati.`);
       }
       return { ok: false, skipped: true };
+    }
+
+    // Jika kuota Resend harian telah habis, tangguhkan request ke API agar tidak membanjiri log
+    if (this.quotaBlockedUntil > Date.now()) {
+      return { ok: false, error: "Resend 429 quota exceeded", skipped: true };
     }
 
     const replyTo = params.replyTo || config.email.replyTo;
@@ -74,7 +81,14 @@ export class EmailService {
 
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
-        console.error(`[Email] Resend gagal (${res.status}) untuk ${params.to}: ${detail}`);
+        if (res.status === 429) {
+          this.quotaBlockedUntil = Date.now() + 15 * 60 * 1000; // Tangguhkan selama 15 menit
+          console.warn(`[Email] Kuota Resend harian habis (429) — pengiriman email ditangguhkan sementara.`);
+        } else if (res.status === 422 && !config.isProd) {
+          console.warn(`[Email] Resend 422: Alamat ${params.to} bukan email terverifikasi untuk mode testing Resend.`);
+        } else {
+          console.error(`[Email] Resend gagal (${res.status}) untuk ${params.to}: ${detail}`);
+        }
         return { ok: false, error: `Resend ${res.status}` };
       }
 

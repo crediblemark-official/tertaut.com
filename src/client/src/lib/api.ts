@@ -4,7 +4,7 @@
 
 import type { AppItem, DashboardStats, CatalogKPIStats } from '../types/app'
 import type { TransactionItem } from '../types/transaction'
-import type { LicenseItem } from '../types/licensing'
+import type { LicenseItem, SeatsResponse, EventsResponse, WebhookEndpointItem } from '../types/licensing'
 import type { VaultCredentialItem, AiProxyLogItem, AiQuotaStatus } from '../types/aiproxy'
 import type { PanelStats, PanelBuilderItem, PanelTransactionItem } from '../types/panel'
 import type { CouponItem } from '../types/coupon'
@@ -114,6 +114,25 @@ export const api = {
   async deleteCampaign(appId: string): Promise<{ success: boolean; message?: string }> {
     const res = await fetch(`/api/v1/apps/${appId}`, {
       method: "DELETE",
+    });
+    return parseJson(res);
+  },
+
+  async rotateApiKey(appId: string): Promise<{ success: boolean; app: AppItem; error?: string }> {
+    const res = await fetch(`/api/v1/apps/${appId}/rotate-api-key`, {
+      method: "POST",
+    });
+    return parseJson(res);
+  },
+
+  async getBuilderMyself(): Promise<{ success: boolean; builder: { id: string; email: string; name: string; secretApiKey: string }; error?: string }> {
+    const res = await fetch("/api/v1/apps/me");
+    return parseJson(res);
+  },
+
+  async rotateBuilderSecret(): Promise<{ success: boolean; secretApiKey: string; builderId?: string; error?: string }> {
+    const res = await fetch("/api/v1/apps/rotate-secret-api-key", {
+      method: "POST",
     });
     return parseJson(res);
   },
@@ -348,6 +367,72 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
+    });
+    return parseJson(res);
+  },
+
+  // ---------- Fase 2/6: Seat management dashboard ----------
+  async getLicenseSeats(licenseKey: string): Promise<SeatsResponse> {
+    const res = await fetch(withMode(`/api/v1/licensing/seats?licenseKey=${encodeURIComponent(licenseKey)}`));
+    return parseJson<SeatsResponse>(res);
+  },
+
+  // ---------- Fase 4: Audit trail dashboard ----------
+  async getLicenseEvents(options?: { licenseKey?: string; appId?: string; event?: string; actorType?: string; limit?: number }): Promise<EventsResponse> {
+    const params = new URLSearchParams();
+    if (options?.licenseKey) params.append("licenseKey", options.licenseKey);
+    if (options?.appId) params.append("appId", options.appId);
+    if (options?.event) params.append("event", options.event);
+    if (options?.actorType) params.append("actorType", options.actorType);
+    if (options?.limit) params.append("limit", options.limit.toString());
+    const qs = params.toString();
+    const base = withMode("/api/v1/licensing/events");
+    const sep = base.includes("?") ? "&" : "?";
+    const res = await fetch(qs ? `${base}${sep}${qs}` : base);
+    return parseJson<EventsResponse>(res);
+  },
+
+  // ---------- Fase 3: Webhook lifecycle management ----------
+  async getWebhooks(): Promise<{ success: boolean; events: string[]; webhooks: WebhookEndpointItem[] }> {
+    const res = await fetch(withMode("/api/v1/licensing/webhooks"));
+    return parseJson(res);
+  },
+
+  async createWebhook(data: { url: string; events: string[]; secret?: string; isActive?: boolean }): Promise<{ success: boolean; webhook: WebhookEndpointItem; error?: string }> {
+    const res = await fetch("/api/v1/licensing/webhooks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return parseJson(res);
+  },
+
+  async updateWebhook(id: string, data: { url?: string; events?: string[]; isActive?: boolean }): Promise<{ success: boolean; webhook: WebhookEndpointItem; error?: string }> {
+    const res = await fetch(`/api/v1/licensing/webhooks/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return parseJson(res);
+  },
+
+  async deleteWebhook(id: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    const res = await fetch(`/api/v1/licensing/webhooks/${id}`, {
+      method: "DELETE",
+    });
+    return parseJson(res);
+  },
+
+  async rotateWebhookSecret(id: string): Promise<{ success: boolean; webhook?: WebhookEndpointItem; error?: string }> {
+    const res = await fetch(`/api/v1/licensing/webhooks/${id}/rotate-secret`, {
+      method: "POST",
+    });
+    return parseJson(res);
+  },
+
+  async testWebhook(id: string): Promise<{ success: boolean; deliveryId?: string; attempted?: number; error?: string }> {
+    const res = await fetch(`/api/v1/licensing/webhooks/${id}/test`, {
+      method: "POST",
     });
     return parseJson(res);
   },

@@ -14,10 +14,43 @@ import { resolve } from "path";
 import { db } from "./db";
 import { licenses } from "./db/schema";
 import { eq, and, lt } from "drizzle-orm";
+import { LicenseLeaseService } from "./services/licenseLease";
+import { AuditService } from "./services/audit";
+import { WebhookService } from "./services/webhooks";
 
 const clientDistPath = resolve(import.meta.dir, "../../dist");
+const docsDistPath = resolve(clientDistPath, "docs");
 const isProduction = process.env.NODE_ENV === "production";
 const hasBuiltClient = isProduction && existsSync(clientDistPath);
+
+/** Kirim file dari dalam folder dist (docs) dengan sanitasi path traversal */
+function serveFromDir(dir: string, pathname: string, set: any): any | { error: string } {
+  const safePath = decodeURIComponent(pathname).replace(/\.\.+[/\\]/g, "");
+  let targetFile = resolve(dir, "." + safePath);
+
+  if (
+    targetFile.startsWith(dir) &&
+    existsSync(targetFile) &&
+    !statSync(targetFile).isDirectory()
+  ) {
+    return Bun.file(targetFile);
+  }
+
+  // Fallback halaman tanpa ekstensi (misal /docs/sdk):
+  if (!safePath.split("/").pop()?.includes(".")) {
+    targetFile = resolve(dir, "." + safePath + ".html");
+    if (
+      targetFile.startsWith(dir) &&
+      existsSync(targetFile) &&
+      !statSync(targetFile).isDirectory()
+    ) {
+      return Bun.file(targetFile);
+    }
+  }
+
+  set.status = 404;
+  return { error: "Not Found" };
+}
 
 export const app = new Elysia()
   // Secure CORS: Only allow trusted origins with credentials
@@ -66,22 +99,99 @@ export const app = new Elysia()
   .use(
     swagger({
       path: "/swagger",
+      provider: "swagger-ui",
+      exclude: [
+        // Internal admin panel (hanya untuk dashboard internal, bukan API builder)
+        /^\/api\/v1\/panel/,
+        /^\/panel/,
+        // Webhook callback (server-to-server, bukan untuk builder)
+        /^\/webhook/,
+        /^\/webhooks/,
+        /^\/api\/v1\/webhook/,
+        /^\/api\/v1\/webhooks/,
+        /^\/api\/v1\/checkout\/webhook/,
+        // Duplikat root-level (path kanonik sudah di /api/v1/...)
+        /^\/checkout\//,
+        /^\/badge\//,
+        // Alias legacy duplikat
+        /^\/api\/v1\/license\//,
+        /^\/api\/v1\/ai-proxy/,
+        // Internal vault kredensial AI
+        /^\/api\/v1\/ai\/vault/,
+        // Manajemen aplikasi via dashboard (kelola lewat UI; programatik pakai S2S)
+        /^\/api\/v1\/apps\/$/,
+        /^\/api\/v1\/apps\/[^/]+$/,
+        /^\/api\/v1\/apps\/stats/,
+        /^\/api\/v1\/apps\/check-slug/,
+        /^\/api\/v1\/apps\/me/,
+        /^\/api\/v1\/apps\/rotate-secret-api-key/,
+        /^\/api\/v1\/apps\/[^/]+\/rotate-api-key/,
+        /^\/api\/v1\/apps\/[^/]+\/mode/,
+        /^\/api\/v1\/apps\/disburse/,
+        // Operasi uang & dashboard checkout (bukan konsumen external)
+        /^\/api\/v1\/checkout\/transactions/,
+        /^\/api\/v1\/checkout\/disburse/,
+        /^\/api\/v1\/checkout\/simulate-paid/,
+        /^\/api\/v1\/payouts/,
+        // Manajemen kupon via dashboard
+        /^\/api\/v1\/coupons/,
+        // Launch kit dashboard
+        /^\/api\/v1\/launch/,
+        // Statistik metering dashboard
+        /^\/api\/v1\/metering\/stats/,
+        // Konfigurasi & log AI Shield dashboard
+        /^\/api\/v1\/ai\/configs/,
+        /^\/api\/v1\/ai\/logs/,
+        // Admin lisensi dashboard (programatik: S2S /licenses/issue|revoke)
+        /^\/api\/v1\/licensing\/list/,
+        /^\/api\/v1\/licensing\/issue/,
+        /^\/api\/v1\/licensing\/revoke/,
+        /^\/api\/v1\/licensing\/unbind-hardware/,
+        /^\/api\/v1\/licensing\/renew/,
+        /^\/api\/v1\/licensing\/seats/,
+        /^\/api\/v1\/licensing\/events/,
+        /^\/api\/v1\/licensing\/webhooks/,
+        // Endpoint internal yang tidak dipakai SDK/docs (bukan API builder)
+        /^\/api\/v1\/health\//,
+        /^\/api\/v1\/apps\/by-slug\//,
+        /^\/api\/v1\/checkout\/dana\/finish/,
+        /^\/api\/v1\/checkout\/preview-coupon/,
+        /^\/api\/v1\/metering\/events/,
+        /^\/api\/v1\/metering\/usage\//,
+      ],
       documentation: {
         info: {
           title: "tertaut.com Engine API",
-          version: "2.2.0",
+          version: "2.3.0",
           description:
             "Headless Developer Infrastructure Engine (Monetization, Universal Licensing, AI Protection, Fake Door Validation)",
         },
         tags: [
-          { name: "System", description: "Health and diagnostics" },
-          { name: "Apps", description: "Builder applications and stats" },
           { name: "Launch Kit", description: "One-click live launch, badges and developer SDK tooling" },
-          { name: "MoR Checkout", description: "Xendit dynamic hosted checkout" },
+          { name: "MoR Checkout", description: "Dynamic hosted checkout" },
           { name: "Universal Licensing", description: "Multi-platform key validation & hardware binding" },
-          { name: "AI Proxy Shield", description: "Zero-leak AI API gateway" },
-          { name: "Webhook", description: "Payment and disbursement callbacks" },
+          { name: "AI API Proxy Shield", description: "Zero-leak AI API gateway" },
+          { name: "Credits", description: "License metered credit ledger & consumption" },
+          { name: "S2S API", description: "Server-to-Server programatic automation" },
         ],
+        components: {
+          securitySchemes: {
+            BuilderSecretKey: {
+              type: "http",
+              scheme: "bearer",
+              bearerFormat: "JWT",
+              description:
+                "Secret API key builder (tt_secret_...) dari halaman Dashboard Docs. Wajib untuk seluruh endpoint Server-to-Server (/api/v1/s2s/*). Jangan pernah simpan di frontend.",
+            },
+            LicenseToken: {
+              type: "http",
+              scheme: "bearer",
+              bearerFormat: "JWT",
+              description:
+                "Offline license token (JWT) hasil POST /api/v1/licensing/activate — atau sertakan licenseKey di body/query. Wajib untuk AI API Proxy Shield.",
+            },
+          },
+        },
       },
     })
   )
@@ -108,30 +218,48 @@ export const app = new Elysia()
 
 // Production: Single Container Monolith serves built SPA assets from dist/
 if (hasBuiltClient) {
-  app.get("*", ({ request, set }) => {
-    const url = new URL(request.url);
-    const decodedPath = decodeURIComponent(url.pathname);
-    // Sanitize path traversal attempts
-    const safePath = decodedPath.replace(/\.\.+[/\\]/g, "");
-    const targetFile = resolve(clientDistPath, "." + safePath);
-
-    // Ensure resolved path is strictly within clientDistPath
-    if (
-      targetFile.startsWith(clientDistPath) &&
-      existsSync(targetFile) &&
-      !statSync(targetFile).isDirectory()
-    ) {
-      return Bun.file(targetFile);
-    }
-
-    const indexPath = resolve(clientDistPath, "index.html");
+  const serveDocsIndex = () => {
+    const indexPath = resolve(docsDistPath, "index.html");
     if (existsSync(indexPath)) {
-      set.headers["content-type"] = "text/html; charset=utf8";
       return Bun.file(indexPath);
     }
-    set.status = 404;
-    return { error: "Not Found" };
-  });
+    return { error: "Docs belum di-build (jalankan: bun run build:docs)" };
+  };
+
+  app
+    // VitePress /docs (base: /docs/)
+    .get("/docs", ({ set }) => {
+      set.status = 301;
+      set.headers["location"] = "/docs/";
+      return {};
+    })
+    .get("/docs/", serveDocsIndex)
+    .get("/docs/*", ({ request, set }) => serveFromDir(docsDistPath, new URL(request.url).pathname.slice("/docs".length), set))
+    // SPA fallback
+    .get("*", ({ request, set }) => {
+      const url = new URL(request.url);
+      const decodedPath = decodeURIComponent(url.pathname);
+      // Sanitize path traversal attempts
+      const safePath = decodedPath.replace(/\.\.+[/\\]/g, "");
+      const targetFile = resolve(clientDistPath, "." + safePath);
+
+      // Ensure resolved path is strictly within clientDistPath
+      if (
+        targetFile.startsWith(clientDistPath) &&
+        existsSync(targetFile) &&
+        !statSync(targetFile).isDirectory()
+      ) {
+        return Bun.file(targetFile);
+      }
+
+      const indexPath = resolve(clientDistPath, "index.html");
+      if (existsSync(indexPath)) {
+        set.headers["content-type"] = "text/html; charset=utf8";
+        return Bun.file(indexPath);
+      }
+      set.status = 404;
+      return { error: "Not Found" };
+    });
 } else {
   // Development: Port 3000 is strictly Backend API & Swagger
   app.get("*", ({ request, set }) => {
@@ -143,6 +271,7 @@ if (hasBuiltClient) {
         mode: "development",
         endpoints: {
           swagger: "http://localhost:3000/swagger",
+          docs: "http://localhost:5173/docs",
           health: "http://localhost:3000/api/v1/health",
         },
         notice: "Frontend UI is running on Vite Dev Server: http://localhost:5173",
@@ -160,21 +289,65 @@ async function expireLicenses(): Promise<void> {
       .update(licenses)
       .set({ status: "EXPIRED", updatedAt: now })
       .where(and(eq(licenses.status, "ACTIVE"), lt(licenses.expiresAt, now)))
-      .returning({ id: licenses.id, licenseKey: licenses.licenseKey });
+      .returning({ id: licenses.id, licenseKey: licenses.licenseKey, appId: licenses.appId, customerEmail: licenses.customerEmail, status: licenses.status });
     if (expired.length > 0) {
       console.log(`[Expiry] ${expired.length} license(s) marked EXPIRED.`);
+    }
+    // Fase 4/3: audit trail + webhook license.expired (best-effort, di luar transaction).
+    for (const lic of expired) {
+      await AuditService.record(
+        "license.expired",
+        { licenseId: lic.id, licenseKey: lic.licenseKey, appId: lic.appId, actorType: "SYSTEM" },
+        { expiresAt: now.toISOString() }
+      );
+      await WebhookService.emit("license.expired", {
+        license: lic as any,
+        actorType: "SYSTEM",
+        payload: { expiresAt: now.toISOString() },
+      });
     }
   } catch (err: any) {
     console.error("[Expiry] failed:", err?.message || err);
   }
 }
-expireLicenses();
-setInterval(expireLicenses, 5 * 60 * 1000);
 
-app.listen(config.port, () => {
-  console.log(`\n🚀 tertaut.com Engine is running at http://localhost:${config.port}`);
-  console.log(`📖 Interactive Swagger Docs: http://localhost:${config.port}/swagger`);
-  console.log(`⚡ Runtime: Bun ${Bun.version} | Single Container Architecture ready\n`);
-});
+/** Fase 2: lepas lease floating yang tidak pernah heartbeat sampai TTL habis. */
+async function expireLeases(): Promise<void> {
+  try {
+    const released = await LicenseLeaseService.deleteExpired();
+    if (released > 0) {
+      console.log(`[Lease] ${released} floating lease(s) expired & released.`);
+    }
+  } catch (err: any) {
+    console.error("[Lease] failed:", err?.message || err);
+  }
+}
+
+/** Fase 3: deliverer outbox webhook (retry exponential backoff). */
+async function dispatchWebhooks(): Promise<void> {
+  try {
+    const sent = await WebhookService.dispatchDue();
+    if (sent > 0) {
+      console.log(`[Webhook] ${sent} delivery(ies) diproses.`);
+    }
+  } catch (err: any) {
+    console.error("[Webhook] dispatcher failed:", err?.message || err);
+  }
+}
+
+if (process.env.NODE_ENV !== "test") {
+  expireLicenses();
+  setInterval(expireLicenses, 10 * 60 * 1000); // 10 menit (was 5 menit)
+  expireLeases();
+  setInterval(expireLeases, 2 * 60 * 1000); // 2 menit (was 1 menit)
+  dispatchWebhooks();
+  setInterval(dispatchWebhooks, 60 * 1000); // 1 menit (was 30 detik)
+
+  app.listen(config.port, () => {
+    console.log(`\n🚀 tertaut.com Engine is running at http://localhost:${config.port}`);
+    console.log(`📖 Interactive Swagger Docs: http://localhost:${config.port}/swagger`);
+    console.log(`⚡ Runtime: Bun ${Bun.version} | Single Container Architecture ready\n`);
+  });
+}
 
 export type App = typeof app;

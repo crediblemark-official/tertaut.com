@@ -8,6 +8,34 @@
       "when": 1789703143977,
       "tag": "0000_shallow_venus",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789705377039,
+      "tag": "0001_plain_namora",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789709206840,
+      "tag": "0002_magical_morph",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789724596696,
+      "tag": "0003_volatile_miracleman",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789727161143,
+      "tag": "0004_polite_sinister_six",
+      "breakpoints": true
     }
   ]
 }

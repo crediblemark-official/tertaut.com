@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { authenticate } from "../../middleware/auth";
 import { handleAiChat } from "./chat";
 import { handleGetQuotaStatus } from "./quota";
@@ -34,11 +34,34 @@ export function createAiRoutes(prefix: string) {
      * POST /api/v1/ai/chat dan POST /api/v1/ai-proxy/chat
      */
     .post("/chat", handleAiChat, {
+      body: t.Object(
+        {
+          prompt: t.Optional(t.String({ description: "Teks prompt yang dikirim ke model AI" })),
+          messages: t.Optional(
+            t.Array(
+              t.Object(
+                { role: t.String({ description: "Peran pesan (mis. user / assistant)" }), content: t.String() },
+                { additionalProperties: true }
+              ),
+              { description: "Alternatif prompt dalam bentuk riwayat pesan" }
+            )
+          ),
+          licenseKey: t.Optional(t.String({ description: "Kunci lisensi aktif (alternatif Authorization header)" })),
+          licenseToken: t.Optional(t.String({ description: "Offline license token (JWT) hasil aktivasi" })),
+          appId: t.Optional(t.String({ description: "ID aplikasi — jika diisi wajib sesuai lisensi (APP_MISMATCH ditolak)" })),
+          modelAlias: t.Optional(t.String({ default: "default", description: "Alias model yang dikonfigurasi di Dashboard AI Shield" })),
+          provider: t.Optional(t.String({ description: "Paksa provider upstream (gemini / openai / anthropic / deepseek)" })),
+          model: t.Optional(t.String({ description: "Nama model target vendor" })),
+          stream: t.Optional(t.Boolean({ default: false, description: "true = respons SSE stream, false = JSON biasa" })),
+        },
+        { additionalProperties: true }
+      ),
       detail: {
         tags: ["AI API Proxy Shield"],
         summary: "Execute AI Chat Stream / Non-Stream via Proxy Shield",
         description:
           "Enforces license JWT verification, cost guardrails, AES-256-GCM vault injection, and SSE streaming relay.",
+        security: [{ LicenseToken: [] }],
       },
     })
 
@@ -47,11 +70,16 @@ export function createAiRoutes(prefix: string) {
      * GET /api/v1/ai/quota-status dan GET /api/v1/ai-proxy/quota-status
      */
     .get("/quota-status", handleGetQuotaStatus, {
+      query: t.Object({
+        licenseKey: t.Optional(t.String({ description: "Kunci lisensi aktif (alternatif Authorization header)" })),
+        modelAlias: t.Optional(t.String({ default: "default", description: "Alias model AI Shield" })),
+      }),
       detail: {
         tags: ["AI API Proxy Shield"],
         summary: "Fetch Usage Quota Status",
         description:
           "Returns daily tokens used, limit, remaining tokens, and reset countdown.",
+        security: [{ LicenseToken: [] }],
       },
     })
 

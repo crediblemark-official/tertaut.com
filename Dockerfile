@@ -28,8 +28,11 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
+# Bun runtime optimasi
+ENV BUN_LOG_SCOPE="*"
+ENV BUN_JSX_RUNTIME="haste"
 
-# Hanya dependency runtime yang dibutuhkan server Elysia
+# Hanya dependency runtime + terser (untuk build:client yang sudah selesai)
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production
 
@@ -43,7 +46,7 @@ COPY --from=client-builder /app/dist ./dist
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD wget -qO- "http://127.0.0.1:${PORT}/api/v1/health" || exit 1
 
 CMD ["bun", "src/server/index.ts"]

@@ -18,10 +18,16 @@ export interface LicenseTokenClaims {
   hw: string | null; // hardware hash bound to the token
   eml: string | null; // customer email
   seats: number;
+  feat?: Record<string, any> | null; // Entitlement / feature flags
+  vfl?: string | null; // Version floor (min_version)
+  nbf?: number; // Not-before (dengan toleransi leeway saat verifikasi)
   jti: string;
   iat: number;
   exp: number;
 }
+
+/** Toleransi clock-skew pada verifikasi (Fase 5: leeway ±5 menit). */
+export const CLOCK_SKEW_LEEWAY_SECONDS = 300;
 
 export interface VerifyLicenseTokenResult {
   valid: boolean;
@@ -100,6 +106,7 @@ export class LicenseTokenService {
       typ: "license",
       jti: randomBytes(16).toString("hex"),
       iat: now,
+      nbf: now - CLOCK_SKEW_LEEWAY_SECONDS,
       exp: now + ttlSeconds,
     };
 
@@ -136,6 +143,14 @@ export class LicenseTokenService {
       if (claims.typ !== "license") return { valid: false, reason: "INVALID_TOKEN_TYPE" };
       if (claims.exp && claims.exp < Math.floor(Date.now() / 1000)) {
         return { valid: false, reason: "TOKEN_EXPIRED" };
+      }
+      // Fase 5: toleransi clock-skew (leeway ±5 menit) via nbf/iat.
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (claims.nbf && nowSec < claims.nbf - CLOCK_SKEW_LEEWAY_SECONDS) {
+        return { valid: false, reason: "NOT_YET_VALID" };
+      }
+      if (claims.iat && claims.iat > nowSec + CLOCK_SKEW_LEEWAY_SECONDS) {
+        return { valid: false, reason: "TOO_FORWARD_IAT" };
       }
 
       return { valid: true, claims };

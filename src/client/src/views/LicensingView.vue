@@ -4,17 +4,23 @@ import { api } from '../lib/api'
 import type { AppItem } from '../types/app'
 import type { LicenseItem, LicensePlatform } from '../types/licensing'
 import { dashboardEnv } from '../lib/environment'
-import { CheckCircle2 } from 'lucide-vue-next'
+import { CheckCircle2, KeyRound, Webhook } from 'lucide-vue-next'
 import { useClipboard } from '../composables/useClipboard'
 import LicenseTable from '../components/licensing/LicenseTable.vue'
 import IssueLicenseModal from '../components/licensing/IssueLicenseModal.vue'
+import WebhookManager from '../components/licensing/WebhookManager.vue'
+import LicenseActivityPanel from '../components/licensing/LicenseActivityPanel.vue'
 
+const activeTab = ref<'licenses' | 'webhooks'>('licenses')
 const appsList = ref<AppItem[]>([])
 const licensesList = ref<LicenseItem[]>([])
 const loadingLicenses = ref(false)
 const actionFeedback = ref<string | null>(null)
 let feedbackTimer: ReturnType<typeof setTimeout> | null = null
 const { copy: writeClipboard } = useClipboard()
+
+// Activity Panel State
+const activeLicense = ref<LicenseItem | null>(null)
 
 // Issue Modal State
 const isIssueModalOpen = ref(false)
@@ -113,6 +119,21 @@ async function handleDeactivateSeat(licenseKey: string, hwid: string) {
   }
 }
 
+function openDetail(lic: LicenseItem) {
+  activeLicense.value = lic
+}
+
+function closeDetail() {
+  activeLicense.value = null
+}
+
+function switchTab(tab: 'licenses' | 'webhooks') {
+  activeTab.value = tab
+  if (tab === 'licenses') {
+    loadData()
+  }
+}
+
 /** Beri tahu sidebar (App.vue) bahwa daftar lisensi berubah agar badge ter-update. */
 function notifyLicensesChanged() {
   window.dispatchEvent(new Event('tertaut:licenses-changed'))
@@ -139,17 +160,45 @@ watch(dashboardEnv, () => {
 
 <template>
   <div class="animate-fadeIn pb-12">
-    <!-- Active Licenses Table Component -->
-    <LicenseTable
-      :licenses-list="licensesList"
-      :loading="loadingLicenses"
-      @refresh="loadData"
-      @issue="isIssueModalOpen = true"
-      @copy="copyToClipboard"
-      @unbind-hardware="unbindHardware"
-      @deactivate-seat="handleDeactivateSeat"
-      @revoke="revokeLicense"
-    />
+    <!-- Tab switcher -->
+    <div class="flex items-center gap-4 px-1 mb-3">
+      <button
+        @click="switchTab('licenses')"
+        :class="['text-[11px] font-bold uppercase tracking-wider transition cursor-pointer relative pb-1.5', activeTab === 'licenses' ? 'text-[#111111]' : 'text-[#111111]/40 hover:text-[#111111]/70']"
+      >
+        <span class="inline-flex items-center gap-1.5">
+          <KeyRound class="w-3.5 h-3.5" /> Lisensi
+        </span>
+        <span v-if="activeTab === 'licenses'" class="absolute left-0 right-0 bottom-0 h-0.5 bg-[#D4AF37]" />
+      </button>
+      <button
+        @click="switchTab('webhooks')"
+        :class="['text-[11px] font-bold uppercase tracking-wider transition cursor-pointer relative pb-1.5', activeTab === 'webhooks' ? 'text-[#111111]' : 'text-[#111111]/40 hover:text-[#111111]/70']"
+      >
+        <span class="inline-flex items-center gap-1.5">
+          <Webhook class="w-3.5 h-3.5" /> Webhooks
+        </span>
+        <span v-if="activeTab === 'webhooks'" class="absolute left-0 right-0 bottom-0 h-0.5 bg-[#D4AF37]" />
+      </button>
+    </div>
+
+    <!-- Licenses tab -->
+    <template v-if="activeTab === 'licenses'">
+      <LicenseTable
+        :licenses-list="licensesList"
+        :loading="loadingLicenses"
+        @refresh="loadData"
+        @issue="isIssueModalOpen = true"
+        @copy="copyToClipboard"
+        @unbind-hardware="unbindHardware"
+        @deactivate-seat="handleDeactivateSeat"
+        @revoke="revokeLicense"
+        @detail="openDetail"
+      />
+    </template>
+
+    <!-- Webhooks tab -->
+    <WebhookManager v-else />
 
     <!-- Alert Feedback -->
     <div
@@ -168,6 +217,13 @@ watch(dashboardEnv, () => {
       :default-app-id="appsList.length > 0 ? appsList[0].id : ''"
       @close="isIssueModalOpen = false"
       @issue="handleIssueLicense"
+    />
+
+    <!-- Activity & Audit Panel -->
+    <LicenseActivityPanel
+      :license="activeLicense"
+      @close="closeDetail"
+      @deactivate-seat="handleDeactivateSeat"
     />
   </div>
 </template>

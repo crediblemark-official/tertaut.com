@@ -1,6 +1,6 @@
 {
   "name": "@tertaut/sdk",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "Lightweight client library for tertaut.com (<15KB) - Fake Door, MoR Checkout, Universal Licensing & AI Proxy Shield",
   "type": "module",
   "main": "./dist/index.js",

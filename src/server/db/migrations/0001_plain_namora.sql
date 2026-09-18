@@ -1,0 +1,2 @@
+ALTER TABLE "apps" ADD COLUMN "api_key" text DEFAULT '' NOT NULL;
+UPDATE "apps" SET "api_key" = 'tt_' || (CASE WHEN "mode" = 'live' THEN 'live' ELSE 'test' END) || '_' || md5(random()::text || "id") WHERE "api_key" = '';

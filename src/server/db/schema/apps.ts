@@ -23,12 +23,26 @@ export interface CaptureConfig {
   calendarLink?: string;
 }
 
+export interface FloatingLicenseConfig {
+  /** Aktifkan siapa-yang-hidup (floating) — seat dilepas bila client berhenti heartbeat. */
+  enabled?: boolean;
+  /** TTL satu lease (detik). Default 300 s (5 menit). */
+  leaseTtlSeconds?: number;
+  /** Interval heartbeat yang dianjurkan untuk dikirim client (detik). Default 60 s. */
+  heartbeatIntervalSeconds?: number;
+}
+
 export interface DeliveryConfig {
   licenseKey?: {
     enabled: boolean;
     description?: string;
     expiresInDays?: number;
     maxSeats?: number;
+    defaultFeatures?: Record<string, any>;
+    /** Konfigurasi floating license + lease/heartbeat (rolling seat). */
+    floating?: FloatingLicenseConfig;
+    /** Masa berlaku offline grace token (hari). Default 30. */
+    offlineGraceDays?: number;
   };
   fileDownload?: {
     enabled: boolean;
@@ -65,6 +79,8 @@ export interface MeteringConfig {
 
 export const apps = pgTable("apps", {
   id: text("id").primaryKey(), // e.g. "app_xyz123"
+  /** Publishable API key aplikasi (pola publishable-key): `tt_live_...` / `tt_test_...`. Dipakai klien SDK @tertaut/sdk. */
+  apiKey: text("api_key").notNull().default(""),
   builderId: uuid("builder_id")
     .notNull()
     .references(() => builders.id, { onDelete: "cascade" }),

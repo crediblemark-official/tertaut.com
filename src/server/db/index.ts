@@ -9,13 +9,11 @@ const useSsl =
   process.env.DATABASE_SSL === "true" ||
   (config.isProd && !databaseUrl.includes("localhost") && !databaseUrl.includes("127.0.0.1"));
 
-// Connection pool for PostgreSQL
 export const queryClient = postgres(databaseUrl, {
-  max: 10,
-  idle_timeout: 20,
-  connect_timeout: 10,
+  max: 3,
+  idle_timeout: 15,
+  connect_timeout: 5,
   ssl: useSsl ? "require" : false,
-  onnotice: () => {},
 });
 
 export const db = drizzle(queryClient, { schema });
