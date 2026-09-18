@@ -78,11 +78,12 @@ tertautv2/
 - [Docker](https://www.docker.com/) & Docker Compose
 
 ### 2. Jalankan PostgreSQL di Docker
-Jika kontainer PostgreSQL belum aktif:
+Kredensial container wajib dari environment (tanpa default hardcoded):
 ```bash
+export DB_USER=postgres DB_PASSWORD=postgres DB_NAME=tertautv2
 docker compose up -d
 ```
-*Kontainer default: `tertaut_postgres` pada port 5432, database `tertautv2`.*
+*Kontainer default: `tertaut_postgres` pada port 5432.*
 
 ### 3. Migrasi Database
 Jalankan migrasi Drizzle untuk membuat seluruh 7 tabel:

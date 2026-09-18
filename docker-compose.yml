@@ -4,15 +4,16 @@ services:
     container_name: tertaut_postgres
     restart: always
     environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-tertautv2}
+      # Wajib dari environment (tanpa default hardcoded) — lihat .env.example.
+      POSTGRES_USER: ${DB_USER:?DB_USER wajib diisi}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib diisi}
+      POSTGRES_DB: ${DB_NAME:?DB_NAME wajib diisi}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-tertautv2}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:?DB_USER wajib diisi} -d ${DB_NAME:?DB_NAME wajib diisi}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -29,7 +30,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-tertautv2}
+      DATABASE_URL: postgresql://${DB_USER:?DB_USER wajib diisi}:${DB_PASSWORD:?DB_PASSWORD wajib diisi}@postgres:5432/${DB_NAME:?DB_NAME wajib diisi}
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
       # Wajib diisi di production (lihat .env.example) — nilai default akan ditolak config.
       JWT_SECRET: ${JWT_SECRET:-}

@@ -44,6 +44,18 @@ function resolveSecret(envName: string, devFallback = ""): string {
 }
 
 /**
+ * Nilai yang wajib berasal dari environment di semua mode (tanpa fallback hardcode).
+ * Dipakai untuk koneksi database agar kredensial tidak pernah tertanam di kode.
+ */
+function requireEnv(envName: string): string {
+  const value = getEnv(envName);
+  if (!value) {
+    throw new Error(`[config] ${envName} wajib disetel (lihat .env.example).`);
+  }
+  return value;
+}
+
+/**
  * Membaca nilai kunci/sertifikat, mendukung file path lokal (mis. keys/*.pem)
  * maupun nilai string inline dari environment variable.
  */
@@ -83,9 +95,8 @@ export const config = {
   defaultPrice: Number(getEnv("DEFAULT_PRICE", "0")),
 
   database: {
-    url: isProd
-      ? resolveSecret("DATABASE_URL")
-      : getEnv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/tertautv2"),
+    /** Satu sumber koneksi: connection string PostgreSQL dari environment. */
+    url: requireEnv("DATABASE_URL"),
   },
 
   security: {

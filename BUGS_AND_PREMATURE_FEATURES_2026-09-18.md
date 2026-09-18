@@ -27,6 +27,7 @@
 
 ### Perbaikan Konfigurasi ✅
 - `config.ts:getEnv` sebelumnya membaca file `.env` **lebih dulu** daripada `process.env`, sehingga override runtime diabaikan (di dev, `DATABASE_URL=... bun run db:migrate` tetap menuju DB dari `.env`). Kini **`process.env` diutamakan**; `.env` hanya fallback. Diverifikasi: `bun run db:migrate` + override env sukses membuat 17 tabel di DB segar.
+- Koneksi DB **tanpa fallback hardcoded**: `DATABASE_URL` wajib di semua mode (`config.ts` via `requireEnv`, `drizzle.config.ts`), dan `docker-compose.yml` mewajibkan `DB_USER/DB_PASSWORD/DB_NAME` dari environment (gagal jelas bila kosong). `.env` aplikasi cukup satu baris `DATABASE_URL`.
 
 ---
 
