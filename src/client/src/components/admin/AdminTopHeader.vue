@@ -27,13 +27,13 @@ const emit = defineEmits<{
 
 <template>
   <!-- Admin Desktop Top Header -->
-  <header class="hidden md:flex items-center justify-between px-6 min-h-[44px] py-1.5 sm:py-0 border-b border-[#111111] bg-[#111111] text-white shrink-0 z-20">
+  <header class="hidden md:flex items-center justify-between px-6 min-h-[44px] py-1.5 sm:py-0 border-b border-jetblack bg-jetblack text-white shrink-0 z-20">
     <!-- Left: Breadcrumb / Category / Title -->
     <div class="flex items-center gap-3">
       <div class="flex items-center gap-1.5 text-xs text-white/50 font-medium">
         <span class="hover:text-white transition cursor-default">Super Admin</span>
         <ChevronRight class="w-3 h-3 text-white/30" />
-        <span class="text-[#D4AF37] font-semibold">{{ currentNavItem.category }}</span>
+        <span class="text-gold font-semibold">{{ currentNavItem.category }}</span>
         <ChevronRight class="w-3 h-3 text-white/30" />
       </div>
       <h2 class="text-sm font-bold text-white tracking-tight flex items-center gap-2">
@@ -45,7 +45,7 @@ const emit = defineEmits<{
     <!-- Right: Status, Refresh & External Links -->
     <div class="flex items-center gap-3">
       <!-- Mode Pill -->
-      <div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold bg-[#0F4C3A]/30 border-[#0F4C3A]/50 text-emerald-300">
+      <div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold bg-forest/30 border-forest/50 text-emerald-300">
         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
         <span>Super Admin Rail</span>
       </div>
@@ -82,15 +82,15 @@ const emit = defineEmits<{
   </header>
 
   <!-- Mobile Top Compact Bar -->
-  <header class="md:hidden bg-[#111111] text-white border-b border-[#111111] sticky top-0 z-40 shadow-xs min-h-[44px]">
+  <header class="md:hidden bg-jetblack text-white border-b border-jetblack sticky top-0 z-40 shadow-xs min-h-[44px]">
     <div class="flex items-center justify-between px-3.5 py-1.5">
       <router-link to="/panel" class="flex items-center gap-2">
         <div class="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center font-bold text-white text-xs relative shadow-xs">
           T
-          <span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-[#D4AF37]"></span>
+          <span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-gold"></span>
         </div>
         <span class="font-extrabold text-xs tracking-tight text-white font-mono">
-          tertaut<span class="text-[#D4AF37]">.admin</span>
+          tertaut<span class="text-gold">.admin</span>
         </span>
       </router-link>
 
@@ -99,7 +99,7 @@ const emit = defineEmits<{
           to="/dashboard"
           class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[10.5px] font-bold text-white flex items-center gap-1 transition"
         >
-          <LayoutDashboard class="w-3.5 h-3.5 text-[#D4AF37]" />
+          <LayoutDashboard class="w-3.5 h-3.5 text-gold" />
           <span>Builder</span>
         </router-link>
 
@@ -115,13 +115,13 @@ const emit = defineEmits<{
     </div>
 
     <!-- Context Sub-bar -->
-    <div class="px-3.5 py-1.5 bg-[#111111]/[0.02] border-t border-[#111111]/5 flex items-center justify-between text-[11px]">
-      <div class="flex items-center gap-1.5 font-medium text-[#111111]/60 truncate">
-        <span class="text-[#D4AF37] font-bold">{{ currentNavItem.category }}</span>
+    <div class="px-3.5 py-1.5 bg-jetblack/[0.02] border-t border-jetblack/5 flex items-center justify-between text-[11px]">
+      <div class="flex items-center gap-1.5 font-medium text-jetblack/60 truncate">
+        <span class="text-gold font-bold">{{ currentNavItem.category }}</span>
         <span>•</span>
-        <span class="text-[#111111] font-semibold truncate">{{ currentNavItem.name }}</span>
+        <span class="text-jetblack font-semibold truncate">{{ currentNavItem.name }}</span>
       </div>
-      <span class="text-[9.5px] font-mono text-[#111111]/40 shrink-0">Super Admin</span>
+      <span class="text-[9.5px] font-mono text-jetblack/40 shrink-0">Super Admin</span>
     </div>
   </header>
 </template>

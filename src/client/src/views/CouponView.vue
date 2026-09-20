@@ -138,13 +138,13 @@ watch(dashboardEnv, () => {
 <template>
   <div class="animate-fadeIn pb-8">
     <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-[#111111] text-white border-b border-[#111111] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
       <!-- Sisi Kiri: Label Kupon & Toggle Statistik -->
       <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
         <div class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-white/20 text-white shadow-2xs">
-          <Ticket class="w-3.5 h-3.5 text-[#D4AF37]" />
+          <Ticket class="w-3.5 h-3.5 text-gold" />
           <span>Kupon Diskon</span>
-          <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-white text-[#111111]">
+          <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-white text-jetblack">
             {{ couponsList.length }}
           </span>
         </div>
@@ -159,11 +159,11 @@ watch(dashboardEnv, () => {
               : 'text-white/60 hover:text-white hover:bg-white/10'
           ]"
         >
-          <BarChart3 class="w-3.5 h-3.5" :class="showStats ? 'text-[#D4AF37]' : ''" />
+          <BarChart3 class="w-3.5 h-3.5" :class="showStats ? 'text-gold' : ''" />
           <span>Statistik</span>
           <span
             v-if="showStats"
-            class="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"
+            class="w-1.5 h-1.5 rounded-full bg-gold"
           ></span>
         </button>
       </div>
@@ -192,7 +192,7 @@ watch(dashboardEnv, () => {
     <!-- Alert Feedback -->
     <div
       v-if="actionFeedback"
-      class="mb-3 p-3 rounded-xl bg-[#0F4C3A]/10 border border-[#0F4C3A]/30 text-[#0F4C3A] text-xs font-bold flex items-center gap-2 animate-fadeIn"
+      class="mb-3 p-3 rounded-xl bg-forest/10 border border-forest/30 text-forest text-xs font-bold flex items-center gap-2 animate-fadeIn"
     >
       <CheckCircle2 class="w-4 h-4 shrink-0" />
       <span>{{ actionFeedback }}</span>

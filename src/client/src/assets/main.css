@@ -4,76 +4,121 @@
 
 @layer base {
   body {
-    background-color: #FFFFFF;
-    color: #111111;
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    @apply bg-white text-jetblack font-sans m-0 p-0;
     -webkit-tap-highlight-color: transparent;
   }
 
-  code, pre, .font-mono {
+  code,
+  pre,
+  .font-mono {
     font-family: 'JetBrains Mono', monospace;
+  }
+
+  a {
+    @apply no-underline;
+  }
+
+  /* Accessible keyboard navigation focus ring */
+  :focus-visible {
+    outline: 2px solid #D4AF37;
+    outline-offset: 2px;
+  }
+
+  /* Universal browser autofill normalization */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+    -webkit-text-fill-color: #111111 !important;
+    caret-color: #111111 !important;
+    transition: background-color 5000s ease-in-out 0s;
   }
 }
 
-/* Custom compact scrollbar */
+@layer components {
+  /* Standardized View Header / Toolbar */
+  .view-toolbar {
+    @apply -mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3;
+  }
+
+  /* Luxury Light Mode Cards */
+  .luxury-card {
+    @apply bg-white border border-jetblack-subtle transition-[border-color,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-card;
+  }
+
+  .luxury-card:hover {
+    @apply border-jetblack-border shadow-card-hover;
+  }
+
+  /* Exclusive Jet Black Contrast Card */
+  .luxury-card-dark {
+    @apply bg-jetblack text-white border border-white/10 shadow-card-dark;
+  }
+
+  /* Gold CTA button styling */
+  .btn-gold {
+    @apply bg-gold text-jetblack font-bold transition-colors duration-200 shadow-gold-glow;
+  }
+
+  .btn-gold:hover {
+    @apply bg-gold-muted shadow-gold-glow-lg;
+  }
+
+  .btn-gold:active {
+    @apply scale-98;
+  }
+}
+
+/* Custom compact scrollbar — standard Firefox + WebKit */
+html,
+body,
+.overflow-auto,
+.overflow-x-auto,
+.overflow-y-auto,
+.overflow-x-scroll,
+.overflow-y-scroll,
+.top-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(17, 17, 17, 0.15) transparent;
+}
+
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #FFFFFF;
+  background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: rgba(17, 17, 17, 0.15);
   border-radius: 9999px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(17, 17, 17, 0.3);
 }
 
-/* Luxury Light Mode Cards */
-.luxury-card {
-  background: #FFFFFF;
-  border: 1px solid rgba(17, 17, 17, 0.08);
-  box-shadow: 0 2px 8px -1px rgba(17, 17, 17, 0.04), 0 1px 3px -1px rgba(17, 17, 17, 0.02);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.luxury-card:hover {
-  border-color: rgba(17, 17, 17, 0.16);
-  box-shadow: 0 8px 24px -4px rgba(17, 17, 17, 0.08);
-}
-
-/* Exclusive Jet Black Contrast Card */
-.luxury-card-dark {
-  background: #111111;
-  color: #FFFFFF;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 30px -5px rgba(17, 17, 17, 0.25);
-}
-
-/* Gold CTA button styling */
-.btn-gold {
-  background-color: #D4AF37;
-  color: #111111;
-  font-weight: 700;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.35);
-}
-.btn-gold:hover {
-  background-color: #C5A059;
-  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.45);
-}
-.btn-gold:active {
-  transform: scale(0.98);
-}
-
-/* Top Horizontal Scrollbar */
+/* Top Horizontal Scrollbar flip trick — must stay vanilla */
 .top-scrollbar {
   transform: rotateX(180deg);
   -ms-overflow-style: auto;
 }
+
 .top-scrollbar > * {
   transform: rotateX(180deg);
 }
 
+/* Accessibility: respect user prefers-reduced-motion settings */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

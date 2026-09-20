@@ -164,21 +164,21 @@ watch(dashboardEnv, () => {
     <div class="flex items-center gap-4 px-1 mb-3">
       <button
         @click="switchTab('licenses')"
-        :class="['text-[11px] font-bold uppercase tracking-wider transition cursor-pointer relative pb-1.5', activeTab === 'licenses' ? 'text-[#111111]' : 'text-[#111111]/40 hover:text-[#111111]/70']"
+        :class="['text-[11px] font-bold uppercase tracking-wider transition cursor-pointer relative pb-1.5', activeTab === 'licenses' ? 'text-jetblack' : 'text-jetblack/40 hover:text-jetblack/70']"
       >
         <span class="inline-flex items-center gap-1.5">
           <KeyRound class="w-3.5 h-3.5" /> Lisensi
         </span>
-        <span v-if="activeTab === 'licenses'" class="absolute left-0 right-0 bottom-0 h-0.5 bg-[#D4AF37]" />
+        <span v-if="activeTab === 'licenses'" class="absolute left-0 right-0 bottom-0 h-0.5 bg-gold" />
       </button>
       <button
         @click="switchTab('webhooks')"
-        :class="['text-[11px] font-bold uppercase tracking-wider transition cursor-pointer relative pb-1.5', activeTab === 'webhooks' ? 'text-[#111111]' : 'text-[#111111]/40 hover:text-[#111111]/70']"
+        :class="['text-[11px] font-bold uppercase tracking-wider transition cursor-pointer relative pb-1.5', activeTab === 'webhooks' ? 'text-jetblack' : 'text-jetblack/40 hover:text-jetblack/70']"
       >
         <span class="inline-flex items-center gap-1.5">
           <Webhook class="w-3.5 h-3.5" /> Webhooks
         </span>
-        <span v-if="activeTab === 'webhooks'" class="absolute left-0 right-0 bottom-0 h-0.5 bg-[#D4AF37]" />
+        <span v-if="activeTab === 'webhooks'" class="absolute left-0 right-0 bottom-0 h-0.5 bg-gold" />
       </button>
     </div>
 
@@ -203,7 +203,7 @@ watch(dashboardEnv, () => {
     <!-- Alert Feedback -->
     <div
       v-if="actionFeedback"
-      class="mt-3 p-3 rounded-xl bg-[#0F4C3A]/10 border border-[#0F4C3A]/30 text-[#0F4C3A] text-xs font-bold flex items-center gap-2 animate-fadeIn"
+      class="mt-3 p-3 rounded-xl bg-forest/10 border border-forest/30 text-forest text-xs font-bold flex items-center gap-2 animate-fadeIn"
     >
       <CheckCircle2 class="w-4 h-4" />
       <span>{{ actionFeedback }}</span>

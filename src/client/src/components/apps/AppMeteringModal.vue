@@ -261,19 +261,19 @@ function handleApply() {
     class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
     @click.self="handleClose"
   >
-    <div class="bg-white border border-[#111111]/15 rounded-2xl w-full max-w-[460px] shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-scaleIn">
+    <div class="bg-white border border-jetblack/15 rounded-2xl w-full max-w-[460px] shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-scaleIn">
       <!-- Modal Header (Tertaut Luxury Style) -->
-      <div class="px-5 py-3.5 border-b border-[#111111]/10 flex items-center justify-between bg-white shrink-0">
+      <div class="px-5 py-3.5 border-b border-jetblack/10 flex items-center justify-between bg-white shrink-0">
         <div class="flex items-center gap-2">
-          <div class="w-2 h-2 rounded-full bg-[#D4AF37]"></div>
-          <h3 class="text-xs font-bold uppercase tracking-wider text-[#111111]">
+          <div class="w-2 h-2 rounded-full bg-gold"></div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-jetblack">
             Tambah Harga Berbasis Penggunaan
           </h3>
         </div>
         <button
           type="button"
           @click="handleClose"
-          class="text-[#111111]/40 hover:text-[#111111] p-1 -mr-1 rounded-lg hover:bg-[#111111]/5 transition cursor-pointer"
+          class="text-jetblack/40 hover:text-jetblack p-1 -mr-1 rounded-lg hover:bg-jetblack/5 transition cursor-pointer"
         >
           <X class="w-4 h-4" />
         </button>
@@ -284,11 +284,11 @@ function handleApply() {
         <!-- Section: Meter & Template Quick Switcher -->
         <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
           <div>
-            <div class="text-xs font-bold text-[#111111] flex items-center gap-1.5">
-              <Sparkles class="w-3.5 h-3.5 text-[#D4AF37]" />
+            <div class="text-xs font-bold text-jetblack flex items-center gap-1.5">
+              <Sparkles class="w-3.5 h-3.5 text-gold" />
               <span>Template Meter</span>
             </div>
-            <div class="text-[11px] text-[#111111]/55 mt-0.5">Pilih template untuk konfigurasi awal.</div>
+            <div class="text-[11px] text-jetblack/55 mt-0.5">Pilih template untuk konfigurasi awal.</div>
           </div>
           
           <!-- Compact Template Selector Dropdown -->
@@ -296,9 +296,9 @@ function handleApply() {
             <button
               type="button"
               @click="isTemplateDropdownOpen = !isTemplateDropdownOpen; isCalcDropdownOpen = false; isPerDropdownOpen = false"
-              class="h-8 px-3 rounded-lg bg-white border border-slate-300 hover:border-[#D4AF37] text-xs font-bold text-[#111111] transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              class="h-8 px-3 rounded-lg bg-white border border-slate-300 hover:border-gold text-xs font-bold text-jetblack transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
-              <component :is="currentTemplateMeta.icon" class="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+              <component :is="currentTemplateMeta.icon" class="w-3.5 h-3.5 text-gold shrink-0" />
               <span>{{ currentTemplateMeta.name }}</span>
               <ChevronDown class="w-3.5 h-3.5 text-slate-400 transition-transform duration-150" :class="{ 'rotate-180': isTemplateDropdownOpen }" />
             </button>
@@ -315,13 +315,13 @@ function handleApply() {
                 type="button"
                 @click="applyTemplate(tpl.id)"
                 class="w-full px-2.5 py-1.5 text-xs rounded-lg text-left flex items-center justify-between transition cursor-pointer"
-                :class="selectedTemplateId === tpl.id ? 'bg-[#D4AF37]/15 text-[#8a6d1f] font-bold' : 'text-[#111111] hover:bg-slate-100'"
+                :class="selectedTemplateId === tpl.id ? 'bg-gold/15 text-[#8a6d1f] font-bold' : 'text-jetblack hover:bg-slate-100'"
               >
                 <div class="flex items-center gap-2 truncate">
-                  <component :is="tpl.icon" class="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+                  <component :is="tpl.icon" class="w-3.5 h-3.5 text-gold shrink-0" />
                   <span class="truncate">{{ tpl.name }}</span>
                 </div>
-                <Check v-if="selectedTemplateId === tpl.id" class="w-3.5 h-3.5 text-[#D4AF37] stroke-[3] shrink-0" />
+                <Check v-if="selectedTemplateId === tpl.id" class="w-3.5 h-3.5 text-gold stroke-[3] shrink-0" />
               </button>
             </div>
           </div>
@@ -329,26 +329,26 @@ function handleApply() {
 
         <!-- Field: Nama -->
         <div>
-          <label class="block text-xs font-bold text-[#111111] mb-1">Nama</label>
+          <label class="block text-xs font-bold text-jetblack mb-1">Nama</label>
           <input
             v-model="meterName"
             type="text"
             placeholder="Token LLM"
-            class="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 hover:border-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-semibold text-[#111111] placeholder:text-slate-400 shadow-2xs outline-none transition"
+            class="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 hover:border-slate-400 focus:border-gold focus:ring-2 focus:ring-gold/20 text-xs font-semibold text-jetblack placeholder:text-slate-400 shadow-2xs outline-none transition"
           />
-          <p class="text-[11px] text-[#111111]/50 mt-1">Ditampilkan pada faktur dan di portal pelanggan.</p>
+          <p class="text-[11px] text-jetblack/50 mt-1">Ditampilkan pada faktur dan di portal pelanggan.</p>
         </div>
 
         <!-- Field: Acara (Event Name) & Filter -->
         <div>
-          <label class="block text-xs font-bold text-[#111111] mb-1">Acara</label>
+          <label class="block text-xs font-bold text-jetblack mb-1">Acara</label>
           <input
             v-model="meterEventName"
             type="text"
             placeholder="ai_usage"
-            class="w-full h-9 px-3 rounded-lg bg-slate-50/70 border border-slate-300 hover:border-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-mono font-bold text-[#111111] placeholder:text-slate-400 shadow-2xs outline-none transition"
+            class="w-full h-9 px-3 rounded-lg bg-slate-50/70 border border-slate-300 hover:border-slate-400 focus:border-gold focus:ring-2 focus:ring-gold/20 text-xs font-mono font-bold text-jetblack placeholder:text-slate-400 shadow-2xs outline-none transition"
           />
-          <p class="text-[11px] text-[#111111]/50 mt-1">
+          <p class="text-[11px] text-jetblack/50 mt-1">
             Harus cocok dengan nama acara yang Anda kirim ke API acara, karakter demi karakter.
           </p>
 
@@ -357,7 +357,7 @@ function handleApply() {
             <button
               type="button"
               @click="addFilter"
-              class="text-xs font-bold text-[#8a6d1f] hover:text-[#D4AF37] inline-flex items-center gap-1 transition cursor-pointer"
+              class="text-xs font-bold text-[#8a6d1f] hover:text-gold inline-flex items-center gap-1 transition cursor-pointer"
             >
               <Plus class="w-3.5 h-3.5 stroke-[2.5]" />
               <span>Tambah filter</span>
@@ -375,14 +375,14 @@ function handleApply() {
                 v-model="flt.property"
                 type="text"
                 placeholder="properti (mis. model)"
-                class="flex-1 h-8 px-2.5 rounded bg-white border border-slate-300 text-xs font-mono font-medium text-[#111111] focus:border-[#D4AF37] focus:outline-none"
+                class="flex-1 h-8 px-2.5 rounded bg-white border border-slate-300 text-xs font-mono font-medium text-jetblack focus:border-gold focus:outline-none"
               />
               <span class="text-slate-400 text-xs font-mono font-bold">=</span>
               <input
                 v-model="flt.value"
                 type="text"
                 placeholder="nilai (mis. gpt-4o)"
-                class="flex-1 h-8 px-2.5 rounded bg-white border border-slate-300 text-xs font-mono font-medium text-[#111111] focus:border-[#D4AF37] focus:outline-none"
+                class="flex-1 h-8 px-2.5 rounded bg-white border border-slate-300 text-xs font-mono font-medium text-jetblack focus:border-gold focus:outline-none"
               />
               <button
                 type="button"
@@ -400,11 +400,11 @@ function handleApply() {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Hitung penggunaan sebagai -->
           <div class="relative">
-            <label class="block text-xs font-bold text-[#111111] mb-1">Hitung penggunaan sebagai</label>
+            <label class="block text-xs font-bold text-jetblack mb-1">Hitung penggunaan sebagai</label>
             <button
               type="button"
               @click="isCalcDropdownOpen = !isCalcDropdownOpen; isTemplateDropdownOpen = false; isPerDropdownOpen = false"
-              class="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 hover:border-slate-400 text-xs font-medium text-[#111111] flex items-center justify-between shadow-2xs transition cursor-pointer text-left"
+              class="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 hover:border-slate-400 text-xs font-medium text-jetblack flex items-center justify-between shadow-2xs transition cursor-pointer text-left"
             >
               <span>{{ currentCalcOption.label }}</span>
               <ChevronDown class="w-3.5 h-3.5 text-slate-400 transition-transform duration-150 shrink-0" :class="{ 'rotate-180': isCalcDropdownOpen }" />
@@ -421,30 +421,30 @@ function handleApply() {
                 type="button"
                 @click="meterCalcType = c.id; isCalcDropdownOpen = false"
                 class="w-full px-3 py-2 text-xs rounded-lg text-left flex items-center justify-between transition cursor-pointer"
-                :class="meterCalcType === c.id ? 'bg-[#D4AF37]/15 text-[#8a6d1f] font-bold' : 'text-[#111111] hover:bg-slate-100'"
+                :class="meterCalcType === c.id ? 'bg-gold/15 text-[#8a6d1f] font-bold' : 'text-jetblack hover:bg-slate-100'"
               >
                 <span>{{ c.label }}</span>
-                <Check v-if="meterCalcType === c.id" class="w-3.5 h-3.5 text-[#D4AF37] stroke-[3]" />
+                <Check v-if="meterCalcType === c.id" class="w-3.5 h-3.5 text-gold stroke-[3]" />
               </button>
             </div>
           </div>
 
           <!-- Label unit -->
           <div>
-            <label class="block text-xs font-bold text-[#111111] mb-1">Label unit</label>
+            <label class="block text-xs font-bold text-jetblack mb-1">Label unit</label>
             <input
               v-model="meterUnitLabel"
               type="text"
               placeholder="tokens"
-              class="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 hover:border-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-medium text-[#111111] placeholder:text-slate-400 shadow-2xs outline-none transition"
+              class="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 hover:border-slate-400 focus:border-gold focus:ring-2 focus:ring-gold/20 text-xs font-medium text-jetblack placeholder:text-slate-400 shadow-2xs outline-none transition"
             />
           </div>
         </div>
 
         <!-- Dynamic Calculation Helper (Clean inline badge) -->
-        <div class="text-[11px] text-[#111111]/60 flex items-center gap-1.5 px-0.5">
+        <div class="text-[11px] text-jetblack/60 flex items-center gap-1.5 px-0.5">
           <span>Laporan</span>
-          <code class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[#111111] font-mono font-bold text-[10px]">{{ currentCalcOption.code }}</code>
+          <code class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-jetblack font-mono font-bold text-[10px]">{{ currentCalcOption.code }}</code>
           <span>per pelanggan, per siklus penagihan.</span>
         </div>
 
@@ -452,25 +452,25 @@ function handleApply() {
         <div class="grid grid-cols-2 gap-3 pt-0.5">
           <!-- Harga -->
           <div>
-            <label class="block text-xs font-bold text-[#111111] mb-1">Harga</label>
+            <label class="block text-xs font-bold text-jetblack mb-1">Harga</label>
             <div class="relative">
-              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#111111]/40">Rp</span>
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-jetblack/40">Rp</span>
               <input
                 v-model="meteringUnitPrice"
                 type="text"
                 placeholder="20.00"
-                class="w-full h-9 pl-9 pr-3 rounded-lg bg-white border border-slate-300 hover:border-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-mono font-bold text-[#111111] shadow-2xs outline-none transition"
+                class="w-full h-9 pl-9 pr-3 rounded-lg bg-white border border-slate-300 hover:border-slate-400 focus:border-gold focus:ring-2 focus:ring-gold/20 text-xs font-mono font-bold text-jetblack shadow-2xs outline-none transition"
               />
             </div>
           </div>
 
           <!-- Per Dropdown -->
           <div class="relative">
-            <label class="block text-xs font-bold text-[#111111] mb-1">Per</label>
+            <label class="block text-xs font-bold text-jetblack mb-1">Per</label>
             <button
               type="button"
               @click="isPerDropdownOpen = !isPerDropdownOpen; isCalcDropdownOpen = false; isTemplateDropdownOpen = false"
-              class="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 hover:border-slate-400 text-xs font-medium text-[#111111] flex items-center justify-between shadow-2xs transition cursor-pointer text-left"
+              class="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 hover:border-slate-400 text-xs font-medium text-jetblack flex items-center justify-between shadow-2xs transition cursor-pointer text-left"
             >
               <span class="truncate">{{ meteringMetricUnit }}</span>
               <ChevronDown class="w-3.5 h-3.5 text-slate-400 transition-transform duration-150 shrink-0" :class="{ 'rotate-180': isPerDropdownOpen }" />
@@ -487,10 +487,10 @@ function handleApply() {
                 type="button"
                 @click="meteringMetricUnit = unit; isPerDropdownOpen = false"
                 class="w-full px-3 py-2 text-xs rounded-lg text-left flex items-center justify-between transition cursor-pointer"
-                :class="meteringMetricUnit === unit ? 'bg-[#D4AF37]/15 text-[#8a6d1f] font-bold' : 'text-[#111111] hover:bg-slate-100'"
+                :class="meteringMetricUnit === unit ? 'bg-gold/15 text-[#8a6d1f] font-bold' : 'text-jetblack hover:bg-slate-100'"
               >
                 <span class="truncate">{{ unit }}</span>
-                <Check v-if="meteringMetricUnit === unit" class="w-3.5 h-3.5 text-[#D4AF37] stroke-[3]" />
+                <Check v-if="meteringMetricUnit === unit" class="w-3.5 h-3.5 text-gold stroke-[3]" />
               </button>
             </div>
           </div>
@@ -498,26 +498,26 @@ function handleApply() {
 
         <!-- Tunjangan gratis -->
         <div>
-          <label class="block text-xs font-bold text-[#111111] mb-1">Tunjangan gratis</label>
+          <label class="block text-xs font-bold text-jetblack mb-1">Tunjangan gratis</label>
           <input
             v-model.number="meteringFreeAllowance"
             type="number"
             min="0"
             placeholder="0"
-            class="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 hover:border-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 text-xs font-mono font-bold text-[#111111] shadow-2xs outline-none transition"
+            class="w-full h-9 px-3 rounded-lg bg-white border border-slate-300 hover:border-slate-400 focus:border-gold focus:ring-2 focus:ring-gold/20 text-xs font-mono font-bold text-jetblack shadow-2xs outline-none transition"
           />
-          <p class="text-[11px] text-[#111111]/50 mt-1">
+          <p class="text-[11px] text-jetblack/50 mt-1">
             Unit yang disertakan setiap siklus sebelum penagihan dimulai. Biarkan 0 jika tidak ada.
           </p>
         </div>
       </div>
 
       <!-- Modal Footer (Clean right-aligned Cancel & btn-gold Tambah harga) -->
-      <div class="px-5 py-3.5 border-t border-[#111111]/10 bg-white shrink-0 flex items-center justify-end gap-2">
+      <div class="px-5 py-3.5 border-t border-jetblack/10 bg-white shrink-0 flex items-center justify-end gap-2">
         <button
           type="button"
           @click="handleClose"
-          class="h-9 px-4 rounded-lg border border-slate-300 hover:bg-slate-100 text-xs font-bold text-[#111111] transition cursor-pointer"
+          class="h-9 px-4 rounded-lg border border-slate-300 hover:bg-slate-100 text-xs font-bold text-jetblack transition cursor-pointer"
         >
           Batal
         </button>

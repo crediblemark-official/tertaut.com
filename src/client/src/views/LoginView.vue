@@ -75,11 +75,11 @@ async function submit() {
 </script>
 
 <template>
-  <div class="relative min-h-screen lg:h-screen lg:max-h-screen bg-[#090A0C] text-white flex flex-col justify-start lg:justify-center items-center p-3 sm:p-5 lg:p-6 overflow-y-auto lg:overflow-hidden selection:bg-[#D4AF37]/30 selection:text-white py-4 sm:py-6">
+  <div class="relative min-h-screen lg:h-screen lg:max-h-screen bg-[#090A0C] text-white flex flex-col justify-start lg:justify-center items-center p-3 sm:p-5 lg:p-6 overflow-y-auto lg:overflow-hidden selection:bg-gold/30 selection:text-white py-4 sm:py-6">
     <!-- Ambient Lighting & Developer Grid Background -->
     <div class="fixed inset-0 pointer-events-none z-0">
       <div class="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px]"></div>
-      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[450px] bg-gradient-to-tr from-[#0F4C3A]/20 via-[#D4AF37]/10 to-transparent rounded-full blur-[140px]"></div>
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[450px] bg-gradient-to-tr from-forest/20 via-gold/10 to-transparent rounded-full blur-[140px]"></div>
     </div>
 
     <!-- Top Navigation Bar (Aligned with Master Card width) -->
@@ -95,7 +95,7 @@ async function submit() {
       <div class="flex items-center gap-3 text-xs">
         <router-link
           to="/dashboard/docs"
-          class="text-white/50 hover:text-[#D4AF37] transition"
+          class="text-white/50 hover:text-gold transition"
         >
           Dokumentasi SDK
         </router-link>
@@ -114,13 +114,13 @@ async function submit() {
       <div class="hidden lg:flex lg:col-span-6 flex-col justify-between p-6 xl:p-7 border-r border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-transparent h-full overflow-hidden shrink-0">
         <!-- Brand Header -->
         <div class="flex items-center gap-2.5 shrink-0">
-          <div class="w-7 h-7 rounded-lg bg-[#000000] border border-white/20 flex items-center justify-center font-bold text-white shadow relative">
+          <div class="w-7 h-7 rounded-lg bg-black border border-white/20 flex items-center justify-center font-bold text-white shadow relative">
             <span class="text-xs font-black tracking-tighter">T</span>
-            <span class="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-[#D4AF37] shadow-[0_0_6px_#D4AF37]"></span>
+            <span class="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_6px_#D4AF37]"></span>
           </div>
           <div>
             <div class="font-extrabold text-sm tracking-tight text-white flex items-center gap-0.5 font-mono leading-tight">
-              tertaut<span class="text-[#D4AF37]">.com</span>
+              tertaut<span class="text-gold">.com</span>
             </div>
             <div class="text-[9px] text-white/40 font-mono tracking-wider uppercase leading-tight">Developer Infrastructure Engine</div>
           </div>
@@ -146,11 +146,11 @@ async function submit() {
                 <span class="w-2 h-2 rounded-full bg-emerald-500/80"></span>
                 <span class="ml-1 text-white/40">quickstart.ts</span>
               </div>
-              <span class="text-[#D4AF37]">@tertaut/sdk</span>
+              <span class="text-gold">@tertaut/sdk</span>
             </div>
             <div class="space-y-0.5 text-white/80">
-              <div><span class="text-[#D4AF37]">import</span> { tertaut } <span class="text-[#D4AF37]">from</span> <span class="text-emerald-400">"@tertaut/sdk"</span>;</div>
-              <div><span class="text-[#D4AF37]">const</span> auth = <span class="text-[#D4AF37]">await</span> tertaut.license.<span class="text-yellow-300">verify</span>({</div>
+              <div><span class="text-gold">import</span> { tertaut } <span class="text-gold">from</span> <span class="text-emerald-400">"@tertaut/sdk"</span>;</div>
+              <div><span class="text-gold">const</span> auth = <span class="text-gold">await</span> tertaut.license.<span class="text-yellow-300">verify</span>({</div>
               <div class="pl-3">key: <span class="text-emerald-400">"TRT-PRO-9842"</span>,</div>
               <div class="pl-3">hwid: <span class="text-cyan-300">getHWID</span>()</div>
               <div>});</div>
@@ -164,7 +164,7 @@ async function submit() {
           <!-- 3 Micro Features -->
           <div class="grid grid-cols-3 gap-1.5 text-[9.5px]">
             <div class="p-2 rounded-lg bg-white/[0.02] border border-white/[0.06]">
-              <div class="flex items-center gap-1 text-[#D4AF37] font-semibold mb-0.5">
+              <div class="flex items-center gap-1 text-gold font-semibold mb-0.5">
                 <Zap class="w-3 h-3 shrink-0" />
                 <span>Instant MoR</span>
               </div>
@@ -190,7 +190,7 @@ async function submit() {
         <!-- Footer -->
         <div class="flex items-center justify-between text-[9.5px] text-white/40 pt-1.5 border-t border-white/[0.08] shrink-0">
           <div class="flex items-center gap-1.5">
-            <ShieldCheck class="w-3 h-3 text-[#D4AF37]" />
+            <ShieldCheck class="w-3 h-3 text-gold" />
             <span>256-bit Bank-Grade Encryption</span>
           </div>
           <span>&copy; {{ new Date().getFullYear() }} tertaut.com</span>
@@ -204,12 +204,12 @@ async function submit() {
             <!-- Mobile Logo (on mobile view only) -->
             <div class="lg:hidden flex items-center justify-between mb-3.5">
               <div class="flex items-center gap-2">
-                <div class="w-6 h-6 rounded-lg bg-[#000000] border border-white/20 flex items-center justify-center font-bold text-white shadow relative">
+                <div class="w-6 h-6 rounded-lg bg-black border border-white/20 flex items-center justify-center font-bold text-white shadow relative">
                   <span class="text-xs font-black">T</span>
-                  <span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-[#D4AF37]"></span>
+                  <span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-gold"></span>
                 </div>
                 <span class="font-extrabold text-xs tracking-tight text-white font-mono">
-                  tertaut<span class="text-[#D4AF37]">.com</span>
+                  tertaut<span class="text-gold">.com</span>
                 </span>
               </div>
               <span class="text-[9.5px] text-emerald-400 font-mono">● v2.2 Ready</span>
@@ -277,7 +277,7 @@ async function submit() {
                     type="text"
                     autocomplete="name"
                     placeholder="Nama lengkap atau alias"
-                    class="auth-input w-full rounded-lg border border-white/10 bg-white/[0.03] py-2 pl-9 pr-3 text-xs sm:text-sm text-white placeholder-white/20 outline-none transition focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/30"
+                    class="auth-input w-full rounded-lg border border-white/10 bg-white/[0.03] py-2 pl-9 pr-3 text-xs sm:text-sm text-white placeholder-white/20 outline-none transition focus:border-gold focus:ring-1 focus:ring-gold/30"
                   />
                 </div>
               </div>
@@ -293,7 +293,7 @@ async function submit() {
                     required
                     autocomplete="email"
                     placeholder="nama@domain.com"
-                    class="auth-input w-full rounded-lg border border-white/10 bg-white/[0.03] py-2 pl-9 pr-3 text-xs sm:text-sm text-white placeholder-white/20 outline-none transition focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/30"
+                    class="auth-input w-full rounded-lg border border-white/10 bg-white/[0.03] py-2 pl-9 pr-3 text-xs sm:text-sm text-white placeholder-white/20 outline-none transition focus:border-gold focus:ring-1 focus:ring-gold/30"
                   />
                 </div>
               </div>
@@ -313,7 +313,7 @@ async function submit() {
                     minlength="8"
                     :autocomplete="mode === 'signin' ? 'current-password' : 'new-password'"
                     placeholder="••••••••••••"
-                    class="auth-input w-full rounded-lg border border-white/10 bg-white/[0.03] py-2 pl-9 pr-9 text-xs sm:text-sm text-white placeholder-white/20 outline-none transition focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/30"
+                    class="auth-input w-full rounded-lg border border-white/10 bg-white/[0.03] py-2 pl-9 pr-9 text-xs sm:text-sm text-white placeholder-white/20 outline-none transition focus:border-gold focus:ring-1 focus:ring-gold/30"
                   />
                   <button
                     type="button"
@@ -333,14 +333,14 @@ async function submit() {
                   <input
                     v-model="rememberMe"
                     type="checkbox"
-                    class="w-3.5 h-3.5 rounded border-white/20 bg-white/5 text-[#D4AF37] focus:ring-0"
+                    class="w-3.5 h-3.5 rounded border-white/20 bg-white/5 text-gold focus:ring-0"
                   />
                   <span>Ingat sesi saya</span>
                 </label>
                 <a
                   href="#"
                   @click.prevent="error = 'Hubungi administrator atau gunakan email builder Anda.'"
-                  class="text-[#D4AF37] hover:underline"
+                  class="text-gold hover:underline"
                 >
                   Lupa password?
                 </a>
@@ -350,13 +350,13 @@ async function submit() {
               <div v-if="mode === 'signup' && password.length > 0" class="pt-0.5 flex items-center gap-2">
                 <div class="h-1 flex-1 rounded-full overflow-hidden bg-white/10">
                   <div
-                    class="h-full transition-all duration-200"
-                    :class="password.length >= 8 ? 'bg-emerald-400 w-full' : 'bg-[#D4AF37] w-1/2'"
+                    class="h-full transition-[width,background-color] duration-200"
+                    :class="password.length >= 8 ? 'bg-emerald-400 w-full' : 'bg-gold w-1/2'"
                   ></div>
                 </div>
                 <span
                   class="text-[10px] font-mono"
-                  :class="password.length >= 8 ? 'text-emerald-400' : 'text-[#D4AF37]'"
+                  :class="password.length >= 8 ? 'text-emerald-400' : 'text-gold'"
                 >
                   {{ password.length >= 8 ? '✓ Memenuhi syarat' : 'Min. 8 karakter' }}
                 </span>
@@ -367,7 +367,7 @@ async function submit() {
                 <button
                   type="submit"
                   :disabled="loading || (mode === 'signup' && !isPasswordValid)"
-                  class="w-full flex items-center justify-center gap-2 rounded-lg bg-[#D4AF37] hover:bg-[#c5a030] active:scale-[0.99] px-4 py-2.5 text-xs sm:text-sm font-bold text-[#111111] shadow-sm transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  class="w-full flex items-center justify-center gap-2 rounded-lg bg-gold hover:bg-[#c5a030] active:scale-[0.99] px-4 py-2.5 text-xs sm:text-sm font-bold text-jetblack shadow-sm transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
                   <span>{{ mode === 'signin' ? 'Masuk ke Dashboard' : 'Daftar Akun Builder' }}</span>
@@ -383,7 +383,7 @@ async function submit() {
               {{ mode === 'signin' ? 'Belum memiliki akun builder?' : 'Sudah terdaftar sebelumnya?' }}
               <button
                 type="button"
-                class="ml-1 font-semibold text-[#D4AF37] hover:underline"
+                class="ml-1 font-semibold text-gold hover:underline"
                 @click="toggleMode(mode === 'signin' ? 'signup' : 'signin')"
               >
                 {{ mode === 'signin' ? 'Daftar sekarang' : 'Masuk di sini' }}

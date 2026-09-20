@@ -247,12 +247,12 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
-        <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[#111111] text-[10px] font-bold mb-1">
-          <BookOpen class="w-3 h-3 text-[#D4AF37]" />
+        <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gold/15 border border-gold/35 text-jetblack text-[10px] font-bold mb-1">
+          <BookOpen class="w-3 h-3 text-gold" />
           <span>Modul 5: Launch Kit &amp; Developer SDK</span>
         </div>
-        <h1 class="text-xl md:text-2xl font-extrabold text-[#111111] tracking-tight">Developer Center &amp; AI Launch Kit</h1>
-        <p class="text-xs text-[#111111]/60">
+        <h1 class="text-xl md:text-2xl font-extrabold text-jetblack tracking-tight">Developer Center &amp; AI Launch Kit</h1>
+        <p class="text-xs text-jetblack/60">
           SDK ultra-ringan (&lt; 15 KB), Web Component Embeddable Badges, dan Prompt-Ready Docs untuk Cursor &amp; v0.
         </p>
       </div>
@@ -261,7 +261,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
         <a
           href="/api/v1/swagger"
           target="_blank"
-          class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#111111] text-[#D4AF37] text-xs font-bold transition hover:bg-[#111111]/90 shadow-sm"
+          class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-jetblack text-gold text-xs font-bold transition hover:bg-jetblack/90 shadow-sm"
         >
           <span>OpenAPI / Swagger</span>
           <ExternalLink class="w-3 h-3" />
@@ -270,36 +270,36 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
     </div>
 
     <!-- Package Installation Banner -->
-    <div class="space-y-2.5 pb-6 border-b border-[#111111]/10">
+    <div class="space-y-2.5 pb-6 border-b border-jetblack/10">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <Terminal class="w-4 h-4 text-[#D4AF37]" />
-          <span class="text-xs font-bold text-[#111111]">Pemasangan Pustaka (@tertaut/sdk &lt; 15 KB)</span>
+          <Terminal class="w-4 h-4 text-gold" />
+          <span class="text-xs font-bold text-jetblack">Pemasangan Pustaka (@tertaut/sdk &lt; 15 KB)</span>
         </div>
         <button
           @click="copyCode('npm install @tertaut/sdk', 1)"
-          class="text-xs font-bold text-[#D4AF37] hover:underline flex items-center gap-1 transition cursor-pointer"
+          class="text-xs font-bold text-gold hover:underline flex items-center gap-1 transition cursor-pointer"
         >
-          <Check v-if="copiedIndex === 1" class="w-3.5 h-3.5 text-[#0F4C3A]" />
+          <Check v-if="copiedIndex === 1" class="w-3.5 h-3.5 text-forest" />
           <Copy v-else class="w-3.5 h-3.5" />
           <span>{{ copiedIndex === 1 ? 'Tersalin' : 'Salin Perintah' }}</span>
         </button>
       </div>
 
-      <div class="p-2.5 rounded-lg bg-[#111111] font-mono text-xs text-[#D4AF37] border border-[#111111]/20 flex items-center justify-between">
+      <div class="p-2.5 rounded-lg bg-jetblack font-mono text-xs text-gold border border-jetblack/20 flex items-center justify-between">
         <span>npm install @tertaut/sdk</span>
         <span class="text-white/40 text-[10px]"># Zero heavy dependencies • Cross-platform</span>
       </div>
     </div>
 
     <!-- Publishable API Key -->
-    <div class="space-y-3 pb-6 border-b border-[#111111]/10">
+    <div class="space-y-3 pb-6 border-b border-jetblack/10">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div class="flex items-center gap-2">
-          <Key class="w-4 h-4 text-[#0F4C3A]" />
+          <Key class="w-4 h-4 text-forest" />
           <div>
-            <h2 class="text-sm font-bold text-[#111111]">Publishable API Key</h2>
-            <p class="text-[11px] text-[#111111]/60">
+            <h2 class="text-sm font-bold text-jetblack">Publishable API Key</h2>
+            <p class="text-[11px] text-jetblack/60">
               Key inisialisasi <span class="font-mono">@tertaut/sdk</span> —
               <span class="font-mono">tt_live_...</span> produksi / <span class="font-mono">tt_test_...</span> sandbox.
               Sifatnya publik, aman dipasang di frontend. Rotasi membuat key lama tidak berlaku lagi.
@@ -311,7 +311,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
           <button
             @click="rotateApiKey"
             :disabled="rotatingKey || !currentApp"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 border border-[#111111]/15 text-[#111111] text-[11px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-jetblack/5 hover:bg-jetblack/10 border border-jetblack/15 text-jetblack text-[11px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             title="Regenerasi publishable API key aplikasi ini"
           >
             <RefreshCw class="w-3 h-3" :class="rotatingKey ? 'animate-spin' : ''" />
@@ -319,7 +319,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
           </button>
           <button
             @click="revealKey = !revealKey"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 border border-[#111111]/15 text-[#111111] text-[11px] font-bold transition cursor-pointer"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-jetblack/5 hover:bg-jetblack/10 border border-jetblack/15 text-jetblack text-[11px] font-bold transition cursor-pointer"
           >
             <EyeOff v-if="revealKey" class="w-3 h-3" />
             <Eye v-else class="w-3 h-3" />
@@ -329,27 +329,27 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
             @click="copyCode(sampleApiKey, 10)"
             class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg btn-gold text-[11px] font-bold transition cursor-pointer shadow-sm"
           >
-            <Check v-if="copiedIndex === 10" class="w-3 h-3 text-[#0F4C3A]" />
+            <Check v-if="copiedIndex === 10" class="w-3 h-3 text-forest" />
             <Copy v-else class="w-3 h-3" />
             <span>{{ copiedIndex === 10 ? 'Tersalin' : 'Salin Key' }}</span>
           </button>
         </div>
       </div>
 
-      <div class="p-2.5 rounded-lg bg-[#111111] font-mono text-base sm:text-sm text-[#D4AF37] border border-[#111111]/20 flex items-center justify-between gap-3">
+      <div class="p-2.5 rounded-lg bg-jetblack font-mono text-base sm:text-sm text-gold border border-jetblack/20 flex items-center justify-between gap-3">
         <span class="truncate tracking-wide">{{ displayedAppKey }}</span>
         <span class="text-white/40 text-[10px] font-sans whitespace-nowrap"># publik — aman di frontend</span>
       </div>
     </div>
 
     <!-- Secret API Key (Server-to-Server) -->
-    <div class="space-y-3 pb-6 border-b border-[#111111]/10">
+    <div class="space-y-3 pb-6 border-b border-jetblack/10">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div class="flex items-center gap-2">
-          <KeyRound class="w-4 h-4 text-[#0F4C3A]" />
+          <KeyRound class="w-4 h-4 text-forest" />
           <div>
-            <h2 class="text-sm font-bold text-[#111111]">Secret API Key (Server-to-Server)</h2>
-            <p class="text-[11px] text-[#111111]/60">
+            <h2 class="text-sm font-bold text-jetblack">Secret API Key (Server-to-Server)</h2>
+            <p class="text-[11px] text-jetblack/60">
               Bearer token <span class="font-mono">tt_secret_...</span> untuk backend milik Anda —
               terbitkan/cabut lisensi &amp; kelola kredit otomatis tanpa sesi dashboard.
               <span class="font-bold">Jangan pernah pasang di frontend.</span>
@@ -369,7 +369,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
           </button>
           <button
             @click="revealSecret = !revealSecret"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#111111]/5 hover:bg-[#111111]/10 border border-[#111111]/15 text-[#111111] text-[11px] font-bold transition cursor-pointer"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-jetblack/5 hover:bg-jetblack/10 border border-jetblack/15 text-jetblack text-[11px] font-bold transition cursor-pointer"
           >
             <EyeOff v-if="revealSecret" class="w-3 h-3" />
             <Eye v-else class="w-3 h-3" />
@@ -379,32 +379,32 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
             @click="copyCode(builderSecret, 11)"
             class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg btn-gold text-[11px] font-bold transition cursor-pointer shadow-sm"
           >
-            <Check v-if="copiedIndex === 11" class="w-3 h-3 text-[#0F4C3A]" />
+            <Check v-if="copiedIndex === 11" class="w-3 h-3 text-forest" />
             <Copy v-else class="w-3 h-3" />
             <span>{{ copiedIndex === 11 ? 'Tersalin' : 'Salin Key' }}</span>
           </button>
         </div>
       </div>
 
-      <div class="p-2.5 rounded-lg bg-[#111111] font-mono text-base sm:text-sm text-[#B91C1C] border border-[#111111]/20 flex items-center justify-between gap-3">
+      <div class="p-2.5 rounded-lg bg-jetblack font-mono text-base sm:text-sm text-[#B91C1C] border border-jetblack/20 flex items-center justify-between gap-3">
         <span class="truncate tracking-wide">{{ displayedSecretKey }}</span>
         <span class="text-white/40 text-[10px] font-sans whitespace-nowrap"># rahasia — hanya untuk backend</span>
       </div>
 
       <div class="space-y-1.5">
         <div class="flex items-center justify-between">
-          <span class="font-bold text-[#111111]/70 text-[11px]">Contoh panggilan server-to-server (issue lisensi otomatis):</span>
+          <span class="font-bold text-jetblack/70 text-[11px]">Contoh panggilan server-to-server (issue lisensi otomatis):</span>
           <button
             @click="copyCode(s2sCurlText, 12)"
-            class="text-[11px] font-bold text-[#D4AF37] hover:underline flex items-center gap-1 cursor-pointer"
+            class="text-[11px] font-bold text-gold hover:underline flex items-center gap-1 cursor-pointer"
           >
-            <Check v-if="copiedIndex === 12" class="w-3 h-3 text-[#0F4C3A]" />
+            <Check v-if="copiedIndex === 12" class="w-3 h-3 text-forest" />
             <Copy v-else class="w-3 h-3" />
             <span>{{ copiedIndex === 12 ? 'Tersalin' : 'Salin cURL' }}</span>
           </button>
         </div>
-        <pre class="p-2.5 rounded-lg bg-[#111111] font-mono text-[11px] text-[#D4AF37] overflow-x-auto whitespace-pre-wrap leading-relaxed">{{ s2sCurlText }}</pre>
-        <p class="text-[10px] text-[#111111]/50">
+        <pre class="p-2.5 rounded-lg bg-jetblack font-mono text-[11px] text-gold overflow-x-auto whitespace-pre-wrap leading-relaxed">{{ s2sCurlText }}</pre>
+        <p class="text-[10px] text-jetblack/50">
           Endpoint lain: <span class="font-mono">GET /s2s/apps</span> ·
           <span class="font-mono">GET /s2s/licenses</span> ·
           <span class="font-mono">POST /s2s/licenses/revoke</span> ·
@@ -415,13 +415,13 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
     </div>
 
     <!-- Prompt-Ready Integration Generator (FR-4.1) -->
-    <div class="space-y-3 pb-6 border-b border-[#111111]/10">
+    <div class="space-y-3 pb-6 border-b border-jetblack/10">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div class="flex items-center gap-2">
-          <Sparkles class="w-4 h-4 text-[#D4AF37]" />
+          <Sparkles class="w-4 h-4 text-gold" />
           <div>
-            <h2 class="text-sm font-bold text-[#111111]">Prompt-Ready Integration Snippet (Cursor / Windsurf / v0)</h2>
-            <p class="text-[11px] text-[#111111]/60">Copy dan paste langsung ke editor berbasis AI untuk integrasi otomatis.</p>
+            <h2 class="text-sm font-bold text-jetblack">Prompt-Ready Integration Snippet (Cursor / Windsurf / v0)</h2>
+            <p class="text-[11px] text-jetblack/60">Copy dan paste langsung ke editor berbasis AI untuk integrasi otomatis.</p>
           </div>
         </div>
 
@@ -429,48 +429,48 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
           @click="copyCode(aiPromptCursor, 2)"
           class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg btn-gold text-xs font-bold transition shrink-0 cursor-pointer shadow-sm"
         >
-          <Check v-if="copiedIndex === 2" class="w-3.5 h-3.5 text-[#0F4C3A]" />
+          <Check v-if="copiedIndex === 2" class="w-3.5 h-3.5 text-forest" />
           <Copy v-else class="w-3.5 h-3.5" />
           <span>{{ copiedIndex === 2 ? 'Tersalin!' : 'Salin Prompt untuk AI' }}</span>
         </button>
       </div>
 
-      <pre class="p-3.5 rounded-xl bg-[#111111] font-mono text-xs text-white/90 overflow-x-auto border border-[#111111]/20 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">{{ aiPromptCursor }}</pre>
+      <pre class="p-3.5 rounded-xl bg-jetblack font-mono text-xs text-white/90 overflow-x-auto border border-jetblack/20 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">{{ aiPromptCursor }}</pre>
     </div>
 
     <!-- Embeddable Badges & Social Proof Widgets Generator (FR-2.1 & FR-2.2) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[#111111]/10 border-b border-[#111111]/10 pb-6 pt-1">
+    <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-jetblack/10 border-b border-jetblack/10 pb-6 pt-1">
       <div class="pb-6 lg:pb-0 pr-0 lg:pr-6 space-y-3">
         <div class="flex items-center gap-2">
-          <ShieldCheck class="w-4 h-4 text-[#0F4C3A]" />
-          <h2 class="text-sm font-bold text-[#111111]">Generator Embeddable Widget &amp; Badges</h2>
+          <ShieldCheck class="w-4 h-4 text-forest" />
+          <h2 class="text-sm font-bold text-jetblack">Generator Embeddable Widget &amp; Badges</h2>
         </div>
-        <p class="text-xs text-[#111111]/60">
+        <p class="text-xs text-jetblack/60">
           Pasang Social Proof &amp; Trust Badge langsung di landing page Anda tanpa merusak styling (Shadow DOM Encapsulation).
         </p>
 
         <div class="space-y-3 text-xs">
           <div>
-            <label class="block font-bold text-[#111111]/70 mb-1">Pilih Tipe Widget</label>
+            <label class="block font-bold text-jetblack/70 mb-1">Pilih Tipe Widget</label>
             <div class="grid grid-cols-3 gap-2">
               <button
                 @click="selectedWidgetType = 'verified'"
                 class="p-2 rounded-lg border font-bold text-center transition cursor-pointer"
-                :class="selectedWidgetType === 'verified' ? 'bg-[#111111] text-[#D4AF37] border-[#111111]' : 'border-[#111111]/15 text-[#111111]/70 hover:bg-[#111111]/5'"
+                :class="selectedWidgetType === 'verified' ? 'bg-jetblack text-gold border-jetblack' : 'border-jetblack/15 text-jetblack/70 hover:bg-jetblack/5'"
               >
                 Verified Trust
               </button>
               <button
                 @click="selectedWidgetType = 'sales_counter'"
                 class="p-2 rounded-lg border font-bold text-center transition cursor-pointer"
-                :class="selectedWidgetType === 'sales_counter' ? 'bg-[#111111] text-[#D4AF37] border-[#111111]' : 'border-[#111111]/15 text-[#111111]/70 hover:bg-[#111111]/5'"
+                :class="selectedWidgetType === 'sales_counter' ? 'bg-jetblack text-gold border-jetblack' : 'border-jetblack/15 text-jetblack/70 hover:bg-jetblack/5'"
               >
                 Sales Counter
               </button>
               <button
                 @click="selectedWidgetType = 'status'"
                 class="p-2 rounded-lg border font-bold text-center transition cursor-pointer"
-                :class="selectedWidgetType === 'status' ? 'bg-[#111111] text-[#D4AF37] border-[#111111]' : 'border-[#111111]/15 text-[#111111]/70 hover:bg-[#111111]/5'"
+                :class="selectedWidgetType === 'status' ? 'bg-jetblack text-gold border-jetblack' : 'border-jetblack/15 text-jetblack/70 hover:bg-jetblack/5'"
               >
                 Live Status
               </button>
@@ -478,28 +478,28 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
           </div>
 
           <div>
-            <label class="block font-bold text-[#111111]/70 mb-1">Slug Aplikasi Anda</label>
+            <label class="block font-bold text-jetblack/70 mb-1">Slug Aplikasi Anda</label>
             <input
               v-model="selectedAppSlug"
               type="text"
               placeholder="nama-slug-aplikasi"
-              class="w-full bg-[#111111]/5 border border-[#111111]/10 rounded-lg p-2 font-mono text-xs text-[#111111] focus:outline-none focus:bg-white focus:border-[#D4AF37] transition"
+              class="w-full bg-jetblack/5 border border-jetblack/10 rounded-lg p-2 font-mono text-xs text-jetblack focus:outline-none focus:bg-white focus:border-gold transition"
             />
           </div>
 
           <div class="space-y-1.5 pt-1">
             <div class="flex items-center justify-between">
-              <span class="font-bold text-[#111111]/70 text-[11px]">Kode HTML Embed:</span>
+              <span class="font-bold text-jetblack/70 text-[11px]">Kode HTML Embed:</span>
               <button
                 @click="copyCode(widgetEmbedScript, 4)"
-                class="text-[11px] font-bold text-[#D4AF37] hover:underline flex items-center gap-1 cursor-pointer"
+                class="text-[11px] font-bold text-gold hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <Check v-if="copiedIndex === 4" class="w-3 h-3 text-[#0F4C3A]" />
+                <Check v-if="copiedIndex === 4" class="w-3 h-3 text-forest" />
                 <Copy v-else class="w-3 h-3" />
                 <span>{{ copiedIndex === 4 ? 'Tersalin' : 'Salin Snippet' }}</span>
               </button>
             </div>
-            <pre class="p-2.5 rounded-lg bg-[#111111] font-mono text-[11px] text-[#D4AF37] overflow-x-auto whitespace-pre-wrap leading-relaxed">{{ widgetEmbedScript }}</pre>
+            <pre class="p-2.5 rounded-lg bg-jetblack font-mono text-[11px] text-gold overflow-x-auto whitespace-pre-wrap leading-relaxed">{{ widgetEmbedScript }}</pre>
           </div>
         </div>
       </div>
@@ -507,53 +507,53 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
       <!-- Live Widget Preview -->
       <div class="pt-6 lg:pt-0 pl-0 lg:pl-6 space-y-4 flex flex-col justify-between">
         <div>
-          <h2 class="text-sm font-bold text-[#111111]">Pratinjau Widget (Live Preview)</h2>
-          <p class="text-xs text-[#111111]/60">Tampilan render di situs web pembeli:</p>
+          <h2 class="text-sm font-bold text-jetblack">Pratinjau Widget (Live Preview)</h2>
+          <p class="text-xs text-jetblack/60">Tampilan render di situs web pembeli:</p>
         </div>
 
-        <div class="h-40 flex flex-col items-center justify-center p-6 border border-dashed border-[#111111]/20 rounded-xl bg-[#FAFAFA] space-y-3">
+        <div class="h-40 flex flex-col items-center justify-center p-6 border border-dashed border-jetblack/20 rounded-xl bg-[#FAFAFA] space-y-3">
           <!-- Verified Trust Preview -->
           <div
             v-if="selectedWidgetType === 'verified'"
-            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111111] text-white border border-[#D4AF37]/50 shadow-md text-xs font-bold cursor-pointer transition hover:scale-105"
+            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-jetblack text-white border border-gold/50 shadow-md text-xs font-bold cursor-pointer transition hover:scale-105"
           >
-            <ShieldCheck class="w-3.5 h-3.5 text-[#D4AF37]" />
+            <ShieldCheck class="w-3.5 h-3.5 text-gold" />
             <span>Verified by tertaut.com</span>
           </div>
 
           <!-- Sales Counter Preview -->
           <div
             v-else-if="selectedWidgetType === 'sales_counter'"
-            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111111] text-white border border-[#D4AF37]/50 shadow-md text-xs font-bold cursor-pointer transition hover:scale-105"
+            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-jetblack text-white border border-gold/50 shadow-md text-xs font-bold cursor-pointer transition hover:scale-105"
           >
-            <span class="w-2 h-2 rounded-full bg-[#0F4C3A] animate-ping"></span>
+            <span class="w-2 h-2 rounded-full bg-forest animate-ping"></span>
             <span>{{ widgetCustomers === null ? '—' : `${widgetCustomers.toLocaleString('id-ID')} Lisensi Terjual` }}</span>
             <span class="opacity-30">•</span>
-            <span class="text-[#D4AF37]">tertaut</span>
+            <span class="text-gold">tertaut</span>
           </div>
 
           <!-- Status Indicator Preview -->
           <div
             v-else
-            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111111] text-white border border-[#D4AF37]/50 shadow-md text-xs font-bold cursor-pointer transition hover:scale-105"
+            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-jetblack text-white border border-gold/50 shadow-md text-xs font-bold cursor-pointer transition hover:scale-105"
           >
-            <span class="w-2 h-2 rounded-full bg-[#0F4C3A]"></span>
+            <span class="w-2 h-2 rounded-full bg-forest"></span>
             <span>Just Launched</span>
             <span class="opacity-30">•</span>
-            <span class="text-[#D4AF37]">tertaut</span>
+            <span class="text-gold">tertaut</span>
           </div>
 
-          <p class="text-[10px] text-[#111111]/50 text-center">
+          <p class="text-[10px] text-jetblack/50 text-center">
             Terisolasi di dalam Web Component Shadow DOM sehingga tidak mengganggu CSS landing page utama.
           </p>
         </div>
 
-        <div class="text-[11px] text-[#111111]/60 flex items-center justify-between border-t border-[#111111]/10 pt-3">
+        <div class="text-[11px] text-jetblack/60 flex items-center justify-between border-t border-jetblack/10 pt-3">
           <span>Tersedia juga format SVG statis:</span>
           <a
             :href="`/api/v1/badge/${selectedAppSlug}`"
             target="_blank"
-            class="text-[#D4AF37] font-bold hover:underline flex items-center gap-1"
+            class="text-gold font-bold hover:underline flex items-center gap-1"
           >
             <span>/api/v1/badge/{{ selectedAppSlug }}.svg</span>
             <ExternalLink class="w-3 h-3" />
@@ -566,20 +566,20 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
     <div class="space-y-3 pt-2">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <Code2 class="w-4 h-4 text-[#D4AF37]" />
-          <h2 class="text-sm font-bold text-[#111111]">Referensi Kode Lengkap (@tertaut/sdk Multi-Module Interface)</h2>
+          <Code2 class="w-4 h-4 text-gold" />
+          <h2 class="text-sm font-bold text-jetblack">Referensi Kode Lengkap (@tertaut/sdk Multi-Module Interface)</h2>
         </div>
         <button
           @click="copyCode(sdkFullSnippet, 3)"
-          class="text-xs font-bold text-[#D4AF37] hover:underline flex items-center gap-1 transition cursor-pointer"
+          class="text-xs font-bold text-gold hover:underline flex items-center gap-1 transition cursor-pointer"
         >
-          <Check v-if="copiedIndex === 3" class="w-3.5 h-3.5 text-[#0F4C3A]" />
+          <Check v-if="copiedIndex === 3" class="w-3.5 h-3.5 text-forest" />
           <Copy v-else class="w-3.5 h-3.5" />
           <span>{{ copiedIndex === 3 ? 'Tersalin' : 'Salin Kode' }}</span>
         </button>
       </div>
 
-      <pre class="p-4 rounded-xl bg-[#111111] font-mono text-xs text-white/90 overflow-x-auto border border-[#111111]/20 leading-relaxed">{{ sdkFullSnippet }}</pre>
+      <pre class="p-4 rounded-xl bg-jetblack font-mono text-xs text-white/90 overflow-x-auto border border-jetblack/20 leading-relaxed">{{ sdkFullSnippet }}</pre>
     </div>
   </div>
 </template>

@@ -71,16 +71,16 @@ const emailValue = computed({
         <button type="button" @click="emit('update:selectedPaymentRail', 'qris')"
           class="p-3 rounded-xl border-2 text-center transition flex flex-col items-center justify-center gap-1.5 cursor-pointer"
           :class="selectedPaymentRail === 'qris'
-            ? 'border-amber-500 bg-amber-50/90 text-slate-950 font-bold shadow-xs'
+            ? 'border-gold bg-gold-light text-jetblack font-bold shadow-xs'
             : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100 text-slate-800 font-semibold'">
-          <QrCode class="w-5 h-5 text-amber-600" />
+          <QrCode class="w-5 h-5 text-gold-hover" />
           <span class="text-xs font-bold">QRIS Instan</span>
         </button>
 
         <button type="button" @click="emit('update:selectedPaymentRail', 'va')"
           class="p-3 rounded-xl border-2 text-center transition flex flex-col items-center justify-center gap-1.5 cursor-pointer"
           :class="selectedPaymentRail === 'va'
-            ? 'border-amber-500 bg-amber-50/90 text-slate-950 font-bold shadow-xs'
+            ? 'border-gold bg-gold-light text-jetblack font-bold shadow-xs'
             : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100 text-slate-800 font-semibold'">
           <Building class="w-5 h-5 text-cyan-700" />
           <span class="text-xs font-bold">Virtual Account</span>
@@ -89,7 +89,7 @@ const emailValue = computed({
         <button type="button" @click="emit('update:selectedPaymentRail', 'ewallet')"
           class="p-3 rounded-xl border-2 text-center transition flex flex-col items-center justify-center gap-1.5 cursor-pointer"
           :class="selectedPaymentRail === 'ewallet'
-            ? 'border-amber-500 bg-amber-50/90 text-slate-950 font-bold shadow-xs'
+            ? 'border-gold bg-gold-light text-jetblack font-bold shadow-xs'
             : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100 text-slate-800 font-semibold'">
           <Wallet class="w-5 h-5 text-emerald-700" />
           <span class="text-xs font-bold">E-Wallet</span>
@@ -149,10 +149,10 @@ const emailValue = computed({
     <!-- Pay Button -->
     <div v-if="!sandboxSessionId" class="pt-1">
       <button @click="emit('pay')" :disabled="isSubmitting || !emailInput"
-        class="w-full flex items-center justify-center gap-2 rounded-xl bg-amber-400 hover:bg-amber-300 active:scale-[0.99] px-4 py-3 text-xs sm:text-sm font-extrabold text-slate-950 shadow-md transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer border border-amber-500/20"
+        class="w-full flex items-center justify-center gap-2 rounded-xl btn-gold active:scale-[0.99] px-4 py-3 text-xs sm:text-sm font-extrabold text-jetblack shadow-md transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         :class="product.mode === 'sandbox' ? '!bg-blue-600 !text-white hover:!bg-blue-500 !border-transparent' : ''">
         <FlaskConical v-if="product.mode === 'sandbox'" class="w-4 h-4" />
-        <CreditCard v-else class="w-4 h-4 text-slate-950" />
+        <CreditCard v-else class="w-4 h-4 text-jetblack" />
         <span>
           {{ isSubmitting ? 'Menyiapkan sesi...' : product.mode === 'sandbox' ? `Mulai Sesi Sandbox — ${formatRupiah(payableAmount || product.targetPrice)}` : `Bayar Sekarang — ${formatRupiah(payableAmount || product.targetPrice)}` }}
         </span>

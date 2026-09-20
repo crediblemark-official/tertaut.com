@@ -196,7 +196,7 @@ const activeTab = ref<'generator' | 'history'>('generator')
 <template>
   <div class="animate-fadeIn pb-8">
     <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-[#111111] text-white border-b border-[#111111] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
       <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
         <button type="button" @click="activeTab = 'generator'" :class="[
           'flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer',
@@ -204,7 +204,7 @@ const activeTab = ref<'generator' | 'history'>('generator')
             ? 'bg-white/20 text-white shadow-2xs'
             : 'text-white/60 hover:text-white hover:bg-white/10'
         ]">
-          <Sparkles class="w-3.5 h-3.5" :class="activeTab === 'generator' ? 'text-[#D4AF37]' : ''" />
+          <Sparkles class="w-3.5 h-3.5" :class="activeTab === 'generator' ? 'text-gold' : ''" />
           <span>Buat Sesi Checkout</span>
         </button>
 
@@ -214,11 +214,11 @@ const activeTab = ref<'generator' | 'history'>('generator')
             ? 'bg-white/20 text-white shadow-2xs'
             : 'text-white/60 hover:text-white hover:bg-white/10'
         ]">
-          <Receipt class="w-3.5 h-3.5" :class="activeTab === 'history' ? 'text-[#D4AF37]' : ''" />
+          <Receipt class="w-3.5 h-3.5" :class="activeTab === 'history' ? 'text-gold' : ''" />
           <span>Riwayat Transaksi</span>
           <span :class="[
             'px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold',
-            activeTab === 'history' ? 'bg-white text-[#111111]' : 'bg-white/10 text-white'
+            activeTab === 'history' ? 'bg-white text-jetblack' : 'bg-white/10 text-white'
           ]">
             {{ transactions.length }}
           </span>
@@ -228,7 +228,7 @@ const activeTab = ref<'generator' | 'history'>('generator')
       <!-- Batch Disburse if live & pending -->
       <div v-if="totalPendingPayout >= 50000 && dashboardEnv === 'live'">
         <button @click="triggerBatchPayout" :disabled="disburseLoading === 'all'"
-          class="px-2.5 py-1 rounded-lg bg-[#0F4C3A] text-white text-xs font-bold hover:bg-[#0F4C3A]/90 transition shadow-2xs flex items-center gap-1 cursor-pointer active:scale-95 disabled:opacity-50">
+          class="px-2.5 py-1 rounded-lg bg-forest text-white text-xs font-bold hover:bg-forest/90 transition shadow-2xs flex items-center gap-1 cursor-pointer active:scale-95 disabled:opacity-50">
           <Send class="w-3 h-3" />
           <span>Cairkan Semua ({{ formatRupiah(totalPendingPayout) }})</span>
         </button>
@@ -239,26 +239,26 @@ const activeTab = ref<'generator' | 'history'>('generator')
     <div v-if="activeTab === 'generator'" class="space-y-3.5 animate-fadeIn">
       <!-- Quick Hosted Checkout Link (FR-1.1) - Compact Bar -->
       <div v-if="currentApp"
-        class="px-3 py-1.5 rounded-lg bg-[#D4AF37]/10 border border-[#D4AF37]/35 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        class="px-3 py-1.5 rounded-lg bg-gold/10 border border-gold/35 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
         <div class="flex items-center gap-2 truncate">
-          <Sparkles class="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+          <Sparkles class="w-3.5 h-3.5 text-gold shrink-0" />
           <div class="truncate">
-            <span class="font-bold text-[#111111]">Tautan Publik:</span>
-            <span class="font-mono text-[#D4AF37] ml-1.5 font-bold">tertaut.com/pay/{{ currentApp.slug }}</span>
+            <span class="font-bold text-jetblack">Tautan Publik:</span>
+            <span class="font-mono text-gold ml-1.5 font-bold">tertaut.com/pay/{{ currentApp.slug }}</span>
           </div>
         </div>
 
         <div class="flex items-center gap-1.5 shrink-0">
           <button type="button" @click="copyHostedLink"
-            class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-[#D4AF37]/40 text-[#111111] text-[11px] font-semibold hover:bg-slate-50 transition cursor-pointer shadow-2xs"
+            class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-gold/40 text-jetblack text-[11px] font-semibold hover:bg-slate-50 transition cursor-pointer shadow-2xs"
             title="Salin Tautan Publik">
             <component :is="hostedCopied ? Check : Copy" class="w-3 h-3"
-              :class="hostedCopied ? 'text-emerald-600' : 'text-[#D4AF37]'" />
+              :class="hostedCopied ? 'text-emerald-600' : 'text-gold'" />
             <span>{{ hostedCopied ? 'Tersalin' : 'Salin' }}</span>
           </button>
 
           <router-link :to="`/pay/${currentApp.slug}`" target="_blank"
-            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#111111] text-[#D4AF37] text-[11px] font-bold hover:bg-[#222222] transition cursor-pointer shadow-2xs">
+            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-jetblack text-gold text-[11px] font-bold hover:bg-jetblack-hover transition cursor-pointer shadow-2xs">
             <span>Uji Halaman</span>
             <ExternalLink class="w-3 h-3" />
           </router-link>
@@ -266,7 +266,7 @@ const activeTab = ref<'generator' | 'history'>('generator')
       </div>
 
       <!-- Dynamic Checkout Generator & Result Grid (with Separator Line) -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-[#111111]/10 border-t border-[#111111]/10 pt-3.5">
+      <div class="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-jetblack/10 border-t border-jetblack/10 pt-3.5">
         <!-- Checkout Generator Form Component -->
         <div class="lg:col-span-7 pb-4 lg:pb-0 pr-0 lg:pr-6">
           <DynamicCheckoutForm :loading="loading" :apps-list="appsList" v-model:selected-app-id="selectedAppId"
@@ -284,9 +284,9 @@ const activeTab = ref<'generator' | 'history'>('generator')
     <!-- TAB 2: TRANSACTIONS & DISBURSEMENTS -->
     <div v-else-if="activeTab === 'history'" class="space-y-3.5 animate-fadeIn">
       <!-- Role Clarification Notice -->
-      <div class="p-2.5 rounded-lg bg-[#111111]/[0.03] border border-[#111111]/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-        <span class="text-[#111111]/70">Untuk pelacakan transaksi terpusat, filter status lengkap (PAID, PENDING, EXPIRED, FAILED), dan ekspor:</span>
-        <router-link :to="envPath(dashboardEnv, '/payments')" class="font-bold text-[#D4AF37] hover:underline inline-flex items-center gap-1 shrink-0">
+      <div class="p-2.5 rounded-lg bg-jetblack/[0.03] border border-jetblack/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        <span class="text-jetblack/70">Untuk pelacakan transaksi terpusat, filter status lengkap (PAID, PENDING, EXPIRED, FAILED), dan ekspor:</span>
+        <router-link :to="envPath(dashboardEnv, '/payments')" class="font-bold text-gold hover:underline inline-flex items-center gap-1 shrink-0">
           <span>Buka Menu Payments</span>
           <ArrowUpRight class="w-3.5 h-3.5" />
         </router-link>
@@ -294,7 +294,7 @@ const activeTab = ref<'generator' | 'history'>('generator')
 
       <!-- Alert Disbursement Banner -->
       <div v-if="disburseAlert"
-        class="p-2.5 rounded-lg bg-[#0F4C3A]/10 border border-[#0F4C3A]/25 text-[#0F4C3A] text-xs font-bold flex items-center justify-between">
+        class="p-2.5 rounded-lg bg-forest/10 border border-forest/25 text-forest text-xs font-bold flex items-center justify-between">
         <div class="flex items-center gap-1.5">
           <CheckCircle2 class="w-4 h-4 shrink-0" />
           <span>{{ disburseAlert }}</span>

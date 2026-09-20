@@ -210,27 +210,27 @@ async function handleCreateProduct() {
 <template>
   <div class="space-y-6 animate-fadeIn">
     <!-- Top Navigation & Header -->
-    <div class="flex items-center justify-between border-b border-[#111111]/10 pb-4">
+    <div class="flex items-center justify-between border-b border-jetblack/10 pb-4">
       <div class="flex items-center gap-3">
         <button
           type="button"
           @click="emit('cancel')"
-          class="p-2 rounded-lg bg-white border border-[#111111]/10 hover:bg-[#111111]/5 transition cursor-pointer text-[#111111]"
+          class="p-2 rounded-lg bg-white border border-jetblack/10 hover:bg-jetblack/5 transition cursor-pointer text-jetblack"
           title="Kembali ke Daftar Produk"
         >
           <ArrowLeft class="w-4 h-4" />
         </button>
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="text-base font-bold text-[#111111]">Produk &amp; Akses Baru</h1>
+            <h1 class="text-base font-bold text-jetblack">Produk &amp; Akses Baru</h1>
             <span
               class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full"
-              :class="dashboardEnv === 'sandbox' ? 'bg-amber-500/15 text-amber-700 border border-amber-500/30' : 'bg-[#0F4C3A]/10 text-[#0F4C3A] border border-[#0F4C3A]/20'"
+              :class="dashboardEnv === 'sandbox' ? 'bg-amber-500/15 text-amber-700 border border-amber-500/30' : 'bg-forest/10 text-forest border border-forest/20'"
             >
               Mode {{ dashboardEnv === 'sandbox' ? 'Sandbox' : 'Live' }}
             </span>
           </div>
-          <p class="text-xs text-[#111111]/60">Konfigurasi produk digital, SaaS, atau paywall API dengan Merchant of Record Tertaut.</p>
+          <p class="text-xs text-jetblack/60">Konfigurasi produk digital, SaaS, atau paywall API dengan Merchant of Record Tertaut.</p>
         </div>
       </div>
 
@@ -238,7 +238,7 @@ async function handleCreateProduct() {
         <button
           type="button"
           @click="emit('cancel')"
-          class="px-3.5 py-1.5 rounded-lg border border-[#111111]/15 text-xs font-semibold text-[#111111]/80 hover:text-[#111111] hover:bg-[#111111]/5 transition cursor-pointer"
+          class="px-3.5 py-1.5 rounded-lg border border-jetblack/15 text-xs font-semibold text-jetblack/80 hover:text-jetblack hover:bg-jetblack/5 transition cursor-pointer"
         >
           Batal
         </button>
@@ -265,55 +265,55 @@ async function handleCreateProduct() {
       <div class="lg:col-span-8 space-y-6">
         <!-- 1. DETAIL PRODUK -->
         <div class="space-y-4">
-          <div class="border-b border-[#111111]/10 pb-3">
+          <div class="border-b border-jetblack/10 pb-3">
             <div class="flex items-center gap-2">
-              <div class="w-2 h-2 rounded-full bg-[#D4AF37]"></div>
-              <h2 class="text-xs font-bold uppercase tracking-wider text-[#111111]">Detail Produk</h2>
+              <div class="w-2 h-2 rounded-full bg-gold"></div>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">Detail Produk</h2>
             </div>
-            <p class="text-[11px] text-[#111111]/60 mt-0.5">Identitas utama aplikasi atau resource digital yang dijual.</p>
+            <p class="text-[11px] text-jetblack/60 mt-0.5">Identitas utama aplikasi atau resource digital yang dijual.</p>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="block text-[11px] font-bold text-[#111111]/70 mb-1">Nama Produk <span class="text-red-500">*</span></label>
+              <label class="block text-[11px] font-bold text-jetblack/70 mb-1">Nama Produk <span class="text-red-500">*</span></label>
               <input
                 v-model="newAppName"
                 type="text"
                 placeholder="Contoh: SuperPrompt Studio"
-                class="w-full px-3 py-2 rounded-lg bg-white border border-[#111111]/15 text-xs text-[#111111] placeholder:text-[#111111]/35 focus:outline-none focus:border-[#D4AF37]"
+                class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/15 text-xs text-jetblack placeholder:text-jetblack/35 focus:outline-none focus:border-gold"
               />
             </div>
             <div>
-              <label class="block text-[11px] font-bold text-[#111111]/70 mb-1">Slug URL <span class="text-red-500">*</span></label>
+              <label class="block text-[11px] font-bold text-jetblack/70 mb-1">Slug URL <span class="text-red-500">*</span></label>
               <div class="relative">
                 <input
                   v-model="newAppSlug"
                   @input="slugManuallyEdited = true"
                   type="text"
                   placeholder="superprompt-studio"
-                  class="w-full px-3 py-2 rounded-lg bg-white border border-[#111111]/15 text-xs text-[#111111] font-mono placeholder:text-[#111111]/35 focus:outline-none focus:border-[#D4AF37]"
+                  class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/15 text-xs text-jetblack font-mono placeholder:text-jetblack/35 focus:outline-none focus:border-gold"
                 />
               </div>
             </div>
           </div>
 
           <div>
-            <label class="block text-[11px] font-bold text-[#111111]/70 mb-1">Deskripsi Singkat</label>
+            <label class="block text-[11px] font-bold text-jetblack/70 mb-1">Deskripsi Singkat</label>
             <textarea
               v-model="newAppDesc"
               rows="2"
               placeholder="Jelaskan nilai utama atau fungsi software dalam 1-2 kalimat..."
-              class="w-full px-3 py-2 rounded-lg bg-white border border-[#111111]/15 text-xs text-[#111111] placeholder:text-[#111111]/35 focus:outline-none focus:border-[#D4AF37] resize-none"
+              class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/15 text-xs text-jetblack placeholder:text-jetblack/35 focus:outline-none focus:border-gold resize-none"
             ></textarea>
           </div>
 
           <div>
-            <label class="block text-[11px] font-bold text-[#111111]/70 mb-1">URL Ikon / Sampul (Opsional)</label>
+            <label class="block text-[11px] font-bold text-jetblack/70 mb-1">URL Ikon / Sampul (Opsional)</label>
             <input
               v-model="newAppMediaUrl"
               type="url"
               placeholder="https://images.unsplash.com/photo-..."
-              class="w-full px-3 py-2 rounded-lg bg-white border border-[#111111]/15 text-xs text-[#111111] placeholder:text-[#111111]/35 focus:outline-none focus:border-[#D4AF37]"
+              class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/15 text-xs text-jetblack placeholder:text-jetblack/35 focus:outline-none focus:border-gold"
             />
           </div>
         </div>
@@ -344,40 +344,40 @@ async function handleCreateProduct() {
 
         <!-- 5. ALUR CHECKOUT & RETENSI -->
         <div class="space-y-4">
-          <div class="border-b border-[#111111]/10 pb-3">
+          <div class="border-b border-jetblack/10 pb-3">
             <div class="flex items-center gap-2">
-              <div class="w-2 h-2 rounded-full bg-[#D4AF37]"></div>
-              <h2 class="text-xs font-bold uppercase tracking-wider text-[#111111]">Alur Checkout &amp; Retensi</h2>
+              <div class="w-2 h-2 rounded-full bg-gold"></div>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">Alur Checkout &amp; Retensi</h2>
             </div>
-            <p class="text-[11px] text-[#111111]/60 mt-0.5">Tautan pengalihan paska bayar dan otomatisasi tindak lanjut calon pembeli.</p>
+            <p class="text-[11px] text-jetblack/60 mt-0.5">Tautan pengalihan paska bayar dan otomatisasi tindak lanjut calon pembeli.</p>
           </div>
 
           <div>
-            <label class="block text-[11px] font-bold text-[#111111]/70 mb-1">Return / Success URL (Opsional)</label>
+            <label class="block text-[11px] font-bold text-jetblack/70 mb-1">Return / Success URL (Opsional)</label>
             <input
               v-model="returnUrl"
               type="url"
               placeholder="https://aplikasianda.com/welcome?success=true"
-              class="w-full px-3 py-2 rounded-lg bg-white border border-[#111111]/15 text-xs text-[#111111] placeholder:text-[#111111]/35 focus:outline-none focus:border-[#D4AF37]"
+              class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/15 text-xs text-jetblack placeholder:text-jetblack/35 focus:outline-none focus:border-gold"
             />
-            <span class="text-[10px] text-[#111111]/50 mt-1 block">Tautan ke situs Anda tempat pembeli diarahkan setelah transaksi selesai.</span>
+            <span class="text-[10px] text-jetblack/50 mt-1 block">Tautan ke situs Anda tempat pembeli diarahkan setelah transaksi selesai.</span>
           </div>
 
           <div class="space-y-2 pt-1">
-            <div class="flex items-center justify-between p-3 rounded-lg bg-[#111111]/[0.02] border border-[#111111]/10">
+            <div class="flex items-center justify-between p-3 rounded-lg bg-jetblack/[0.02] border border-jetblack/10">
               <div>
-                <div class="text-xs font-bold text-[#111111]">Pemulihan Keranjang (Cart Recovery)</div>
-                <div class="text-[10px] text-[#111111]/60">Kirim email pengingat otomatis jika pembeli membatalkan checkout QRIS/e-wallet.</div>
+                <div class="text-xs font-bold text-jetblack">Pemulihan Keranjang (Cart Recovery)</div>
+                <div class="text-[10px] text-jetblack/60">Kirim email pengingat otomatis jika pembeli membatalkan checkout QRIS/e-wallet.</div>
               </div>
-              <input v-model="abandonedCartRecovery" type="checkbox" class="accent-[#0F4C3A] cursor-pointer" />
+              <input v-model="abandonedCartRecovery" type="checkbox" class="accent-forest cursor-pointer" />
             </div>
 
-            <div class="flex items-center justify-between p-3 rounded-lg bg-[#111111]/[0.02] border border-[#111111]/10">
+            <div class="flex items-center justify-between p-3 rounded-lg bg-jetblack/[0.02] border border-jetblack/10">
               <div>
-                <div class="text-xs font-bold text-[#111111]">Otomatis Undang ke Program Afiliasi</div>
-                <div class="text-[10px] text-[#111111]/60">Berikan pembeli tautan referral unik untuk mempromosikan produk Anda dengan komisi.</div>
+                <div class="text-xs font-bold text-jetblack">Otomatis Undang ke Program Afiliasi</div>
+                <div class="text-[10px] text-jetblack/60">Berikan pembeli tautan referral unik untuk mempromosikan produk Anda dengan komisi.</div>
               </div>
-              <input v-model="autoAffiliateRegistration" type="checkbox" class="accent-[#0F4C3A] cursor-pointer" />
+              <input v-model="autoAffiliateRegistration" type="checkbox" class="accent-forest cursor-pointer" />
             </div>
           </div>
         </div>

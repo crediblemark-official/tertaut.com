@@ -139,12 +139,12 @@ const hoveredPoint = computed(() => {
 
 <template>
   <!-- Analitik & Performa Penjualan (Flat, Seamless - Tanpa Card Container) -->
-  <div class="space-y-3 pt-1 border-b border-[#111111]/10 pb-5">
+  <div class="space-y-3 pt-1 border-b border-jetblack/10 pb-5">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
       <div class="flex items-center gap-2">
-        <BarChart3 class="w-4 h-4 text-[#D4AF37]" />
-        <h2 class="text-xs font-bold uppercase tracking-wider text-[#111111]">Tren &amp; Performa Penjualan</h2>
-        <span class="text-[11px] text-[#111111]/40 hidden sm:inline">• Pantau omzet MoR &amp; transaksi harian</span>
+        <BarChart3 class="w-4 h-4 text-gold" />
+        <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">Tren &amp; Performa Penjualan</h2>
+        <span class="text-[11px] text-jetblack/40 hidden sm:inline">• Pantau omzet MoR &amp; transaksi harian</span>
       </div>
 
       <div class="flex items-center gap-1">
@@ -155,7 +155,7 @@ const hoveredPoint = computed(() => {
           @click="statsDays = d"
           :class="[
             'px-2.5 py-0.5 rounded-md font-bold transition cursor-pointer text-xs',
-            statsDays === d ? 'bg-[#111111] text-white' : 'bg-[#111111]/5 text-[#111111]/60 hover:bg-[#111111]/10'
+            statsDays === d ? 'bg-jetblack text-white' : 'bg-jetblack/5 text-jetblack/60 hover:bg-jetblack/10'
           ]"
         >
           {{ d }} Hari
@@ -167,62 +167,62 @@ const hoveredPoint = computed(() => {
       <!-- 4 Sub-KPIs (Left 5 cols - Flat layout) -->
       <div class="lg:col-span-5 grid grid-cols-2 gap-3">
         <div class="space-y-0.5">
-          <div class="flex items-center justify-between text-[#111111]/50 text-[10px] font-bold uppercase tracking-wider">
+          <div class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider">
             <span>Rata-Rata Order</span>
-            <DollarSign class="w-3.5 h-3.5 text-[#111111]" />
+            <DollarSign class="w-3.5 h-3.5 text-jetblack" />
           </div>
-          <div class="text-lg font-black font-mono text-[#111111]">
+          <div class="text-lg font-black font-mono text-jetblack">
             {{ formatRupiah(analyticsStats.aov) }}
           </div>
-          <div class="text-[10px] text-[#111111]/50">Per transaksi berhasil</div>
+          <div class="text-[10px] text-jetblack/50">Per transaksi berhasil</div>
         </div>
 
-        <div class="space-y-0.5 pl-3 border-l border-[#111111]/10">
-          <div class="flex items-center justify-between text-[#111111]/50 text-[10px] font-bold uppercase tracking-wider">
+        <div class="space-y-0.5 pl-3 border-l border-jetblack/10">
+          <div class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider">
             <span>Sukses Bayar</span>
-            <TrendingUp class="w-3.5 h-3.5 text-[#0F4C3A]" />
+            <TrendingUp class="w-3.5 h-3.5 text-forest" />
           </div>
-          <div class="text-lg font-black font-mono text-[#0F4C3A]">
+          <div class="text-lg font-black font-mono text-forest">
             {{ analyticsStats.conversionRate }}%
           </div>
-          <div class="text-[10px] text-[#0F4C3A] font-medium">{{ analyticsStats.totalPaidCount }} lunas</div>
+          <div class="text-[10px] text-forest font-medium">{{ analyticsStats.totalPaidCount }} lunas</div>
         </div>
 
-        <div class="space-y-0.5 pt-2 border-t border-[#111111]/10">
-          <div class="flex items-center justify-between text-[#111111]/50 text-[10px] font-bold uppercase tracking-wider">
+        <div class="space-y-0.5 pt-2 border-t border-jetblack/10">
+          <div class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider">
             <span>Diskon Kupon</span>
-            <TicketPercent class="w-3.5 h-3.5 text-[#D4AF37]" />
+            <TicketPercent class="w-3.5 h-3.5 text-gold" />
           </div>
-          <div class="text-lg font-black font-mono text-[#111111]">
+          <div class="text-lg font-black font-mono text-jetblack">
             {{ formatRupiah(analyticsStats.totalDiscount) }}
           </div>
-          <div class="text-[10px] text-[#111111]/50">Total insentif kupon</div>
+          <div class="text-[10px] text-jetblack/50">Total insentif kupon</div>
         </div>
 
-        <div class="space-y-0.5 pt-2 pl-3 border-t border-l border-[#111111]/10">
-          <div class="flex items-center justify-between text-[#111111]/50 text-[10px] font-bold uppercase tracking-wider">
+        <div class="space-y-0.5 pt-2 pl-3 border-t border-l border-jetblack/10">
+          <div class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider">
             <span>Aktivasi Seat</span>
-            <Monitor class="w-3.5 h-3.5 text-[#111111]" />
+            <Monitor class="w-3.5 h-3.5 text-jetblack" />
           </div>
-          <div class="text-lg font-black font-mono text-[#111111]">
-            {{ analyticsStats.totalSeatsUsed }} <span class="text-xs font-normal text-[#111111]/50">/ {{ analyticsStats.totalMaxSeats }}</span>
+          <div class="text-lg font-black font-mono text-jetblack">
+            {{ analyticsStats.totalSeatsUsed }} <span class="text-xs font-normal text-jetblack/50">/ {{ analyticsStats.totalMaxSeats }}</span>
           </div>
-          <div class="text-[10px] text-[#111111]/50">Device terikat HWID</div>
+          <div class="text-[10px] text-jetblack/50">Device terikat HWID</div>
         </div>
       </div>
 
       <!-- Interactive Line Chart (Right 7 cols - Seamless Flat) -->
-      <div class="lg:col-span-7 flex flex-col justify-between lg:pl-5 lg:border-l lg:border-[#111111]/10">
-        <div class="flex items-center justify-between text-[11px] font-bold text-[#111111]/70 mb-1 min-h-[22px]">
+      <div class="lg:col-span-7 flex flex-col justify-between lg:pl-5 lg:border-l lg:border-jetblack/10">
+        <div class="flex items-center justify-between text-[11px] font-bold text-jetblack/70 mb-1 min-h-[22px]">
           <span>Tren Omzet ({{ statsDays }} Hari)</span>
-          <div v-if="hoveredDay" class="font-mono text-xs text-[#111111] flex items-center gap-1.5 animate-fadeIn">
-            <span class="text-[#111111]/60 font-medium">{{ hoveredDay.label }}:</span>
-            <span class="font-bold text-[#D4AF37]">{{ formatRupiah(hoveredDay.gross) }}</span>
-            <span class="text-[10px] text-[#111111]/50 font-normal">({{ hoveredDay.count }} tx)</span>
+          <div v-if="hoveredDay" class="font-mono text-xs text-jetblack flex items-center gap-1.5 animate-fadeIn">
+            <span class="text-jetblack/60 font-medium">{{ hoveredDay.label }}:</span>
+            <span class="font-bold text-gold">{{ formatRupiah(hoveredDay.gross) }}</span>
+            <span class="text-[10px] text-jetblack/50 font-normal">({{ hoveredDay.count }} tx)</span>
           </div>
-          <div v-else class="font-mono text-xs text-[#111111]">
-            <span class="text-[#111111]/50 font-medium text-[11px]">Total: </span>
-            <span class="font-bold text-[#0F4C3A]">{{ formatRupiah(periodTotalGross) }}</span>
+          <div v-else class="font-mono text-xs text-jetblack">
+            <span class="text-jetblack/50 font-medium text-[11px]">Total: </span>
+            <span class="font-bold text-forest">{{ formatRupiah(periodTotalGross) }}</span>
           </div>
         </div>
 
@@ -249,7 +249,7 @@ const hoveredPoint = computed(() => {
             <path
               :d="areaPath"
               fill="url(#omzetGradient)"
-              class="transition-all duration-300"
+              class="transition duration-300"
             />
 
             <!-- Active Hover Vertical Guideline -->
@@ -272,7 +272,7 @@ const hoveredPoint = computed(() => {
               stroke-width="2.5"
               stroke-linecap="round"
               stroke-linejoin="round"
-              class="transition-all duration-300"
+              class="transition duration-300"
             />
 
             <!-- Interactive Data Points / Dots -->
@@ -295,12 +295,12 @@ const hoveredPoint = computed(() => {
                 :r="hoveredDay?.date === pt.date ? 5 : (pt.gross > 0 ? 3.5 : 2.5)"
                 :class="[
                   hoveredDay?.date === pt.date
-                    ? 'fill-[#111111] stroke-[#D4AF37] stroke-[2.5]'
+                    ? 'fill-jetblack stroke-gold stroke-[2.5]'
                     : pt.gross > 0
-                      ? 'fill-[#D4AF37] stroke-white stroke-2'
-                      : 'fill-white stroke-[#111111]/30 stroke-1.5'
+                      ? 'fill-gold stroke-white stroke-2'
+                      : 'fill-white stroke-jetblack/30 stroke-1.5'
                 ]"
-                class="transition-all duration-150 pointer-events-none"
+                class="transition duration-150 pointer-events-none"
               />
             </g>
           </svg>
@@ -312,7 +312,7 @@ const hoveredPoint = computed(() => {
             v-for="pt in lineChartPoints"
             :key="pt.date"
             class="text-[9px] font-mono leading-none transition-colors"
-            :class="hoveredDay?.date === pt.date ? 'font-bold text-[#111111]' : 'text-[#111111]/50'"
+            :class="hoveredDay?.date === pt.date ? 'font-bold text-jetblack' : 'text-jetblack/50'"
           >
             {{ pt.label.split(' ')[0] }}
           </span>

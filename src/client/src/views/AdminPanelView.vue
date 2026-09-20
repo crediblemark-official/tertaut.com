@@ -162,7 +162,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-white text-[#111111] flex flex-col md:flex-row font-sans pb-24 md:pb-0">
+  <div class="min-h-screen bg-white text-jetblack flex flex-col md:flex-row font-sans pb-24 md:pb-0">
     <!-- Dedicated Super Admin Sidebar -->
     <AdminSidebar
       :active-tab="activeTab"
@@ -190,9 +190,9 @@ onMounted(() => {
           <div
             v-if="alertMessage"
             :class="[
-              'p-3.5 rounded-lg text-xs font-semibold flex items-center justify-between shadow-xs transition-all',
+              'p-3.5 rounded-lg text-xs font-semibold flex items-center justify-between shadow-xs transition',
               alertMessage.type === 'success'
-                ? 'bg-[#0F4C3A] text-white'
+                ? 'bg-forest text-white'
                 : 'bg-[#B91C1C] text-white'
             ]"
           >
@@ -206,15 +206,15 @@ onMounted(() => {
 
           <!-- TAB 1: OVERVIEW / RINGKASAN PLATFORM -->
           <div v-if="activeTab === 'overview'" class="space-y-6">
-            <div class="flex items-center justify-between gap-3 pb-1 border-b border-[#111111]/10">
+            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
               <div class="flex items-center gap-2.5">
-                <h1 class="text-base font-extrabold text-[#111111]">Ringkasan Ekosistem Platform</h1>
-                <span class="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#D4AF37]/15 text-[#8a6d1f] text-[11px] font-bold border border-[#D4AF37]/30">
-                  <ShieldAlert class="w-3 h-3 text-[#D4AF37]" />
+                <h1 class="text-base font-extrabold text-jetblack">Ringkasan Ekosistem Platform</h1>
+                <span class="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gold/15 text-[#8a6d1f] text-[11px] font-bold border border-gold/30">
+                  <ShieldAlert class="w-3 h-3 text-gold" />
                   MoR Core
                 </span>
               </div>
-              <span class="text-xs text-[#111111]/50 font-mono">Xendit Rail • 5% Platform MoR Cut</span>
+              <span class="text-xs text-jetblack/50 font-mono">Xendit Rail • 5% Platform MoR Cut</span>
             </div>
 
             <!-- Macro Platform KPI Cards Component -->
@@ -238,18 +238,18 @@ onMounted(() => {
 
           <!-- TAB 2: BUILDERS DIRECTORY -->
           <div v-else-if="activeTab === 'builders'" class="space-y-4">
-            <div class="flex items-center justify-between gap-3 pb-1 border-b border-[#111111]/10">
-              <h1 class="text-base font-extrabold text-[#111111]">Direktori Builder Terdaftar</h1>
-              <span class="text-xs text-[#111111]/50 font-mono">{{ builders.length }} Builder Aktif</span>
+            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
+              <h1 class="text-base font-extrabold text-jetblack">Direktori Builder Terdaftar</h1>
+              <span class="text-xs text-jetblack/50 font-mono">{{ builders.length }} Builder Aktif</span>
             </div>
             <BuilderDirectoryTable :builders="builders" />
           </div>
 
           <!-- TAB 3: GLOBAL LEDGER -->
           <div v-else-if="activeTab === 'ledger'" class="space-y-4">
-            <div class="flex items-center justify-between gap-3 pb-1 border-b border-[#111111]/10">
-              <h1 class="text-base font-extrabold text-[#111111]">Ledger Transaksi Global</h1>
-              <span class="text-xs text-[#111111]/50 font-mono">{{ transactions.length }} Transaksi Tercatat</span>
+            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
+              <h1 class="text-base font-extrabold text-jetblack">Ledger Transaksi Global</h1>
+              <span class="text-xs text-jetblack/50 font-mono">{{ transactions.length }} Transaksi Tercatat</span>
             </div>
             <GlobalLedgerTable
               :transactions="transactions"
@@ -261,8 +261,8 @@ onMounted(() => {
 
           <!-- TAB 4: SYSTEM TELEMETRY -->
           <div v-else-if="activeTab === 'system'" class="space-y-4">
-            <div class="flex items-center justify-between gap-3 pb-1 border-b border-[#111111]/10">
-              <h1 class="text-base font-extrabold text-[#111111]">System Health &amp; Telemetri Engine</h1>
+            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
+              <h1 class="text-base font-extrabold text-jetblack">System Health &amp; Telemetri Engine</h1>
               <span class="text-xs text-emerald-600 font-bold flex items-center gap-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 All Systems Operational

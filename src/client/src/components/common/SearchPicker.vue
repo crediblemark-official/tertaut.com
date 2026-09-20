@@ -158,7 +158,7 @@ watch(searchQuery, () => {
       type="button"
       @click="openModal"
       :class="[
-        'group flex items-center justify-between gap-2.5 text-xs bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 shadow-2xs transition-all duration-150 cursor-pointer min-w-[160px] focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500',
+        'group flex items-center justify-between gap-2.5 text-xs bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 shadow-2xs transition duration-150 cursor-pointer min-w-[160px] focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500',
         buttonClass
       ]"
       title="Cari & Pilih Software (Ctrl+K)"

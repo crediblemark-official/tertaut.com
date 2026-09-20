@@ -99,12 +99,12 @@ onUnmounted(() => {
 
 <template>
   <!-- Standalone Layout (public pages, /panel) -->
-  <div v-if="isStandaloneLayout" class="min-h-screen bg-white text-[#111111] font-sans">
+  <div v-if="isStandaloneLayout" class="min-h-screen bg-white text-jetblack font-sans">
     <router-view />
   </div>
 
   <!-- Dashboard Layout -->
-  <div v-else class="min-h-screen bg-[#FFFFFF] text-[#111111] flex flex-col md:flex-row font-sans pb-24 md:pb-0">
+  <div v-else class="min-h-screen bg-white text-jetblack flex flex-col md:flex-row font-sans">
     <DashboardSidebar
       :active-coupon-count="activeCouponCount"
       :active-license-count="activeLicenseCount"
@@ -131,7 +131,7 @@ onUnmounted(() => {
         @logout="handleLogout"
       />
 
-      <main class="flex-1 min-w-0 px-3.5 sm:px-4 md:px-6 pt-0 pb-28 md:pb-6 overflow-y-auto w-full">
+      <main class="flex-1 min-w-0 px-3.5 sm:px-4 md:px-6 pt-0 pb-20 md:pb-6 overflow-y-auto w-full">
         <router-view />
       </main>
     </div>

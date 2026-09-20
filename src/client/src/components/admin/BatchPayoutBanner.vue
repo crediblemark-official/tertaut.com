@@ -18,12 +18,12 @@ const emit = defineEmits<{
     <!-- Quick Action Strip for Batch Payout -->
     <section
       v-if="(stats?.pendingDisbursementsCount || 0) > 0"
-      class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-lg bg-[#D4AF37]/10 border border-[#D4AF37]/25 text-[#111111]"
+      class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-lg bg-gold/10 border border-gold/25 text-jetblack"
     >
       <div class="flex items-center gap-2 text-xs">
-        <span class="w-2 h-2 rounded-full bg-[#D4AF37] shrink-0"></span>
+        <span class="w-2 h-2 rounded-full bg-gold shrink-0"></span>
         <span class="font-bold">Batch Payout Siap:</span>
-        <span class="text-[#111111]/80">
+        <span class="text-jetblack/80">
           <strong>{{ stats?.pendingDisbursementsCount }}</strong> transaksi (total <strong>Rp {{ (stats?.pendingDisbursementsAmount || 0).toLocaleString('id-ID') }}</strong>) siap dicairkan ke builder.
         </span>
       </div>
@@ -40,12 +40,12 @@ const emit = defineEmits<{
     </section>
 
     <!-- Payout Execution Result -->
-    <section v-if="payoutResult" class="p-3 rounded-lg bg-[#0F4C3A]/10 border border-[#0F4C3A]/25 text-[#0F4C3A] flex items-center justify-between text-xs font-bold">
+    <section v-if="payoutResult" class="p-3 rounded-lg bg-forest/10 border border-forest/25 text-forest flex items-center justify-between text-xs font-bold">
       <div class="flex items-center gap-2">
         <CheckCircle2 class="w-4 h-4 shrink-0" />
         <span>Berhasil memproses {{ payoutResult.processedCount }} transaksi (total Rp {{ payoutResult.totalDisbursed.toLocaleString('id-ID') }}).</span>
       </div>
-      <span class="text-[10px] text-[#0F4C3A]/70 font-mono">{{ new Date().toLocaleTimeString('id-ID') }}</span>
+      <span class="text-[10px] text-forest/70 font-mono">{{ new Date().toLocaleTimeString('id-ID') }}</span>
     </section>
   </div>
 </template>

@@ -20,14 +20,14 @@ const { copied, copy } = useClipboard()
 <template>
   <div class="space-y-3 flex flex-col h-full">
     <div class="flex items-center justify-between">
-      <h2 class="text-xs font-bold uppercase tracking-wider text-[#111111]/80">Hasil Sesi Transaksi</h2>
+      <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack/80">Hasil Sesi Transaksi</h2>
     </div>
 
     <!-- Active Result Card -->
     <div v-if="checkoutResult" class="space-y-2.5 text-xs flex-1 flex flex-col justify-between">
-      <div class="p-3.5 rounded-xl bg-[#111111] text-white space-y-2">
+      <div class="p-3.5 rounded-xl bg-jetblack text-white space-y-2">
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-1.5 text-xs font-bold text-[#D4AF37]">
+          <div class="flex items-center gap-1.5 text-xs font-bold text-gold">
             <CheckCircle2 class="w-3.5 h-3.5" />
             <span>Sesi Checkout Siap</span>
           </div>
@@ -43,7 +43,7 @@ const { copied, copy } = useClipboard()
           </div>
           <div>
             <span class="text-white/40 block text-[10px]">Net Payout (95%):</span>
-            <span class="font-bold text-[#D4AF37]">{{ formatRupiah(checkoutResult.netDisbursementAmount || 0) }}</span>
+            <span class="font-bold text-gold">{{ formatRupiah(checkoutResult.netDisbursementAmount || 0) }}</span>
           </div>
         </div>
 
@@ -51,7 +51,7 @@ const { copied, copy } = useClipboard()
           <a
             :href="checkoutResult.checkoutUrl"
             target="_blank"
-            class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D4AF37] text-[#111111] font-bold text-xs hover:bg-[#D4AF37]/90 transition shadow-xs"
+            class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold text-jetblack font-bold text-xs hover:bg-gold/90 transition shadow-xs"
           >
             <span>Buka Paywall Xendit</span>
             <ExternalLink class="w-3 h-3" />
@@ -70,7 +70,7 @@ const { copied, copy } = useClipboard()
         </div>
       </div>
 
-      <p class="text-[10px] text-[#111111]/55 leading-relaxed">
+      <p class="text-[10px] text-jetblack/55 leading-relaxed">
         Pembeli akan memilih channel (QRIS, VA, E-Wallet). Webhook otomatis menerbitkan lisensi &amp; mencatat saldo siap cair.
       </p>
     </div>
@@ -78,10 +78,10 @@ const { copied, copy } = useClipboard()
     <!-- Minimal Compact Placeholder -->
     <div
       v-else
-      class="flex-1 min-h-[140px] flex flex-col items-center justify-center text-center text-[#111111]/40 p-3 border border-dashed border-[#111111]/15 rounded-xl bg-[#111111]/[0.01]"
+      class="flex-1 min-h-[140px] flex flex-col items-center justify-center text-center text-jetblack/40 p-3 border border-dashed border-jetblack/15 rounded-xl bg-jetblack/[0.01]"
     >
       <CreditCard class="w-6 h-6 mb-1 opacity-25" />
-      <p class="text-[11px] font-medium text-[#111111]/50">Invoice URL &amp; ringkasan transaksi akan muncul di sini.</p>
+      <p class="text-[11px] font-medium text-jetblack/50">Invoice URL &amp; ringkasan transaksi akan muncul di sini.</p>
     </div>
   </div>
 </template>

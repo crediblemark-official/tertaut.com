@@ -23,7 +23,7 @@ const emit = defineEmits<{
 <template>
   <div class="space-y-3">
     <div class="flex items-center justify-between">
-      <h2 class="text-xs font-bold uppercase tracking-wider text-[#111111]/80">Buat Sesi Dynamic Checkout</h2>
+      <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack/80">Buat Sesi Dynamic Checkout</h2>
     </div>
 
     <div class="space-y-2.5 text-xs">
@@ -31,58 +31,58 @@ const emit = defineEmits<{
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <!-- Target Software Selector (Integrated with form) -->
         <div v-if="appsList && appsList.length > 0">
-          <label class="block font-bold text-[11px] text-[#111111]/70 mb-1">Target Software</label>
+          <label class="block font-bold text-[11px] text-jetblack/70 mb-1">Target Software</label>
           <SearchPicker
             v-model="selectedAppId"
             :items="appsList"
             @change="emit('appChange')"
             placeholder="Pilih software..."
             search-placeholder="Cari software..."
-            button-class="w-full !h-9 !rounded-lg !min-w-0 justify-between px-3 text-xs border-slate-300/80 hover:border-slate-400 bg-white shadow-2xs focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37]"
+            button-class="w-full !h-9 !rounded-lg !min-w-0 justify-between px-3 text-xs border-slate-300/80 hover:border-slate-400 bg-white shadow-2xs focus:ring-2 focus:ring-gold/20 focus:border-gold"
           />
         </div>
 
         <div>
-          <label class="block font-bold text-[11px] text-[#111111]/70 mb-1">Nominal Pembayaran (IDR)</label>
+          <label class="block font-bold text-[11px] text-jetblack/70 mb-1">Nominal Pembayaran (IDR)</label>
           <input
             v-model.number="amount"
             type="number"
             step="1000"
-            class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] shadow-2xs transition"
+            class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-gold/20 focus:border-gold shadow-2xs transition"
           />
         </div>
 
         <div>
-          <label class="block font-bold text-[11px] text-[#111111]/70 mb-1">Email Pembeli (Opsional)</label>
+          <label class="block font-bold text-[11px] text-jetblack/70 mb-1">Email Pembeli (Opsional)</label>
           <input
             v-model="customerEmail"
             type="email"
             placeholder="buyer@example.com"
-            class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] shadow-2xs transition"
+            class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-gold/20 focus:border-gold shadow-2xs transition"
           />
         </div>
 
         <div>
-          <label class="block font-bold text-[11px] text-[#111111]/70 mb-1">Masa Aktif Lisensi (Hari)</label>
+          <label class="block font-bold text-[11px] text-jetblack/70 mb-1">Masa Aktif Lisensi (Hari)</label>
           <input
             v-model.number="grantDays"
             type="number"
-            class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 focus:border-[#D4AF37] shadow-2xs transition"
+            class="w-full h-9 bg-white border border-slate-300/80 hover:border-slate-400 rounded-lg px-3 text-xs text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-gold/20 focus:border-gold shadow-2xs transition"
           />
         </div>
       </div>
 
       <!-- Compact Fee Breakdown Live Preview Strip -->
-      <div class="px-3 py-2 rounded-lg bg-[#111111]/[0.02] border border-[#111111]/10 text-xs">
+      <div class="px-3 py-2 rounded-lg bg-jetblack/[0.02] border border-jetblack/10 text-xs">
         <div class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
-          <div class="flex items-center gap-3 text-[#111111]/70 text-[11px]">
-            <span>Gross: <strong class="font-mono text-[#111111] font-bold">{{ formatRupiah(amount) }}</strong></span>
-            <span class="text-[#111111]/30">•</span>
-            <span>Fee 5%: <strong class="font-mono text-[#8B0000] font-bold">-{{ formatRupiah(Math.round(amount * 0.05)) }}</strong></span>
+          <div class="flex items-center gap-3 text-jetblack/70 text-[11px]">
+            <span>Gross: <strong class="font-mono text-jetblack font-bold">{{ formatRupiah(amount) }}</strong></span>
+            <span class="text-jetblack/30">•</span>
+            <span>Fee 5%: <strong class="font-mono text-crimson font-bold">-{{ formatRupiah(Math.round(amount * 0.05)) }}</strong></span>
           </div>
           <div class="flex items-center gap-1.5 font-bold">
-            <span class="text-[11px] text-[#111111]/60">Net Payout (95%):</span>
-            <span class="font-mono text-[#0F4C3A] bg-[#0F4C3A]/10 px-2 py-0.5 rounded text-xs font-black">
+            <span class="text-[11px] text-jetblack/60">Net Payout (95%):</span>
+            <span class="font-mono text-forest bg-forest/10 px-2 py-0.5 rounded text-xs font-black">
               {{ formatRupiah(amount - Math.round(amount * 0.05)) }}
             </span>
           </div>

@@ -51,15 +51,15 @@ function dayLabel(dayIso: string): string {
 </script>
 
 <template>
-  <div class="mb-3 p-4 sm:p-5 rounded-xl bg-white border border-[#111111]/15 shadow-xs space-y-4 animate-fadeIn">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#111111]/10 pb-3">
+  <div class="mb-3 p-4 sm:p-5 rounded-xl bg-white border border-jetblack/15 shadow-xs space-y-4 animate-fadeIn">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-jetblack/10 pb-3">
       <div class="flex items-center gap-2">
-        <div class="p-1.5 rounded-lg bg-[#D4AF37]/15 text-[#111111]">
-          <BarChart3 class="w-4 h-4 text-[#D4AF37]" />
+        <div class="p-1.5 rounded-lg bg-gold/15 text-jetblack">
+          <BarChart3 class="w-4 h-4 text-gold" />
         </div>
         <div>
-          <h3 class="text-xs font-bold text-[#111111]">Statistik Penebusan Kupon</h3>
-          <p class="text-[11px] text-[#111111]/60">Pantau performa penggunaan kupon dan total potongan diskon yang diberikan.</p>
+          <h3 class="text-xs font-bold text-jetblack">Statistik Penebusan Kupon</h3>
+          <p class="text-[11px] text-jetblack/60">Pantau performa penggunaan kupon dan total potongan diskon yang diberikan.</p>
         </div>
       </div>
       <div class="flex items-center gap-1.5">
@@ -70,7 +70,7 @@ function dayLabel(dayIso: string): string {
           @click="statsDays = d"
           :class="[
             'px-2.5 py-1 rounded-lg font-bold transition cursor-pointer text-xs',
-            statsDays === d ? 'bg-[#111111] text-white shadow-2xs' : 'bg-[#111111]/5 text-[#111111]/60 hover:bg-[#111111]/10'
+            statsDays === d ? 'bg-jetblack text-white shadow-2xs' : 'bg-jetblack/5 text-jetblack/60 hover:bg-jetblack/10'
           ]"
         >
           {{ d }} Hari
@@ -82,26 +82,26 @@ function dayLabel(dayIso: string): string {
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
       <div class="lg:col-span-5 space-y-3">
         <div class="grid grid-cols-2 gap-2">
-          <div class="p-3 rounded-xl bg-[#111111]/[0.02] border border-[#111111]/10">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-[#111111]/50">Penebusan ({{ statsDays }} hari)</div>
-            <div class="text-xl font-black font-mono text-[#111111] mt-0.5">{{ stats?.totalRedemptions ?? '—' }} <span class="text-xs font-normal text-[#111111]/50">x</span></div>
+          <div class="p-3 rounded-xl bg-jetblack/[0.02] border border-jetblack/10">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-jetblack/50">Penebusan ({{ statsDays }} hari)</div>
+            <div class="text-xl font-black font-mono text-jetblack mt-0.5">{{ stats?.totalRedemptions ?? '—' }} <span class="text-xs font-normal text-jetblack/50">x</span></div>
           </div>
-          <div class="p-3 rounded-xl bg-[#111111]/[0.02] border border-[#111111]/10">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-[#111111]/50">Total Diskon Diberikan</div>
-            <div class="text-xl font-black font-mono text-[#8B0000] mt-0.5">{{ stats ? formatRupiah(stats.totalDiscountIdr) : '—' }}</div>
+          <div class="p-3 rounded-xl bg-jetblack/[0.02] border border-jetblack/10">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-jetblack/50">Total Diskon Diberikan</div>
+            <div class="text-xl font-black font-mono text-crimson mt-0.5">{{ stats ? formatRupiah(stats.totalDiscountIdr) : '—' }}</div>
           </div>
         </div>
 
         <!-- Top Coupons -->
         <div v-if="stats && stats.topCoupons.length > 0" class="pt-1">
-          <div class="text-[11px] font-bold text-[#111111]/70 mb-1.5">Kupon Paling Populer:</div>
+          <div class="text-[11px] font-bold text-jetblack/70 mb-1.5">Kupon Paling Populer:</div>
           <div class="flex flex-wrap items-center gap-1.5">
             <span
               v-for="(tc, idx) in stats.topCoupons.slice(0, 3)"
               :key="tc.code || `idx-${idx}`"
-              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#D4AF37]/15 border border-[#D4AF37]/35 text-[11px] font-bold text-[#111111] font-mono"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gold/15 border border-gold/35 text-[11px] font-bold text-jetblack font-mono"
             >
-              <TicketPercent class="w-3 h-3 text-[#D4AF37]" />
+              <TicketPercent class="w-3 h-3 text-gold" />
               {{ tc.code }} · {{ tc.redemptions }}x
             </span>
           </div>
@@ -110,24 +110,24 @@ function dayLabel(dayIso: string): string {
 
       <!-- Kanan: Bar Chart Harian -->
       <div class="lg:col-span-7 flex flex-col justify-between">
-        <div class="text-[11px] font-bold text-[#111111]/70 mb-1">Tren Penebusan Harian</div>
-        <div v-if="stats && stats.daily.length > 0" class="flex items-end gap-1.5 h-24 px-2 pt-3 pb-1 bg-[#111111]/[0.01] border border-[#111111]/10 rounded-xl overflow-x-auto no-scrollbar">
+        <div class="text-[11px] font-bold text-jetblack/70 mb-1">Tren Penebusan Harian</div>
+        <div v-if="stats && stats.daily.length > 0" class="flex items-end gap-1.5 h-24 px-2 pt-3 pb-1 bg-jetblack/[0.01] border border-jetblack/10 rounded-xl overflow-x-auto no-scrollbar">
           <div
             v-for="d in stats.daily"
             :key="d.day"
             class="flex-1 min-w-[28px] flex flex-col items-center justify-end gap-1 group relative"
           >
-            <div class="absolute bottom-full mb-1 hidden group-hover:block z-10 whitespace-nowrap px-2 py-0.5 rounded bg-[#111111] text-white text-[9.5px] font-bold shadow-sm">
+            <div class="absolute bottom-full mb-1 hidden group-hover:block z-10 whitespace-nowrap px-2 py-0.5 rounded bg-jetblack text-white text-[9.5px] font-bold shadow-sm">
               {{ dayLabel(d.day) }}: {{ d.redemptions }}x &bull; {{ formatRupiah(d.totalDiscount) }}
             </div>
             <div
-              class="w-full max-w-[28px] rounded-t bg-[#D4AF37]/80 group-hover:bg-[#D4AF37] transition-all"
+              class="w-full max-w-[28px] rounded-t bg-gold/80 group-hover:bg-gold transition"
               :style="{ height: `${Math.max(4, (d.redemptions / maxDailyRedemptions) * 64)}px` }"
             ></div>
-            <span class="text-[8.5px] text-[#111111]/50 font-mono leading-none">{{ dayLabel(d.day) }}</span>
+            <span class="text-[8.5px] text-jetblack/50 font-mono leading-none">{{ dayLabel(d.day) }}</span>
           </div>
         </div>
-        <div v-else class="h-24 flex items-center justify-center text-xs text-[#111111]/40 border border-[#111111]/10 rounded-xl">
+        <div v-else class="h-24 flex items-center justify-center text-xs text-jetblack/40 border border-jetblack/10 rounded-xl">
           Belum ada penebusan kupon dalam {{ statsDays }} hari terakhir.
         </div>
       </div>

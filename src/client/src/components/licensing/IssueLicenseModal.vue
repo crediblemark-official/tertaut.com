@@ -48,21 +48,21 @@ function submit() {
 </script>
 
 <template>
-  <div v-if="show" class="fixed inset-0 bg-[#111111]/50 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
-    <div class="bg-white rounded-xl max-w-sm w-full p-4 shadow-xl space-y-3 border border-[#111111]/10 animate-fadeIn">
-      <div class="flex items-center justify-between pb-1 border-b border-[#111111]/5">
+  <div v-if="show" class="fixed inset-0 bg-jetblack/50 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-xl max-w-sm w-full p-4 shadow-xl space-y-3 border border-jetblack/10 animate-fadeIn">
+      <div class="flex items-center justify-between pb-1 border-b border-jetblack/5">
         <div class="flex items-center gap-2">
-          <KeyRound class="w-4 h-4 text-[#D4AF37]" />
-          <h3 class="text-xs font-bold uppercase tracking-wider text-[#111111]">Terbitkan Lisensi Manual</h3>
+          <KeyRound class="w-4 h-4 text-gold" />
+          <h3 class="text-xs font-bold uppercase tracking-wider text-jetblack">Terbitkan Lisensi Manual</h3>
         </div>
-        <button @click="emit('close')" class="text-[#111111]/40 hover:text-[#111111] cursor-pointer p-0.5">
+        <button @click="emit('close')" class="text-jetblack/40 hover:text-jetblack cursor-pointer p-0.5">
           <X class="w-4 h-4" />
         </button>
       </div>
 
       <div class="space-y-2.5 text-xs">
         <div>
-          <label class="block font-semibold text-[11px] text-[#111111]/70 mb-1">Pilih Aplikasi</label>
+          <label class="block font-semibold text-[11px] text-jetblack/70 mb-1">Pilih Aplikasi</label>
           <SearchPicker
             v-model="issueAppId"
             :items="appsList"
@@ -73,40 +73,40 @@ function submit() {
         </div>
 
         <div>
-          <label class="block font-semibold text-[11px] text-[#111111]/70 mb-1">Email Pembeli / Penerima</label>
+          <label class="block font-semibold text-[11px] text-jetblack/70 mb-1">Email Pembeli / Penerima</label>
           <input
             v-model="issueEmail"
             type="email"
             placeholder="customer@example.com"
-            class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-xs text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+            class="w-full bg-white border border-jetblack/15 rounded-lg px-2.5 py-1.5 text-xs text-jetblack focus:outline-none focus:border-gold"
           />
         </div>
 
         <div class="grid grid-cols-3 gap-2">
           <div>
-            <label class="block font-semibold text-[11px] text-[#111111]/70 mb-1">Masa Aktif</label>
+            <label class="block font-semibold text-[11px] text-jetblack/70 mb-1">Masa Aktif</label>
             <input
               v-model.number="issueGrantDays"
               type="number"
               placeholder="30"
-              class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-xs text-[#111111] font-mono focus:outline-none focus:border-[#D4AF37]"
+              class="w-full bg-white border border-jetblack/15 rounded-lg px-2.5 py-1.5 text-xs text-jetblack font-mono focus:outline-none focus:border-gold"
             />
           </div>
           <div>
-            <label class="block font-semibold text-[11px] text-[#111111]/70 mb-1">Max Seats</label>
+            <label class="block font-semibold text-[11px] text-jetblack/70 mb-1">Max Seats</label>
             <input
               v-model.number="issueMaxSeats"
               type="number"
               min="1"
               placeholder="3"
-              class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg px-2.5 py-1.5 text-xs text-[#111111] font-mono focus:outline-none focus:border-[#D4AF37]"
+              class="w-full bg-white border border-jetblack/15 rounded-lg px-2.5 py-1.5 text-xs text-jetblack font-mono focus:outline-none focus:border-gold"
             />
           </div>
           <div>
-            <label class="block font-semibold text-[11px] text-[#111111]/70 mb-1">Platform</label>
+            <label class="block font-semibold text-[11px] text-jetblack/70 mb-1">Platform</label>
             <select
               v-model="issuePlatform"
-              class="w-full bg-[#FFFFFF] border border-[#111111]/15 rounded-lg px-2 py-1.5 text-xs text-[#111111] focus:outline-none focus:border-[#D4AF37]"
+              class="w-full bg-white border border-jetblack/15 rounded-lg px-2 py-1.5 text-xs text-jetblack focus:outline-none focus:border-gold"
             >
               <option value="general">General</option>
               <option value="desktop">Desktop</option>
@@ -117,10 +117,10 @@ function submit() {
           </div>
         </div>
 
-        <div class="pt-1.5 flex justify-end gap-2 border-t border-[#111111]/5">
+        <div class="pt-1.5 flex justify-end gap-2 border-t border-jetblack/5">
           <button
             @click="emit('close')"
-            class="px-3 py-1.5 rounded-lg bg-[#111111]/5 text-xs font-bold text-[#111111] hover:bg-[#111111]/10 cursor-pointer"
+            class="px-3 py-1.5 rounded-lg bg-jetblack/5 text-xs font-bold text-jetblack hover:bg-jetblack/10 cursor-pointer"
           >
             Batal
           </button>

@@ -211,20 +211,20 @@ onMounted(() => {
 
 <template>
   <div
-    class="relative min-h-screen lg:h-screen lg:max-h-screen bg-[#090A0C] text-white flex flex-col justify-start lg:justify-center items-center p-3 sm:p-5 lg:p-6 overflow-y-auto lg:overflow-hidden selection:bg-[#D4AF37]/30 selection:text-white py-4 sm:py-6">
+    class="relative min-h-screen lg:h-screen lg:max-h-screen bg-[#090A0C] text-white flex flex-col justify-start lg:justify-center items-center p-3 sm:p-5 lg:p-6 overflow-y-auto lg:overflow-hidden selection:bg-gold/30 selection:text-white py-4 sm:py-6">
     <!-- Ambient Lighting & Developer Grid Background -->
     <div class="fixed inset-0 pointer-events-none z-0">
       <div
         class="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px]">
       </div>
       <div
-        class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[450px] bg-gradient-to-tr from-[#0F4C3A]/20 via-[#D4AF37]/10 to-transparent rounded-full blur-[140px]">
+        class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[450px] bg-gradient-to-tr from-forest/20 via-gold/10 to-transparent rounded-full blur-[140px]">
       </div>
     </div>
 
     <!-- Loading State -->
     <div v-if="loading" class="relative z-10 flex flex-col items-center justify-center text-white/70 text-xs gap-3 p-8 my-auto">
-      <div class="w-6 h-6 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
+      <div class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
       <span class="font-mono text-[11px]">Menyiapkan sesi checkout aman tertaut.com...</span>
     </div>
 
@@ -241,7 +241,7 @@ onMounted(() => {
           belum diluncurkan.</p>
       </div>
       <router-link to="/"
-        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#D4AF37] text-black text-xs font-bold hover:bg-[#C5A059] transition">
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gold text-black text-xs font-bold hover:bg-gold-muted transition">
         <span>Kembali ke Beranda</span>
       </router-link>
     </div>

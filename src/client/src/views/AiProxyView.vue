@@ -222,7 +222,7 @@ watch(dashboardEnv, () => {
 <template>
   <div class="animate-fadeIn pb-12">
     <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-[#111111] text-white border-b border-[#111111] flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
       <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
         <button
           type="button"
@@ -234,7 +234,7 @@ watch(dashboardEnv, () => {
               : 'text-white/60 hover:text-white hover:bg-white/10'
           ]"
         >
-          <KeyRound class="w-3.5 h-3.5" :class="activeTab === 'vault' ? 'text-[#D4AF37]' : ''" />
+          <KeyRound class="w-3.5 h-3.5" :class="activeTab === 'vault' ? 'text-gold' : ''" />
           <span>Vault Kredensial</span>
         </button>
 
@@ -248,7 +248,7 @@ watch(dashboardEnv, () => {
               : 'text-white/60 hover:text-white hover:bg-white/10'
           ]"
         >
-          <Bot class="w-3.5 h-3.5" :class="activeTab === 'playground' ? 'text-[#D4AF37]' : ''" />
+          <Bot class="w-3.5 h-3.5" :class="activeTab === 'playground' ? 'text-gold' : ''" />
           <span>Uji Coba AI</span>
         </button>
 
@@ -262,7 +262,7 @@ watch(dashboardEnv, () => {
               : 'text-white/60 hover:text-white hover:bg-white/10'
           ]"
         >
-          <ShieldCheck class="w-3.5 h-3.5" :class="activeTab === 'guardrails' ? 'text-[#D4AF37]' : ''" />
+          <ShieldCheck class="w-3.5 h-3.5" :class="activeTab === 'guardrails' ? 'text-gold' : ''" />
           <span>Token &amp; Guardrails</span>
         </button>
 
@@ -276,12 +276,12 @@ watch(dashboardEnv, () => {
               : 'text-white/60 hover:text-white hover:bg-white/10'
           ]"
         >
-          <Receipt class="w-3.5 h-3.5" :class="activeTab === 'audit' ? 'text-[#D4AF37]' : ''" />
+          <Receipt class="w-3.5 h-3.5" :class="activeTab === 'audit' ? 'text-gold' : ''" />
           <span>Audit Log</span>
           <span
             :class="[
               'px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold',
-              activeTab === 'audit' ? 'bg-white text-[#111111]' : 'bg-white/10 text-white'
+              activeTab === 'audit' ? 'bg-white text-jetblack' : 'bg-white/10 text-white'
             ]"
           >
             {{ proxyLogs.length }}
@@ -301,7 +301,7 @@ watch(dashboardEnv, () => {
     <!-- Alert Banner -->
     <div
       v-if="vaultAlert"
-      class="mb-3 p-3 rounded-xl bg-[#0F4C3A]/10 border border-[#0F4C3A]/25 text-[#0F4C3A] text-xs font-bold flex items-center justify-between"
+      class="mb-3 p-3 rounded-xl bg-forest/10 border border-forest/25 text-forest text-xs font-bold flex items-center justify-between"
     >
       <div class="flex items-center gap-1.5">
         <CheckCircle2 class="w-4 h-4 shrink-0" />
