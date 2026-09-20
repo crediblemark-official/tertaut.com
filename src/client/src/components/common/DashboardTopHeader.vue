@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Search, Globe, Code2, ChevronRight, LogOut, LogIn, ShieldAlert } from 'lucide-vue-next'
+import { Search, Globe, Code2, LogOut, LogIn } from 'lucide-vue-next'
 import { dashboardEnv } from '../../lib/environment'
 
 const props = defineProps<{
@@ -16,14 +16,8 @@ const env = dashboardEnv
 <template>
   <!-- Desktop Top Header -->
   <header class="hidden md:flex items-center justify-between px-6 py-3 border-b border-jetblack/10 bg-white/90 backdrop-blur-md shrink-0 z-20">
-    <!-- Left: Breadcrumb -->
+    <!-- Left: Page Title -->
     <div class="flex items-center gap-3">
-      <div class="flex items-center gap-1.5 text-xs text-jetblack/50 font-medium">
-        <span class="hover:text-jetblack transition cursor-default">Dashboard</span>
-        <ChevronRight class="w-3 h-3 text-jetblack/30" />
-        <span class="text-gold font-semibold">{{ currentPage.category }}</span>
-        <ChevronRight class="w-3 h-3 text-jetblack/30" />
-      </div>
       <h2 class="text-sm font-bold text-jetblack tracking-tight flex items-center gap-2">
         <span>{{ currentPage.title }}</span>
         <span class="px-2 py-0.5 rounded-full bg-jetblack/5 text-jetblack/60 text-[10px] font-mono font-normal">v2.2</span>
