@@ -1,7 +1,0 @@
-# Docker Compose Override untuk build lokal dari source (opsional)
-# Penggunaan: docker compose -f docker-compose.yml -f docker-compose.local-build.yml up --build
-services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
