@@ -14,6 +14,7 @@ import { resolve } from "path";
 import { db } from "./db";
 import { licenses } from "./db/schema";
 import { eq, and, lt } from "drizzle-orm";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { LicenseLeaseService } from "./services/licenseLease";
 import { AuditService } from "./services/audit";
 import { WebhookService } from "./services/webhooks";
@@ -209,8 +210,23 @@ export const app = new Elysia()
   )
 
   // Better Auth handler (sign-in/up, session) di /api/auth/*
-  .all("/api/auth/*", ({ request }) => auth.handler(request))
-  .get("/api/auth/*", ({ request }) => auth.handler(request))
+  .all("/api/auth/*", async ({ request }) => {
+    try {
+      const res = await auth.handler(request);
+      if (res.status >= 500) {
+        console.error(`[Auth] ${request.method} ${request.url} failed with status ${res.status}`);
+        try {
+          const clone = res.clone();
+          const body = await clone.text();
+          console.error(`[Auth Response Body]`, body);
+        } catch {}
+      }
+      return res;
+    } catch (err: any) {
+      console.error(`[Auth Exception] ${request.method} ${request.url}:`, err?.message || err);
+      throw err;
+    }
+  })
 
   // Public key Ed25519 untuk verifikasi offline license token (tanpa shared secret)
   .get("/.well-known/jwks.json", () => LicenseTokenService.getJwks())
@@ -347,7 +363,23 @@ async function dispatchWebhooks(): Promise<void> {
   }
 }
 
+/** Jalankan migrasi skema database secara otomatis pada startup jika tabel belum ada */
+async function runAutoMigrations(): Promise<void> {
+  try {
+    const migrationsFolder = resolve(import.meta.dir, "db/migrations");
+    if (existsSync(migrationsFolder)) {
+      console.log("[DB] Memeriksa dan menjalankan migrasi skema database...");
+      await migrate(db, { migrationsFolder });
+      console.log("[DB] Migrasi skema database berhasil diaplikasikan!");
+    }
+  } catch (error: any) {
+    console.error("[DB] Migrasi database gagal:", error?.message || error);
+  }
+}
+
 if (process.env.NODE_ENV !== "test") {
+  await runAutoMigrations();
+
   expireLicenses();
   setInterval(expireLicenses, 10 * 60 * 1000); // 10 menit (was 5 menit)
   expireLeases();

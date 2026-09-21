@@ -31,6 +31,10 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 8,
   },
+  rateLimit: {
+    window: 60,
+    max: 100,
+  },
   trustedOrigins,
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 hari
