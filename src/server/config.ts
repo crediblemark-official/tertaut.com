@@ -55,6 +55,36 @@ function requireEnv(envName: string): string {
 }
 
 /**
+ * Membersihkan format string kunci PEM (menghilangkan quotes pembungkus,
+ * menormalkan literal \n, dan menyusun ulang baris base64 64-karakter).
+ */
+export function cleanPemKey(raw: string): string {
+  if (!raw || typeof raw !== "string") return "";
+  let val = raw.trim();
+  // Strip quotes pembungkus (mis. dari Dokploy env input "...")
+  if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+    val = val.slice(1, -1).trim();
+  }
+  // Normalkan newline literal \n dan Windows linebreaks CRLF/CR
+  val = val.replace(/\\n/g, "\n").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  // Re-format PEM jika memiliki header BEGIN dan footer END
+  const beginMatch = val.match(/-----BEGIN [^-]+-----/);
+  const endMatch = val.match(/-----END [^-]+-----/);
+  if (beginMatch && endMatch) {
+    const header = beginMatch[0];
+    const footer = endMatch[0];
+    const headerIdx = val.indexOf(header);
+    const footerIdx = val.indexOf(footer);
+    const body = val.slice(headerIdx + header.length, footerIdx).replace(/\s+/g, "");
+    const formattedBody = body.match(/.{1,64}/g)?.join("\n") || body;
+    return `${header}\n${formattedBody}\n${footer}`;
+  }
+
+  return val;
+}
+
+/**
  * Membaca nilai kunci/sertifikat, mendukung file path lokal (mis. keys/*.pem)
  * maupun nilai string inline dari environment variable.
  */
@@ -63,14 +93,14 @@ function resolveKeyOrFile(envName: string, defaultFilePath?: string): string {
   if (value) {
     if (existsSync(value)) {
       try {
-        return readFileSync(value, "utf8").trim();
+        return cleanPemKey(readFileSync(value, "utf8"));
       } catch {}
     }
-    return value;
+    return cleanPemKey(value);
   }
   if (defaultFilePath && existsSync(defaultFilePath)) {
     try {
-      return readFileSync(defaultFilePath, "utf8").trim();
+      return cleanPemKey(readFileSync(defaultFilePath, "utf8"));
     } catch {}
   }
   return "";
