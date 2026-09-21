@@ -1,4 +1,4 @@
-CREATE TABLE "license_events" (
+CREATE TABLE IF NOT EXISTS "license_events" (
 	"id" text PRIMARY KEY NOT NULL,
 	"license_id" text,
 	"license_key" text,
@@ -11,7 +11,7 @@ CREATE TABLE "license_events" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "license_leases" (
+CREATE TABLE IF NOT EXISTS "license_leases" (
 	"id" text PRIMARY KEY NOT NULL,
 	"license_id" text NOT NULL,
 	"hwid_hash" text NOT NULL,
@@ -24,7 +24,7 @@ CREATE TABLE "license_leases" (
 	CONSTRAINT "unique_license_lease_hwid" UNIQUE("license_id","hwid_hash")
 );
 --> statement-breakpoint
-CREATE TABLE "webhook_deliveries" (
+CREATE TABLE IF NOT EXISTS "webhook_deliveries" (
 	"id" text PRIMARY KEY NOT NULL,
 	"endpoint_id" text,
 	"event" text NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE "webhook_deliveries" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "webhook_endpoints" (
+CREATE TABLE IF NOT EXISTS "webhook_endpoints" (
 	"id" text PRIMARY KEY NOT NULL,
 	"builder_id" uuid NOT NULL,
 	"url" text NOT NULL,
@@ -49,16 +49,32 @@ CREATE TABLE "webhook_endpoints" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "license_events" ADD CONSTRAINT "license_events_license_id_licenses_id_fk" FOREIGN KEY ("license_id") REFERENCES "public"."licenses"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "license_leases" ADD CONSTRAINT "license_leases_license_id_licenses_id_fk" FOREIGN KEY ("license_id") REFERENCES "public"."licenses"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "webhook_deliveries" ADD CONSTRAINT "webhook_deliveries_endpoint_id_webhook_endpoints_id_fk" FOREIGN KEY ("endpoint_id") REFERENCES "public"."webhook_endpoints"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "webhook_endpoints" ADD CONSTRAINT "webhook_endpoints_builder_id_builders_id_fk" FOREIGN KEY ("builder_id") REFERENCES "public"."builders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "idx_license_events_license_id" ON "license_events" USING btree ("license_id");--> statement-breakpoint
-CREATE INDEX "idx_license_events_app_id" ON "license_events" USING btree ("app_id");--> statement-breakpoint
-CREATE INDEX "idx_license_events_event" ON "license_events" USING btree ("event");--> statement-breakpoint
-CREATE INDEX "idx_license_events_created_at" ON "license_events" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "idx_license_leases_license_id" ON "license_leases" USING btree ("license_id");--> statement-breakpoint
-CREATE INDEX "idx_license_leases_expires_at" ON "license_leases" USING btree ("expires_at");--> statement-breakpoint
-CREATE INDEX "idx_webhook_deliveries_status" ON "webhook_deliveries" USING btree ("status","next_retry_at");--> statement-breakpoint
-CREATE INDEX "idx_webhook_deliveries_endpoint" ON "webhook_deliveries" USING btree ("endpoint_id");--> statement-breakpoint
-CREATE INDEX "idx_webhook_endpoints_builder" ON "webhook_endpoints" USING btree ("builder_id");
+DO $$ BEGIN
+ ALTER TABLE "license_events" ADD CONSTRAINT "license_events_license_id_licenses_id_fk" FOREIGN KEY ("license_id") REFERENCES "public"."licenses"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "license_leases" ADD CONSTRAINT "license_leases_license_id_licenses_id_fk" FOREIGN KEY ("license_id") REFERENCES "public"."licenses"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "webhook_deliveries" ADD CONSTRAINT "webhook_deliveries_endpoint_id_webhook_endpoints_id_fk" FOREIGN KEY ("endpoint_id") REFERENCES "public"."webhook_endpoints"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "webhook_endpoints" ADD CONSTRAINT "webhook_endpoints_builder_id_builders_id_fk" FOREIGN KEY ("builder_id") REFERENCES "public"."builders"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_license_events_license_id" ON "license_events" USING btree ("license_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_license_events_app_id" ON "license_events" USING btree ("app_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_license_events_event" ON "license_events" USING btree ("event");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_license_events_created_at" ON "license_events" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_license_leases_license_id" ON "license_leases" USING btree ("license_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_license_leases_expires_at" ON "license_leases" USING btree ("expires_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_webhook_deliveries_status" ON "webhook_deliveries" USING btree ("status","next_retry_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_webhook_deliveries_endpoint" ON "webhook_deliveries" USING btree ("endpoint_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_webhook_endpoints_builder" ON "webhook_endpoints" USING btree ("builder_id");

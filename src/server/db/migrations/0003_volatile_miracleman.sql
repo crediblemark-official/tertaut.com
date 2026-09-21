@@ -1,2 +1,2 @@
-ALTER TABLE "licenses" ADD COLUMN "license_version" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
-ALTER TABLE "licenses" ADD COLUMN "features" jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE "licenses" ADD COLUMN IF NOT EXISTS "license_version" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE "licenses" ADD COLUMN IF NOT EXISTS "features" jsonb DEFAULT '{}'::jsonb;
