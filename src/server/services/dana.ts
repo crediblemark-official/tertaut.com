@@ -1,4 +1,4 @@
-import { config } from "../config";
+import { config, cleanPemKey } from "../config";
 import crypto from "crypto";
 import { calculateMor } from "../utils/payment";
 import Dana from "dana-node";
@@ -45,7 +45,7 @@ export interface DanaOrderResponse {
 function getDanaInstance(): Dana {
   return new Dana({
     partnerId: config.dana.clientId || "MOCK_PARTNER_ID",
-    privateKey: config.dana.privateKey || "MOCK_PRIVATE_KEY",
+    privateKey: cleanPemKey(config.dana.privateKey || "MOCK_PRIVATE_KEY"),
     origin: config.dana.origin,
     env: config.dana.env,
     clientSecret: config.dana.clientSecret,
@@ -377,6 +377,14 @@ export class DanaService {
       };
     } catch (err: any) {
       console.error("[DanaService] dana-node SDK createOrder Error:", err.message);
+      if (
+        err.message?.includes("Invalid private key format") ||
+        err.message?.includes("Failed to generate signature")
+      ) {
+        throw new Error(
+          "Format DANA_PRIVATE_KEY di server tidak valid (harus berupa kunci RSA PEM yang diawali -----BEGIN PRIVATE KEY----- atau -----BEGIN RSA PRIVATE KEY-----). Jika Anda sedang dalam tahap uji coba, silakan beralih ke software mode Sandbox."
+        );
+      }
       throw err;
     }
   }
