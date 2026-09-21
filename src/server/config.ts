@@ -22,7 +22,6 @@ function getEnv(key: string, fallback = ""): string {
 const nodeEnv = getEnv("NODE_ENV", "development");
 const isProd = nodeEnv === "production";
 const isTest = nodeEnv === "test";
-const isDev = nodeEnv === "development";
 
 const DEFAULT_JWT_SECRET = "tertaut_default_jwt_secret_change_me_in_production";
 
