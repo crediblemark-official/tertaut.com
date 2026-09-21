@@ -1,10 +1,11 @@
 import { describe, it, expect } from "bun:test";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { createPrivateKey, sign as cryptoSign } from "crypto";
 import { setupTestAuth } from "../setup";
 import { db } from "../../db";
 import { apps, builders, revokedTokens } from "../../db/schema";
 import { eq } from "drizzle-orm";
+import { config } from "../../config";
 import { LicenseService } from "../../services/license";
 import { LicenseTokenService, CLOCK_SKEW_LEEWAY_SECONDS } from "../../services/licenseToken";
 import { generateAppApiKey } from "../../routes/apps/api-key";
@@ -20,7 +21,11 @@ function base64url(input: string | Buffer): string {
 
 /** Buat token Ed25519 dengan klaim free-form (untuk menguji skew). */
 function craftToken(claims: Record<string, any>): string {
-  const pem = readFileSync("keys/license_signing_private.pem", "utf8");
+  const pem =
+    config.security.licensePrivateKey ||
+    (existsSync("keys/license_signing_private.pem")
+      ? readFileSync("keys/license_signing_private.pem", "utf8")
+      : "");
   const key = createPrivateKey(pem);
   const header = base64url(JSON.stringify({ alg: "EdDSA", typ: "JWT" }));
   const body = base64url(JSON.stringify(claims));
