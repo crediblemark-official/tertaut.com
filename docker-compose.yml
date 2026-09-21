@@ -1,57 +1,16 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: tertaut_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-tertaut}
-      # Optimasi memori PostgreSQL untuk VPS kecil (512MB-1GB RAM)
-      shared_buffers: 128MB
-      effective_cache_size: 384MB
-      work_mem: 64kB
-      maintenance_work_mem: 64MB
-      # WAL & checkpoint
-      max_wal_size: 256MB
-      min_wal_size: 64MB
-      checkpoint_completion_target: 0.9
-      # Connection
-      max_connections: 30
-    ports:
-      - "${DB_PORT:-5433}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-tertaut}"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-    # Prioritas rendah agar proses lain tidak terkikis
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.5"
-        reservations:
-          memory: 128M
-          cpus: "0.1"
-
   app:
     image: ghcr.io/crediblemark-official/tertaut.com:latest
     container_name: tertaut_app
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
     env_file:
       - path: .env
         required: false
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3001}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-tertaut}}
-      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3001}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL wajib diisi}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-}
       JWT_SECRET: ${JWT_SECRET:-}
       VAULT_ENCRYPTION_KEY: ${VAULT_ENCRYPTION_KEY:-}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
@@ -80,7 +39,6 @@ services:
       BUN_JSX_RUNTIME: "haste"
     ports:
       - "${APP_PORT:-3001}:3001"
-    # Prioritas rendah untuk proses Bun
     deploy:
       resources:
         limits:
@@ -95,7 +53,3 @@ services:
       timeout: 5s
       start_period: 20s
       retries: 3
-
-volumes:
-  postgres_data:
-
