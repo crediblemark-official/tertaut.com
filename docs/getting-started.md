@@ -61,15 +61,14 @@ Respons sukses:
   "success": true,
   "data": {
     "sessionId": "tx_...",
-    "paymentGateway": "xendit",
-    "checkoutUrl": "https://checkout.xendit.co/web/...",
-    "xenditInvoiceUrl": "https://checkout.xendit.co/web/...",
-    "expiresAt": "2026-09-18T06:30:00.000Z",
+    "paymentGateway": "dana",
+    "checkoutUrl": "https://tertaut.com/checkout/dana/finish?orderId=...",
+    "expiresAt": "2026-09-21T18:30:00.000Z",
     "isSandbox": false
   },
   "transactionId": "tx_...",
-  "checkoutUrl": "https://checkout.xendit.co/web/...",
-  "paymentGateway": "xendit"
+  "checkoutUrl": "https://tertaut.com/checkout/dana/finish?orderId=...",
+  "paymentGateway": "dana"
 }
 ```
 

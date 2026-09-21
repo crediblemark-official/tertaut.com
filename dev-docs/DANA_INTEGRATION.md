@@ -36,9 +36,14 @@ DANA_CLIENT_SECRET=
 DANA_BASE_URL=https://api.saas.dana.id
 DANA_ORIGIN=https://api.saas.dana.id
 
-# RSA Key Pairs (Inline Base64 atau Path File PEM)
-DANA_PRIVATE_KEY=keys/dana_production_private.pem
-DANA_PUBLIC_KEY=keys/dana_production_public.pem
+# RSA Key Pairs (PILIH SALAH SATU):
+# Rekomendasi Dokploy / Docker / Cloud (Single-Line Base64):
+DANA_PRIVATE_KEY_BASE64=LS0tLS1CRUdJTi...
+DANA_PUBLIC_KEY_BASE64=LS0tLS1CRUdJTi...
+
+# Alternatif Local Development (Path File PEM):
+# DANA_PRIVATE_KEY=keys/dana_production_private.pem
+# DANA_PUBLIC_KEY=keys/dana_production_public.pem
 ```
 
 ---
@@ -204,36 +209,29 @@ Ketiga URL telah diuji secara lokal dan terbukti berfungsi dengan baik:
 1. **Submit Pengajuan:** Form Pengajuan Production dapat langsung diklik **Kirim** tanpa harus menunggu deploy server selesai, karena DANA hanya menyimpan konfigurasi awal ke sistem pendaftaran.
 2. **Review Compliance (KYB):** Tim internal DANA akan memverifikasi legalitas PT Retas Lintas Batas (estimasi 1–3 hari kerja).
 3. **Deployment Server Production:** Sebelum akun production diaktifkan untuk melayani transaksi nyata, pastikan repositori `tertautv2` telah di-deploy ke server hosting/VPS `tertaut.com`.
-4. **Pemasangan Kredensial Live:** Begitu DANA menerbitkan `DANA_CLIENT_ID` dan `DANA_MERCHANT_ID` production, setel di `.env` server:
+4. **Pemasangan Kredensial Live:** Begitu DANA menerbitkan `DANA_CLIENT_ID`, `DANA_CLIENT_SECRET`, dan `DANA_MERCHANT_ID` production, setel di `.env` / dashboard Dokploy server:
    ```env
    PAYMENT_GATEWAY=dana
-   DANA_BASE_URL=https://api.dana.id
+   DANA_ENV=production
+   DANA_BASE_URL=https://api.saas.dana.id
    DANA_CLIENT_ID=<production_client_id>
+   DANA_CLIENT_SECRET=<production_client_secret>
    DANA_MERCHANT_ID=<production_merchant_id>
-   DANA_PRIVATE_KEY="<isi_dari_keys/dana_production_private.pem>"
-   DANA_PUBLIC_KEY="<isi_dari_keys/dana_production_public.pem>"
+   # Gunakan output dari `bun run keys:encode`
+   DANA_PRIVATE_KEY_BASE64=<base64_dana_production_private>
+   DANA_PUBLIC_KEY_BASE64=<base64_dana_production_public>
    ```
 
 ---
 
-## 9. Migrasi ke Official SDK `dana-node` (Rekomendasi)
+## 9. Official SDK `@dana-node` (v2.2.2) — STATUS: SELESAI & AKTIF
 
-### A. Status Implementasi Saat Ini
+Migrasi dari implementasi raw `fetch()` ke Official SDK `dana-node@2.2.2` (sesuai spesifikasi [DANA API Docs v2](https://dashboard.dana.id/api-docs-v2/)) telah **100% selesai dan aktif**:
 
-| Komponen | Implementasi Sekarang | Keterangan |
-| :--- | :--- | :--- |
-| **Create Order** | Raw `fetch()` + manual RSA SHA256 signature | `src/server/services/dana.ts` → `DanaService.createOrder()` |
-| **Webhook Verification** | Manual `crypto.createVerify("SHA256")` | `DanaService.verifyWebhook()` |
-| **Disbursement** | Raw `fetch()` ke endpoint SNAP BI | `DanaService.createDisbursement()` |
-| **Signature Generation** | Manual `crypto.sign()` per-request | Inline di `createOrder()` |
-
-> **Masalah:** Implementasi manual rentan terhadap breaking changes DANA API, tidak mengikuti update standar SNAP BI, dan memerlukan maintenance signature logic sendiri.
-
-### B. Official SDK `dana-node` (v2.2.2) — AKTIF
-- Terpasang: `dana-node@2.2.2` via `bun add dana-node`
-- Arsitektur: `PaymentGatewayApi.createOrder` untuk inisiasi transaksi SNAP BI H2H.
-- Disbursement: `DisbursementApi.transferToBank` untuk payout builder otomatis.
-- Webhook: `WebhookParser` + verifikasi kunci publik RSA DANA.
+- **Order Creation**: `PaymentGatewayApi.createOrder` mengotomatisasi pembuatan signature SNAP BI RSA-SHA256 dan support Gapura Hosted (`REDIRECT`) maupun Custom (`API`) Checkout.
+- **Webhook Verification**: `WebhookParser` memverifikasi notifikasi DANA (`/webhook/dana/finish-payment`) menggunakan DANA Public Key.
+- **Disbursement API**: `DisbursementApi.transferToBank` memproses payout otomatis ke rekening bank builder.
+- **Cloud-Native 12-Factor**: Mendukung single-line Base64 (`DANA_PRIVATE_KEY_BASE64`) sehingga 100% bebas error pemenggalan newline pada deployment Dokploy/Docker.
 
 ---
 
