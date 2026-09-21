@@ -21,6 +21,8 @@ function getEnv(key: string, fallback = ""): string {
 
 const nodeEnv = getEnv("NODE_ENV", "development");
 const isProd = nodeEnv === "production";
+const isTest = nodeEnv === "test";
+const isDev = nodeEnv === "development";
 
 const DEFAULT_JWT_SECRET = "tertaut_default_jwt_secret_change_me_in_production";
 
@@ -137,7 +139,7 @@ export function resolveKeyOrFile(envName: string, defaultFilePath?: string): str
       } else {
         // PERINGATAN: Path file dikonfigurasi di env tapi tidak ada di filesystem (misal di Docker container)
         // Jangan kembalikan nama file sebagai isi kunci!
-        if (!config?.isTest) {
+        if (!isTest) {
           console.warn(
             `[config] Path file kunci "${value}" untuk ${envName} tidak ditemukan di filesystem. ` +
               `Gunakan ${envName}_BASE64 untuk container Dokploy/Docker.`
