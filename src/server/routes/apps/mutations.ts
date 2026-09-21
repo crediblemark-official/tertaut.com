@@ -15,12 +15,12 @@ export interface CreateAppBody {
   headline?: string | null;
   subheadline?: string | null;
   mediaUrl?: string | null;
-  valueProps?: string[];
-  ctaText?: string;
+  valueProps?: string[] | null;
+  ctaText?: string | null;
   customIntentMessage?: string | null;
   captureConfig?: CaptureConfig | null;
   redirectUrl?: string | null;
-  pricingType?: "one_time" | "subscription" | "free";
+  pricingType?: "one_time" | "subscription" | "free" | null;
   billingPeriod?: string | null;
   trialPeriodDays?: number | null;
   deliveryConfig?: DeliveryConfig | null;
@@ -115,7 +115,7 @@ export async function handleCreateApp({ body, set, request: { headers } }: Creat
       slug,
       targetPrice,
       mode,
-      pricingType,
+      pricingType: pricingType || "one_time",
       billingPeriod: billingPeriod || null,
       trialPeriodDays: typeof trialPeriodDays === "number" ? trialPeriodDays : 0,
       deliveryConfig: deliveryConfig || null,
