@@ -74,7 +74,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Push Database Schema
-        run: bun run db:push
+        run: bun run db:push --force
 
       - name: Seed Database
         run: bun run db:seed
