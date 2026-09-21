@@ -388,8 +388,8 @@ export class DanaService {
     body: any,
     options?: { method?: string; path?: string }
   ): boolean {
-    if (config.isSandbox && (!config.dana.publicKey || !config.dana.clientSecret)) {
-      return true; // Bypass verifikasi di sandbox saat credential belum diset
+    if (config.isSandbox && !config.dana.publicKey) {
+      return true; // Bypass verifikasi di sandbox saat public key belum diset
     }
 
     const signature = headers["signature"] || headers["x-signature"] || headers["X-SIGNATURE"];

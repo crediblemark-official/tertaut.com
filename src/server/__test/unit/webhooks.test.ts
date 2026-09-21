@@ -65,6 +65,7 @@ describe("Unit Tests - Webhook Handlers", () => {
 
   it("should handle DANA disburse notify webhook completed, pending, and rejection", async () => {
     const origSandbox = config.isSandbox;
+    const origPubKey = config.dana.publicKey;
     config.isSandbox = true;
 
     // Completed webhook
@@ -104,5 +105,6 @@ describe("Unit Tests - Webhook Handlers", () => {
     expect(resErr.error).toBe("Invalid Webhook Signature");
 
     config.isSandbox = origSandbox;
+    config.dana.publicKey = origPubKey;
   });
 });
