@@ -56,7 +56,7 @@ Sistem lisensi tertaut.com dilengkapi kapabilitas kelas enterprise:
 tertautv2/
 ├── PRD.md                     # Product Requirement Document v2.2
 ├── LICENSE_UPGRADE_ROADMAP.md # Dokumen spesifikasi roadmap lisensi F0-F6
-├── docker-compose.yml         # Local PostgreSQL 16 & Redis 7 services
+├── docker-compose.yml         # Dokploy / Production Compose (app image ghcr.io)
 ├── Dockerfile                 # Multi-stage single-container build (Vue 3 -> Elysia)
 ├── package.json               # Root scripts (dev, build, start, db)
 ├── tsconfig.json              # Shared TypeScript config
@@ -117,13 +117,12 @@ tertautv2/
 - [Bun](https://bun.sh/) 1.3+
 - [Docker](https://www.docker.com/) & Docker Compose
 
-### 2. Jalankan PostgreSQL di Docker
-Kredensial container wajib dari environment (tanpa default hardcoded):
+### 2. Database PostgreSQL
+Pastikan PostgreSQL sudah berjalan dan `DATABASE_URL` sudah disiapkan pada `.env`:
 ```bash
-export DB_USER=postgres DB_PASSWORD=postgres DB_NAME=tertautv2
-docker compose up -d
+# Contoh di .env
+DATABASE_URL="postgresql://postgres:password@localhost:5432/tertautv2"
 ```
-*Kontainer default: `tertaut_postgres` pada port 5432.*
 
 ### 3. Migrasi Database
 Jalankan migrasi Drizzle untuk membuat seluruh tabel (termasuk `license_events`, `license_leases`, `webhook_endpoints`, `webhook_deliveries`):
