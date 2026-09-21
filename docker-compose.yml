@@ -27,7 +27,7 @@ services:
       EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-}
 
       PAYMENT_GATEWAY: ${PAYMENT_GATEWAY:-dana}
-      DANA_ENV: ${DANA_ENV:-production}
+      DANA_ENV: ${DANA_ENV:-sandbox}
 
       DANA_CLIENT_ID: ${DANA_CLIENT_ID:-}
       DANA_CLIENT_SECRET: ${DANA_CLIENT_SECRET:-}
