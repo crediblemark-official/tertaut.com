@@ -46,7 +46,7 @@ services:
       DATABASE_URL: postgresql://${DB_USER:?DB_USER wajib diisi}:${DB_PASSWORD:?DB_PASSWORD wajib diisi}@postgres:5432/${DB_NAME:?DB_NAME wajib diisi}
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET wajib diisi di production}
-      VAULT_ENCRYPTION_KEY: ${VAULT_ENCRYPTION_KEY:?VAULT_ENCRYPTION_KEY wajib diisi di production}
+      VAULT_ENCRYPTION_KEY: ${VAULT_ENCRYPTION_KEY:-}
       LICENSE_SIGNING_PRIVATE_KEY: ${LICENSE_SIGNING_PRIVATE_KEY:?LICENSE_SIGNING_PRIVATE_KEY wajib diisi di production}
       PAYMENT_GATEWAY: ${PAYMENT_GATEWAY:-dana}
       DANA_ENV: ${DANA_ENV:-production}

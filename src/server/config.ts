@@ -23,7 +23,6 @@ const nodeEnv = getEnv("NODE_ENV", "development");
 const isProd = nodeEnv === "production";
 
 const DEFAULT_JWT_SECRET = "tertaut_default_jwt_secret_change_me_in_production";
-const DEFAULT_VAULT_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 /**
  * Secret kritis hanya boleh berasal dari environment (.env / process.env).
@@ -161,7 +160,8 @@ export const config = {
     const jwtSecret = resolveSecret("JWT_SECRET", DEFAULT_JWT_SECRET);
     return {
       jwtSecret,
-      vaultEncryptionKey: resolveSecret("VAULT_ENCRYPTION_KEY", DEFAULT_VAULT_KEY),
+      /** Kunci enkripsi AES-256-GCM Vault; otomatis mewarisi JWT_SECRET jika tidak disetel terpisah */
+      vaultEncryptionKey: getEnv("VAULT_ENCRYPTION_KEY") || jwtSecret,
       /** Secret untuk Better Auth (sesi & token); otomatis mewarisi JWT_SECRET jika tidak disetel terpisah */
       betterAuthSecret: getEnv("BETTER_AUTH_SECRET") || jwtSecret,
       /** Private key Ed25519 (base64/PEM atau path ke keys/license_signing_private.pem). */
