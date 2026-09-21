@@ -74,8 +74,9 @@ export const api = {
     return parseJson(res);
   },
 
-  async getApps(): Promise<{ apps: AppItem[] }> {
-    const res = await fetch(withMode("/api/v1/apps"));
+  async getApps(mode?: "sandbox" | "live"): Promise<{ apps: AppItem[] }> {
+    const url = mode ? `/api/v1/apps?mode=${mode}` : withMode("/api/v1/apps");
+    const res = await fetch(url);
     return parseJson(res);
   },
 
@@ -122,6 +123,15 @@ export const api = {
   async rotateApiKey(appId: string): Promise<{ success: boolean; app: AppItem; error?: string }> {
     const res = await fetch(`/api/v1/apps/${appId}/rotate-api-key`, {
       method: "POST",
+    });
+    return parseJson(res);
+  },
+
+  async updateAppMode(appId: string, mode: "sandbox" | "live"): Promise<{ success: boolean; app: AppItem; error?: string }> {
+    const res = await fetch(`/api/v1/apps/${appId}/mode`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode }),
     });
     return parseJson(res);
   },
