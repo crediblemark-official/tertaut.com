@@ -17,6 +17,13 @@ export async function handleDisburse({ params: { transactionId }, set, request: 
     return { error: "Transaction not found" };
   }
 
+  // Fix: tanpa profil builder (dan bukan admin) pemanggil tidak boleh mencairkan
+  // transaksi siapa pun — sebelumnya guard loncat total saat authBuilder null.
+  if (!isAdmin && !authBuilder) {
+    set.status = 403;
+    return { error: "Forbidden: Profil builder tidak ditemukan untuk akun Anda." };
+  }
+
   if (authBuilder && tx.builderId !== authBuilder.id && !isAdmin) {
     set.status = 403;
     return { error: "Forbidden: Anda tidak memiliki hak akses mencairkan transaksi ini" };

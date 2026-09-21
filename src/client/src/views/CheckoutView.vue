@@ -73,6 +73,14 @@ async function loadAppsAndTransactions() {
       selectedAppId.value = appsRes.apps[0].id
       amount.value = appsRes.apps[0].targetPrice || 0
     }
+    if (!customerEmail.value) {
+      try {
+        const me = await api.getBuilderMyself()
+        if (me?.builder?.email) {
+          customerEmail.value = me.builder.email
+        }
+      } catch {}
+    }
   } catch (e) {
     console.error('Failed to load apps:', e)
   }
@@ -103,13 +111,17 @@ async function createCheckout() {
     disburseAlert.value = 'Peringatan: Silakan buat atau pilih software terlebih dahulu sebelum membuat link checkout.'
     return
   }
+  if (!customerEmail.value || !customerEmail.value.includes('@')) {
+    disburseAlert.value = 'Peringatan: Silakan masukkan email pembeli yang valid (contoh: buyer@example.com).'
+    return
+  }
   loading.value = true
   disburseAlert.value = null
   try {
     const res = await api.createCheckoutSession({
       appId: selectedAppId.value,
       amount: Number(amount.value) || 0,
-      customerEmail: customerEmail.value,
+      customerEmail: customerEmail.value.trim(),
       grantDays: Number(grantDays.value) || 30
     })
     if (res && res.success !== false) {

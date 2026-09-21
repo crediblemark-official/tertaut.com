@@ -2,6 +2,7 @@ import { db } from "../../db";
 import { apps, transactions, licenses } from "../../db/schema";
 import { eq, inArray, or, and, sql } from "drizzle-orm";
 import { LicenseService } from "../../services/license";
+import { CreditService } from "../../services/credits";
 import { CouponService } from "../../services/coupon";
 import { config as checkoutConfig } from "../../config";
 import { randomBytes } from "crypto";
@@ -245,10 +246,33 @@ export async function handleSimulatePaid({ params: { txId }, set }: any) {
     };
   }
 
-  // Generate and provision universal license
+  // Fix: simulator kini mengikuti jalur fulfillment webhook yang sesungguhnya
+  // (config produk, offline token, apiAccess, grantCredits) supaya pengujian
+  // sandbox merepresentasikan perilaku production — sebelumnya lisensi yang
+  // diterbitkan tidak punya offline token dan tidak pernah meng-grant kredit.
+  const app = txApp;
+  const now = new Date();
+  const productGrantDays = app?.deliveryConfig?.licenseKey?.expiresInDays;
+  const grantDays =
+    typeof productGrantDays === "number" && productGrantDays > 0
+      ? productGrantDays
+      : (tx.grantDays || 365);
+  const expiresAt = new Date(now.getTime() + grantDays * 24 * 60 * 60 * 1000);
+  const maxSeats = app?.deliveryConfig?.licenseKey?.maxSeats ?? 3;
+  const features = app?.deliveryConfig?.licenseKey?.defaultFeatures || {};
+
   const licenseKey = LicenseService.generateLicenseKey();
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + (tx.grantDays || 365));
+  const offlineToken = LicenseService.createOfflineGraceToken(
+    licenseKey,
+    tx.appId,
+    null,
+    tx.customerEmail,
+    maxSeats,
+    features
+  );
+  const generatedApiKey = app?.deliveryConfig?.apiAccess?.enabled
+    ? `tt_cust_${randomBytes(16).toString("hex")}`
+    : undefined;
 
   const licId = `lic_${randomBytes(8).toString("hex")}`;
   const [newLic] = await db
@@ -260,19 +284,36 @@ export async function handleSimulatePaid({ params: { txId }, set }: any) {
       licenseKey,
       customerEmail: tx.customerEmail,
       status: "ACTIVE",
-      maxSeats: 3,
+      licenseVersion: 1,
+      features,
+      maxSeats,
       platform: "general",
       expiresAt,
+      offlineJwtGraceToken: offlineToken,
+      apiKey: generatedApiKey,
     })
     .returning();
+
+  const grantedCredits = tx.grantCredits || 0;
+  let creditBalance = 0;
+  if (grantedCredits > 0) {
+    creditBalance = await CreditService.grant(
+      { licenseId: licId, appId: tx.appId, customerEmail: tx.customerEmail },
+      grantedCredits,
+      {
+        reference: tx.id,
+        description: `Simulasi pembayaran (${tx.id})`,
+      }
+    );
+  }
 
   await db
     .update(transactions)
     .set({
       paymentStatus: "PAID",
       paymentChannel: "SIMULATOR_QRIS",
-      paidAt: new Date(),
-      updatedAt: new Date(),
+      paidAt: now,
+      updatedAt: now,
     })
     .where(eq(transactions.id, tx.id));
 
@@ -281,5 +322,7 @@ export async function handleSimulatePaid({ params: { txId }, set }: any) {
     message: "Simulasi pembayaran sukses! Lisensi diterbitkan.",
     transactionId: tx.id,
     licenseKey: newLic.licenseKey,
+    grantedCredits,
+    creditBalance,
   };
 }

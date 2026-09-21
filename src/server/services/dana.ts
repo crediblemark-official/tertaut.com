@@ -215,7 +215,7 @@ export class DanaService {
         amount: params.amount,
         payerEmail: params.payerEmail,
         description: params.description,
-        checkoutUrl: `${config.publicAppUrl}/checkout/dana/finish?orderId=${params.externalId}&mock=true`,
+        checkoutUrl: `${config.publicAppUrl}/checkout/dana/finish?externalId=${params.externalId}&mock=true`,
         expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         scenario,
         paymentRail: rail,
@@ -346,7 +346,8 @@ export class DanaService {
         params.externalId;
       const checkoutUrl =
         response?.webRedirectUrl ||
-        `${config.publicAppUrl}/checkout/dana/finish?orderId=${params.externalId}`;
+        // Handler /checkout/dana/finish membaca param externalId (bukan orderId).
+        `${config.publicAppUrl}/checkout/dana/finish?externalId=${params.externalId}`;
 
       const paymentCode = response?.additionalInfo?.paymentCode;
       let qrDataUrl: string | undefined;
