@@ -38,17 +38,27 @@ export class LicenseLeaseService {
   static async acquire(
     licenseId: string,
     hwidHash: string,
-    options: { deviceName?: string; ipAddress?: string | null; ttlSeconds?: number; executor?: any } = {}
+    options: {
+      deviceName?: string;
+      ipAddress?: string | null;
+      ttlSeconds?: number;
+      executor?: any;
+      /** Kandidat hash untuk lookup (salted + legacy). Default: [hwidHash]. */
+      lookupHashes?: string[];
+    } = {}
   ): Promise<{ lease: typeof licenseLeases.$inferSelect; isNew: boolean }> {
     const query = options.executor || db;
     const ttlSeconds = options.ttlSeconds || DEFAULT_LEASE_TTL_SECONDS;
     const now = new Date();
     const expiresAt = new Date(now.getTime() + ttlSeconds * 1000);
 
+    // Fix: lookup juga hash legacy (tanpa salt) agar device yang aktivasi pertama
+    // terjadi sebelum migrasi salted tidak dibuatkan lease kedua (seat terhitung dobel).
+    const lookupHashes = options.lookupHashes ?? [hwidHash];
     const existing = await query.query.licenseLeases.findFirst({
       where: and(
         eq(licenseLeases.licenseId, licenseId),
-        inArray(licenseLeases.hwidHash, [hwidHash])
+        inArray(licenseLeases.hwidHash, lookupHashes)
       ),
     });
 

@@ -18,64 +18,64 @@ const formatIdr = (value: number) =>
  * Pemicu Dynamic & Headless Checkout Link
  */
 export async function handleCreateSession({ request, body, set }: any) {
-  const requestOrigin = resolveRequestOrigin(request);
-  const {
-    appId,
-    appSlug,
-    slug,
-    amount,
-    customAmount,
-    customerEmail,
-    buyerEmail,
-    grantDays: clientGrantDays,
-    // Kredit ditambahkan ke ledger lisensi saat webhook pembayaran terkonfirmasi.
-    grantCredits = 0,
-    redirectUrl,
-    couponCode,
-    paymentRail,
-    preferredPaymentChannel,
-    scenario,
-    vaBank,
-    bank,
-  } = body;
+  try {
+    const requestOrigin = resolveRequestOrigin(request);
+    const {
+      appId,
+      appSlug,
+      slug,
+      amount,
+      customAmount,
+      customerEmail,
+      buyerEmail,
+      grantDays: clientGrantDays,
+      redirectUrl,
+      couponCode,
+      paymentRail,
+      preferredPaymentChannel,
+      scenario,
+      vaBank,
+      bank,
+    } = body;
 
-  // B8: Dukung preferredPaymentChannel (dari PayView) maupun paymentRail secara konsisten
-  const selectedRail = (paymentRail || preferredPaymentChannel || "qris") as "qris" | "va" | "ewallet";
-  const selectedBank = (vaBank || bank || "BCA").toUpperCase();
-  const selectedScenario = scenario || (selectedRail === "qris" || selectedRail === "va" ? "API" : "REDIRECT");
+    // B8: Dukung preferredPaymentChannel (dari PayView) maupun paymentRail secara konsisten
+    const selectedRail = (paymentRail || preferredPaymentChannel || "qris") as "qris" | "va" | "ewallet";
+    const selectedBank = (vaBank || bank || "BCA").toUpperCase();
+    const selectedScenario = scenario || (selectedRail === "qris" || selectedRail === "va" ? "API" : "REDIRECT");
 
-  const targetIdentifier = appId || appSlug || slug;
-  if (!targetIdentifier) {
-    set.status = 400;
-    return { error: "appId atau appSlug wajib disertakan" };
-  }
+    const targetIdentifier = appId || appSlug || slug;
+    if (!targetIdentifier) {
+      set.status = 400;
+      return { error: "appId atau appSlug wajib disertakan" };
+    }
 
-  // Cari aplikasi berdasarkan ID atau Slug
-  let app = await db.query.apps.findFirst({
-    where: eq(apps.id, targetIdentifier),
-  });
-
-  if (!app) {
-    app = await db.query.apps.findFirst({
-      where: eq(apps.slug, targetIdentifier),
+    // Cari aplikasi berdasarkan ID atau Slug
+    let app = await db.query.apps.findFirst({
+      where: eq(apps.id, targetIdentifier),
     });
-  }
 
-  if (!app) {
-    set.status = 404;
-    return { error: `Produk / Aplikasi "${targetIdentifier}" tidak ditemukan` };
-  }
+    if (!app) {
+      app = await db.query.apps.findFirst({
+        where: eq(apps.slug, targetIdentifier),
+      });
+    }
 
-  const isSandboxApp = app.mode === "sandbox";
+    if (!app) {
+      set.status = 404;
+      return { error: `Produk / Aplikasi "${targetIdentifier}" tidak ditemukan` };
+    }
 
-  // B6: Guard produksi — aplikasi sandbox tidak boleh diperjualbelikan kepada publik di production
-  if (isSandboxApp && !checkoutConfig.isSandbox) {
-    set.status = 400;
-    return {
-      error:
-        "Aplikasi ini masih dalam mode Sandbox dan belum dipublikasikan untuk transaksi publik. Pengembang perlu mengubah status aplikasi menjadi Live di Dashboard.",
-    };
-  }
+    const isSandboxApp = app.mode === "sandbox";
+    const isMockOrder = isSandboxApp || checkoutConfig.isSandbox || checkoutConfig.isTest;
+
+    // Jika aplikasi mode Live tapi kredensial DANA belum terpasang di production
+    if (!isMockOrder && (!checkoutConfig.dana.clientId || !checkoutConfig.dana.privateKey)) {
+      set.status = 400;
+      return {
+        success: false,
+        error: "Gateway pembayaran DANA produksi belum dikonfigurasi (DANA_CLIENT_ID / DANA_PRIVATE_KEY kosong). Silakan beralih ke mode Sandbox pada aplikasi untuk pengujian checkout.",
+      };
+    }
 
   const email = (buyerEmail || customerEmail || "").trim().toLowerCase();
   if (!email || !email.includes("@")) {
@@ -200,6 +200,14 @@ export async function handleCreateSession({ request, body, set }: any) {
       ? productGrantDays
       : 365;
 
+  // Security fix: grantCredits adalah keputusan otoritatif produk (meteringConfig),
+  // BUKAN input klien. Sebelumnya nilai ini dibaca dari body publik sehingga pembeli
+  // anonim bisa mencetak kredit tak terbatas dengan sekali bayar.
+  const grantCredits = Math.max(
+    0,
+    Math.floor(Number(app.meteringConfig?.freeAllowance) || 0)
+  );
+
   // B1: Harga resmi aplikasi adalah basis otoritas list price.
   const appPrice = app.targetPrice ?? 0;
   const requestedAmount = customAmount ?? amount ?? null;
@@ -266,7 +274,7 @@ export async function handleCreateSession({ request, body, set }: any) {
     description: `Lisensi ${app.name} (${grantDays} hari)`,
     returnUrl: redirectUrl || app.redirectUrl || undefined,
     finishRedirectUrl: `${requestOrigin}/checkout/dana/finish?externalId=${externalId}`,
-    forceMock: checkoutConfig.isTest ? isSandboxApp : false,
+    forceMock: isMockOrder,
     scenario: selectedScenario,
     paymentRail: selectedRail,
     vaBank: selectedBank,
@@ -356,4 +364,12 @@ export async function handleCreateSession({ request, body, set }: any) {
     platformFee,
     netDisbursementAmount: netAmount,
   };
+} catch (err: any) {
+  console.error("[handleCreateSession Error]:", err);
+  set.status = 500;
+  return {
+    success: false,
+    error: err?.message || "Terjadi kesalahan internal saat membuat sesi checkout.",
+  };
+}
 }

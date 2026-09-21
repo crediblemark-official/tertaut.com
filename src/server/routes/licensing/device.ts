@@ -143,6 +143,7 @@ export async function handleActivateLicense(ctx: any) {
             ipAddress,
             ttlSeconds: leaseTtl,
             executor: trx,
+            lookupHashes,
           });
           leaseKey = lease.leaseKey;
         }
@@ -172,6 +173,7 @@ export async function handleActivateLicense(ctx: any) {
             ipAddress,
             ttlSeconds: leaseTtl,
             executor: trx,
+            lookupHashes,
           }).then(({ lease }) => {
             leaseKey = lease.leaseKey;
           });
@@ -333,11 +335,18 @@ export async function handleActivateLicense(ctx: any) {
         });
         leaseKey = lease?.leaseKey ?? null;
       }
+      // Fix: ambil ulang token dari DB — snapshot `lic` di atas berisi token lama yang
+      // baru saja di-denylist oleh transaksi pemenang balapan, sehingga verifikasi
+      // offline client dengan token itu pasti gagal.
+      const [freshLic] = await db
+        .select({ offlineJwtGraceToken: licenses.offlineJwtGraceToken })
+        .from(licenses)
+        .where(eq(licenses.id, lic.id));
       return {
         success: true,
         message: "Device already activated (idempotent)",
         data: {
-          licenseToken: lic.offlineJwtGraceToken,
+          licenseToken: freshLic?.offlineJwtGraceToken ?? lic.offlineJwtGraceToken,
           status: "ACTIVE",
           expiresAt: lic.expiresAt ? lic.expiresAt.toISOString() : null,
           seatsUsed: activeSeats.length,
@@ -638,6 +647,26 @@ export async function handleValidateLicense({ body, set, request }: any) {
         message: "Perangkat belum diaktivasi. Jalankan /activate terlebih dahulu.",
       };
     }
+
+    // Fix: lisensi floating wajib memegang lease yang masih hidup saat /validate.
+    // Sebelumnya pengecekan lease hanya ada di /verify sehingga device dengan lease
+    // yang sudah lepas tetap lolos validasi lewat /validate (bypass rolling seat).
+    const appRowF = await db.query.apps.findFirst({ where: eq(apps.id, lic.appId) });
+    if (resolveFloatingConfig(appRowF).enabled) {
+      const lease = await db.query.licenseLeases.findFirst({
+        where: and(
+          eq(licenseLeases.licenseId, lic.id),
+          inArray(licenseLeases.hwidHash, lookupHashes)
+        ),
+      });
+      if (!lease || lease.expiresAt < now) {
+        return {
+          valid: false,
+          reason: "LEASE_STALE",
+          message: "Lease perangkat sudah lepas karena tidak mengirim heartbeat. Silakan aktivasi ulang.",
+        };
+      }
+    }
   }
 
   await db
@@ -645,10 +674,13 @@ export async function handleValidateLicense({ body, set, request }: any) {
     .set({ lastValidatedAt: now })
     .where(eq(licenses.id, lic.id));
 
-  // Fase 5: rotate offline token (denylist jti lama, terbitkan yang baru)
+  // Fase 5: rotate offline token (denylist jti lama, terbitkan yang baru).
+  // Fix: gunakan SATU token hasil rotasi ini sebagai respons — sebelumnya handler
+  // membuat token kedua yang tidak pernah tersimpan di DB sehingga revoke() tidak
+  // bisa men-denylist token yang benar-benar dipegang client.
   const appRowV = await db.query.apps.findFirst({ where: eq(apps.id, lic.appId) });
   const offlineGraceDays = appRowV?.deliveryConfig?.licenseKey?.offlineGraceDays;
-  await LicenseService.rotateOfflineToken(
+  const offlineToken = await LicenseService.rotateOfflineToken(
     {
       id: lic.id,
       licenseKey: lic.licenseKey,
@@ -658,15 +690,6 @@ export async function handleValidateLicense({ body, set, request }: any) {
       features: lic.features || null,
       offlineJwtGraceToken: lic.offlineJwtGraceToken,
     },
-    offlineGraceDays
-  );
-  const offlineToken = LicenseService.createOfflineGraceToken(
-    lic.licenseKey,
-    lic.appId,
-    boundHardwareHash,
-    lic.customerEmail,
-    lic.maxSeats || 3,
-    lic.features,
     offlineGraceDays
   );
 
@@ -873,7 +896,7 @@ export async function handleListSeats({ query, set }: any) {
 
   const seats = activations.map((act) => {
     const lease = leases.find((l) => l.hwidHash === act.hwidHash);
-    const alive = Boolean(lease && lease.expiresAt > now && (floating.enabled || true));
+    const alive = Boolean(lease && lease.expiresAt > now);
     return {
       hwidHash: act.hwidHash,
       deviceName: act.deviceName,
