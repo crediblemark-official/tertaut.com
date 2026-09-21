@@ -28,7 +28,7 @@ describe("PRD Module 4: AI API Proxy Shield & Cost Guardrails", () => {
     });
 
     try {
-      const res = await fetch("http://localhost:3000/api/v1/ai/chat", {
+      const res = await fetch("http://localhost:3001/api/v1/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseKey: testKey, appId: otherApp.id, prompt: "halo" }),
@@ -82,7 +82,7 @@ describe("PRD Module 4: AI API Proxy Shield & Cost Guardrails", () => {
 
     try {
       // Panggil AI chat dengan lisensi revoked
-      const res = await fetch("http://localhost:3000/api/v1/ai/chat", {
+      const res = await fetch("http://localhost:3001/api/v1/ai/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -147,7 +147,7 @@ describe("PRD Module 4: AI API Proxy Shield & Cost Guardrails", () => {
     try {
       // 3. Cek endpoint quota-status awal
       const quotaRes = await fetch(
-        `http://localhost:3000/api/v1/ai/quota-status?licenseKey=${quotaKey}&modelAlias=fast-summary-model`
+        `http://localhost:3001/api/v1/ai/quota-status?licenseKey=${quotaKey}&modelAlias=fast-summary-model`
       );
       const quotaData: any = await quotaRes.json();
       expect(quotaRes.status).toBe(200);
@@ -170,7 +170,7 @@ describe("PRD Module 4: AI API Proxy Shield & Cost Guardrails", () => {
       });
 
       // 5. Panggil chat lagi - harus ditolak dengan HTTP 429 DAILY_TOKEN_LIMIT_EXCEEDED
-      const chatRes = await fetch("http://localhost:3000/api/v1/ai/chat", {
+      const chatRes = await fetch("http://localhost:3001/api/v1/ai/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -241,7 +241,7 @@ describe("PRD Module 4: AI API Proxy Shield & Cost Guardrails", () => {
       }
 
       // 1. Eksekusi streaming chat ke /api/v1/ai/chat (atau alias /api/v1/ai-proxy/chat)
-      const res = await fetch("http://localhost:3000/api/v1/ai-proxy/chat", {
+      const res = await fetch("http://localhost:3001/api/v1/ai-proxy/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -313,7 +313,7 @@ describe("PRD Module 4: AI API Proxy Shield & Cost Guardrails", () => {
 
   it("should allow public access to /api/v1/ai/chat and /quota-status without Better Auth session cookie", async () => {
     // Request raw tanpa cookie Better Auth
-    const chatReq = new Request("http://localhost:3000/api/v1/ai/chat", {
+    const chatReq = new Request("http://localhost:3001/api/v1/ai/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey: "TT-NONEXISTENT", prompt: "halo" }),
@@ -324,7 +324,7 @@ describe("PRD Module 4: AI API Proxy Shield & Cost Guardrails", () => {
     const chatData: any = await chatRes.json();
     expect(chatData.error).toBe("INVALID_LICENSE");
 
-    const quotaReq = new Request("http://localhost:3000/api/v1/ai/quota-status?licenseKey=TT-NONEXISTENT", {
+    const quotaReq = new Request("http://localhost:3001/api/v1/ai/quota-status?licenseKey=TT-NONEXISTENT", {
       method: "GET",
     });
     const quotaRes = await app.handle(quotaReq);

@@ -56,7 +56,7 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
       expect(entries[0].balanceAfter).toBe(100);
       expect(await CreditService.getBalance(lic!.id)).toBe(100);
 
-      const verifyRes = await fetch("http://localhost:3000/api/v1/licensing/verify", {
+      const verifyRes = await fetch("http://localhost:3001/api/v1/licensing/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseKey: lic!.licenseKey }),
@@ -122,7 +122,7 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
       const lic = await db.query.licenses.findFirst({ where: eq(licenses.transactionId, txId) });
       expect(lic?.apiKey).toBe(result.apiKey);
 
-      const verifyRes = await fetch("http://localhost:3000/api/v1/licensing/api-key/verify", {
+      const verifyRes = await fetch("http://localhost:3001/api/v1/licensing/api-key/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ apiKey: result.apiKey }),
@@ -203,14 +203,14 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
     try {
       await CreditService.grant(ctx, 50, { description: "seed" });
 
-      const activateRes = await fetch("http://localhost:3000/api/v1/licensing/activate", {
+      const activateRes = await fetch("http://localhost:3001/api/v1/licensing/activate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseKey, appId: app.id, hwid, deviceName: "Credit Device" }),
       });
       expect(activateRes.status).toBe(200);
 
-      const balanceRes = await fetch("http://localhost:3000/api/v1/licensing/credits/balance", {
+      const balanceRes = await fetch("http://localhost:3001/api/v1/licensing/credits/balance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseKey, hwid }),
@@ -219,14 +219,14 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
       expect((await balanceRes.json() as any).balance).toBe(50);
 
       // Perangkat lain tidak boleh memakai kredit lisensi ini.
-      const foreignRes = await fetch("http://localhost:3000/api/v1/licensing/credits/consume", {
+      const foreignRes = await fetch("http://localhost:3001/api/v1/licensing/credits/consume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseKey, hwid: "CPU_INTRUDER", amount: 5 }),
       });
       expect(foreignRes.status).toBe(403);
 
-      const consumeRes = await fetch("http://localhost:3000/api/v1/licensing/credits/consume", {
+      const consumeRes = await fetch("http://localhost:3001/api/v1/licensing/credits/consume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseKey, hwid, amount: 20, reason: "AI generation" }),
@@ -236,7 +236,7 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
       expect(consumeBody.balance).toBe(30);
       expect(consumeBody.consumed).toBe(20);
 
-      const overRes = await fetch("http://localhost:3000/api/v1/licensing/credits/consume", {
+      const overRes = await fetch("http://localhost:3001/api/v1/licensing/credits/consume", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseKey, hwid, amount: 999 }),
@@ -244,7 +244,7 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
       expect(overRes.status).toBe(402);
       expect((await overRes.json() as any).balance).toBe(30);
 
-      const historyRes = await fetch("http://localhost:3000/api/v1/licensing/credits/history", {
+      const historyRes = await fetch("http://localhost:3001/api/v1/licensing/credits/history", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseKey, hwid, limit: 10 }),
@@ -269,7 +269,7 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
     const trialEmail = `trial_test_${Date.now()}@example.com`;
 
     // 1. Checkout trial
-    const checkoutRes = await fetch("http://localhost:3000/api/v1/checkout/session", {
+    const checkoutRes = await fetch("http://localhost:3001/api/v1/checkout/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -293,7 +293,7 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
     const oldExpiresAt = new Date(trialLic!.expiresAt!).getTime();
 
     // 1b. Trial kedua dengan email & produk sama harus ditolak (anti-abuse).
-    const dupTrialRes = await fetch("http://localhost:3000/api/v1/checkout/session", {
+    const dupTrialRes = await fetch("http://localhost:3001/api/v1/checkout/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -305,7 +305,7 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
     expect(dupTrialRes.status).toBe(409);
 
     // 2. Renew license
-    const renewRes = await fetch("http://localhost:3000/api/v1/licensing/renew", {
+    const renewRes = await fetch("http://localhost:3001/api/v1/licensing/renew", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -372,7 +372,7 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
 
     try {
       // 1. Ingest event pemakaian (10 unit * 2 = 20 kredit terpotong)
-      const eventRes = await fetch("http://localhost:3000/api/v1/metering/events", {
+      const eventRes = await fetch("http://localhost:3001/api/v1/metering/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -391,7 +391,7 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
       expect(eventBody.remainingBalance).toBe(30);
 
       // 2. Cek endpoint usage
-      const usageRes = await fetch(`http://localhost:3000/api/v1/metering/usage/${licenseKey}`);
+      const usageRes = await fetch(`http://localhost:3001/api/v1/metering/usage/${licenseKey}`);
       expect(usageRes.status).toBe(200);
       const usageBody: any = await usageRes.json();
       expect(usageBody.success).toBe(true);
@@ -399,7 +399,7 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
       expect(usageBody.history.length).toBeGreaterThanOrEqual(2);
 
       // 3. Ingest event yang melebihi saldo (20 unit * 2 = 40 kredit > 30 sisa)
-      const overRes = await fetch("http://localhost:3000/api/v1/metering/events", {
+      const overRes = await fetch("http://localhost:3001/api/v1/metering/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

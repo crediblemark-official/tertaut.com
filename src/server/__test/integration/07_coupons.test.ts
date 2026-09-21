@@ -32,7 +32,7 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
 
     try {
       // 1. Buat kupon via API manajemen
-      const createRes = await fetch("http://localhost:3000/api/v1/coupons", {
+      const createRes = await fetch("http://localhost:3001/api/v1/coupons", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -51,7 +51,7 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
       const couponId = createData.coupon.id as string;
 
       // 2. Preview diskon TANPA membuat transaksi
-      const previewRes = await fetch("http://localhost:3000/api/v1/checkout/preview-coupon", {
+      const previewRes = await fetch("http://localhost:3001/api/v1/checkout/preview-coupon", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ appId: testApp.id, couponCode: testCode, amount: 100000 }),
@@ -64,7 +64,7 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
       expect(previewData.payableAmount).toBe(75000);
 
       // 3. Tebus kupon via checkout session sungguhan (invoice mock di sandbox)
-      const checkoutRes = await fetch("http://localhost:3000/api/v1/checkout/session", {
+      const checkoutRes = await fetch("http://localhost:3001/api/v1/checkout/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -112,7 +112,7 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
 
     try {
       // 1. Kode yang tidak ada sama sekali
-      const unknownRes = await fetch("http://localhost:3000/api/v1/checkout/session", {
+      const unknownRes = await fetch("http://localhost:3001/api/v1/checkout/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -127,7 +127,7 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
       expect(unknownData.errorCode).toBe("COUPON_NOT_FOUND");
 
       // 2. Kupon valid milik app lain tidak boleh dipakai lintas app
-      const createRes = await fetch("http://localhost:3000/api/v1/coupons", {
+      const createRes = await fetch("http://localhost:3001/api/v1/coupons", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -139,7 +139,7 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
       const created: any = await createRes.json();
       expect(createRes.status).toBe(200);
 
-      const mismatchRes = await fetch("http://localhost:3000/api/v1/checkout/session", {
+      const mismatchRes = await fetch("http://localhost:3001/api/v1/checkout/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -165,7 +165,7 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
 
     try {
       // Kupon dengan kuota 1x
-      const createRes = await fetch("http://localhost:3000/api/v1/coupons", {
+      const createRes = await fetch("http://localhost:3001/api/v1/coupons", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -178,7 +178,7 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
       expect(createRes.status).toBe(200);
 
       // Penebusan #1: sukses
-      const res1 = await fetch("http://localhost:3000/api/v1/checkout/session", {
+      const res1 = await fetch("http://localhost:3001/api/v1/checkout/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -194,7 +194,7 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
       expect(data1.amount).toBe(50000);
 
       // Penebusan #2: ditolak karena kuota habis
-      const res2 = await fetch("http://localhost:3000/api/v1/checkout/session", {
+      const res2 = await fetch("http://localhost:3001/api/v1/checkout/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -228,7 +228,7 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
     const testCode = `TOG${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
     try {
-      const createRes = await fetch("http://localhost:3000/api/v1/coupons", {
+      const createRes = await fetch("http://localhost:3001/api/v1/coupons", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -242,7 +242,7 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
       const couponId = created.coupon.id as string;
 
       // Nonaktifkan via PATCH
-      const patchRes = await fetch(`http://localhost:3000/api/v1/coupons/${couponId}`, {
+      const patchRes = await fetch(`http://localhost:3001/api/v1/coupons/${couponId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: false }),
@@ -252,7 +252,7 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
       expect(patchData.coupon.isActive).toBe(false);
 
       // Penebusan saat nonaktif harus ditolak
-      const redeemRes = await fetch("http://localhost:3000/api/v1/checkout/session", {
+      const redeemRes = await fetch("http://localhost:3001/api/v1/checkout/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -267,13 +267,13 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
       expect(redeemData.errorCode).toBe("COUPON_INACTIVE");
 
       // Aktifkan kembali → preview valid lagi
-      await fetch(`http://localhost:3000/api/v1/coupons/${couponId}`, {
+      await fetch(`http://localhost:3001/api/v1/coupons/${couponId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: true }),
       });
 
-      const previewRes = await fetch("http://localhost:3000/api/v1/checkout/preview-coupon", {
+      const previewRes = await fetch("http://localhost:3001/api/v1/checkout/preview-coupon", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ appId: testApp.id, couponCode: testCode, amount: 100000 }),

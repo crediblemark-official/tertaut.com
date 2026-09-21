@@ -51,9 +51,9 @@ services:
         required: false
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      PORT: ${PORT:-3000}
+      PORT: ${PORT:-3001}
       DATABASE_URL: ${DATABASE_URL:-postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-tertaut}}
-      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3001}
       JWT_SECRET: ${JWT_SECRET:-}
       VAULT_ENCRYPTION_KEY: ${VAULT_ENCRYPTION_KEY:-}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
@@ -81,7 +81,7 @@ services:
       BUN_LOG_SCOPE: "*"
       BUN_JSX_RUNTIME: "haste"
     ports:
-      - "${APP_PORT:-3001}:3000"
+      - "${APP_PORT:-3001}:3001"
     # Prioritas rendah untuk proses Bun
     deploy:
       resources:
@@ -92,7 +92,7 @@ services:
           memory: 128M
           cpus: "0.25"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${PORT:-3000}/api/v1/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${PORT:-3001}/api/v1/health || exit 1"]
       interval: 30s
       timeout: 5s
       start_period: 20s

@@ -9,8 +9,8 @@ import { isVersionOlder } from "../../routes/licensing/device";
 
 setupTestAuth();
 
-const BASE = "http://localhost:3000/api/v1/licensing";
-const S2S = "http://localhost:3000/api/v1/s2s";
+const BASE = "http://localhost:3001/api/v1/licensing";
+const S2S = "http://localhost:3001/api/v1/s2s";
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
 let gS2sSecret = "";

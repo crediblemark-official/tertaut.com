@@ -8,7 +8,7 @@ import { generateBuilderSecretApiKey, generateAppApiKey } from "../../routes/app
 
 setupTestAuth();
 
-const BASE = "http://localhost:3000/api/v1/s2s";
+const BASE = "http://localhost:3001/api/v1/s2s";
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
 async function setupBuilderWithApp() {
@@ -53,7 +53,7 @@ describe("Fase 4: Audit trail license lifecycle (append-only event log)", () => 
     expect(events.total).toBeGreaterThanOrEqual(1);
 
     // Aktivasi → deaktivasi → revoke
-    const LIC_API = "http://localhost:3000/api/v1/licensing";
+    const LIC_API = "http://localhost:3001/api/v1/licensing";
     const act = await fetch(`${LIC_API}/activate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

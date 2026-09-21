@@ -7,8 +7,8 @@ import { generateBuilderSecretApiKey, generateAppApiKey } from "../../routes/app
 
 setupTestAuth();
 
-const BASE = "http://localhost:3000/api/v1/s2s";
-const LIC_API = "http://localhost:3000/api/v1/licensing";
+const BASE = "http://localhost:3001/api/v1/s2s";
+const LIC_API = "http://localhost:3001/api/v1/licensing";
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
 let secret = "";

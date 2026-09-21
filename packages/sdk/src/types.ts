@@ -5,7 +5,7 @@
 export interface TertautConfig {
   /** Publishable API key (`tt_live_...` / `tt_test_...`) atau Secret key (`tt_secret_...`). */
   apiKey: string;
-  /** Base URL server tertaut, mis. `https://tertaut.com` atau `http://localhost:3000`. Wajib diisi. */
+  /** Base URL server tertaut, mis. `https://tertaut.com` atau `http://localhost:3001`. Wajib diisi. */
   baseUrl: string;
   /** ID aplikasi tertaut. Wajib diisi untuk operasi client/licensing; opsional untuk S2S. */
   appId?: string;

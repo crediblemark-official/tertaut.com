@@ -144,7 +144,7 @@ describe("Device Seat Ops, App Mutations, and AI Chat Guardrails", () => {
     const lic = issueRes.license;
 
     // Activate a device
-    await fetch("http://localhost:3000/api/v1/licensing/activate", {
+    await fetch("http://localhost:3001/api/v1/licensing/activate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

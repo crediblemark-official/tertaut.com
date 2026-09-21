@@ -10,7 +10,7 @@ import { generateAppApiKey } from "../../routes/apps/api-key";
 
 setupTestAuth();
 
-const BASE = "http://localhost:3000";
+const BASE = "http://localhost:3001";
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
 type Captured = { event: string; signature: string; body: string };

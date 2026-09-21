@@ -66,7 +66,7 @@ describe("All Green: routes/coupons/router.ts Empty App & Mode Branches", () => 
     const userCookie = signUpRes.headers.get("set-cookie")?.split(";")[0] || "";
 
     // 1. List coupons as builder with 0 apps -> returns empty array
-    const resList = await app.handle(new Request("http://localhost:3000/api/v1/coupons", {
+    const resList = await app.handle(new Request("http://localhost:3001/api/v1/coupons", {
       headers: { cookie: userCookie },
     }));
     expect(resList.status).toBe(200);
@@ -74,7 +74,7 @@ describe("All Green: routes/coupons/router.ts Empty App & Mode Branches", () => 
     expect(dataList.coupons).toEqual([]);
 
     // 2. Stats as builder with 0 apps -> returns 0 stats
-    const resStats = await app.handle(new Request("http://localhost:3000/api/v1/coupons/stats", {
+    const resStats = await app.handle(new Request("http://localhost:3001/api/v1/coupons/stats", {
       headers: { cookie: userCookie },
     }));
     expect(resStats.status).toBe(200);
@@ -82,13 +82,13 @@ describe("All Green: routes/coupons/router.ts Empty App & Mode Branches", () => 
     expect(dataStats.totalRedemptions).toBe(0);
 
     // 3. Admin list coupons with non-matching mode
-    const resMode = await app.handle(new Request("http://localhost:3000/api/v1/coupons?mode=sandbox", {
+    const resMode = await app.handle(new Request("http://localhost:3001/api/v1/coupons?mode=sandbox", {
       headers: { cookie: authCookie },
     }));
     expect(resMode.status).toBe(200);
 
     // 4. Admin stats with non-matching mode
-    const resStatsMode = await app.handle(new Request("http://localhost:3000/api/v1/coupons/stats?mode=sandbox", {
+    const resStatsMode = await app.handle(new Request("http://localhost:3001/api/v1/coupons/stats?mode=sandbox", {
       headers: { cookie: authCookie },
     }));
     expect(resStatsMode.status).toBe(200);
@@ -108,7 +108,7 @@ describe("All Green: routes/payouts/router.ts Unauthorized & Not Found Cases", (
 
     // 1. POST /payouts/trigger without matching builder -> 403 (trying to disburse another builder)
     const fakeOtherBuilderId = `bld_${suffix()}`;
-    const resTrigger403 = await app.handle(new Request("http://localhost:3000/api/v1/payouts/trigger", {
+    const resTrigger403 = await app.handle(new Request("http://localhost:3001/api/v1/payouts/trigger", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -119,13 +119,13 @@ describe("All Green: routes/payouts/router.ts Unauthorized & Not Found Cases", (
     expect([400, 403, 404, 422]).toContain(resTrigger403.status);
 
     // 2. GET /payouts/account for user without builder -> 404
-    const resAcc404 = await app.handle(new Request("http://localhost:3000/api/v1/payouts/account", {
+    const resAcc404 = await app.handle(new Request("http://localhost:3001/api/v1/payouts/account", {
       headers: { cookie: userCookie },
     }));
     expect(resAcc404.status).toBe(404);
 
     // 3. POST /payouts/account for user without builder -> 404
-    const resAccPost404 = await app.handle(new Request("http://localhost:3000/api/v1/payouts/account", {
+    const resAccPost404 = await app.handle(new Request("http://localhost:3001/api/v1/payouts/account", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

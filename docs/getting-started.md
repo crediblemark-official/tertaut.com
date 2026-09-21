@@ -10,7 +10,7 @@ Panduan integrasi menyeluruh end-to-end menggunakan REST API dan SDK tertaut.com
 | Live | `tt_live_...` | `https://tertaut.com` |
 
 - Mode (`environment`) di SDK otomatis ditentukan dari **prefiks** API key — tidak memerlukan konfigurasi terpisah.
-- Saat development lokal, set `baseUrl` ke server lokal Anda, misal `http://localhost:3000`.
+- Saat development lokal, set `baseUrl` ke server lokal Anda, misal `http://localhost:3001`.
 
 ## 1. Buat Aplikasi
 

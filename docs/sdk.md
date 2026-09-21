@@ -153,7 +153,7 @@ SDK **tidak otomatis** membaca variabel environment—ketiga nilai di-inject exp
 | `appId` | `app_...` | Publik | ID aplikasi (dashboard) |
 | `baseUrl` | `https://tertaut.com` | Publik | Server tempat SDK memanggil API |
 
-- Format `baseUrl`: harus `http(s)://...` (diverifikasi di konstruktor); trailing `/` otomatis dibuang. Ganti ke `http://localhost:3000` saat development lokal.
+- Format `baseUrl`: harus `http(s)://...` (diverifikasi di konstruktor); trailing `/` otomatis dibuang. Ganti ke `http://localhost:3001` saat development lokal.
 - `environment` (production/sandbox) **diturunkan dari prefiks `apiKey`** — tidak ada env terpisah. Ingin staging/uji coba? Pakai key `tt_test_...` pada env yang sama.
 
 ### Contoh per framework

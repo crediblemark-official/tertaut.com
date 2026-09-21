@@ -28,7 +28,7 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
 
     try {
       // 2. Eksekusi API Convert to Live Launch
-      const res = await fetch("http://localhost:3000/api/v1/launch/convert-to-live", {
+      const res = await fetch("http://localhost:3001/api/v1/launch/convert-to-live", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -60,7 +60,7 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
     if (!app) return;
 
     // 1. Uji endpoint data widget JSON
-    const resData = await fetch(`http://localhost:3000/api/v1/widgets/badge/${app.slug}`);
+    const resData = await fetch(`http://localhost:3001/api/v1/widgets/badge/${app.slug}`);
     const jsonData: any = await resData.json();
 
     expect(resData.status).toBe(200);
@@ -71,7 +71,7 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
     expect(jsonData.data.checkoutUrl).toBeDefined();
 
     // 2. Uji endpoint embed script Web Component
-    const resScript = await fetch("http://localhost:3000/api/v1/widgets/embed.js");
+    const resScript = await fetch("http://localhost:3001/api/v1/widgets/embed.js");
     const scriptText = await resScript.text();
 
     expect(resScript.status).toBe(200);
@@ -85,7 +85,7 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
     const sdk = new Tertaut({
       apiKey: "tt_test_launch",
       appId: "app_sdk_test_123",
-      baseUrl: "http://localhost:3000",
+      baseUrl: "http://localhost:3001",
     });
 
     // Verifikasi seluruh modul tertaut.com terintegrasi (FR-3.2)
@@ -154,7 +154,7 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
 
     try {
       // 2b. Uji Device Seat Deactivation via endpoint resmi: POST /api/v1/licensing/deactivate
-      const resDeact = await fetch("http://localhost:3000/api/v1/licensing/deactivate", {
+      const resDeact = await fetch("http://localhost:3001/api/v1/licensing/deactivate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -167,7 +167,7 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
       expect(deactData.success).toBe(true);
 
       // 6. Uji Super Admin Panel: GET /api/v1/panel/stats
-      const resStats = await fetch("http://localhost:3000/api/v1/panel/stats");
+      const resStats = await fetch("http://localhost:3001/api/v1/panel/stats");
       const statsData: any = await resStats.json();
       expect(resStats.status).toBe(200);
       expect(statsData.success).toBe(true);
@@ -177,20 +177,20 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
       expect(statsData.data.system.bunVersion).toBeDefined();
 
       // 7. Uji Super Admin Panel: GET /api/v1/panel/builders
-      const resBuilders = await fetch("http://localhost:3000/api/v1/panel/builders");
+      const resBuilders = await fetch("http://localhost:3001/api/v1/panel/builders");
       const buildersData: any = await resBuilders.json();
       expect(resBuilders.status).toBe(200);
       expect(buildersData.success).toBe(true);
       expect(buildersData.count).toBeGreaterThanOrEqual(1);
 
       // 8. Uji Super Admin Panel: GET /api/v1/panel/transactions
-      const resAllTx = await fetch("http://localhost:3000/api/v1/panel/transactions?limit=10");
+      const resAllTx = await fetch("http://localhost:3001/api/v1/panel/transactions?limit=10");
       const allTxData: any = await resAllTx.json();
       expect(resAllTx.status).toBe(200);
       expect(allTxData.success).toBe(true);
 
       // 9. Uji Super Admin Panel: POST /api/v1/panel/payouts/batch
-      const resPayout = await fetch("http://localhost:3000/api/v1/panel/payouts/batch", {
+      const resPayout = await fetch("http://localhost:3001/api/v1/panel/payouts/batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });

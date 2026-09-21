@@ -98,31 +98,31 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
 
   it("should test Badge and Widget endpoints over HTTP app.handle", async () => {
     // 1. GET /badge/:slug for Live app
-    const liveBadgeRes = await fetch(`http://localhost:3000/badge/${testApp.slug}`);
+    const liveBadgeRes = await fetch(`http://localhost:3001/badge/${testApp.slug}`);
     expect(liveBadgeRes.status).toBe(200);
     expect(liveBadgeRes.headers.get("content-type")).toContain("image/svg+xml");
     const liveSvg = await liveBadgeRes.text();
     expect(liveSvg).toContain("Verified • MoR Protected");
 
     // 2. GET /badge/:slug for Non-existent app
-    const missingBadgeRes = await fetch("http://localhost:3000/badge/non-existent-app-999");
+    const missingBadgeRes = await fetch("http://localhost:3001/badge/non-existent-app-999");
     expect(missingBadgeRes.status).toBe(200);
     const missingSvg = await missingBadgeRes.text();
     expect(missingSvg).toContain("unverified");
 
     // 3. GET /api/v1/widgets/badge/:app_slug
-    const widgetRes = await fetch(`http://localhost:3000/api/v1/widgets/badge/${testApp.slug}`);
+    const widgetRes = await fetch(`http://localhost:3001/api/v1/widgets/badge/${testApp.slug}`);
     expect(widgetRes.status).toBe(200);
     const widgetData: any = await widgetRes.json();
     expect(widgetData.success).toBe(true);
     expect(widgetData.data).toBeDefined();
 
     // 4. GET /api/v1/widgets/badge/:app_slug for 404
-    const widget404 = await fetch("http://localhost:3000/api/v1/widgets/badge/does-not-exist");
+    const widget404 = await fetch("http://localhost:3001/api/v1/widgets/badge/does-not-exist");
     expect(widget404.status).toBe(404);
 
     // 5. GET /api/v1/widgets/embed.js
-    const embedRes = await fetch("http://localhost:3000/api/v1/widgets/embed.js");
+    const embedRes = await fetch("http://localhost:3001/api/v1/widgets/embed.js");
     expect(embedRes.status).toBe(200);
     expect(embedRes.headers.get("content-type")).toContain("javascript");
     const scriptText = await embedRes.text();
@@ -131,20 +131,20 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
 
   it("should test Coupons router CRUD & stats over HTTP app.handle", async () => {
     // 1. GET /api/v1/coupons/
-    const listRes = await fetch("http://localhost:3000/api/v1/coupons/");
+    const listRes = await fetch("http://localhost:3001/api/v1/coupons/");
     expect(listRes.status).toBe(200);
     const listData: any = await listRes.json();
     expect(listData.success).toBe(true);
 
     // 2. GET /api/v1/coupons/stats
-    const statsRes = await fetch("http://localhost:3000/api/v1/coupons/stats?days=30");
+    const statsRes = await fetch("http://localhost:3001/api/v1/coupons/stats?days=30");
     expect(statsRes.status).toBe(200);
     const statsData: any = await statsRes.json();
     expect(statsData.success).toBe(true);
 
     // 3. POST /api/v1/coupons validations
     // App not found (404)
-    const errAppRes = await fetch("http://localhost:3000/api/v1/coupons/", {
+    const errAppRes = await fetch("http://localhost:3001/api/v1/coupons/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ appId: "non_existent_app", code: "PROMO10", discountPercent: 10 }),
@@ -152,7 +152,7 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
     expect(errAppRes.status).toBe(404);
 
     // Invalid coupon code format
-    const errCodeRes = await fetch("http://localhost:3000/api/v1/coupons/", {
+    const errCodeRes = await fetch("http://localhost:3001/api/v1/coupons/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ appId: testApp.id, code: "!", discountPercent: 10 }),
@@ -160,7 +160,7 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
     expect([400, 422]).toContain(errCodeRes.status);
 
     // Invalid discountPercent
-    const errDiscRes = await fetch("http://localhost:3000/api/v1/coupons/", {
+    const errDiscRes = await fetch("http://localhost:3001/api/v1/coupons/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ appId: testApp.id, code: "PROMO150", discountPercent: 150 }),
@@ -169,7 +169,7 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
 
     // Valid create
     const couponCode = `SAVE${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-    const createRes = await fetch("http://localhost:3000/api/v1/coupons/", {
+    const createRes = await fetch("http://localhost:3001/api/v1/coupons/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -185,7 +185,7 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
     const couponId = createData.coupon.id;
 
     // Duplicate create (409)
-    const clashRes = await fetch("http://localhost:3000/api/v1/coupons/", {
+    const clashRes = await fetch("http://localhost:3001/api/v1/coupons/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -197,7 +197,7 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
     expect(clashRes.status).toBe(409);
 
     // 4. PATCH /api/v1/coupons/:couponId (toggle active / update quota)
-    const patchRes = await fetch(`http://localhost:3000/api/v1/coupons/${couponId}`, {
+    const patchRes = await fetch(`http://localhost:3001/api/v1/coupons/${couponId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: false, maxRedemptions: 25 }),
@@ -208,7 +208,7 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
     expect(patchData.coupon.isActive).toBe(false);
 
     // 5. DELETE /api/v1/coupons/:couponId
-    const delRes = await fetch(`http://localhost:3000/api/v1/coupons/${couponId}`, {
+    const delRes = await fetch(`http://localhost:3001/api/v1/coupons/${couponId}`, {
       method: "DELETE",
     });
     expect(delRes.status).toBe(200);
@@ -216,7 +216,7 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
     expect(delData.success).toBe(true);
 
     // Delete 404
-    const del404 = await fetch(`http://localhost:3000/api/v1/coupons/${couponId}`, {
+    const del404 = await fetch(`http://localhost:3001/api/v1/coupons/${couponId}`, {
       method: "DELETE",
     });
     expect(del404.status).toBe(404);

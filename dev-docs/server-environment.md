@@ -15,9 +15,9 @@ Seluruh konfigurasi dibaca **di startup** dari `src/server/config.ts`. Referensi
 
 | Variabel | Wajib | Default | Deskripsi |
 | --- | --- | --- | --- |
-| `PORT` | — | `3000` | Port HTTP server |
+| `PORT` | — | `3001` | Port HTTP server |
 | `NODE_ENV` | — | `development` | `production` = mode produksi (enforce secret & sandbox mati) |
-| `PUBLIC_APP_URL` | — | `http://localhost:3000` | URL publik aplikasi (redirect pasca-bayar dll) |
+| `PUBLIC_APP_URL` | — | `http://localhost:3001` | URL publik aplikasi (redirect pasca-bayar dll) |
 | `PUBLIC_STORE_URL` | — | `https://situsbisnis.com` | URL toko (kotak/donasi) |
 | `DEFAULT_PRICE` | — | `0` | Harga fallback (IDR) untuk produk tanpa `targetPrice` |
 | `DATABASE_URL` | ✅ | — | Connection string PostgreSQL. **Harus di-set** (lihat `.env.example`) |

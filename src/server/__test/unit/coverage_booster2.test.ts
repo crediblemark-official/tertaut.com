@@ -724,7 +724,7 @@ describe("Coverage Booster2: licensing/device.ts", () => {
     const issueRes = await issueLicense(a.id);
     const licKey = issueRes.license.licenseKey;
     // Activate first
-    await app.handle(new Request("http://localhost:3000/api/v1/licensing/activate", {
+    await app.handle(new Request("http://localhost:3001/api/v1/licensing/activate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey: licKey, appId: a.id, hwid: "HWID_UNBIND_TEST", deviceName: "PC" }),
@@ -757,7 +757,7 @@ describe("Coverage Booster2: licensing/device.ts", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster2: payouts/router.ts via HTTP", () => {
   it("POST /payouts/trigger: sandbox mode returns 400", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/payouts/trigger", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/payouts/trigger", {
       method: "POST",
       headers: { "Content-Type": "application/json", cookie: authCookie },
       body: JSON.stringify({ mode: "sandbox" }),
@@ -766,7 +766,7 @@ describe("Coverage Booster2: payouts/router.ts via HTTP", () => {
   });
 
   it("GET /payouts/account: returns builder account or 404", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/payouts/account", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/payouts/account", {
       method: "GET",
       headers: { cookie: authCookie },
     }));
@@ -775,7 +775,7 @@ describe("Coverage Booster2: payouts/router.ts via HTTP", () => {
   });
 
   it("POST /payouts/account: saves disbursement account", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/payouts/account", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/payouts/account", {
       method: "POST",
       headers: { "Content-Type": "application/json", cookie: authCookie },
       body: JSON.stringify({
@@ -860,7 +860,7 @@ describe("Coverage Booster2: metering/router.ts", () => {
     // Delete the app
     await db.delete(apps).where(eq(apps.id, a.id));
 
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/metering/events", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -876,7 +876,7 @@ describe("Coverage Booster2: metering/router.ts", () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
     // App has no meteringConfig by default
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/metering/events", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -894,7 +894,7 @@ describe("Coverage Booster2: metering/router.ts", () => {
     await db.update(apps).set({ meteringConfig: { enabled: true, unitPrice: 10, unitLabel: "unit" } as any }).where(eq(apps.id, a.id));
     const issueRes = await issueLicense(a.id);
 
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/metering/events", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -907,12 +907,12 @@ describe("Coverage Booster2: metering/router.ts", () => {
   });
 
   it("GET /metering/stats: unauthorized returns 401", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/metering/stats"));
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/stats"));
     expect(res.status).toBe(401);
   });
 
   it("GET /metering/stats: authenticated returns stats", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/metering/stats", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/stats", {
       headers: { cookie: authCookie },
     }));
     expect(res.status).toBe(200);
@@ -945,7 +945,7 @@ describe("Coverage Booster2: apps/mutations.ts", () => {
     const { app: a1 } = await seedBuilderApp();
     const { app: a2 } = await seedBuilderApp();
 
-    const res = await app.handle(new Request(`http://localhost:3000/api/v1/apps/${a1.id}`, {
+    const res = await app.handle(new Request(`http://localhost:3001/api/v1/apps/${a1.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", cookie: authCookie },
       body: JSON.stringify({ slug: a2.slug }),
@@ -954,7 +954,7 @@ describe("Coverage Booster2: apps/mutations.ts", () => {
   });
 
   it("PATCH /apps/:appId: 404 when app not found", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/apps/app_nonexistent_xyz", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/apps/app_nonexistent_xyz", {
       method: "PATCH",
       headers: { "Content-Type": "application/json", cookie: authCookie },
       body: JSON.stringify({ name: "Updated Name" }),
@@ -963,7 +963,7 @@ describe("Coverage Booster2: apps/mutations.ts", () => {
   });
 
   it("DELETE /apps/:appId: 404 when app not found", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/apps/app_del_nonexistent", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/apps/app_del_nonexistent", {
       method: "DELETE",
       headers: { cookie: authCookie },
     }));
@@ -980,14 +980,14 @@ describe("Coverage Booster2: coupons/router.ts additional edges", () => {
     const code = `DUP_${suffix()}`.toUpperCase();
 
     // Create first
-    await app.handle(new Request("http://localhost:3000/api/v1/coupons", {
+    await app.handle(new Request("http://localhost:3001/api/v1/coupons", {
       method: "POST",
       headers: { "Content-Type": "application/json", cookie: authCookie },
       body: JSON.stringify({ code, appId: a.id, discountType: "percentage", discountValue: 10 }),
     }));
 
     // Second creation of same code should return conflict or error
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/coupons", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/coupons", {
       method: "POST",
       headers: { "Content-Type": "application/json", cookie: authCookie },
       body: JSON.stringify({ code, appId: a.id, discountType: "percentage", discountValue: 10 }),
@@ -996,7 +996,7 @@ describe("Coverage Booster2: coupons/router.ts additional edges", () => {
   });
 
   it("GET /coupons: returns list with 200", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/coupons", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/coupons", {
       headers: { cookie: authCookie },
     }));
     // Could be 200 (list) or other status depending on auth setup

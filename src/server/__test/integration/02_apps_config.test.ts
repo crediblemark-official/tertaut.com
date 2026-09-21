@@ -31,7 +31,7 @@ describe("App End-to-End Validation & MoR Calculations", () => {
 describe("PRD Module 1: Page Blocks & App Configuration", () => {
   it("should save pageBlocks to app via PATCH /api/v1/apps/:appId", async () => {
     // First, get the first app
-    const appsRes = await fetch("http://localhost:3000/api/v1/apps");
+    const appsRes = await fetch("http://localhost:3001/api/v1/apps");
     const appsData: any = await appsRes.json();
     expect(appsRes.status).toBe(200);
 
@@ -71,7 +71,7 @@ describe("PRD Module 1: Page Blocks & App Configuration", () => {
     ];
 
     // Save pageBlocks via PATCH
-    const patchRes = await fetch(`http://localhost:3000/api/v1/apps/${testApp.id}`, {
+    const patchRes = await fetch(`http://localhost:3001/api/v1/apps/${testApp.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pageBlocks: testBlocks }),

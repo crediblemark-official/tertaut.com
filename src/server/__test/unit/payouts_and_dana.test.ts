@@ -43,7 +43,7 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
   });
 
   it("POST /payouts/trigger: mode sandbox ditolak -> 400", async () => {
-    const res = await fetch("http://localhost:3000/api/v1/payouts/trigger", {
+    const res = await fetch("http://localhost:3001/api/v1/payouts/trigger", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode: "sandbox" }),
@@ -53,7 +53,7 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
 
   it("POST /payouts/trigger: builderId tidak valid / tidak ada profil -> 404", async () => {
     const fakeUuid = crypto.randomUUID();
-    const res = await fetch("http://localhost:3000/api/v1/payouts/trigger", {
+    const res = await fetch("http://localhost:3001/api/v1/payouts/trigger", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ builderId: fakeUuid }),
@@ -62,7 +62,7 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
   });
 
   it("POST /payouts/trigger: saldo bersih 0 -> 400", async () => {
-    const res = await fetch("http://localhost:3000/api/v1/payouts/trigger", {
+    const res = await fetch("http://localhost:3001/api/v1/payouts/trigger", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ builderId }),
@@ -88,7 +88,7 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
       paymentChannel: "QRIS",
     });
 
-    const res = await fetch("http://localhost:3000/api/v1/payouts/trigger", {
+    const res = await fetch("http://localhost:3001/api/v1/payouts/trigger", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ builderId }),
@@ -120,7 +120,7 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
     const origSandbox = config.isSandbox;
     try {
       config.isSandbox = false;
-      const res = await fetch("http://localhost:3000/api/v1/payouts/trigger", {
+      const res = await fetch("http://localhost:3001/api/v1/payouts/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ builderId }),
@@ -158,7 +158,7 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
       paymentChannel: "QRIS",
     });
 
-    const res = await fetch("http://localhost:3000/api/v1/payouts/trigger", {
+    const res = await fetch("http://localhost:3001/api/v1/payouts/trigger", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ builderId }),
@@ -170,7 +170,7 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
   });
 
   it("GET & POST /payouts/account: update dan get rekening", async () => {
-    const postRes = await fetch("http://localhost:3000/api/v1/payouts/account", {
+    const postRes = await fetch("http://localhost:3001/api/v1/payouts/account", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -181,7 +181,7 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
     });
     expect(postRes.status).toBe(200);
 
-    const getRes = await fetch("http://localhost:3000/api/v1/payouts/account");
+    const getRes = await fetch("http://localhost:3001/api/v1/payouts/account");
     expect(getRes.status).toBe(200);
     const data = await getRes.json() as any;
     expect(data.success).toBe(true);

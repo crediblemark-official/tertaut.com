@@ -60,7 +60,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
 
     try {
       // 1. Activate Device 1: Should succeed (Seats: 1/2)
-      const res1 = await fetch("http://localhost:3000/api/v1/licensing/activate", {
+      const res1 = await fetch("http://localhost:3001/api/v1/licensing/activate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -77,7 +77,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       expect(data1.data.maxSeats).toBe(2);
 
       // 2. Activate Device 2: Should succeed (Seats: 2/2)
-      const res2 = await fetch("http://localhost:3000/api/v1/licensing/activate", {
+      const res2 = await fetch("http://localhost:3001/api/v1/licensing/activate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -93,7 +93,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       expect(data2.data.seatsUsed).toBe(2);
 
       // 3. Activate Device 3: Should FAIL with 403 (Quota Exceeded 2/2)
-      const res3 = await fetch("http://localhost:3000/api/v1/licensing/activate", {
+      const res3 = await fetch("http://localhost:3001/api/v1/licensing/activate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -109,7 +109,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       expect(data3.error).toContain("Device seats quota exceeded");
 
       // 4. Online Verify Device 1: Should be valid
-      const verifyRes1 = await fetch("http://localhost:3000/api/v1/licensing/verify", {
+      const verifyRes1 = await fetch("http://localhost:3001/api/v1/licensing/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -122,7 +122,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       expect(verifyData1.status).toBe("ACTIVE");
 
       // 5. Online Verify Unactivated Device 3: Should return DEVICE_NOT_ACTIVATED
-      const verifyRes3 = await fetch("http://localhost:3000/api/v1/licensing/verify", {
+      const verifyRes3 = await fetch("http://localhost:3001/api/v1/licensing/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -135,7 +135,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       expect(verifyData3.status).toBe("DEVICE_NOT_ACTIVATED");
 
       // 6. Deactivate Device 1: Should release seat
-      const deactRes = await fetch("http://localhost:3000/api/v1/licensing/deactivate", {
+      const deactRes = await fetch("http://localhost:3001/api/v1/licensing/deactivate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -148,7 +148,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       expect(deactData.message).toContain("released successfully");
 
       // 7. Now Activate Device 3: Should succeed now that seat is freed
-      const res3Retry = await fetch("http://localhost:3000/api/v1/licensing/activate", {
+      const res3Retry = await fetch("http://localhost:3001/api/v1/licensing/activate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -187,7 +187,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
 
     try {
       const attempts = Array.from({ length: 6 }, (_, i) =>
-        fetch("http://localhost:3000/api/v1/licensing/activate", {
+        fetch("http://localhost:3001/api/v1/licensing/activate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -243,7 +243,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
 
     try {
       // Aktivasi ulang dengan HWID mentah yang sama harus me-migrasi, bukan menambah seat.
-      const res = await fetch("http://localhost:3000/api/v1/licensing/activate", {
+      const res = await fetch("http://localhost:3001/api/v1/licensing/activate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseKey: testKey, appId: app.id, hwid: rawHwid, deviceName: "Legacy Device" }),
@@ -263,7 +263,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       expect(LicenseService.isSecureHwidHash(migratedLicense!.hardwareId)).toBe(true);
 
       // Verifikasi dengan HWID mentah (legacy hash) tetap valid.
-      const verifyRes = await fetch("http://localhost:3000/api/v1/licensing/verify", {
+      const verifyRes = await fetch("http://localhost:3001/api/v1/licensing/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseKey: testKey, hwid: rawHwid }),
@@ -303,7 +303,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
 
     try {
       // 1. Token valid sebelum revoke
-      const res1 = await fetch("http://localhost:3000/api/v1/licensing/verify-offline-token", {
+      const res1 = await fetch("http://localhost:3001/api/v1/licensing/verify-offline-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
@@ -313,19 +313,19 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       expect(data1.valid).toBe(true);
 
       // 2. JWKS mengekspos public key Ed25519
-      const jwksRes = await fetch("http://localhost:3000/.well-known/jwks.json");
+      const jwksRes = await fetch("http://localhost:3001/.well-known/jwks.json");
       const jwks: any = await jwksRes.json();
       expect(jwksRes.status).toBe(200);
       expect(jwks.keys[0].kty).toBe("OKP");
       expect(jwks.keys[0].crv).toBe("Ed25519");
 
       // 3. Verifikasi lokal SDK (Web Crypto Ed25519) tanpa server
-      const localVerify = await new Tertaut({ apiKey: "tt_test_int04", appId: app.id, baseUrl: "http://localhost:3000" }).licensing.verifyOfflineToken(token);
+      const localVerify = await new Tertaut({ apiKey: "tt_test_int04", appId: app.id, baseUrl: "http://localhost:3001" }).licensing.verifyOfflineToken(token);
       expect(localVerify.valid).toBe(true);
       expect(localVerify.claims?.lic).toBe(testKey);
 
       // 4. Revoke -> jti masuk denylist
-      const revRes = await fetch("http://localhost:3000/api/v1/licensing/revoke", {
+      const revRes = await fetch("http://localhost:3001/api/v1/licensing/revoke", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ licenseKey: testKey }),
@@ -333,7 +333,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       expect(revRes.status).toBe(200);
 
       // 5. Token yang sama harus ditolak setelah revoke
-      const res2 = await fetch("http://localhost:3000/api/v1/licensing/verify-offline-token", {
+      const res2 = await fetch("http://localhost:3001/api/v1/licensing/verify-offline-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),

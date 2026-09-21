@@ -22,7 +22,7 @@ const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
 describe("Coverage Booster: Health & App Index Endpoints", () => {
   it("GET /health: health check returns 200 ok", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/health"));
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/health"));
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body.status).toBe("ok");
@@ -30,27 +30,27 @@ describe("Coverage Booster: Health & App Index Endpoints", () => {
   });
 
   it("GET /: root development info", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/"));
+    const res = await app.handle(new Request("http://localhost:3001/"));
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body.service).toContain("tertaut.com");
   });
 
   it("GET /.well-known/license-public-key.pem", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/.well-known/license-public-key.pem"));
+    const res = await app.handle(new Request("http://localhost:3001/.well-known/license-public-key.pem"));
     expect(res.status).toBe(200);
     const text = await res.text();
     expect(text).toContain("PUBLIC KEY");
   });
 
   it("CORS origin checks for embed and trusted domains", async () => {
-    const req1 = new Request("http://localhost:3000/api/v1/badge/app123", {
+    const req1 = new Request("http://localhost:3001/api/v1/badge/app123", {
       headers: { Origin: "https://unknown-embedder.com" },
     });
     const res1 = await app.handle(req1);
     expect(res1.status).toBeDefined();
 
-    const req2 = new Request("http://localhost:3000/api/v1/licensing/list", {
+    const req2 = new Request("http://localhost:3001/api/v1/licensing/list", {
       headers: { Origin: "https://subdomain.tertaut.com" },
     });
     const res2 = await app.handle(req2);
@@ -261,7 +261,7 @@ describe("Coverage Booster: Panel Payouts Edges", () => {
 describe("Coverage Booster: Coupons Router Edge Cases", () => {
   it("tests coupon validation errors (discountValue > 100 on percentage, not found)", async () => {
     // Invalid percent > 100 on POST (Elysia returns 422 for schema validation)
-    const resInvalid = await app.handle(new Request("http://localhost:3000/api/v1/coupons", {
+    const resInvalid = await app.handle(new Request("http://localhost:3001/api/v1/coupons", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -276,7 +276,7 @@ describe("Coverage Booster: Coupons Router Edge Cases", () => {
     expect([400, 422]).toContain(resInvalid.status);
 
     // PATCH non existent coupon
-    const resPatch = await app.handle(new Request("http://localhost:3000/api/v1/coupons/nonexistent_id", {
+    const resPatch = await app.handle(new Request("http://localhost:3001/api/v1/coupons/nonexistent_id", {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -287,7 +287,7 @@ describe("Coverage Booster: Coupons Router Edge Cases", () => {
     expect(resPatch.status).toBe(404);
 
     // DELETE non existent coupon
-    const resDel = await app.handle(new Request("http://localhost:3000/api/v1/coupons/nonexistent_id", {
+    const resDel = await app.handle(new Request("http://localhost:3001/api/v1/coupons/nonexistent_id", {
       method: "DELETE",
       headers: { cookie: authCookie },
     }));

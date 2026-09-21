@@ -197,7 +197,7 @@ Langkah Integrasi:
 })
 
 const widgetEmbedScript = computed(() => {
-  const host = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
+  const host = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001'
   return `<!-- Tertaut.com Embeddable Trust & Sales Badge -->
 <script src="${host}/api/v1/widgets/embed.js" async><\/script>
 <tertaut-badge app="${selectedAppSlug.value || 'my-app'}" type="${selectedWidgetType.value}"></tertaut-badge>`

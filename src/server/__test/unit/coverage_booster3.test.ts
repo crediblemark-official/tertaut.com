@@ -248,7 +248,7 @@ describe("Coverage Booster3: panel/payouts.ts handleBatchPayout", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster3: metering/router.ts edge cases", () => {
   it("GET /metering/usage/:licenseKey: 404 for unknown license", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/metering/usage/TT-FAKE-METERING"));
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/usage/TT-FAKE-METERING"));
     expect(res.status).toBe(404);
   });
 
@@ -256,7 +256,7 @@ describe("Coverage Booster3: metering/router.ts edge cases", () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
     const res = await app.handle(
-      new Request(`http://localhost:3000/api/v1/metering/usage/${issueRes.license.licenseKey}`)
+      new Request(`http://localhost:3001/api/v1/metering/usage/${issueRes.license.licenseKey}`)
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
@@ -269,7 +269,7 @@ describe("Coverage Booster3: metering/router.ts edge cases", () => {
     await db.update(apps).set({ meteringConfig: { enabled: true, unitPrice: 1, template: "test", name: "Test", aggregation: "sum" } as any }).where(eq(apps.id, a.id));
     const issueRes = await issueLicense(a.id);
     await db.update(licenses).set({ status: "REVOKED" }).where(eq(licenses.id, issueRes.license.id));
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/metering/events", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey: issueRes.license.licenseKey, eventName: "test" }),
@@ -294,7 +294,7 @@ describe("Coverage Booster3: metering/router.ts edge cases", () => {
       secretApiKey: generateBuilderSecretApiKey(),
     }).returning();
 
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/metering/stats", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/stats", {
       headers: { cookie },
     }));
     expect(res.status).toBe(200);
@@ -647,7 +647,7 @@ describe("Coverage Booster3: licensing/device.ts handleVerifyLicense additional"
 describe("Coverage Booster3: middleware/auth.ts requireAdmin macro", () => {
   it("admin endpoint returns 401 when not authenticated", async () => {
     // Any admin-only route without auth should return 401
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/panel/builders"));
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/panel/builders"));
     expect([401, 403]).toContain(res.status);
   });
 
@@ -659,7 +659,7 @@ describe("Coverage Booster3: middleware/auth.ts requireAdmin macro", () => {
       asResponse: true,
     });
     const cookie = signRes.headers.get("set-cookie")?.split(";")[0] || "";
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/panel/builders", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/panel/builders", {
       headers: { cookie },
     }));
     expect([401, 403]).toContain(res.status);
@@ -671,7 +671,7 @@ describe("Coverage Booster3: middleware/auth.ts requireAdmin macro", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster3: apps/disburse.ts additional via HTTP", () => {
   it("POST /apps/:transactionId/disburse: 401 without auth", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/apps/tx_fake_id/disburse", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/apps/tx_fake_id/disburse", {
       method: "POST",
     }));
     expect([401, 404]).toContain(res.status);
@@ -818,7 +818,7 @@ describe("Coverage Booster3: apps/builder.ts live mode branch", () => {
 describe("Coverage Booster3: routes/launch.ts", () => {
   it("POST /launch/convert-to-live: triggers convertToLiveLaunch for existing app", async () => {
     const { app: a } = await seedBuilderApp("sandbox");
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/launch/convert-to-live", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/launch/convert-to-live", {
       method: "POST",
       headers: { "Content-Type": "application/json", cookie: authCookie },
       body: JSON.stringify({ campaignId: a.id, discountPercent: 25 }),
@@ -828,7 +828,7 @@ describe("Coverage Booster3: routes/launch.ts", () => {
   });
 
   it("POST /launch/convert-to-live: 404 for nonexistent campaign", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/launch/convert-to-live", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/launch/convert-to-live", {
       method: "POST",
       headers: { "Content-Type": "application/json", cookie: authCookie },
       body: JSON.stringify({ campaignId: "nonexistent_app_xyz" }),

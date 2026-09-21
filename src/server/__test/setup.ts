@@ -31,7 +31,7 @@ export function setupTestAuth() {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (input: any, init?: any) => {
     const url = typeof input === "string" ? input : input?.url || "";
-    if (url.includes("http://localhost:3000")) {
+    if (url.includes("http://localhost:3001") || url.includes("http://localhost:3001")) {
       init = init || {};
       const headers = new Headers(init.headers || (input instanceof Request ? input.headers : {}));
       if (authCookie && !headers.has("cookie")) {

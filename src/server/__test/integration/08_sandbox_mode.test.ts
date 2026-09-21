@@ -35,7 +35,7 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
 
     try {
       // App baru dibuat TANPA mode eksplisit → default sandbox (seperti creem.io)
-      const createRes = await fetch("http://localhost:3000/api/v1/apps", {
+      const createRes = await fetch("http://localhost:3001/api/v1/apps", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -50,7 +50,7 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
       createdAppId = created.app.id;
 
       // Toggle ke live
-      const toggleRes = await fetch(`http://localhost:3000/api/v1/apps/${createdAppId}/mode`, {
+      const toggleRes = await fetch(`http://localhost:3001/api/v1/apps/${createdAppId}/mode`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "live" }),
@@ -71,7 +71,7 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
     let createdAppId: string | null = null;
 
     try {
-      const createRes = await fetch("http://localhost:3000/api/v1/apps", {
+      const createRes = await fetch("http://localhost:3001/api/v1/apps", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -123,7 +123,7 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
       createdAppId = json.app.id;
 
       // Update via PATCH
-      const patchRes = await fetch(`http://localhost:3000/api/v1/apps/${createdAppId}`, {
+      const patchRes = await fetch(`http://localhost:3001/api/v1/apps/${createdAppId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -154,7 +154,7 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
 
     try {
       // 1. Buat sesi checkout → invoice mock karena app mode sandbox
-      const sessionRes = await fetch("http://localhost:3000/api/v1/checkout/session", {
+      const sessionRes = await fetch("http://localhost:3001/api/v1/checkout/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -172,7 +172,7 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
       const txId = sessionData.data.sessionId;
 
       // 2. Simulasikan pembayaran
-      const simRes = await fetch(`http://localhost:3000/api/v1/checkout/simulate-paid/${txId}`, {
+      const simRes = await fetch(`http://localhost:3001/api/v1/checkout/simulate-paid/${txId}`, {
         method: "POST",
       });
       const simData: any = await simRes.json();
@@ -185,14 +185,14 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
       expect(tx?.paymentStatus).toBe("PAID");
 
       // 4. Pencairan harus DITOLAK untuk transaksi sandbox
-      const disbRes = await fetch(`http://localhost:3000/api/v1/checkout/disburse/${txId}`, {
+      const disbRes = await fetch(`http://localhost:3001/api/v1/checkout/disburse/${txId}`, {
         method: "POST",
       });
       expect(disbRes.status).toBe(400);
 
       // 5. Simulate-paid untuk app yang sudah LIVE harus selalu ditolak (403) demi keamanan (B5)
       await db.update(apps).set({ mode: "live" }).where(eq(apps.id, testApp.id));
-      const simLiveRes = await fetch(`http://localhost:3000/api/v1/checkout/simulate-paid/${txId}`, {
+      const simLiveRes = await fetch(`http://localhost:3001/api/v1/checkout/simulate-paid/${txId}`, {
         method: "POST",
       });
       expect(simLiveRes.status).toBe(403);

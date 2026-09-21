@@ -267,7 +267,7 @@ describe("Coverage Booster4: licensing/credits.ts branches", () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
     // Activate the license first (requireHwid=true path)
-    await fetch("http://localhost:3000/api/v1/licensing/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ licenseKey: issueRes.license.licenseKey, hwid: "CPU_INTEL_i9_13900K_SN_88219", appId: a.id }) });
+    await fetch("http://localhost:3001/api/v1/licensing/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ licenseKey: issueRes.license.licenseKey, hwid: "CPU_INTEL_i9_13900K_SN_88219", appId: a.id }) });
     // Top up some credits first
     await db.insert(creditLedger).values({ id: "crl_" + Date.now().toString(), licenseId: issueRes.license.id, appId: a.id, customerEmail: "test@test.com", type: "GRANT", delta: 5, balanceAfter: 5, reference: null, description: "test topup", createdAt: new Date() });
     const set: any = {};
@@ -302,7 +302,7 @@ describe("Coverage Booster4: licensing/credits.ts branches", () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
     // Activate the license first
-    await fetch("http://localhost:3000/api/v1/licensing/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ licenseKey: issueRes.license.licenseKey, hwid: "CPU_INTEL_i9_13900K_SN_88219", appId: a.id }) });
+    await fetch("http://localhost:3001/api/v1/licensing/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ licenseKey: issueRes.license.licenseKey, hwid: "CPU_INTEL_i9_13900K_SN_88219", appId: a.id }) });
     // Top up first
     await db.insert(creditLedger).values({ id: "crl_" + Date.now().toString(), licenseId: issueRes.license.id, appId: a.id, customerEmail: "test@test.com", type: "GRANT", delta: 50, balanceAfter: 50, reference: null, description: "initial topup", createdAt: new Date() });
     const set: any = {};
@@ -330,7 +330,7 @@ describe("Coverage Booster4: metering/router.ts additional branches", () => {
     const issueRes = await issueLicense(a.id);
     // Give some credits but consume 0 units → should succeed
     await db.insert(creditLedger).values({ id: "crl_" + Date.now().toString(), licenseId: issueRes.license.id, appId: a.id, customerEmail: "test@test.com", type: "GRANT", delta: 10, balanceAfter: 10, reference: null, description: "topup", createdAt: new Date() });
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/metering/events", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -348,7 +348,7 @@ describe("Coverage Booster4: metering/router.ts additional branches", () => {
     await db.update(apps).set({ meteringConfig: { enabled: true, unitPrice: 1 } as any }).where(eq(apps.id, a.id));
     const issueRes = await issueLicense(a.id);
     await db.update(licenses).set({ status: "EXPIRED" }).where(eq(licenses.id, issueRes.license.id));
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/metering/events", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -365,7 +365,7 @@ describe("Coverage Booster4: metering/router.ts additional branches", () => {
     await db.update(apps).set({ meteringConfig: { enabled: true, unitPrice: 1, unitLabel: "u" } as any }).where(eq(apps.id, a.id));
     const issueRes = await issueLicense(a.id);
     const res = await app.handle(
-      new Request(`http://localhost:3000/api/v1/metering/usage/${issueRes.license.licenseKey}`)
+      new Request(`http://localhost:3001/api/v1/metering/usage/${issueRes.license.licenseKey}`)
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
@@ -454,7 +454,7 @@ describe("Coverage Booster4: apps/mutations.ts additional branches", () => {
       asResponse: true,
     });
     // Access as admin (already has all rights) — instead test that 404 for bad app
-    const res = await app.handle(new Request(`http://localhost:3000/api/v1/apps/nonexistent_app_id/settings`, {
+    const res = await app.handle(new Request(`http://localhost:3001/api/v1/apps/nonexistent_app_id/settings`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", cookie: authCookie },
       body: JSON.stringify({ name: "Updated" }),
@@ -465,7 +465,7 @@ describe("Coverage Booster4: apps/mutations.ts additional branches", () => {
 
   it("DELETE /apps/:appId: 200 when app exists and admin deletes", async () => {
     const { app: a } = await seedBuilderApp();
-    const res = await app.handle(new Request(`http://localhost:3000/api/v1/apps/${a.id}`, {
+    const res = await app.handle(new Request(`http://localhost:3001/api/v1/apps/${a.id}`, {
       method: "DELETE",
       headers: { cookie: authCookie },
     }));
@@ -475,7 +475,7 @@ describe("Coverage Booster4: apps/mutations.ts additional branches", () => {
   it("PATCH /apps/:appId: successfully updates name", async () => {
     const { app: a } = await seedBuilderApp();
     const newName = `Updated Name ${suffix()}`;
-    const res = await app.handle(new Request(`http://localhost:3000/api/v1/apps/${a.id}`, {
+    const res = await app.handle(new Request(`http://localhost:3001/api/v1/apps/${a.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", cookie: authCookie },
       body: JSON.stringify({ name: newName }),
@@ -526,7 +526,7 @@ describe("Coverage Booster4: s2s/router.ts via HTTP", () => {
     // but apiV1Routes also has authMiddleware. Since /api/v1/s2s is in PUBLIC_PREFIXES,
     // authMiddleware skips it, and s2sRoutes.onBeforeHandle handles auth.
     // Without a secret key, authenticateSecretApiKey returns 401.
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/s2s/licensing/issue", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/s2s/licensing/issue", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ appId: "app_x", customerEmail: "t@t.com" }),
@@ -538,7 +538,7 @@ describe("Coverage Booster4: s2s/router.ts via HTTP", () => {
   });
 
   it("POST /s2s/licensing/activate: 401 without secret key", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/s2s/licensing/activate", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/s2s/licensing/activate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey: "TT-FAKE", appId: "x", hwid: "h" }),
@@ -548,7 +548,7 @@ describe("Coverage Booster4: s2s/router.ts via HTTP", () => {
 
   it("POST /s2s/licensing/issue: 404 for unknown app with valid secret key", async () => {
     const { builder } = await seedBuilderApp();
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/s2s/licensing/issue", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/s2s/licensing/issue", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -565,7 +565,7 @@ describe("Coverage Booster4: s2s/router.ts via HTTP", () => {
     // This route doesn't exist, so it returns 404.
     // The test expects 401 but the route doesn't exist in the codebase.
     // Update expectation to match actual route behavior.
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/s2s/credits/topup", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/s2s/credits/topup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey: "TT-FAKE", amount: 100 }),
@@ -580,7 +580,7 @@ describe("Coverage Booster4: s2s/router.ts via HTTP", () => {
     // Only /s2s/credits/balance and /s2s/credits/consume exist.
     // Update expectation to 404 for nonexistent route.
     const { builder } = await seedBuilderApp();
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/s2s/credits/topup", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/s2s/credits/topup", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -612,7 +612,7 @@ describe("Coverage Booster4: payouts/router.ts additional", () => {
       disbursementAccount: { bankCode: "BCA", accountNumber: "1234567890", accountHolderName: "Test" } as any,
     }).where(eq(builders.id, b.id));
 
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/payouts/account", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/payouts/account", {
       headers: { cookie },
     }));
     // Either 200 (account found) or 404 (no builder for this email yet)
@@ -620,7 +620,7 @@ describe("Coverage Booster4: payouts/router.ts additional", () => {
   });
 
   it("GET /payouts/transactions: returns builder transactions", async () => {
-    const res = await app.handle(new Request("http://localhost:3000/api/v1/payouts/transactions", {
+    const res = await app.handle(new Request("http://localhost:3001/api/v1/payouts/transactions", {
       headers: { cookie: authCookie },
     }));
     // panel/transactions uses handlePanelTransactions; /api/v1/panel/transactions

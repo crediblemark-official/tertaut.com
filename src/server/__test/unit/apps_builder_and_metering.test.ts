@@ -116,14 +116,14 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
   });
 
   it("POST /metering/events: validasi input kosong", async () => {
-    const res1 = await fetch("http://localhost:3000/api/v1/metering/events", {
+    const res1 = await fetch("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey: "", eventName: "call" }),
     });
     expect(res1.status).toBe(400);
 
-    const res2 = await fetch("http://localhost:3000/api/v1/metering/events", {
+    const res2 = await fetch("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey: "some_key", eventName: "" }),
@@ -132,7 +132,7 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
   });
 
   it("POST /metering/events: lisensi tidak ditemukan -> 404", async () => {
-    const res = await fetch("http://localhost:3000/api/v1/metering/events", {
+    const res = await fetch("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey: "non_existent_license_key", eventName: "ai_summary" }),
@@ -142,7 +142,7 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
 
   it("POST /metering/events: lisensi berstatus REVOKED -> 403", async () => {
     await db.update(licenses).set({ status: "REVOKED" }).where(eq(licenses.licenseKey, licenseKey));
-    const res = await fetch("http://localhost:3000/api/v1/metering/events", {
+    const res = await fetch("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey, eventName: "ai_summary" }),
@@ -151,7 +151,7 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
   });
 
   it("POST /metering/events: aplikasi tidak mengaktifkan metering -> 400", async () => {
-    const res = await fetch("http://localhost:3000/api/v1/metering/events", {
+    const res = await fetch("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey: unmeteredLicKey, eventName: "ai_summary" }),
@@ -160,7 +160,7 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
   });
 
   it("POST /metering/events: berhasil debit konsumsi unit", async () => {
-    const res = await fetch("http://localhost:3000/api/v1/metering/events", {
+    const res = await fetch("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -179,7 +179,7 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
   });
 
   it("POST /metering/events: saldo kredit tidak cukup -> 402", async () => {
-    const res = await fetch("http://localhost:3000/api/v1/metering/events", {
+    const res = await fetch("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -193,11 +193,11 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
 
   it("GET /metering/usage/:licenseKey: riwayat pemakaian metering", async () => {
     // 404 jika tidak ditemukan
-    const notFoundRes = await fetch("http://localhost:3000/api/v1/metering/usage/invalid_key_xyz");
+    const notFoundRes = await fetch("http://localhost:3001/api/v1/metering/usage/invalid_key_xyz");
     expect(notFoundRes.status).toBe(404);
 
     // Sukses jika ada
-    const res = await fetch(`http://localhost:3000/api/v1/metering/usage/${licenseKey}`);
+    const res = await fetch(`http://localhost:3001/api/v1/metering/usage/${licenseKey}`);
     const data = await res.json() as any;
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
@@ -206,7 +206,7 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
   });
 
   it("GET /metering/stats: admin / builder ringkasan stats", async () => {
-    const res = await fetch("http://localhost:3000/api/v1/metering/stats");
+    const res = await fetch("http://localhost:3001/api/v1/metering/stats");
     const data = await res.json() as any;
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);

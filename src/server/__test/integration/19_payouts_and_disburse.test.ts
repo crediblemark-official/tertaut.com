@@ -176,13 +176,13 @@ describe("Payouts, Disbursements, and Checkout Handlers", () => {
 
   it("should test Payouts router endpoints via app.handle HTTP", async () => {
     // 1. GET /api/v1/payouts/account
-    const getAccountRes = await fetch("http://localhost:3000/api/v1/payouts/account");
+    const getAccountRes = await fetch("http://localhost:3001/api/v1/payouts/account");
     expect(getAccountRes.status).toBe(200);
     const getAccountData: any = await getAccountRes.json();
     expect(getAccountData.success).toBe(true);
 
     // 2. POST /api/v1/payouts/account (update disbursement info)
-    const updateAccountRes = await fetch("http://localhost:3000/api/v1/payouts/account", {
+    const updateAccountRes = await fetch("http://localhost:3001/api/v1/payouts/account", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -199,7 +199,7 @@ describe("Payouts, Disbursements, and Checkout Handlers", () => {
     expect(updateAccountData.disbursementAccount.bankCode).toBe("MANDIRI");
 
     // 3. POST /api/v1/payouts/trigger with sandbox mode -> rejected (400)
-    const triggerSandboxRes = await fetch("http://localhost:3000/api/v1/payouts/trigger", {
+    const triggerSandboxRes = await fetch("http://localhost:3001/api/v1/payouts/trigger", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode: "sandbox" }),
@@ -207,7 +207,7 @@ describe("Payouts, Disbursements, and Checkout Handlers", () => {
     expect(triggerSandboxRes.status).toBe(400);
 
     // 4. POST /api/v1/payouts/trigger with live mode
-    const triggerLiveRes = await fetch("http://localhost:3000/api/v1/payouts/trigger", {
+    const triggerLiveRes = await fetch("http://localhost:3001/api/v1/payouts/trigger", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode: "live" }),

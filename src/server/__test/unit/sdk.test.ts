@@ -14,8 +14,8 @@ describe("Unit Tests - Tertaut SDK", () => {
       "[Tertaut SDK] appId is required."
     );
 
-    const sdkSandbox = new Tertaut({ apiKey: "tt_test_sandbox", appId: "app_test_sandbox", baseUrl: "http://localhost:3000" });
-    expect(sdkSandbox.baseUrl).toBe("http://localhost:3000");
+    const sdkSandbox = new Tertaut({ apiKey: "tt_test_sandbox", appId: "app_test_sandbox", baseUrl: "http://localhost:3001" });
+    expect(sdkSandbox.baseUrl).toBe("http://localhost:3001");
     expect(sdkSandbox.environment).toBe("sandbox");
 
     const sdkProd = new Tertaut({ apiKey: "tt_live_prod", appId: "app_test_prod", baseUrl: "https://tertaut.com" });
@@ -30,7 +30,7 @@ describe("Unit Tests - Tertaut SDK", () => {
   });
 
   it("should validate checkout params and execute checkout session request", async () => {
-    const sdk = new Tertaut({ apiKey: "tt_test_sdk", appId: "app_sdk_test", baseUrl: "http://localhost:3000" });
+    const sdk = new Tertaut({ apiKey: "tt_test_sdk", appId: "app_sdk_test", baseUrl: "http://localhost:3001" });
 
     // Missing customerEmail throws
     expect(sdk.checkout({ amount: 100_000 } as any)).rejects.toThrow("customerEmail is required");
@@ -38,7 +38,7 @@ describe("Unit Tests - Tertaut SDK", () => {
     // Mock fetch for checkout
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async (url: string, init?: RequestInit) => {
-      expect(url).toBe("http://localhost:3000/api/v1/checkout/session");
+      expect(url).toBe("http://localhost:3001/api/v1/checkout/session");
       const body = JSON.parse(init?.body as string);
       expect(body.appId).toBe("app_sdk_test");
       expect(body.amount).toBe(75_000);
@@ -64,7 +64,7 @@ describe("Unit Tests - Tertaut SDK", () => {
   });
 
   it("should invoke licensing methods: validate, verify, activate, deactivate, and getJwks", async () => {
-    const sdk = new Tertaut({ apiKey: "tt_test_lic", appId: "app_lic_sdk", baseUrl: "http://localhost:3000" });
+    const sdk = new Tertaut({ apiKey: "tt_test_lic", appId: "app_lic_sdk", baseUrl: "http://localhost:3001" });
     const originalFetch = globalThis.fetch;
 
     globalThis.fetch = (async (url: string) => {
@@ -141,7 +141,7 @@ describe("Unit Tests - Tertaut SDK", () => {
   });
 
   it("should wrap credits API: balance, consume, and history", async () => {
-    const sdk = new Tertaut({ apiKey: "tt_test_credits", appId: "app_credits_sdk", baseUrl: "http://localhost:3000" });
+    const sdk = new Tertaut({ apiKey: "tt_test_credits", appId: "app_credits_sdk", baseUrl: "http://localhost:3001" });
     const originalFetch = globalThis.fetch;
 
     globalThis.fetch = (async (url: string) => {
@@ -170,7 +170,7 @@ describe("Unit Tests - Tertaut SDK", () => {
   });
 
   it("should support aiProxy chat and chatStream SSE streaming parser", async () => {
-    const sdk = new Tertaut({ apiKey: "tt_live_ai", appId: "app_ai_sdk", baseUrl: "http://localhost:3000" });
+    const sdk = new Tertaut({ apiKey: "tt_live_ai", appId: "app_ai_sdk", baseUrl: "http://localhost:3001" });
     const originalFetch = globalThis.fetch;
 
     // 1. Non-streaming chat
@@ -245,7 +245,7 @@ describe("Unit Tests - Tertaut SDK", () => {
   });
 
   it("should manage automatic heartbeat sessions for floating licenses", async () => {
-    const sdk = new Tertaut({ apiKey: "tt_test_session", appId: "app_session", baseUrl: "http://localhost:3000" });
+    const sdk = new Tertaut({ apiKey: "tt_test_session", appId: "app_session", baseUrl: "http://localhost:3001" });
     const originalFetch = globalThis.fetch;
 
     let heartbeatCount = 0;
@@ -275,7 +275,7 @@ describe("Unit Tests - Tertaut SDK", () => {
   });
 
   it("should perform smart license check with offline fallback and feature helpers", async () => {
-    const sdk = new Tertaut({ apiKey: "tt_test_smart", appId: "app_smart", baseUrl: "http://localhost:3000" });
+    const sdk = new Tertaut({ apiKey: "tt_test_smart", appId: "app_smart", baseUrl: "http://localhost:3001" });
     const originalFetch = globalThis.fetch;
 
     // 1. Online check
@@ -348,7 +348,7 @@ describe("Unit Tests - Tertaut SDK", () => {
   it("should support Server-to-Server (S2S) operations when initialized with tt_secret_ key", async () => {
     const s2sClient = new Tertaut({
       apiKey: "tt_secret_my_super_secret_key",
-      baseUrl: "http://localhost:3000",
+      baseUrl: "http://localhost:3001",
     });
     expect(s2sClient.apiKey).toBe("tt_secret_my_super_secret_key");
 
@@ -501,7 +501,7 @@ describe("Unit Tests - Tertaut SDK", () => {
     const defaultHelpers = createFeatureHelpers();
     expect(defaultHelpers.hasFeature("any")).toBe(false);
 
-    const sdk = new Tertaut({ apiKey: "tt_test_lic_cov", appId: "app_cov", baseUrl: "http://localhost:3000" });
+    const sdk = new Tertaut({ apiKey: "tt_test_lic_cov", appId: "app_cov", baseUrl: "http://localhost:3001" });
 
     // 1. hasFeature and getFeature helper methods on licensing module
     expect(sdk.licensing.hasFeature({ "pro-plan": true }, "pro-plan")).toBe(true);
@@ -600,7 +600,7 @@ describe("Unit Tests - Tertaut SDK", () => {
   it("should test all S2S module methods and endpoints", async () => {
     const s2sClient = new Tertaut({
       apiKey: "tt_secret_complete_s2s_key",
-      baseUrl: "http://localhost:3000",
+      baseUrl: "http://localhost:3001",
       appId: "app_default",
     });
 

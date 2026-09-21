@@ -8,7 +8,7 @@ import { generateBuilderSecretApiKey, generateAppApiKey } from "../../routes/app
 
 setupTestAuth();
 
-const BASE = "http://localhost:3000";
+const BASE = "http://localhost:3001";
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
 async function setupFloatingApp(leaseTtlSeconds = 30) {

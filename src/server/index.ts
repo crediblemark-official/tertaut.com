@@ -273,18 +273,18 @@ if (hasBuiltClient) {
       return { error: "Not Found" };
     });
 } else {
-  // Development: Port 3000 is strictly Backend API & Swagger
+  // Development: Port 3001 is strictly Backend API & Swagger
   app.get("*", ({ request, set }) => {
     const url = new URL(request.url);
     if (url.pathname === "/") {
       return {
         service: "tertaut.com Engine Backend API",
-        port: 3000,
+        port: config.port,
         mode: "development",
         endpoints: {
-          swagger: "http://localhost:3000/swagger",
+          swagger: `http://localhost:${config.port}/swagger`,
           docs: "http://localhost:5173/docs",
-          health: "http://localhost:3000/api/v1/health",
+          health: `http://localhost:${config.port}/api/v1/health`,
         },
         notice: "Frontend UI is running on Vite Dev Server: http://localhost:5173",
       };

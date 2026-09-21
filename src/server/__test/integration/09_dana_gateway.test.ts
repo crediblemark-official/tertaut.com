@@ -65,7 +65,7 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
     if (!existingApp) return;
 
     const email = `dana_checkout_${Date.now()}@test.local`;
-    const res = await fetch("http://localhost:3000/api/v1/checkout/session", {
+    const res = await fetch("http://localhost:3001/api/v1/checkout/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -126,7 +126,7 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
     });
 
     // 1. First webhook call: harus berhasil dan terbitkan lisensi
-    const webhookRes1 = await fetch("http://localhost:3000/webhook/dana/finish-payment", {
+    const webhookRes1 = await fetch("http://localhost:3001/webhook/dana/finish-payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -148,7 +148,7 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
     expect(txAfter?.paymentChannel).toBe("DANA_WALLET");
 
     // 2. Second webhook call (Idempotency): tidak boleh duplikasi lisensi
-    const webhookRes2 = await fetch("http://localhost:3000/webhook/dana/finish-payment", {
+    const webhookRes2 = await fetch("http://localhost:3001/webhook/dana/finish-payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -168,7 +168,7 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
     expect(issuedLicenses.length).toBe(1);
 
     // 3. Test DANA Disburse to Bank Notify Webhook
-    const disburseWebhookRes = await fetch("http://localhost:3000/webhook/dana/disburse-notify", {
+    const disburseWebhookRes = await fetch("http://localhost:3001/webhook/dana/disburse-notify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -188,7 +188,7 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
 
   it("should acknowledge DANA Transaction Success Finish Notify (/v1.0/debit/notify) with 2005600 and Successful", async () => {
     // 1. Test against SNAP BI standard route POST /v1.0/debit/notify
-    const notifyRes = await fetch("http://localhost:3000/v1.0/debit/notify", {
+    const notifyRes = await fetch("http://localhost:3001/v1.0/debit/notify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -205,7 +205,7 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
     expect(body.responseMessage).toBe("Successful");
 
     // 2. Test Internal Server Error condition (amount = 11012.00)
-    const errNotifyRes = await fetch("http://localhost:3000/v1.0/debit/notify", {
+    const errNotifyRes = await fetch("http://localhost:3001/v1.0/debit/notify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -247,7 +247,7 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
       grantDays: 30,
     });
 
-    const res = await fetch("http://localhost:3000/v1.0/debit/notify", {
+    const res = await fetch("http://localhost:3001/v1.0/debit/notify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

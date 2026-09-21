@@ -93,7 +93,7 @@ tertautv2/
 │   │
 │   └── client/                # Frontend Vue 3 + Vite Dashboard
 │       ├── index.html         # Dark-first SPA entry with Inter & JetBrains Mono
-│       ├── vite.config.ts     # Vite bundler with API reverse-proxy (:3000)
+│       ├── vite.config.ts     # Vite bundler with API reverse-proxy (:3001)
 │       ├── tailwind.config.js # Modern design tokens (shadcn-vue style)
 │       └── src/
 │           ├── main.ts        # Vue app bootstrap
@@ -137,8 +137,8 @@ bun run db:migrate
 bun run dev
 ```
 - **Dashboard UI**: `http://localhost:5173`
-- **Backend API**: `http://localhost:3000`
-- **Swagger / OpenAPI**: `http://localhost:3000/swagger`
+- **Backend API**: `http://localhost:3001`
+- **Swagger / OpenAPI**: `http://localhost:3001/swagger`
 
 ---
 
@@ -149,4 +149,4 @@ Untuk memverifikasi arsitektur Single Container (Elysia menyajikan API sekaligus
 bun run build
 bun run start
 ```
-Akses `http://localhost:3000` — Dashboard Vue 3 dan API `/api/v1/*` berjalan di satu port tanpa masalah CORS!
+Akses `http://localhost:3001` — Dashboard Vue 3 dan API `/api/v1/*` berjalan di satu port tanpa masalah CORS!

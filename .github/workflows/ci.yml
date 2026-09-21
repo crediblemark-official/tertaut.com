@@ -59,7 +59,7 @@ jobs:
       XENDIT_PUBLIC_KEY: xnd_public_development_sample_key_tertaut
       XENDIT_WEBHOOK_VERIFICATION_TOKEN: tertaut_webhook_verification_token_dev
       NODE_ENV: test
-      PORT: 3000
+      PORT: 3001
 
     steps:
       - name: Checkout repository

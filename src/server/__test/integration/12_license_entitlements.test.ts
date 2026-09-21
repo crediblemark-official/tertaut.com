@@ -9,7 +9,7 @@ import { Tertaut } from "../../../../packages/sdk/src";
 
 setupTestAuth();
 
-const BASE = "http://localhost:3000";
+const BASE = "http://localhost:3001";
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
 describe("Fase 0 & Fase 1: License Schema & Feature Flags Entitlements", () => {
