@@ -31,14 +31,16 @@ export function setupTestAuth() {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (input: any, init?: any) => {
     const url = typeof input === "string" ? input : input?.url || "";
-    if (url.includes("http://localhost:3001") || url.includes("http://localhost:3001")) {
+    if (url.includes("http://localhost:8081") || url.includes("http://localhost:3001")) {
       init = init || {};
       const headers = new Headers(init.headers || (input instanceof Request ? input.headers : {}));
       if (authCookie && !headers.has("cookie")) {
         headers.set("cookie", authCookie);
       }
       init.headers = headers;
-      const req = input instanceof Request ? new Request(input, init) : new Request(url, init);
+      // Normalize URL ke port yang dipakai server test
+      const normalizedUrl = url.replace("http://localhost:3001", "http://localhost:8081");
+      const req = input instanceof Request ? new Request(new Request(input, init), { ...init }) : new Request(normalizedUrl, init);
       return app.handle(req);
     }
     return originalFetch(input, init);

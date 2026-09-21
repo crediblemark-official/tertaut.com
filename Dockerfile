@@ -22,7 +22,7 @@ FROM oven/bun:1-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=8080
+ENV PORT=8081
 # Bun runtime optimasi
 ENV BUN_LOG_SCOPE="*"
 ENV BUN_JSX_RUNTIME="haste"
@@ -39,10 +39,10 @@ COPY src/server ./src/server
 # Aset SPA & Docs hasil build dari stage 1
 COPY --from=client-builder /app/dist ./dist
 
-EXPOSE 8080
+EXPOSE 8081
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget -qO- "http://127.0.0.1:${PORT:-8080}/api/v1/health" || exit 1
+  CMD wget -qO- "http://127.0.0.1:${PORT:-8081}/api/v1/health" || exit 1
 
 CMD ["bun", "src/server/index.ts"]
 

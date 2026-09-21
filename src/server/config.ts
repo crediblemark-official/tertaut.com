@@ -76,7 +76,7 @@ function resolveKeyOrFile(envName: string, defaultFilePath?: string): string {
   return "";
 }
 
-const resolvedPort = Number(getEnv("PORT", "8080"));
+const resolvedPort = Number(getEnv("PORT", "8081"));
 
 let dynamicAppUrl = "";
 

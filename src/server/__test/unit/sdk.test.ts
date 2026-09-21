@@ -108,36 +108,39 @@ describe("Unit Tests - Tertaut SDK", () => {
   it("should verify offline token errors: malformed, missing keys, invalid signature", async () => {
     const sdk = new Tertaut({ apiKey: "tt_live_offline", appId: "app_offline_sdk", baseUrl: "https://tertaut.com" });
 
-    // Malformed token
-    const malformed = await sdk.licensing.verifyOfflineToken("not.enough.parts.four.five");
-    expect(malformed.valid).toBe(false);
-
-    const empty = await sdk.licensing.verifyOfflineToken("");
-    expect(empty.valid).toBe(false);
-    expect(empty.reason).toBe("MALFORMED_TOKEN");
-
-    // Missing JWK keys (default url and custom jwksUrl)
+    // Mock fetch SEBELUM semua panggilan agar tidak ada network request nyata
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async () => {
       return new Response(JSON.stringify({ keys: [] }), { status: 200 });
     }) as any;
 
-    const noKey = await sdk.licensing.verifyOfflineToken("header.claims.sig");
-    expect(noKey.valid).toBe(false);
-    expect(noKey.reason).toBe("PUBLIC_KEY_UNAVAILABLE");
+    try {
+      // Malformed token
+      const malformed = await sdk.licensing.verifyOfflineToken("not.enough.parts.four.five");
+      expect(malformed.valid).toBe(false);
 
-    const noKeyCustomUrl = await sdk.licensing.verifyOfflineToken("header.claims.sig", {
-      jwksUrl: "https://custom.jwks.url/jwks.json",
-    });
-    expect(noKeyCustomUrl.valid).toBe(false);
-    expect(noKeyCustomUrl.reason).toBe("PUBLIC_KEY_UNAVAILABLE");
+      const empty = await sdk.licensing.verifyOfflineToken("");
+      expect(empty.valid).toBe(false);
+      expect(empty.reason).toBe("MALFORMED_TOKEN");
 
-    const { verifyEd25519OfflineToken } = require("../../../../packages/sdk/src/utils/crypto");
-    const noBaseResult = await verifyEd25519OfflineToken("header.claims.sig");
-    expect(noBaseResult.valid).toBe(false);
-    expect(noBaseResult.reason).toBe("PUBLIC_KEY_UNAVAILABLE");
+      // Missing JWK keys (default url and custom jwksUrl)
+      const noKey = await sdk.licensing.verifyOfflineToken("header.claims.sig");
+      expect(noKey.valid).toBe(false);
+      expect(noKey.reason).toBe("PUBLIC_KEY_UNAVAILABLE");
 
-    globalThis.fetch = originalFetch;
+      const noKeyCustomUrl = await sdk.licensing.verifyOfflineToken("header.claims.sig", {
+        jwksUrl: "https://custom.jwks.url/jwks.json",
+      });
+      expect(noKeyCustomUrl.valid).toBe(false);
+      expect(noKeyCustomUrl.reason).toBe("PUBLIC_KEY_UNAVAILABLE");
+
+      const { verifyEd25519OfflineToken } = require("../../../../packages/sdk/src/utils/crypto");
+      const noBaseResult = await verifyEd25519OfflineToken("header.claims.sig");
+      expect(noBaseResult.valid).toBe(false);
+      expect(noBaseResult.reason).toBe("PUBLIC_KEY_UNAVAILABLE");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("should wrap credits API: balance, consume, and history", async () => {
