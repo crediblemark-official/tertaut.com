@@ -33,6 +33,7 @@ const customersCount = computed(() => props.stats?.customers30d ?? 0)
 const emit = defineEmits<{
   'update:searchQuery': [value: string]
   'open-create': []
+  'toggle-mode': [app: AppItem]
 }>()
 
 const filteredApps = computed(() => {
@@ -237,13 +238,16 @@ function getPricingBadge(app: AppItem): string {
               <span v-else class="text-jetblack/30 text-[10px] font-mono">—</span>
             </td>
             <td class="py-2.5 px-3">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
-                :class="app.mode === 'sandbox' ? 'bg-gold/15 text-[#8a6d1f]' : 'bg-forest/10 text-forest'"
+              <button
+                type="button"
+                @click.stop="emit('toggle-mode', app)"
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer hover:ring-2 hover:ring-gold/40 transition shadow-2xs active:scale-95"
+                :class="app.mode === 'sandbox' ? 'bg-gold/15 text-[#8a6d1f] hover:bg-gold/25' : 'bg-forest/10 text-forest hover:bg-forest/20'"
+                :title="`Klik untuk beralih ke mode ${app.mode === 'sandbox' ? 'LIVE' : 'SANDBOX'}`"
               >
                 <span class="w-1.5 h-1.5 rounded-full" :class="app.mode === 'sandbox' ? 'bg-gold' : 'bg-forest'"></span>
                 <span>{{ app.mode === 'sandbox' ? 'Sandbox' : 'Live' }}</span>
-              </span>
+              </button>
             </td>
             <td class="py-2.5 px-3 font-mono text-[11px]">
               <a

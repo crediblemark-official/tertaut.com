@@ -22,6 +22,7 @@ import TransactionsLedgerTable from '../components/checkout/TransactionsLedgerTa
 import { useClipboard } from '../composables/useClipboard'
 
 const appsList = ref<AppItem[]>([])
+const otherEnvApps = ref<AppItem[]>([])
 const selectedAppId = ref('')
 const amount = ref<number | string>(0)
 const customerEmail = ref('')
@@ -72,6 +73,13 @@ async function loadAppsAndTransactions() {
     if (appsRes.apps && appsRes.apps.length > 0) {
       selectedAppId.value = appsRes.apps[0].id
       amount.value = appsRes.apps[0].targetPrice || 0
+      otherEnvApps.value = []
+    } else {
+      try {
+        const otherMode = dashboardEnv.value === 'sandbox' ? 'live' : 'sandbox'
+        const otherRes = await api.getApps(otherMode)
+        otherEnvApps.value = otherRes.apps || []
+      } catch {}
     }
     if (!customerEmail.value) {
       try {
@@ -86,6 +94,21 @@ async function loadAppsAndTransactions() {
   }
 
   await loadTransactions()
+}
+
+async function handleMigrateApp(app: AppItem) {
+  try {
+    loading.value = true
+    disburseAlert.value = null
+    const targetMode = dashboardEnv.value === 'sandbox' ? 'sandbox' : 'live'
+    await api.updateAppMode(app.id, targetMode)
+    await loadAppsAndTransactions()
+    disburseAlert.value = `Berhasil memindahkan "${app.name}" ke mode ${targetMode.toUpperCase()}.`
+  } catch (err: any) {
+    disburseAlert.value = `Gagal mengubah mode software: ${err?.message || err}`
+  } finally {
+    loading.value = false
+  }
 }
 
 function onAppChange() {
@@ -303,9 +326,9 @@ const activeTab = ref<'generator' | 'history'>('generator')
       <div class="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-jetblack/10 border-t border-jetblack/10 pt-3.5">
         <!-- Checkout Generator Form Component -->
         <div class="lg:col-span-7 pb-4 lg:pb-0 pr-0 lg:pr-6">
-          <DynamicCheckoutForm :loading="loading" :apps-list="appsList" v-model:selected-app-id="selectedAppId"
+          <DynamicCheckoutForm :loading="loading" :apps-list="appsList" :other-env-apps="otherEnvApps" v-model:selected-app-id="selectedAppId"
             v-model:amount="amount" v-model:customer-email="customerEmail" v-model:grant-days="grantDays"
-            @app-change="onAppChange" @create-checkout="createCheckout" />
+            @app-change="onAppChange" @create-checkout="createCheckout" @migrate-app="handleMigrateApp" />
         </div>
 
         <!-- Checkout Output Card Component -->
