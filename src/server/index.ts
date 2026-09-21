@@ -273,7 +273,7 @@ if (hasBuiltClient) {
       return { error: "Not Found" };
     });
 } else {
-  // Development: Port 3001 is strictly Backend API & Swagger
+  // Development: Port 8080 is strictly Backend API & Swagger
   app.get("*", ({ request, set }) => {
     const url = new URL(request.url);
     if (url.pathname === "/") {
