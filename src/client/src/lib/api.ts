@@ -26,8 +26,9 @@ import { dashboardEnv } from './environment'
 
 /** Sisipkan filter environment dashboard (mode) ke URL endpoint data. */
 function withMode(path: string): string {
+  const mode = dashboardEnv.value === 'sandbox' ? 'sandbox' : 'live'
   const separator = path.includes('?') ? '&' : '?'
-  return `${path}${separator}mode=${dashboardEnv.value}`
+  return `${path}${separator}mode=${mode}`
 }
 
 export class ApiError extends Error {

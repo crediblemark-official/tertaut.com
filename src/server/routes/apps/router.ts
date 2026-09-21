@@ -5,7 +5,7 @@ import { handleCreateApp, handleUpdateApp, handleDeleteApp, handleUpdateMode, ha
 import { handleDisburse } from "./disburse";
 
 const modeQuery = t.Object({
-  mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
+  mode: t.Optional(t.String()),
 });
 
 const appBodySchema = t.Object({

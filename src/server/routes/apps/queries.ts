@@ -10,7 +10,7 @@ interface RequestHeadersContext {
 }
 
 interface ModeQueryContext {
-  query: { mode?: "sandbox" | "live" };
+  query: { mode?: string };
   request: { headers: Headers };
 }
 
@@ -55,7 +55,7 @@ export async function handleListApps({ query, request: { headers } }: ModeQueryC
   }
 
   const conditions: any[] = [];
-  if (query.mode) {
+  if (query?.mode === "sandbox" || query?.mode === "live") {
     conditions.push(eq(apps.mode, query.mode));
   }
   if (builder && !isAdmin) {
@@ -67,7 +67,7 @@ export async function handleListApps({ query, request: { headers } }: ModeQueryC
     orderBy: [desc(apps.createdAt)],
   });
 
-  return { apps: allApps };
+  return { success: true, apps: allApps };
 }
 
 /**
@@ -85,7 +85,7 @@ export async function handleStatsOverview({ query, request: { headers } }: ModeQ
   const { builder, isAdmin } = await resolveCurrentBuilder(headers);
 
   const appConditions: any[] = [];
-  if (query.mode) {
+  if (query?.mode === "sandbox" || query?.mode === "live") {
     appConditions.push(eq(apps.mode, query.mode));
   }
   if (builder && !isAdmin) {
@@ -152,7 +152,7 @@ export async function handleStatsCatalog({ query, request: { headers } }: ModeQu
   const { builder, isAdmin } = await resolveCurrentBuilder(headers);
 
   const appConditions: any[] = [];
-  if (query.mode) {
+  if (query?.mode === "sandbox" || query?.mode === "live") {
     appConditions.push(eq(apps.mode, query.mode));
   }
   if (builder && !isAdmin) {

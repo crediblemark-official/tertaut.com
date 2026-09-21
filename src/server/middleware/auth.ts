@@ -2,7 +2,8 @@ import { Elysia } from "elysia";
 import { auth } from "../auth";
 import { db } from "../db";
 import { builders } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { user as userTable } from "../db/schema/auth";
+import { count, eq } from "drizzle-orm";
 import type { Builder } from "../db/schema/builders";
 
 export interface AuthUser {
@@ -36,8 +37,26 @@ export async function authenticate(headers: Headers, admin = false): Promise<Aut
   const session = await resolveSession(headers);
   const user = session?.user as AuthUser | undefined;
   if (!user) return { status: 401, error: "Unauthorized" };
-  if (admin && user.role !== "admin") return { status: 403, error: "Forbidden" };
-  return { user, session: session?.session ?? null };
+
+  let isUserAdmin = user.role === "admin";
+  if (admin && !isUserAdmin) {
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (adminEmail && user.email.toLowerCase() === adminEmail.toLowerCase()) {
+      isUserAdmin = true;
+    } else {
+      try {
+        const [userCount] = await db.select({ totalUsers: count() }).from(userTable);
+        // Jika baru ada 1 user di platform (founder yang baru sign up), otomatis promosikan ke admin
+        if (userCount?.totalUsers === 1) {
+          isUserAdmin = true;
+          await db.update(userTable).set({ role: "admin" }).where(eq(userTable.id, user.id));
+        }
+      } catch {}
+    }
+  }
+
+  if (admin && !isUserAdmin) return { status: 403, error: "Forbidden" };
+  return { user: { ...user, role: isUserAdmin ? "admin" : (user.role || "user") }, session: session?.session ?? null };
 }
 
 /**
