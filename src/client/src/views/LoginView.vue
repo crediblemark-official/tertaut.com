@@ -40,7 +40,7 @@ function toggleMode(target: 'signin' | 'signup') {
 
 function redirectAfterAuth() {
   const target = (route.query.redirect as string) || '/dashboard'
-  router.replace(target.startsWith('/') ? target : '/dashboard')
+  window.location.href = target.startsWith('/') ? target : '/dashboard'
 }
 
 async function submit() {

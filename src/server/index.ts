@@ -210,11 +210,19 @@ export const app = new Elysia()
   )
 
   // Better Auth handler (sign-in/up, session) di /api/auth/*
-  .all("/api/auth/*", async ({ request }) => {
+  .get("/api/auth/*", async ({ request }) => {
+    try {
+      return await auth.handler(request);
+    } catch (err: any) {
+      console.error(`[Auth Exception] GET ${request.url}:`, err?.message || err);
+      throw err;
+    }
+  })
+  .post("/api/auth/*", async ({ request }) => {
     try {
       const res = await auth.handler(request);
       if (res.status >= 500) {
-        console.error(`[Auth] ${request.method} ${request.url} failed with status ${res.status}`);
+        console.error(`[Auth] POST ${request.url} failed with status ${res.status}`);
         try {
           const clone = res.clone();
           const body = await clone.text();
@@ -222,6 +230,14 @@ export const app = new Elysia()
         } catch {}
       }
       return res;
+    } catch (err: any) {
+      console.error(`[Auth Exception] POST ${request.url}:`, err?.message || err);
+      throw err;
+    }
+  })
+  .all("/api/auth/*", async ({ request }) => {
+    try {
+      return await auth.handler(request);
     } catch (err: any) {
       console.error(`[Auth Exception] ${request.method} ${request.url}:`, err?.message || err);
       throw err;
@@ -266,6 +282,10 @@ if (hasBuiltClient) {
     // SPA fallback
     .get("*", ({ request, set }) => {
       const url = new URL(request.url);
+      if (url.pathname.startsWith("/api/")) {
+        set.status = 404;
+        return { error: `Endpoint API ${url.pathname} tidak ditemukan` };
+      }
       const decodedPath = decodeURIComponent(url.pathname);
       // Sanitize path traversal attempts
       const safePath = decodedPath.replace(/\.\.+[/\\]/g, "");
@@ -292,6 +312,10 @@ if (hasBuiltClient) {
   // Development: Port 8081 is strictly Backend API & Swagger
   app.get("*", ({ request, set }) => {
     const url = new URL(request.url);
+    if (url.pathname.startsWith("/api/")) {
+      set.status = 404;
+      return { error: `Endpoint API ${url.pathname} tidak ditemukan` };
+    }
     if (url.pathname === "/") {
       return {
         service: "tertaut.com Engine Backend API",

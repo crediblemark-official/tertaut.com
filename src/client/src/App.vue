@@ -13,12 +13,27 @@ const router = useRouter()
 const env = dashboardEnv
 
 const authSession = authClient.useSession()
-const authUser = computed(() => authSession.value?.data?.user)
+const fallbackUser = ref<{ name?: string; email?: string } | null>(null)
+const authUser = computed(() => authSession.value?.data?.user || fallbackUser.value)
 const authInitial = computed(() => (authUser.value?.name || authUser.value?.email || 'B').charAt(0).toUpperCase())
+
+async function ensureAuthUser() {
+  if (authSession.value?.data?.user) return
+  try {
+    const res = await api.getBuilderMyself()
+    if (res?.builder) {
+      fallbackUser.value = {
+        name: res.builder.name,
+        email: res.builder.email,
+      }
+    }
+  } catch {}
+}
 
 async function handleLogout() {
   try { await authClient.signOut() } catch {}
-  router.push('/login')
+  fallbackUser.value = null
+  window.location.href = '/login'
 }
 
 const isStandaloneLayout = computed(() => !!route.meta.public || !!route.meta.standalone || route.path.startsWith('/panel'))
@@ -79,14 +94,20 @@ function loadSidebarBadges() {
 
 watch(() => route.path, (path) => {
   isMobileMoreOpen.value = false
-  if (path.startsWith('/dashboard')) loadSidebarBadges()
+  if (path.startsWith('/dashboard')) {
+    loadSidebarBadges()
+    ensureAuthUser()
+  }
 })
 
 function onCouponsChanged() { loadActiveCouponCount() }
 function onLicensesChanged() { loadActiveLicenseCount() }
 
 onMounted(() => {
-  if (route.path.startsWith('/dashboard')) loadSidebarBadges()
+  if (route.path.startsWith('/dashboard')) {
+    loadSidebarBadges()
+    ensureAuthUser()
+  }
   window.addEventListener('tertaut:coupons-changed', onCouponsChanged)
   window.addEventListener('tertaut:licenses-changed', onLicensesChanged)
 })
