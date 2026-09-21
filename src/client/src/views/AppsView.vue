@@ -56,6 +56,16 @@ async function handleCreated() {
   await loadData()
 }
 
+async function handleToggleMode(app: AppItem) {
+  const newMode = app.mode === 'sandbox' ? 'live' : 'sandbox'
+  try {
+    await api.updateAppMode(app.id, newMode)
+    await loadData()
+  } catch (err: any) {
+    alert('Gagal mengubah mode software: ' + (err?.message || err))
+  }
+}
+
 onMounted(() => loadData())
 watch(dashboardEnv, () => {
   loadData()
@@ -72,6 +82,7 @@ watch(dashboardEnv, () => {
       :search-query="searchQuery"
       @update:search-query="searchQuery = $event"
       @open-create="openCreatePage"
+      @toggle-mode="handleToggleMode"
     />
 
     <AppCreateForm
