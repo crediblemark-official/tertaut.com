@@ -10,6 +10,10 @@ const trustedOrigins = [
   "http://127.0.0.1:5173",
   "http://localhost:8081",
   "http://127.0.0.1:8081",
+  "https://tertaut.com",
+  "http://tertaut.com",
+  "https://*.tertaut.com",
+  "http://*.tertaut.com",
   config.publicAppUrl,
   config.publicStoreUrl,
 ].filter(Boolean);
@@ -33,6 +37,7 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24, // refresh harian
   },
   advanced: {
+    trustedProxyHeaders: true,
     // Jangan pakai Secure/__Secure- cookie di development (proxy http localhost).
     useSecureCookies: config.isProd,
     defaultCookieAttributes: {

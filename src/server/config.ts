@@ -138,6 +138,7 @@ export const config = {
     const envUrl = getEnv("PUBLIC_APP_URL");
     if (envUrl) return envUrl;
     if (dynamicAppUrl) return dynamicAppUrl;
+    if (isProd) return "https://tertaut.com";
     return `http://localhost:${resolvedPort}`;
   },
   set publicAppUrl(url: string) {

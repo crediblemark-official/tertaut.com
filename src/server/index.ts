@@ -87,7 +87,7 @@ export const app = new Elysia()
         const allowedPatterns = [
           /^https?:\/\/localhost(:\d+)?$/,
           /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
-          /\.tertaut\.com$/,
+          /(https?:\/\/|\.)tertaut\.com(:[0-9]+)?$/,
           /\.ngrok-free\.app$/,
         ];
         if (config.publicAppUrl) {
