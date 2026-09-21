@@ -5,7 +5,7 @@ export default defineConfig({
   description: "Developer documentation untuk tertaut.com Engine — Monetization, Licensing, AI Protection & Validation",
   lang: "id-ID",
   base: "/docs/",
-  lastUpdated: true,
+  lastUpdated: false,
   themeConfig: {
     logo: "/docs/brand.svg",
     nav: [
