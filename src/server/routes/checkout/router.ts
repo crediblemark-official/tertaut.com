@@ -1,19 +1,20 @@
 import { Elysia, t } from "elysia";
 import { authenticate } from "../../middleware/auth";
-import { handleXenditInvoiceWebhook } from "../webhook/xendit";
 import { handleDanaFinishPaymentWebhook } from "../webhook/dana";
-import { webhookSchema, danaWebhookSchema } from "../webhook/schemas";
+import { danaWebhookSchema } from "../webhook/schemas";
 import { handleCreateSession } from "./session";
 import {
   handleDanaFinish,
+  handleGetPaymentStatus,
+  handleConsultPay,
   handlePreviewCoupon,
   handleListTransactions,
   handleDisburseTx,
   handleSimulatePaid,
 } from "./handlers";
 
-/** Endpoint checkout yang memang harus publik (webhook, buat sesi, preview kupon, redirect DANA). */
-const PUBLIC_CHECKOUT_PATHS = ["webhook", "/session", "preview-coupon", "dana/finish"];
+/** Endpoint checkout yang memang harus publik (webhook, buat sesi, preview kupon, redirect DANA, polling status). */
+const PUBLIC_CHECKOUT_PATHS = ["webhook", "/session", "preview-coupon", "dana/finish", "/status", "consult-pay", "simulate-paid"];
 
 export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
   // Dashboard-only: /transactions, /disburse/:txId, /simulate-paid/:txId
@@ -23,16 +24,12 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
     if ("status" in res) return status(res.status, { error: res.error });
   })
   /**
-   * PRD 7.1 B: Webhook Xendit Invoice Callback
-   */
-  .post("/webhook/xendit", handleXenditInvoiceWebhook, webhookSchema)
-  /**
    * Webhook DANA Finish Payment Callback
    */
   .post("/webhook/dana", handleDanaFinishPaymentWebhook, danaWebhookSchema)
   .post("/webhook/dana/finish-payment", handleDanaFinishPaymentWebhook, danaWebhookSchema)
   /**
-   * Pemicu Dynamic & Headless Checkout Link
+   * Pemicu Dynamic & Headless Checkout Link (Gapura Custom & Hosted)
    */
   .post("/session", handleCreateSession, {
     body: t.Object({
@@ -40,7 +37,11 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
       appSlug: t.Optional(t.String()),
       slug: t.Optional(t.String()),
       paymentGateway: t.Optional(t.String()),
+      scenario: t.Optional(t.Union([t.Literal("API"), t.Literal("REDIRECT")])),
       paymentRail: t.Optional(t.Union([t.Literal("qris"), t.Literal("va"), t.Literal("ewallet")])),
+      preferredPaymentChannel: t.Optional(t.String()),
+      vaBank: t.Optional(t.String()),
+      bank: t.Optional(t.String()),
       amount: t.Optional(t.Number({ minimum: 1000 })),
       customAmount: t.Optional(t.Number({ minimum: 1000 })),
       customerEmail: t.Optional(t.String()),
@@ -55,7 +56,27 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
     detail: {
       tags: ["MoR Checkout"],
       summary: "Create Dynamic Checkout Session",
-      description: "Creates a dynamic invoice session (Xendit / DANA) with 5% MoR platform fee auto-deducted",
+      description: "Creates a dynamic invoice session (DANA Gapura) with 5% MoR platform fee auto-deducted",
+    },
+  })
+  /**
+   * Cek status pembayaran real-time (Polling untuk Gapura Custom Checkout)
+   */
+  .get("/status/:txId", handleGetPaymentStatus, {
+    params: t.Object({ txId: t.String() }),
+    detail: {
+      tags: ["MoR Checkout"],
+      summary: "Get Payment Status",
+    },
+  })
+  /**
+   * Konsultasi opsi pembayaran DANA aktif
+   */
+  .get("/consult-pay", handleConsultPay, {
+    query: t.Object({ amount: t.Optional(t.Numeric()) }),
+    detail: {
+      tags: ["MoR Checkout"],
+      summary: "Consult Payment Options",
     },
   })
   /**

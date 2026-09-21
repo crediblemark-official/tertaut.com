@@ -10,7 +10,6 @@ import { enforceRateLimit, resetRateLimits } from "../../services/rateLimiter";
 import { LicenseLeaseService } from "../../services/licenseLease";
 import { LicenseService } from "../../services/license";
 import { DanaService } from "../../services/dana";
-import { handleXenditInvoiceWebhook, handleXenditDisbursementWebhook } from "../../routes/webhook/xendit";
 import { handleListSeats, handleHeartbeat, handleVerifyLicense } from "../../routes/licensing/device";
 import { handleListEvents, handleListLicenses, handleListWebhooks, handleCreateWebhook } from "../../routes/licensing/admin";
 import { handleBatchPayout } from "../../routes/panel/payouts";
@@ -251,52 +250,7 @@ describe("Coverage Booster: Licensing Admin Events & Scoping", () => {
   });
 });
 
-describe("Coverage Booster: Webhook Xendit & Panel Payouts Edges", () => {
-  it("handleXenditInvoiceWebhook: negative edge cases (missing ids, invalid token, not found)", async () => {
-    const { config } = await import("../../config");
-    const origToken = config.xendit.webhookToken;
-    config.xendit.webhookToken = "test_valid_webhook_token";
-
-    const set: any = {};
-    const invalidToken = await handleXenditInvoiceWebhook({
-      headers: { "x-callback-token": "wrong_token" },
-      body: {},
-      set,
-    });
-    expect(set.status).toBe(401);
-
-    const missingId = await handleXenditInvoiceWebhook({
-      headers: { "x-callback-token": "test_valid_webhook_token" },
-      body: {},
-      set,
-    });
-    expect(set.status).toBe(400);
-
-    const notFound = await handleXenditInvoiceWebhook({
-      headers: { "x-callback-token": "test_valid_webhook_token" },
-      body: { external_id: "tx_nonexistent_xyz" },
-      set,
-    });
-    expect(set.status).toBe(404);
-
-    // handleXenditDisbursementWebhook missing id
-    const disbMissing = await handleXenditDisbursementWebhook({
-      headers: { "x-callback-token": "test_valid_webhook_token" },
-      body: {},
-      set,
-    });
-    expect(set.status).toBe(400);
-
-    const disbNotFound = await handleXenditDisbursementWebhook({
-      headers: { "x-callback-token": "test_valid_webhook_token" },
-      body: { id: "disb_fake_xyz" },
-      set,
-    });
-    expect(set.status).toBe(404);
-
-    config.xendit.webhookToken = origToken;
-  });
-
+describe("Coverage Booster: Panel Payouts Edges", () => {
   it("handleBatchPayout: returns message when no pending transactions exist", async () => {
     const res = await handleBatchPayout();
     expect(res.success).toBe(true);
@@ -373,11 +327,11 @@ describe("Coverage Booster: DanaService Live Signing & Disbursements", () => {
           acquirementId: "ACQ_123",
         }), { status: 200, headers: { "Content-Type": "application/json" } }));
       }
-      if (url.includes("transferToBank")) {
+      if (url.includes("transfer-bank") || url.includes("transferToBank")) {
         return Promise.resolve(new Response(JSON.stringify({
-          responseCode: "2000000",
-          responseMessage: "Success",
-          acquirementId: "DISB_ACQ_123",
+          responseCode: "2004300",
+          responseMessage: "Successful",
+          referenceNo: "DISB_ACQ_123",
         }), { status: 200, headers: { "Content-Type": "application/json" } }));
       }
       return originalFetch(input, init);

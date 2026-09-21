@@ -214,7 +214,7 @@ onMounted(() => {
                   MoR Core
                 </span>
               </div>
-              <span class="text-xs text-jetblack/50 font-mono">Xendit Rail • 5% Platform MoR Cut</span>
+              <span class="text-xs text-jetblack/50 font-mono">DANA Enterprise Rail • 5% Platform MoR Cut</span>
             </div>
 
             <!-- Macro Platform KPI Cards Component -->

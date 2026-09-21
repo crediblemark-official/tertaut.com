@@ -64,8 +64,8 @@ export async function handleDisburse({ params: { transactionId }, set, request: 
     where: eq(builders.id, tx.builderId),
   });
 
-  const { XenditService } = await import("../../services/xendit");
-  const recipient = XenditService.resolveDisbursementAccount(builder);
+  const { DanaService } = await import("../../services/dana");
+  const recipient = DanaService.resolveDisbursementAccount(builder);
 
   // Production TANPA rekening tersimpan → tolak pencairan (jangan pakai data palsu)
   if (!recipient) {
@@ -77,11 +77,11 @@ export async function handleDisburse({ params: { transactionId }, set, request: 
   }
 
   try {
-    const payoutResult = await XenditService.createDisbursement({
+    const payoutResult = await DanaService.createDisbursement({
       externalId: `disb_${tx.id}_${Date.now()}`,
       amount: tx.netAmount,
       ...recipient,
-      description: `Pencairan 95% Net Transaksi ${tx.id}`,
+      description: `Pencairan 95% Net Transaksi ${tx.id} (DANA)`,
     });
 
     const finalStatus =

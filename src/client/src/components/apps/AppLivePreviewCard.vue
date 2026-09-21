@@ -81,7 +81,7 @@ const emit = defineEmits<{
             {{ pricingType === 'subscription' ? billingPeriodDisplay : (pricingType === 'free' ? 'Akses Gratis' : 'Sekali Bayar') }}
           </span>
         </div>
-        <p class="text-[10px] text-jetblack/50">Barang digital &amp; SaaS · MoR DANA/Xendit</p>
+        <p class="text-[10px] text-jetblack/50">Barang digital &amp; SaaS · MoR DANA Enterprise</p>
 
         <div
           v-if="pricingType === 'subscription' && hasTrialPeriod"

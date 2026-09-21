@@ -6,7 +6,7 @@ import { db } from "../../db";
 import { apps, licenses, transactions, creditLedger } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { config } from "../../config";
-import { handleXenditInvoiceWebhook } from "../../routes/webhook/xendit";
+import { handleDanaFinishPaymentWebhook } from "../../routes/webhook/dana";
 
 setupTestAuth();
 
@@ -34,9 +34,9 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
     });
 
     try {
-      const result: any = await handleXenditInvoiceWebhook({
-        headers: { "x-callback-token": config.xendit.webhookToken || "" },
-        body: { id: `inv_${txId}`, external_id: extId, status: "PAID", payment_method: "QRIS" },
+      const result: any = await handleDanaFinishPaymentWebhook({
+        headers: {},
+        body: { partnerReferenceNo: extId, status: "PAID" },
         set: {},
       });
 
@@ -109,9 +109,9 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
     });
 
     try {
-      const result: any = await handleXenditInvoiceWebhook({
-        headers: { "x-callback-token": config.xendit.webhookToken || "" },
-        body: { id: `inv_${txId}`, external_id: extId, status: "PAID", payment_method: "QRIS" },
+      const result: any = await handleDanaFinishPaymentWebhook({
+        headers: {},
+        body: { partnerReferenceNo: extId, status: "PAID" },
         set: {},
       });
 

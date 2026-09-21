@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { CryptoService } from "../../services/crypto";
 import { LicenseService } from "../../services/license";
 import { LicenseTokenService } from "../../services/licenseToken";
-import { XenditService } from "../../services/xendit";
+import { DanaService } from "../../services/dana";
 
 describe("CryptoService (AES-256-GCM & JWT Tokens)", () => {
   it("should encrypt and decrypt string accurately using AES-256-GCM", () => {
@@ -61,23 +61,23 @@ describe("LicenseService (Anti-Piracy & Key Generator)", () => {
   });
 });
 
-describe("XenditService (Merchant of Record Fee Breakdown)", () => {
+describe("DanaService (Merchant of Record Fee Breakdown)", () => {
   it("should calculate exactly 5% platform fee and 95% net payout", () => {
-    const breakdown = XenditService.calculateMorBreakdown(100000);
+    const breakdown = DanaService.calculateMorBreakdown(100000);
     expect(breakdown.grossAmount).toBe(100000);
     expect(breakdown.platformFee).toBe(5000);
     expect(breakdown.netAmount).toBe(95000);
   });
 
   it("should accurately handle odd amounts with rounding", () => {
-    const breakdown = XenditService.calculateMorBreakdown(49000);
+    const breakdown = DanaService.calculateMorBreakdown(49000);
     expect(breakdown.grossAmount).toBe(49000);
     expect(breakdown.platformFee).toBe(2450);
     expect(breakdown.netAmount).toBe(46550);
   });
 
   it("should process disbursement calculation with correct parameters", async () => {
-    const disb = await XenditService.createDisbursement({
+    const disb = await DanaService.createDisbursement({
       externalId: `test_disb_${Date.now()}`,
       amount: 46550,
       bankCode: "BCA",

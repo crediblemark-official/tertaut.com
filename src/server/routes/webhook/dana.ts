@@ -72,6 +72,7 @@ export async function handleDanaFinishPaymentWebhook({ request, headers, body, s
 
   // Ekstrak identifier order (mendukung standar DANA Enterprise & SNAP BI)
   const externalId =
+    data?.partnerReferenceNo ||
     data?.merchantTransId ||
     data?.order?.merchantTransId ||
     data?.originalPartnerReferenceNo ||

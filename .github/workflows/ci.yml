@@ -80,4 +80,4 @@ jobs:
         run: bun run db:seed
 
       - name: Run Test Suite
-        run: bun test
+        run: bun run test

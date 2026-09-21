@@ -5,7 +5,6 @@ import { builders, apps, transactions } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
 import { DanaService } from "../../services/dana";
-import { XenditService } from "../../services/xendit";
 import { config } from "../../config";
 import crypto from "crypto";
 

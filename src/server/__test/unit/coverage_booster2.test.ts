@@ -13,7 +13,6 @@ import {
 } from "../../db/schema";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
 import { LicenseService } from "../../services/license";
-import { XenditService } from "../../services/xendit";
 import { DanaService } from "../../services/dana";
 import { LaunchService } from "../../services/launchService";
 import { handleDisburse } from "../../routes/apps/disburse";
@@ -507,53 +506,10 @@ describe("Coverage Booster2: services/launchService.ts", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 //  services/xendit.ts — verifyWebhook (lines 135-136, 210-211)
 // ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster2: services/xendit.ts", () => {
-  it("verifyWebhook: returns false for wrong token in non-sandbox mode", async () => {
-    const { config } = await import("../../config");
-    const orig = config.xendit.webhookToken;
-    const origSandbox = config.isSandbox;
-    config.xendit.webhookToken = "real_token";
-    (config as any).isSandbox = false;
-
-    const result = XenditService.verifyWebhook("wrong_token");
-    expect(result).toBe(false);
-
-    config.xendit.webhookToken = orig;
-    (config as any).isSandbox = origSandbox;
-  });
-
-  it("verifyWebhook: when no webhookToken in production → returns false", async () => {
-    const { config } = await import("../../config");
-    const orig = config.xendit.webhookToken;
-    const origSandbox = config.isSandbox;
-    config.xendit.webhookToken = "";
-    (config as any).isSandbox = false;
-
-    const result = XenditService.verifyWebhook("any_token");
-    expect(result).toBe(false);
-
-    config.xendit.webhookToken = orig;
-    (config as any).isSandbox = origSandbox;
-  });
-
-  it("verifyWebhook: when no webhookToken in sandbox → returns true (dev bypass)", async () => {
-    const { config } = await import("../../config");
-    const orig = config.xendit.webhookToken;
-    const origSandbox = config.isSandbox;
-    config.xendit.webhookToken = "";
-    (config as any).isSandbox = true;
-
-    const result = XenditService.verifyWebhook("any_token");
-    expect(result).toBe(true);
-
-    config.xendit.webhookToken = orig;
-    (config as any).isSandbox = origSandbox;
-  });
-
+describe("Coverage Booster2: services/dana.ts resolveDisbursementAccount", () => {
   it("resolveDisbursementAccount: returns sandbox fallback in test env (not null)", async () => {
-    // In test (sandbox) mode, resolveDisbursementAccount always returns a mock account
-    const account = XenditService.resolveDisbursementAccount(undefined);
-    // sandbox mode → returns BCA fallback, not null
+    // In test (sandbox) mode, resolveDisbursementAccount returns a mock account
+    const account = DanaService.resolveDisbursementAccount(undefined);
     expect(account).toBeDefined();
     expect(account?.bankCode).toBe("BCA");
   });
@@ -563,7 +519,7 @@ describe("Coverage Booster2: services/xendit.ts", () => {
     const origSandbox = config.isSandbox;
     (config as any).isSandbox = false;
 
-    const account = XenditService.resolveDisbursementAccount(undefined);
+    const account = DanaService.resolveDisbursementAccount(undefined);
     expect(account).toBeNull();
 
     (config as any).isSandbox = origSandbox;

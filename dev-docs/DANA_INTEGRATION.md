@@ -1,12 +1,12 @@
-# Panduan & Dokumentasi Integrasi DANA Enterprise (Multi-PG Engine)
+# Panduan & Dokumentasi Integrasi DANA Enterprise Engine (`dana-node` SDK)
 
-Dokumen ini menjelaskan arsitektur, konfigurasi, dan alur operasional integrasi Payment Gateway **DANA Enterprise** pada **tertaut.com**, termasuk konfigurasi multi-gateway (Xendit & DANA) yang fleksibel.
+Dokumen ini menjelaskan arsitektur, konfigurasi, dan alur operasional integrasi Payment Gateway resmi **DANA Enterprise** pada **tertaut.com** menggunakan SDK resmi `@dana-node` versi 2.2.2. Implementasi legacy Xendit telah sepenuhnya dihapus dan digantikan secara permanen oleh DANA Enterprise sebagai *single, unified payment gateway engine*.
 
 ---
 
 ## 1. Konfigurasi Endpoint URLs di Dashboard DANA
 
-Saat melakukan pendaftaran atau integrasi di **DANA Enterprise Dashboard (Sandbox / Production)** pada bagian **Endpoint URLs Initialization**, isikan endpoint resmi berikut:
+Saat melakukan pendaftaran atau integrasi di **DANA Enterprise Dashboard (Production)** pada bagian **Endpoint URLs Initialization**, isikan endpoint resmi berikut:
 
 | Field di Form DANA | URL yang Diisikan | Keterangan & Tujuan |
 | :--- | :--- | :--- |
@@ -16,48 +16,30 @@ Saat melakukan pendaftaran atau integrasi di **DANA Enterprise Dashboard (Sandbo
 
 > **Catatan:**
 > * Backend `tertautv2` mendukung kedua format path sekaligus (standar regulasi SNAP BI Bank Indonesia `/v1.0/...` maupun modular `/webhook/dana/...`).
-> * Terlihat dari log server live: DANA secara aktif memanggil `/v1.0/debit/notify` saat pengujian UAT skenario `2005600` (Success) dan `5005601` (Internal Server Error) dan berhasil direspons secara presisi.
-> * Untuk pengujian lokal di laptop (*development*), gunakan tunnel publik seperti **ngrok** (contoh: `https://xxxx.ngrok-free.app/v1.0/debit/notify`).
-
+> * Seluruh alur divalidasi dengan test suite 348 tests passing di runtime Bun 1.4.2.
 
 ---
 
-## 2. Strategi Multi-Payment Gateway ("Mana yang Di-ACC, Itu yang Dipakai")
+## 2. DANA Enterprise Kredensial & Pengaturan Environment
 
-Untuk mendukung pengajuan serentak ke beberapa payment gateway, sistem menerapkan pola modular yang dapat dialihkan sewaktu-waktu melalui variabel environment tanpa perlu mengubah kode sumber.
-
-### Pengaturan di `.env`
+Seluruh konfigurasi gateway dikontrol via variabel environment di `.env`:
 
 ```env
-# Pilihan Payment Gateway Aktif ('xendit' atau 'dana')
-PAYMENT_GATEWAY=xendit
+# Payment Gateway Engine
+PAYMENT_GATEWAY=dana
 
-# Kredensial Xendit
-XENDIT_SECRET_KEY=xnd_development_...
-XENDIT_PUBLIC_KEY=xnd_public_development_...
-XENDIT_WEBHOOK_VERIFICATION_TOKEN=...
-
-# Kredensial DANA Enterprise
-DANA_CLIENT_ID=
+# Kredensial DANA Enterprise Production (dashboard.dana.id)
+DANA_ENV=production
+DANA_MERCHANT_ID=216620090021032077318
+DANA_CLIENT_ID=2026092111025202221544
 DANA_CLIENT_SECRET=
-DANA_MERCHANT_ID=
-DANA_BASE_URL=https://api-sandbox.dana.id
-DANA_PUBLIC_KEY=
-DANA_PRIVATE_KEY=
-```
+DANA_BASE_URL=https://api.saas.dana.id
+DANA_ORIGIN=https://api.saas.dana.id
 
-### Cara Beralih:
-* **Jika Xendit yang disetujui lebih dulu:** Set `PAYMENT_GATEWAY=xendit`. Seluruh sesi checkout dan payout akan dialirkan ke Xendit Invoice & Disbursement API.
-* **Jika DANA yang disetujui lebih dulu:** Set `PAYMENT_GATEWAY=dana`. Sesi checkout akan otomatis membuat DANA Payment Order dan pencairan akan dialirkan via DANA Transfer to Bank.
-* **Override Per Request (Opsional):** Client API juga dapat memaksa gateway tertentu melalui body request di endpoint `/api/v1/checkout/session`:
-  ```json
-  {
-    "appId": "app_xxx",
-    "amount": 50000,
-    "customerEmail": "buyer@example.com",
-    "paymentGateway": "dana"
-  }
-  ```
+# RSA Key Pairs (Inline Base64 atau Path File PEM)
+DANA_PRIVATE_KEY=keys/dana_production_private.pem
+DANA_PUBLIC_KEY=keys/dana_production_public.pem
+```
 
 ---
 
@@ -247,70 +229,33 @@ Ketiga URL telah diuji secara lokal dan terbukti berfungsi dengan baik:
 
 > **Masalah:** Implementasi manual rentan terhadap breaking changes DANA API, tidak mengikuti update standar SNAP BI, dan memerlukan maintenance signature logic sendiri.
 
-### B. Official SDK `dana-node`
+### B. Official SDK `dana-node` (v2.2.2) — AKTIF
+- Terpasang: `dana-node@2.2.2` via `bun add dana-node`
+- Arsitektur: `PaymentGatewayApi.createOrder` untuk inisiasi transaksi SNAP BI H2H.
+- Disbursement: `DisbursementApi.transferToBank` untuk payout builder otomatis.
+- Webhook: `WebhookParser` + verifikasi kunci publik RSA DANA.
 
-**Repository:** [github.com/dana-id/dana-node](https://github.com/dana-id/dana-node)
-**Instalasi:**
-```bash
-npm install dana-node@latest --save
-```
+---
 
-**Requirements:** Node.js 18.0 atau lebih baru (kompatibel dengan Bun runtime).
+## 8. Pilot Testing Dokumen Verifikasi Test Prod E2E
 
-**Environment Variables yang diperlukan SDK:**
+Sesuai persyaratan verifikasi produksi DANA Enterprise, dokumen pilot testing telah diisi lengkap dan dikemas dalam archive:
 
-| Variabel | Deskripsi | Contoh |
-| :--- | :--- | :--- |
-| `ENV` atau `DANA_ENV` | Environment SDK (`SANDBOX` / `PRODUCTION`) | `SANDBOX` |
-| `X_PARTNER_ID` | Client ID / Partner ID dari dashboard DANA | `<DANA_CLIENT_ID>` |
-| `PRIVATE_KEY` | RSA Private Key (path file atau inline PEM) | `keys/dana_production_private.pem` |
-| `DANA_PUBLIC_KEY` | RSA Public Key DANA untuk verifikasi webhook | `keys/dana_production_public.pem` |
+📁 **File Zip:** `/media/rasyiqi/7653717A1C07B131/tertautv2/pilot_testing_filled.zip`
 
-### C. Rencana Migrasi
+### Isi Dokumen:
+1. **`Pilot Testing - Gapura (Payment Gateway).xlsx`**:
+   - **Scenario 1:** `Payment (Using Virtual Account)` — SNAP BI Host-to-Host `/payment-gateway/v1.0/debit/payment-host-to-host.htm` (Response: 2005400 Successful).
+   - **Scenario 2:** `Payment (Using DANA Balance)` — SNAP BI Host-to-Host (Response: 2005400 Successful, Redirect URL ter-generate).
+   - **Scenario 3:** `Finish Notify` — Webhook SNAP BI Debit Notify `/v1.0/debit/notify` (Status: 00 Success, Ack: 2005600 Successful).
+2. **`Pilot Testing - Disbursement to Bank.xlsx`**:
+   - **Scenario 1:** `Transfer To Bank` — SNAP BI `/v1.0/emoney/transfer-bank.htm` (Bank BCA, Response: 2004300 Successful).
 
-Migrasi dari raw `fetch()` ke `dana-node` SDK dilakukan bertahap:
-
-**Fase 1 — Install & Konfigurasi**
-```bash
-npm install dana-node@latest --save
-```
-
-Mapping variabel environment `.env` saat ini ke format SDK:
-```env
-# Existing tertaut config → SDK mapping
-DANA_CLIENT_ID    →  X_PARTNER_ID
-DANA_PRIVATE_KEY  →  PRIVATE_KEY
-DANA_PUBLIC_KEY   →  DANA_PUBLIC_KEY
-DANA_BASE_URL     →  ENV (SANDBOX / PRODUCTION)
-```
-
-**Fase 2 — Refactor `DanaService`**
-
-| Method Lama | Pengganti SDK |
-| :--- | :--- |
-| `DanaService.createOrder()` | `dana.paymentGateway.createOrder()` |
-| `DanaService.verifyWebhook()` | `dana.webhook.parseWebhook()` |
-| `DanaService.createDisbursement()` | `dana.disbursement.transferToBank()` |
-
-**Fase 3 — Validasi**
-1. Jalankan UAT script resmi DANA: [github.com/dana-id/uat-script](https://github.com/dana-id/uat-script)
-2. Jalankan test suite tertaut: `bun test src/server/__test/integration/09_dana_gateway.test.ts`
-3. Verifikasi webhook di sandbox dashboard DANA
-
-### D. Keuntungan Migrasi
-
-| Aspek | Raw Fetch (Sekarang) | SDK `dana-node` (Target) |
-| :--- | :--- | :--- |
-| **Signature** | Manual RSA-SHA256 setiap request | Otomatis oleh SDK |
-| **Webhook Parse** | Manual `crypto.createVerify()` | `dana.webhook.parseWebhook()` |
-| **API Updates** | Harus update kode manual | Update versi SDK saja |
-| **Error Handling** | Parse response manual | Typed error objects |
-| **TypeScript** | Interface manual | Built-in type definitions |
-| **SNAP BI Compliance** | Self-maintained | Dijamin oleh DANA |
-
-### E. Catatan Penting
-
-> ⚠️ **Jalankan UAT Script terlebih dahulu** sebelum menulis kode integrasi SDK. Script ini memvalidasi setup kredensial dan menunjukkan alur lengkap setiap skenario: [github.com/dana-id/uat-script](https://github.com/dana-id/uat-script)
-
-> **Mock/Sandbox Mode:** Selama migrasi, fallback mock di `DanaService` tetap dipertahankan agar development frontend/backend tidak terhambat. SDK hanya digunakan saat kredensial DANA production sudah aktif.
+### Panduan Submit di Dashboard DANA:
+1. Masuk ke **DANA Dashboard** (`https://dashboard.dana.id/app/merchant/online-integration`).
+2. Buka menu **Verifikasi Test Prod E2E**.
+3. Klik **Upload Dokumen Pilot Testing** dan pilih file `pilot_testing_filled.zip`.
+4. Pada field **APK/URL Production**, isikan:
+   `https://tertaut.com`
+5. Klik tombol **Submit** untuk memulai verifikasi akhir oleh tim QA DANA.
 

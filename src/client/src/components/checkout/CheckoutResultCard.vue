@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CreditCard, CheckCircle2, ExternalLink, Copy, Check } from 'lucide-vue-next'
+import { CreditCard, CheckCircle2, ExternalLink, Copy, Check, QrCode, Building } from 'lucide-vue-next'
 import { formatRupiah } from '../../lib/utils'
 import { useClipboard } from '../../composables/useClipboard'
 
@@ -8,6 +8,11 @@ defineProps<{
     success: boolean
     checkoutUrl?: string
     transactionId?: string
+    scenario?: string
+    paymentRail?: string
+    paymentCode?: string
+    qrDataUrl?: string
+    vaBank?: string
     amount?: number
     platformFee?: number
     netDisbursementAmount?: number
@@ -15,6 +20,7 @@ defineProps<{
 }>()
 
 const { copied, copy } = useClipboard()
+const { copied: copiedCode, copy: copyCode } = useClipboard()
 </script>
 
 <template>
@@ -47,13 +53,42 @@ const { copied, copy } = useClipboard()
           </div>
         </div>
 
+        <!-- Custom Checkout Details (QRIS / VA) -->
+        <div v-if="checkoutResult.paymentRail === 'qris' && checkoutResult.qrDataUrl"
+          class="p-2.5 bg-white/5 rounded-lg flex items-center gap-3">
+          <img :src="checkoutResult.qrDataUrl" alt="QRIS" class="w-16 h-16 rounded bg-white p-1 shrink-0" />
+          <div class="space-y-0.5 overflow-hidden">
+            <span class="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+              <QrCode class="w-3 h-3" /> QRIS DANA Siap
+            </span>
+            <p class="text-[10px] text-white/70">Pembeli dapat scan langsung di halaman /pay.</p>
+          </div>
+        </div>
+
+        <div v-else-if="checkoutResult.paymentRail === 'va' && checkoutResult.paymentCode"
+          class="p-2 bg-white/5 rounded-lg space-y-1">
+          <div class="flex items-center justify-between text-[10px]">
+            <span class="text-white/60 flex items-center gap-1">
+              <Building class="w-3 h-3 text-cyan-400" /> VA {{ checkoutResult.vaBank || 'Bank' }}
+            </span>
+            <button @click="copyCode(checkoutResult.paymentCode || '')" type="button"
+              class="text-gold hover:text-gold-light flex items-center gap-1 font-semibold cursor-pointer">
+              <component :is="copiedCode ? Check : Copy" class="w-3 h-3" />
+              <span>{{ copiedCode ? 'Tersalin' : 'Salin VA' }}</span>
+            </button>
+          </div>
+          <div class="font-mono font-bold text-xs text-white tracking-wider">
+            {{ checkoutResult.paymentCode }}
+          </div>
+        </div>
+
         <div class="pt-1 flex items-center gap-2">
           <a
             :href="checkoutResult.checkoutUrl"
             target="_blank"
             class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold text-jetblack font-bold text-xs hover:bg-gold/90 transition shadow-xs"
           >
-            <span>Buka Paywall Xendit</span>
+            <span>Buka Halaman Checkout</span>
             <ExternalLink class="w-3 h-3" />
           </a>
 
@@ -71,7 +106,7 @@ const { copied, copy } = useClipboard()
       </div>
 
       <p class="text-[10px] text-jetblack/55 leading-relaxed">
-        Pembeli akan memilih channel (QRIS, VA, E-Wallet). Webhook otomatis menerbitkan lisensi &amp; mencatat saldo siap cair.
+        DANA Gapura Custom Checkout siap memproses transaksi. Webhook otomatis menerbitkan lisensi &amp; mencatat saldo siap cair.
       </p>
     </div>
 

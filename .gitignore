@@ -52,4 +52,6 @@ keys/
 *.pem
 *.key
 
-
+# Archives & Temporary Test Artifacts
+*.zip
+pilot_testing/

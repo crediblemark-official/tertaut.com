@@ -43,6 +43,10 @@ function formatDate(date: Date | string): string {
 export class EmailService {
   private static quotaBlockedUntil = 0;
 
+  static resetQuotaBlock(): void {
+    this.quotaBlockedUntil = 0;
+  }
+
   static isConfigured(): boolean {
     return Boolean(config.email.resendApiKey && config.email.from);
   }

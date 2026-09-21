@@ -7,16 +7,13 @@ services:
       POSTGRES_USER: ${DB_USER:?DB_USER wajib diisi}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib diisi}
       POSTGRES_DB: ${DB_NAME:?DB_NAME wajib diisi}
-      # Optimasi memori PostgreSQL untuk VPS kecil (512MB-1GB RAM)
       shared_buffers: 128MB
       effective_cache_size: 384MB
       work_mem: 64kB
       maintenance_work_mem: 64MB
-      # WAL & checkpoint
       max_wal_size: 256MB
       min_wal_size: 64MB
       checkpoint_completion_target: 0.9
-      # Connection
       max_connections: 30
     ports:
       - "${DB_PORT:-5432}:5432"
@@ -27,7 +24,6 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
-    # Prioritas rendah agar proses lain tidak terkikis
     deploy:
       resources:
         limits:
@@ -38,9 +34,7 @@ services:
           cpus: "0.1"
 
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/crediblemark-official/tertaut.com:latest
     container_name: tertaut_app
     restart: unless-stopped
     depends_on:
@@ -50,14 +44,13 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgresql://${DB_USER:?DB_USER wajib diisi}:${DB_PASSWORD:?DB_PASSWORD wajib diisi}@postgres:5432/${DB_NAME:?DB_NAME wajib diisi}
-      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
-      JWT_SECRET: ${JWT_SECRET:-}
-      VAULT_ENCRYPTION_KEY: ${VAULT_ENCRYPTION_KEY:-}
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
-      LICENSE_SIGNING_PRIVATE_KEY: ${LICENSE_SIGNING_PRIVATE_KEY:-}
-      HWID_SALT: ${HWID_SALT:-}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET wajib diisi di production}
+      VAULT_ENCRYPTION_KEY: ${VAULT_ENCRYPTION_KEY:?VAULT_ENCRYPTION_KEY wajib diisi di production}
+      LICENSE_SIGNING_PRIVATE_KEY: ${LICENSE_SIGNING_PRIVATE_KEY:?LICENSE_SIGNING_PRIVATE_KEY wajib diisi di production}
       PAYMENT_GATEWAY: ${PAYMENT_GATEWAY:-dana}
       DANA_ENV: ${DANA_ENV:-production}
+      DANA_ORIGIN: ${DANA_ORIGIN:-}
       DANA_CLIENT_ID: ${DANA_CLIENT_ID:-}
       DANA_CLIENT_SECRET: ${DANA_CLIENT_SECRET:-}
       DANA_MERCHANT_ID: ${DANA_MERCHANT_ID:-}
@@ -70,12 +63,10 @@ services:
       DANA_SANDBOX_BASE_URL: ${DANA_SANDBOX_BASE_URL:-https://api.sandbox.dana.id}
       DANA_SANDBOX_PUBLIC_KEY: ${DANA_SANDBOX_PUBLIC_KEY:-}
       DANA_SANDBOX_PRIVATE_KEY: ${DANA_SANDBOX_PRIVATE_KEY:-}
-      # Bun runtime optimasi
       BUN_LOG_SCOPE: "*"
       BUN_JSX_RUNTIME: "haste"
     ports:
       - "${APP_PORT:-3000}:3000"
-    # Prioritas rendah untuk proses Bun
     deploy:
       resources:
         limits:
@@ -93,4 +84,3 @@ services:
 
 volumes:
   postgres_data:
-

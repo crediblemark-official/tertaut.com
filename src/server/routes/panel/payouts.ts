@@ -1,7 +1,8 @@
 import { db } from "../../db";
 import { transactions, builders, apps } from "../../db/schema";
-import { eq, and, inArray } from "drizzle-orm";
-import { XenditService } from "../../services/xendit";
+import { eq, and, inArray, desc, sql } from "drizzle-orm";
+import { DanaService } from "../../services/dana";
+import { config } from "../../config";
 
 /**
  * Eksekusi Batch Payout Massal ke Seluruh Builder
@@ -58,7 +59,7 @@ export async function handleBatchPayout() {
       where: eq(builders.id, builderId),
     });
 
-    const bankInfo = XenditService.resolveDisbursementAccount(builder);
+    const bankInfo = DanaService.resolveDisbursementAccount(builder);
     // Production TANPA rekening tersimpan → lewati builder ini (jangan pakai data palsu)
     if (!bankInfo) {
       results.push({
@@ -95,11 +96,11 @@ export async function handleBatchPayout() {
     const lockedNet = lockedRows.reduce((sum, t) => sum + t.netAmount, 0);
     const externalId = `batch_disb_${builderId.substring(0, 8)}_${Date.now()}`;
     try {
-      const disb = await XenditService.createDisbursement({
+      const disb = await DanaService.createDisbursement({
         externalId,
         amount: lockedNet,
         ...bankInfo,
-        description: `Batch Payout tertaut.com MoR (${lockedRows.length} txs)`,
+        description: `Batch Payout tertaut.com MoR (${lockedRows.length} txs via DANA)`,
       });
 
       const finalStatus =

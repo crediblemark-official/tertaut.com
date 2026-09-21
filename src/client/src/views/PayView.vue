@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../lib/api'
 import {
@@ -44,6 +44,21 @@ const notFound = ref(false)
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const selectedPaymentRail = ref<'qris' | 'va' | 'ewallet'>('qris')
+const selectedBank = ref('BCA')
+const activeCustomOrder = ref<{
+  transactionId: string
+  scenario?: string
+  paymentRail?: string
+  paymentCode?: string
+  qrDataUrl?: string
+  vaBank?: string
+  amount?: number
+  checkoutUrl?: string
+} | null>(null)
+const isPaid = ref(false)
+const paidResult = ref<{ licenseKey?: string; message?: string } | null>(null)
+let pollTimer: any = null
+
 const sandboxSessionId = ref<string | null>(null)
 const sandboxResult = ref<{ message: string; licenseKey?: string } | null>(null)
 const isSimulating = ref(false)
@@ -58,13 +73,40 @@ const payableAmount = computed(() =>
   product.value ? Math.max(0, product.value.targetPrice - estimatedDiscount.value) : 0
 )
 
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+function startPolling(txId: string) {
+  stopPolling()
+  pollTimer = setInterval(async () => {
+    try {
+      const res = await api.getPaymentStatus(txId)
+      if (res && res.paymentStatus === 'PAID') {
+        stopPolling()
+        isPaid.value = true
+        paidResult.value = {
+          licenseKey: res.licenseKey || undefined,
+          message: 'Pembayaran DANA berhasil diverifikasi secara instan.'
+        }
+      } else if (res && (res.paymentStatus === 'EXPIRED' || res.paymentStatus === 'FAILED')) {
+        stopPolling()
+        errorMessage.value = 'Sesi pembayaran ini telah kedaluwarsa atau gagal. Silakan coba lagi.'
+        activeCustomOrder.value = null
+      }
+    } catch {}
+  }, 2500)
+}
+
 async function loadCheckoutData() {
   loading.value = true
   errorMessage.value = ''
   try {
     const identifier = slug.value || queryAppId.value
     if (!identifier) {
-      // U7: Pengunjung publik tanpa parameter slug langsung diarahkan ke pesan ramah tanpa error auth
       notFound.value = true
       return
     }
@@ -76,7 +118,6 @@ async function loadCheckoutData() {
         return
       }
     } catch {
-      // Coba cari di list apps jika by-slug gagal (untuk builder login)
       try {
         const json = await api.getApps()
         if (json.apps) {
@@ -86,9 +127,7 @@ async function loadCheckoutData() {
             return
           }
         }
-      } catch {
-        // Abaikan kegagalan getApps pada visitor publik
-      }
+      } catch {}
       notFound.value = true
     }
   } catch (err: any) {
@@ -98,10 +137,6 @@ async function loadCheckoutData() {
   }
 }
 
-/**
- * Preview kupon langsung di halaman pay sebelum membuat sesi pembayaran.
- * Validasi otoritatif tetap di server saat POST /checkout/session.
- */
 async function applyCoupon() {
   if (!product.value || !couponInput.value.trim()) return
   couponError.value = ''
@@ -152,15 +187,19 @@ async function handlePay() {
   isSubmitting.value = true
   errorMessage.value = ''
   sandboxResult.value = null
+  isPaid.value = false
+  paidResult.value = null
 
   try {
-    // B1: Kirim targetPrice asli produk, biarkan server menghitung diskon kupon secara atomik.
-    // B2: grantDays dikontrol oleh konfigurasi produk di backend, bukan query param pembeli.
+    const isCustomScenario = selectedPaymentRail.value === 'qris' || selectedPaymentRail.value === 'va'
     const data = await api.createCheckoutSession({
       appId: product.value.id,
       customerEmail: emailInput.value,
       amount: product.value.targetPrice,
       preferredPaymentChannel: selectedPaymentRail.value,
+      paymentRail: selectedPaymentRail.value,
+      scenario: isCustomScenario ? 'API' : 'REDIRECT',
+      vaBank: selectedBank.value,
       redirectUrl: product.value.redirectUrl || `${window.location.origin}/dashboard`,
       couponCode: appliedCoupon.value?.code || couponInput.value.trim() || undefined
     })
@@ -170,7 +209,24 @@ async function handlePay() {
       return
     }
 
-    if (product.value.mode === 'sandbox') {
+    if (data.scenario === 'API' && (data.paymentCode || data.qrDataUrl)) {
+      activeCustomOrder.value = {
+        transactionId: data.transactionId || '',
+        scenario: data.scenario,
+        paymentRail: data.paymentRail || selectedPaymentRail.value,
+        paymentCode: data.paymentCode,
+        qrDataUrl: data.qrDataUrl,
+        vaBank: data.vaBank || selectedBank.value,
+        amount: data.amount || payableAmount.value,
+        checkoutUrl: data.checkoutUrl,
+      }
+      if (product.value.mode === 'sandbox') {
+        sandboxSessionId.value = data.transactionId || ''
+      }
+      if (data.transactionId) {
+        startPolling(data.transactionId)
+      }
+    } else if (product.value.mode === 'sandbox') {
       sandboxSessionId.value = data.transactionId || ''
     } else if (data.checkoutUrl) {
       window.location.href = data.checkoutUrl
@@ -183,7 +239,7 @@ async function handlePay() {
 }
 
 async function simulateSandboxPayment() {
-  const txId = sandboxSessionId.value
+  const txId = sandboxSessionId.value || activeCustomOrder.value?.transactionId
   if (!txId) return
   isSimulating.value = true
   errorMessage.value = ''
@@ -193,9 +249,15 @@ async function simulateSandboxPayment() {
       errorMessage.value = data.message || 'Gagal mensimulasikan pembayaran'
       return
     }
+    stopPolling()
+    isPaid.value = true
     sandboxResult.value = {
       message: data.message,
       licenseKey: data.licenseKey || '',
+    }
+    paidResult.value = {
+      licenseKey: data.licenseKey || '',
+      message: data.message,
     }
   } catch (err: any) {
     errorMessage.value = err.message || 'Terjadi kesalahan jaringan'
@@ -206,6 +268,10 @@ async function simulateSandboxPayment() {
 
 onMounted(() => {
   loadCheckoutData()
+})
+
+onUnmounted(() => {
+  stopPolling()
 })
 </script>
 
@@ -265,7 +331,7 @@ onMounted(() => {
           <div v-else
             class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[11px] font-mono">
             <ShieldCheck class="w-3 h-3" />
-            <span>Xendit Secured</span>
+            <span>DANA Secured</span>
           </div>
           <span class="w-1 h-1 rounded-full bg-white/20"></span>
           <span class="text-[11px] text-white/40 font-mono">256-Bit MoR</span>
@@ -298,14 +364,20 @@ onMounted(() => {
               :product="product"
               :email-input="emailInput"
               :selected-payment-rail="selectedPaymentRail"
+              :selected-bank="selectedBank"
               :payable-amount="payableAmount"
               :is-submitting="isSubmitting"
               :error-message="errorMessage"
+              :active-order="activeCustomOrder"
+              :is-paid="isPaid"
+              :paid-result="paidResult"
               :sandbox-session-id="sandboxSessionId"
               :sandbox-result="sandboxResult"
               :is-simulating="isSimulating"
               @update:email-input="emailInput = $event"
               @update:selected-payment-rail="selectedPaymentRail = $event"
+              @update:selected-bank="selectedBank = $event"
+              @reset-order="activeCustomOrder = null; stopPolling()"
               @pay="handlePay"
               @simulate="simulateSandboxPayment"
             />
@@ -313,7 +385,7 @@ onMounted(() => {
             <!-- Bottom Disclaimer Notice -->
             <div class="pt-3 border-t border-slate-200 text-center shrink-0">
               <p class="text-xs text-slate-600 leading-relaxed">
-                Pembayaran diproses secara aman oleh <span class="text-slate-900 font-bold">Xendit Indonesia</span>.
+                Pembayaran diproses secara aman oleh <span class="text-slate-900 font-bold">DANA Enterprise Indonesia</span>.
                 Merchant of Record resmi oleh <span class="text-slate-900 font-bold">tertaut.com</span>.
               </p>
             </div>

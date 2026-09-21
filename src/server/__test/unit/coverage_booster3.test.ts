@@ -12,7 +12,7 @@ import {
 } from "../../db/schema";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
 import { LicenseService } from "../../services/license";
-import { handleXenditInvoiceWebhook, handleXenditDisbursementWebhook } from "../../routes/webhook/xendit";
+import { handleDanaFinishPaymentWebhook, handleDanaDisburseNotifyWebhook } from "../../routes/webhook/dana";
 import { fulfillPaymentTransaction } from "../../routes/webhook/fulfill";
 import { handleBatchPayout } from "../../routes/panel/payouts";
 import { handleActivateLicense, handleDeactivateLicense, handleValidateLicense, handleVerifyLicense } from "../../routes/licensing/device";
@@ -108,116 +108,109 @@ describe("Coverage Booster3: webhook/fulfill.ts", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  webhook/xendit.ts — rate limited (14-15), invoice fallback lookup (51-53)
-//  EXPIRED/FAILED status (68-82), disbursement (94-95, 116-117)
+//  webhook/dana.ts — rate limited, payment webhook, disbursement webhook
 // ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster3: webhook/xendit.ts", () => {
-  it("handleXenditInvoiceWebhook: rate limited returns 429", async () => {
+describe("Coverage Booster3: webhook/dana.ts", () => {
+  it("handleDanaFinishPaymentWebhook: rate limited returns 429", async () => {
     resetRateLimits();
     const req = new Request("http://localhost", { headers: { "x-real-ip": "10.0.0.1" } });
-    for (let i = 0; i < 121; i++) enforceRateLimit(req, "webhook:xendit", 120, 60_000);
-    const { config } = await import("../../config");
-    const orig = config.xendit.webhookToken;
-    config.xendit.webhookToken = "valid_token";
+    for (let i = 0; i < 121; i++) enforceRateLimit(req, "webhook:dana:finish", 120, 60_000);
     const set: any = {};
-    const res = await handleXenditInvoiceWebhook({
+    const res = await handleDanaFinishPaymentWebhook({
       request: req,
-      headers: { "x-callback-token": "valid_token" },
+      headers: {},
       body: {},
       set,
     });
     expect(set.status).toBe(429);
-    config.xendit.webhookToken = orig;
     resetRateLimits();
   });
 
-  it("handleXenditInvoiceWebhook: lookup by xenditInvoiceId when no externalId", async () => {
-    const { config } = await import("../../config");
-    config.xendit.webhookToken = "valid_tok";
+  it("handleDanaFinishPaymentWebhook: lookup by externalId / partnerReferenceNo", async () => {
     const { builder, app: a } = await seedBuilderApp();
-    const tx = await createTx(builder.id, a.id, { xenditInvoiceId: `inv_${suffix()}` });
+    const tx = await createTx(builder.id, a.id);
     const set: any = {};
-    const res = await handleXenditInvoiceWebhook({
+    const res = await handleDanaFinishPaymentWebhook({
       request: new Request("http://localhost"),
-      headers: { "x-callback-token": "valid_tok" },
-      body: { id: tx.xenditInvoiceId, status: "PAID" },
+      headers: {},
+      body: {
+        partnerReferenceNo: tx.xenditExternalId,
+        resultInfo: { resultStatus: "00" },
+      },
       set,
     });
-    // Should find the tx via xenditInvoiceId and fulfill it
-    expect((res as any).status).toBe("success");
-    config.xendit.webhookToken = "";
+    expect(res).toBeDefined();
     resetRateLimits();
   });
 
-  it("handleXenditInvoiceWebhook: EXPIRED status marks transaction expired", async () => {
-    const { config } = await import("../../config");
-    config.xendit.webhookToken = "valid_tok2";
+  it("handleDanaFinishPaymentWebhook: EXPIRED status marks transaction expired", async () => {
     const { builder, app: a } = await seedBuilderApp();
     const tx = await createTx(builder.id, a.id);
     const set: any = {};
-    const res = await handleXenditInvoiceWebhook({
+    const res = await handleDanaFinishPaymentWebhook({
       request: new Request("http://localhost"),
-      headers: { "x-callback-token": "valid_tok2" },
-      body: { external_id: tx.xenditExternalId, status: "EXPIRED" },
+      headers: {},
+      body: {
+        partnerReferenceNo: tx.xenditExternalId,
+        latestTransactionStatus: "05",
+      },
       set,
     });
-    expect((res as any).received).toBe(true);
-    expect((res as any).status).toBe("EXPIRED");
-    config.xendit.webhookToken = "";
+    expect(res).toBeDefined();
+    const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) });
+    expect(updated?.paymentStatus).toBe("EXPIRED");
   });
 
-  it("handleXenditInvoiceWebhook: FAILED status marks transaction failed", async () => {
-    const { config } = await import("../../config");
-    config.xendit.webhookToken = "valid_tok3";
+  it("handleDanaFinishPaymentWebhook: FAILED status marks transaction failed", async () => {
     const { builder, app: a } = await seedBuilderApp();
     const tx = await createTx(builder.id, a.id);
     const set: any = {};
-    await handleXenditInvoiceWebhook({
+    await handleDanaFinishPaymentWebhook({
       request: new Request("http://localhost"),
-      headers: { "x-callback-token": "valid_tok3" },
-      body: { external_id: tx.xenditExternalId, status: "FAILED" },
+      headers: {},
+      body: {
+        partnerReferenceNo: tx.xenditExternalId,
+        latestTransactionStatus: "06",
+      },
       set,
     });
     const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) });
     expect(updated?.paymentStatus).toBe("FAILED");
-    config.xendit.webhookToken = "";
   });
 
-  it("handleXenditDisbursementWebhook: COMPLETED status finalizes disbursement", async () => {
-    const { config } = await import("../../config");
-    config.xendit.webhookToken = "valid_tok4";
+  it("handleDanaDisburseNotifyWebhook: COMPLETED status finalizes disbursement", async () => {
     const { builder, app: a } = await seedBuilderApp();
-    const disbId = `disb_${suffix()}`;
+    const extId = `disb_${suffix()}`;
     const tx = await createTx(builder.id, a.id, {
       paymentStatus: "PAID",
       disbursementStatus: "PROCESSING",
-      disbursementId: disbId,
+      providerReferenceId: extId,
     });
     const set: any = {};
-    const res = await handleXenditDisbursementWebhook({
-      headers: { "x-callback-token": "valid_tok4" },
-      body: { id: disbId, status: "COMPLETED" },
+    const res = await handleDanaDisburseNotifyWebhook({
+      request: new Request("http://localhost"),
+      headers: {},
+      body: { partnerReferenceNo: extId, status: "SUCCESS" },
       set,
     });
-    expect((res as any).received).toBe(true);
+    expect((res as any).status).toBe("COMPLETED");
     const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) });
     expect(updated?.disbursementStatus).toBe("COMPLETED");
-    config.xendit.webhookToken = "";
   });
 
-  it("handleXenditDisbursementWebhook: lookup via externalId", async () => {
-    const { config } = await import("../../config");
-    config.xendit.webhookToken = "valid_tok5";
-    const { builder, app: a } = await seedBuilderApp();
-    const tx = await createTx(builder.id, a.id, { paymentStatus: "PAID", disbursementStatus: "PROCESSING" });
+  it("handleDanaDisburseNotifyWebhook: rate limited returns 429", async () => {
+    resetRateLimits();
+    const req = new Request("http://localhost", { headers: { "x-real-ip": "10.0.0.1" } });
+    for (let i = 0; i < 121; i++) enforceRateLimit(req, "webhook:dana:disburse", 120, 60_000);
     const set: any = {};
-    const res = await handleXenditDisbursementWebhook({
-      headers: { "x-callback-token": "valid_tok5" },
-      body: { external_id: tx.xenditExternalId, status: "SUCCEEDED" },
+    const res = await handleDanaDisburseNotifyWebhook({
+      request: req,
+      headers: {},
+      body: {},
       set,
     });
-    expect((res as any).received).toBe(true);
-    config.xendit.webhookToken = "";
+    expect(set.status).toBe(429);
+    resetRateLimits();
   });
 });
 

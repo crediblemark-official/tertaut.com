@@ -16,6 +16,7 @@ import { CreditService } from "../../services/credits";
 import { enforceRateLimit, resetRateLimits } from "../../services/rateLimiter";
 import { eq, and } from "drizzle-orm";
 import { config } from "../../config";
+import { DanaService } from "../../services/dana";
 
 setupTestAuth();
 
@@ -375,45 +376,12 @@ describe("Coverage Booster4: metering/router.ts additional branches", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 //  services/xendit.ts — lines 135-136, 210-211
 // ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster4: services/xendit.ts more branches", () => {
-  it("XenditService.verifyWebhook: correct token returns true in production", async () => {
-    const { XenditService } = await import("../../services/xendit");
-    const origSandbox = config.isSandbox;
-    const origToken = config.xendit.webhookToken;
-    (config as any).isSandbox = false;
-    config.xendit.webhookToken = "super_secret_token";
-
-    const result = XenditService.verifyWebhook("super_secret_token");
-    expect(result).toBe(true);
-
-    (config as any).isSandbox = origSandbox;
-    config.xendit.webhookToken = origToken;
-  });
-
-  it("XenditService.calculateMorBreakdown: returns correct fee breakdown", async () => {
-    const { XenditService } = await import("../../services/xendit");
-    const breakdown = XenditService.calculateMorBreakdown(100000);
+describe("Coverage Booster4: DanaService more branches", () => {
+  it("DanaService.calculateMorBreakdown: returns correct fee breakdown", () => {
+    const breakdown = DanaService.calculateMorBreakdown(100000);
     expect(breakdown.grossAmount).toBe(100000);
-    expect(breakdown.platformFee).toBeGreaterThan(0);
-    expect(breakdown.netAmount).toBeLessThan(100000);
-  });
-
-  it("XenditService.createInvoice: throws in production when no apiKey", async () => {
-    const { XenditService } = await import("../../services/xendit");
-    const origSandbox = config.isSandbox;
-    const origKey = config.xendit.secretKey;
-    (config as any).isSandbox = false;
-    config.xendit.secretKey = "";
-
-    await expect(XenditService.createInvoice({
-      externalId: "ext_test",
-      amount: 100000,
-      payerEmail: "test@test.com",
-      description: "test",
-    })).rejects.toThrow();
-
-    (config as any).isSandbox = origSandbox;
-    config.xendit.secretKey = origKey;
+    expect(breakdown.platformFee).toBe(5000);
+    expect(breakdown.netAmount).toBe(95000);
   });
 });
 

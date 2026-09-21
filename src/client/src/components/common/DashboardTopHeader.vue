@@ -34,7 +34,7 @@ const env = dashboardEnv
       </div>
 
       <!-- Environment Status Pill -->
-      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold" :class="env === 'sandbox' ? 'bg-gold/15 border-gold/30 text-[#8a6d1f]' : 'bg-forest/10 border-forest/20 text-forest'" :title="env === 'sandbox' ? 'Environment Sandbox: pembayaran disimulasikan' : 'Environment Live: Xendit produksi aktif'">
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold" :class="env === 'sandbox' ? 'bg-gold/15 border-gold/30 text-[#8a6d1f]' : 'bg-forest/10 border-forest/20 text-forest'" :title="env === 'sandbox' ? 'Environment Sandbox: pembayaran disimulasikan' : 'Environment Live: DANA produksi aktif'">
         <span class="w-1.5 h-1.5 rounded-full animate-pulse" :class="env === 'sandbox' ? 'bg-gold' : 'bg-forest'"></span>
         <span>{{ env === 'sandbox' ? 'Sandbox Mode' : 'MoR Live' }}</span>
       </div>

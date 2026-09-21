@@ -10,7 +10,7 @@ export const transactions = pgTable("transactions", {
   builderId: uuid("builder_id")
     .notNull()
     .references(() => builders.id, { onDelete: "cascade" }),
-  paymentProvider: text("payment_provider").default("xendit").notNull(), // "xendit" | "dana"
+  paymentProvider: text("payment_provider").default("dana").notNull(), // "dana"
   providerReferenceId: text("provider_reference_id"), // Order ID / Reference ID dari gateway
   xenditInvoiceId: text("xendit_invoice_id").unique(),
   xenditExternalId: text("xendit_external_id").notNull(),

@@ -1,13 +1,12 @@
 import { db } from "../../db";
 import { apps, transactions, licenses } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
-import { XenditService } from "../../services/xendit";
 import { DanaService } from "../../services/dana";
 import { CouponService } from "../../services/coupon";
 import { LicenseService } from "../../services/license";
 import { CreditService } from "../../services/credits";
 import { EmailService } from "../../services/email";
-import { config as checkoutConfig } from "../../config";
+import { config as checkoutConfig, resolveRequestOrigin } from "../../config";
 import { randomBytes } from "crypto";
 
 const DEFAULT_PRICE = checkoutConfig.defaultPrice;
@@ -18,7 +17,8 @@ const formatIdr = (value: number) =>
 /**
  * Pemicu Dynamic & Headless Checkout Link
  */
-export async function handleCreateSession({ body, set }: any) {
+export async function handleCreateSession({ request, body, set }: any) {
+  const requestOrigin = resolveRequestOrigin(request);
   const {
     appId,
     appSlug,
@@ -34,18 +34,15 @@ export async function handleCreateSession({ body, set }: any) {
     couponCode,
     paymentRail,
     preferredPaymentChannel,
+    scenario,
+    vaBank,
+    bank,
   } = body;
 
   // B8: Dukung preferredPaymentChannel (dari PayView) maupun paymentRail secara konsisten
-  const selectedRail = paymentRail || preferredPaymentChannel;
-  const RAIL_PAYMENT_METHODS: Record<string, string[]> = {
-    qris: ["QRIS"],
-    va: ["BCA", "BNI", "BRI", "MANDIRI", "PERMATA", "CIMB"],
-    ewallet: ["OVO", "DANA", "SHOPEEPAY", "LINKAJA"],
-  };
-  const paymentMethods = selectedRail
-    ? RAIL_PAYMENT_METHODS[String(selectedRail).toLowerCase()]
-    : undefined;
+  const selectedRail = (paymentRail || preferredPaymentChannel || "qris") as "qris" | "va" | "ewallet";
+  const selectedBank = (vaBank || bank || "BCA").toUpperCase();
+  const selectedScenario = scenario || (selectedRail === "qris" || selectedRail === "va" ? "API" : "REDIRECT");
 
   const targetIdentifier = appId || appSlug || slug;
   if (!targetIdentifier) {
@@ -192,7 +189,7 @@ export async function handleCreateSession({ body, set }: any) {
       licenseKey,
       expiresAt: expiresAt.toISOString(),
       message: `Masa uji coba gratis ${trialDays} hari berhasil diaktifkan!`,
-      redirectUrl: redirectUrl || app.redirectUrl || `${checkoutConfig.publicAppUrl}/checkout/success?licenseKey=${licenseKey}`,
+      redirectUrl: redirectUrl || app.redirectUrl || `${requestOrigin}/checkout/success?licenseKey=${licenseKey}`,
     };
   }
 
@@ -252,54 +249,37 @@ export async function handleCreateSession({ body, set }: any) {
     };
   }
 
-  // Tentukan payment gateway yang aktif (override per request > default config)
-  const selectedGateway: "xendit" | "dana" =
-    (body.paymentGateway?.toLowerCase() === "dana" ||
-      (!body.paymentGateway && checkoutConfig.paymentGateway === "dana"))
-      ? "dana"
-      : "xendit";
+  // Payment gateway tunggal resmi: DANA Enterprise
+  const selectedGateway = "dana" as const;
 
   // Hitung Merchant of Record 5% platform fee & 95% net atas nominal yang dibayar
   const { grossAmount, platformFee, netAmount } =
-    selectedGateway === "dana"
-      ? DanaService.calculateMorBreakdown(payableAmount)
-      : XenditService.calculateMorBreakdown(payableAmount);
+    DanaService.calculateMorBreakdown(payableAmount);
 
   const txId = `tx_${randomBytes(8).toString("hex")}`;
-  const externalId = `tt_${app.id}_${Date.now()}`;
+  const externalId = `tt_${randomBytes(8).toString("hex")}`;
 
-  let invoiceUrl = "";
-  let invoiceId = "";
-  let expiryDate = "";
+  const danaOrder = await DanaService.createOrder({
+    externalId,
+    amount: grossAmount,
+    payerEmail: email,
+    description: `Lisensi ${app.name} (${grantDays} hari)`,
+    returnUrl: redirectUrl || app.redirectUrl || undefined,
+    finishRedirectUrl: `${requestOrigin}/checkout/dana/finish?externalId=${externalId}`,
+    forceMock: checkoutConfig.isTest ? isSandboxApp : false,
+    scenario: selectedScenario,
+    paymentRail: selectedRail,
+    vaBank: selectedBank,
+  });
 
-  if (selectedGateway === "dana") {
-    const danaOrder = await DanaService.createOrder({
-      externalId,
-      amount: grossAmount,
-      payerEmail: email,
-      description: `Lisensi ${app.name} (${grantDays} hari)`,
-      returnUrl: redirectUrl || app.redirectUrl || undefined,
-      finishRedirectUrl: `${checkoutConfig.publicAppUrl}/checkout/dana/finish?externalId=${externalId}`,
-      forceMock: isSandboxApp,
-    });
-    invoiceUrl = danaOrder.checkoutUrl;
-    invoiceId = danaOrder.orderId;
-    expiryDate = danaOrder.expiryDate;
-  } else {
-    const xenditInvoice = await XenditService.createInvoice({
-      externalId,
-      amount: grossAmount,
-      payerEmail: email,
-      description: `Lisensi ${app.name} (${grantDays} hari)`,
-      successRedirectUrl: redirectUrl || app.redirectUrl || undefined,
-      failureRedirectUrl: redirectUrl || app.redirectUrl || undefined,
-      paymentMethods,
-      forceMock: isSandboxApp,
-    });
-    invoiceUrl = xenditInvoice.invoice_url;
-    invoiceId = xenditInvoice.id;
-    expiryDate = xenditInvoice.expiry_date;
-  }
+  const invoiceUrl = danaOrder.checkoutUrl;
+  const invoiceId = danaOrder.orderId;
+  const expiryDate = danaOrder.expiryDate;
+
+  // Tentukan label paymentChannel yang disimpan
+  const savedChannel = danaOrder.paymentRail === "va"
+    ? `VA_${danaOrder.vaBank || selectedBank}`
+    : (danaOrder.paymentRail === "qris" ? "QRIS" : "DANA");
 
   // Simpan transaksi di database
   const [newTx] = await db
@@ -317,6 +297,7 @@ export async function handleCreateSession({ body, set }: any) {
       grossAmount,
       platformFee,
       netAmount,
+      paymentChannel: savedChannel,
       couponCode: coupon?.code || null,
       discountAmount,
       paymentStatus: "PENDING",
@@ -351,15 +332,27 @@ export async function handleCreateSession({ body, set }: any) {
       xenditInvoiceUrl: invoiceUrl,
       expiresAt: expiryDate || new Date(Date.now() + 15 * 60 * 1000).toISOString(),
       isSandbox: isSandboxApp,
+      scenario: danaOrder.scenario,
+      paymentRail: danaOrder.paymentRail,
+      paymentCode: danaOrder.paymentCode,
+      qrDataUrl: danaOrder.qrDataUrl,
+      vaBank: danaOrder.vaBank,
     },
     transactionId: newTx.id,
     checkoutUrl: invoiceUrl,
+    scenario: danaOrder.scenario,
+    paymentRail: danaOrder.paymentRail,
+    paymentCode: danaOrder.paymentCode,
+    qrDataUrl: danaOrder.qrDataUrl,
+    vaBank: danaOrder.vaBank,
     paymentGateway: selectedGateway,
     amount: grossAmount,
     listPrice,
     discountAmount,
     discountPercent,
-    couponCode: coupon?.code || null,
+    grantDays,
+    couponCode: coupon?.code,
+    message: "Sesi pembayaran DANA berhasil disiapkan",
     platformFee,
     netDisbursementAmount: netAmount,
   };

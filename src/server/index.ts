@@ -6,7 +6,7 @@ import { apiV1Routes } from "./routes/api";
 import { badgeRoutes } from "./routes/badge/router";
 import { webhookRoutes, webhooksPluralRoutes, snapBiWebhookRoutes } from "./routes/webhook/router";
 import { checkoutRoutes } from "./routes/checkout/router";
-import { config } from "./config";
+import { config, resolveRequestOrigin } from "./config";
 import { auth } from "./auth";
 import { LicenseTokenService } from "./services/licenseToken";
 import { existsSync, statSync } from "fs";
@@ -53,6 +53,10 @@ function serveFromDir(dir: string, pathname: string, set: any): any | { error: s
 }
 
 export const app = new Elysia()
+  // Deteksi otomatis domain yang sedang dipakai oleh klien/browser
+  .onRequest(({ request }) => {
+    resolveRequestOrigin(request);
+  })
   // Secure CORS: Only allow trusted origins with credentials
   .use(
     cors({
@@ -73,10 +77,18 @@ export const app = new Elysia()
           }
         } catch {}
 
+        const detected = resolveRequestOrigin(request);
+        if (detected) {
+          try {
+            if (origin === new URL(detected).origin) return true;
+          } catch {}
+        }
+
         const allowedPatterns = [
           /^https?:\/\/localhost(:\d+)?$/,
           /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
           /\.tertaut\.com$/,
+          /\.ngrok-free\.app$/,
         ];
         if (config.publicAppUrl) {
           try {

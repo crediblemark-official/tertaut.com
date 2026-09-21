@@ -1,6 +1,15 @@
 import { config } from "../config";
 import crypto from "crypto";
 import { calculateMor } from "../utils/payment";
+import Dana from "dana-node";
+import { PaymentGatewayApi } from "dana-node/payment_gateway/v1";
+import { DisbursementApi } from "dana-node/disbursement/v1";
+import { WebhookParser } from "dana-node/webhook/v1";
+
+import QRCode from "qrcode";
+
+export type DanaPaymentRail = "qris" | "va" | "ewallet" | "balance";
+export type DanaVaBank = "BCA" | "MANDIRI" | "BNI" | "BRI" | "CIMB" | "PERMATA" | "BSI";
 
 export interface CreateDanaOrderParams {
   externalId: string;
@@ -10,6 +19,9 @@ export interface CreateDanaOrderParams {
   returnUrl?: string;
   finishRedirectUrl?: string;
   forceMock?: boolean;
+  scenario?: "API" | "REDIRECT";
+  paymentRail?: DanaPaymentRail;
+  vaBank?: DanaVaBank | string;
 }
 
 export interface DanaOrderResponse {
@@ -22,9 +34,40 @@ export interface DanaOrderResponse {
   description: string;
   checkoutUrl: string;
   expiryDate: string;
+  scenario?: "API" | "REDIRECT";
+  paymentRail?: DanaPaymentRail;
+  paymentCode?: string;
+  qrDataUrl?: string;
+  vaBank?: string;
+  bankName?: string;
+}
+
+function getDanaInstance(): Dana {
+  return new Dana({
+    partnerId: config.dana.clientId || "MOCK_PARTNER_ID",
+    privateKey: config.dana.privateKey || "MOCK_PRIVATE_KEY",
+    origin: config.dana.origin,
+    env: config.dana.env,
+    clientSecret: config.dana.clientSecret,
+  });
 }
 
 export class DanaService {
+  /**
+   * Akses langsung ke instance SDK resmi DANA (dana-node)
+   */
+  static get client(): Dana {
+    return getDanaInstance();
+  }
+
+  static get paymentGateway(): PaymentGatewayApi {
+    return getDanaInstance().paymentGatewayApi;
+  }
+
+  static get disbursement(): DisbursementApi {
+    return getDanaInstance().disbursementApi;
+  }
+
   /**
    * Hitung kalkulasi Merchant of Record (MoR) fee 5% platform fee & 95% net
    */
@@ -33,25 +76,137 @@ export class DanaService {
   }
 
   /**
-   * Buat Order / Checkout Payment DANA (E-Wallet, QRIS, Direct Debit)
+   * Gapura Custom Checkout: Konsultasi opsi pembayaran aktif DANA untuk nominal tertentu
+   */
+  static async consultPay(amount: number) {
+    if (config.isSandbox && (config.isTest || !config.dana.clientId)) {
+      return {
+        paymentInfos: [
+          { payMethod: "NETWORK_PAY", payOption: "NETWORK_PAY_PG_QRIS" },
+          { payMethod: "VIRTUAL_ACCOUNT", payOption: "VIRTUAL_ACCOUNT_BCA" },
+          { payMethod: "VIRTUAL_ACCOUNT", payOption: "VIRTUAL_ACCOUNT_MANDIRI" },
+          { payMethod: "VIRTUAL_ACCOUNT", payOption: "VIRTUAL_ACCOUNT_BRI" },
+          { payMethod: "VIRTUAL_ACCOUNT", payOption: "VIRTUAL_ACCOUNT_BNI" },
+          { payMethod: "BALANCE", payOption: "BALANCE" },
+        ],
+      };
+    }
+
+    try {
+      return await this.paymentGateway.consultPay({
+        merchantId: config.dana.merchantId || config.dana.clientId,
+        amount: {
+          value: `${amount.toFixed(2)}`,
+          currency: "IDR",
+        },
+        additionalInfo: {
+          envInfo: {
+            sourcePlatform: "IPG",
+            terminalType: "SYSTEM",
+            orderTerminalType: "WEB",
+          },
+        },
+      });
+    } catch (err: any) {
+      console.warn("[DanaService] consultPay fallback:", err.message);
+      return {
+        paymentInfos: [
+          { payMethod: "NETWORK_PAY", payOption: "NETWORK_PAY_PG_QRIS" },
+          { payMethod: "VIRTUAL_ACCOUNT", payOption: "VIRTUAL_ACCOUNT_BCA" },
+          { payMethod: "VIRTUAL_ACCOUNT", payOption: "VIRTUAL_ACCOUNT_MANDIRI" },
+          { payMethod: "VIRTUAL_ACCOUNT", payOption: "VIRTUAL_ACCOUNT_BRI" },
+          { payMethod: "VIRTUAL_ACCOUNT", payOption: "VIRTUAL_ACCOUNT_BNI" },
+          { payMethod: "BALANCE", payOption: "BALANCE" },
+        ],
+      };
+    }
+  }
+
+  /**
+   * Resolve rekening penerima disbursement dari profil builder.
+   * Di production wajib memiliki rekening terdaftar; di sandbox disediakan fallback mock.
+   */
+  static resolveDisbursementAccount(
+    builder: {
+      name?: string | null;
+      disbursementAccount?: {
+        bankCode?: string;
+        accountNumber?: string;
+        accountHolderName?: string;
+        eWalletType?: string;
+        phoneNumber?: string;
+      } | null;
+    } | null | undefined
+  ): {
+    bankCode: string;
+    accountNumber: string;
+    accountHolderName: string;
+  } | null {
+    const acc = builder?.disbursementAccount;
+
+    if (acc?.accountNumber && acc?.bankCode) {
+      return {
+        bankCode: acc.bankCode,
+        accountNumber: acc.accountNumber,
+        accountHolderName: acc.accountHolderName || builder?.name || "Builder",
+      };
+    }
+
+    if (config.isSandbox) {
+      return {
+        bankCode: "BCA",
+        accountNumber: "1234567890000",
+        accountHolderName: builder?.name || "Sandbox Builder",
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Buat Order / Checkout Payment DANA (E-Wallet, QRIS, Direct Debit, Virtual Account)
+   * Mendukung Gapura Custom Checkout (scenario: "API") dan Gapura Hosted Checkout (scenario: "REDIRECT")
    */
   static async createOrder(params: CreateDanaOrderParams): Promise<DanaOrderResponse> {
     const mockEnabled =
       params.forceMock ||
-      (config.isSandbox && (!config.dana.clientId || !config.dana.clientSecret));
+      (config.isSandbox && (config.isTest || (!config.dana.clientId || !config.dana.privateKey)));
 
     const defaultRedirect =
       params.returnUrl ||
       params.finishRedirectUrl ||
       `${config.publicAppUrl}/checkout/dana/finish?orderId=${params.externalId}`;
 
+    const scenario = params.scenario || (params.paymentRail === "qris" || params.paymentRail === "va" ? "API" : "REDIRECT");
+    const rail = params.paymentRail || "qris";
+
     if (mockEnabled) {
-      if (!config.isProd) {
+      if (!config.isProd && !config.isTest) {
         console.warn(
-          "[DanaService] Using mock order response (sandbox mode / DANA credentials not configured yet)"
+          "[DanaService] Using mock order response (test mode / DANA credentials not configured yet)"
         );
       }
       const mockOrderId = `dana_order_${Date.now()}`;
+      let paymentCode: string | undefined;
+      let qrDataUrl: string | undefined;
+      let bankName = params.vaBank || "BCA";
+
+      if (rail === "qris") {
+        paymentCode = `00020101021226540014ID.DANA.WWW011893600911000000000002152026092100000000303UMI51440014ID.DANA.WWW0215202609210000000520457325303360540${params.amount.toFixed(2)}5802ID5911Tertaut MoR6007Jakarta61051234062330114${params.externalId}6304ABCD`;
+        qrDataUrl = await QRCode.toDataURL(paymentCode, { width: 320, margin: 2 });
+      } else if (rail === "va") {
+        const bankPrefixMap: Record<string, string> = {
+          BCA: "3901",
+          MANDIRI: "88908",
+          BNI: "8808",
+          BRI: "8809",
+          CIMB: "2599",
+          PERMATA: "8528",
+        };
+        const prefix = bankPrefixMap[bankName.toUpperCase()] || "3901";
+        paymentCode = `${prefix}08${Math.floor(1000000000 + Math.random() * 9000000000)}`;
+      }
+
       return {
         orderId: mockOrderId,
         externalId: params.externalId,
@@ -62,6 +217,12 @@ export class DanaService {
         description: params.description,
         checkoutUrl: `${config.publicAppUrl}/checkout/dana/finish?orderId=${params.externalId}&mock=true`,
         expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        scenario,
+        paymentRail: rail,
+        paymentCode,
+        qrDataUrl,
+        vaBank: bankName,
+        bankName,
       };
     }
 
@@ -69,95 +230,132 @@ export class DanaService {
       throw new Error("DANA Order Creation Failed: DANA_CLIENT_ID / DANA_PRIVATE_KEY tidak dikonfigurasi.");
     }
 
-    // Pemanggilan DANA Enterprise Host-to-Host Create Order API (SNAP BI Standard)
-    const endpointPath = "/payment-gateway/v1.0/debit/payment-host-to-host.htm";
-    const endpoint = `${config.dana.baseUrl}${endpointPath}`;
-
     const formatWibIso = (date: Date): string => {
       const wibDate = new Date(date.getTime() + 7 * 60 * 60 * 1000);
       const pad = (n: number) => String(n).padStart(2, "0");
       return `${wibDate.getUTCFullYear()}-${pad(wibDate.getUTCMonth() + 1)}-${pad(wibDate.getUTCDate())}T${pad(wibDate.getUTCHours())}:${pad(wibDate.getUTCMinutes())}:${pad(wibDate.getUTCSeconds())}+07:00`;
     };
 
-    const ts = formatWibIso(new Date());
-    const validUpTo = formatWibIso(new Date(Date.now() + 30 * 60 * 1000));
-
-    const payload = {
-      partnerReferenceNo: params.externalId,
-      merchantId: config.dana.merchantId || config.dana.clientId,
-      subMerchantId: "",
-      amount: {
-        value: `${params.amount.toFixed(2)}`,
-        currency: "IDR",
-      },
-      externalStoreId: "",
-      urlParams: [
-        {
-          url: defaultRedirect,
-          type: "PAY_RETURN",
-          isDeeplink: "Y",
-        },
-        {
-          url: `${config.publicAppUrl}/webhook/dana/notify`,
-          type: "NOTIFICATION",
-          isDeeplink: "Y",
-        },
-      ],
-      validUpTo: validUpTo,
-      additionalInfo: {
-        order: {
-          orderTitle: params.description || "Payment Order",
-          scenario: "REDIRECT",
-          merchantTransType: "SPECIAL_MOVIE",
-          buyer: {},
-        },
-        mcc: "5732",
-        envInfo: {
-          sourcePlatform: "IPG",
-          terminalType: "SYSTEM",
-          orderTerminalType: "WEB",
-        },
-        extendInfo: JSON.stringify({ key: "value" }),
-      },
-    };
-
-    const minified = JSON.stringify(payload);
-    const rawKey = config.dana.privateKey;
-    const pem = rawKey.includes("-----BEGIN")
-      ? rawKey
-      : `-----BEGIN PRIVATE KEY-----\n${rawKey.match(/.{1,64}/g)?.join("\n")}\n-----END PRIVATE KEY-----`;
-    const hash = crypto.createHash("sha256").update(minified).digest("hex");
-    const stringToSign = `POST:${endpointPath}:${hash}:${ts}`;
-    const sig = crypto.sign("sha256", Buffer.from(stringToSign), pem).toString("base64");
+    // Maksimal batas waktu sandbox DANA adalah 30 menit; 20 menit aman di dalam batas waktu
+    const validUpTo = formatWibIso(new Date(Date.now() + 20 * 60 * 1000));
+    // DANA SDK mengharuskan partnerReferenceNo maksimal 25 karakter
+    const partnerReferenceNo = (params.externalId || `tt_${Date.now()}`).slice(0, 25);
 
     try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-TIMESTAMP": ts,
-          "X-SIGNATURE": sig,
-          "ORIGIN": config.publicAppUrl || "https://tertaut.com",
-          "X-PARTNER-ID": config.dana.clientId,
-          "X-EXTERNAL-ID": "sdk" + crypto.randomUUID().substring(3),
-          "CHANNEL-ID": `${config.dana.clientId}-SERVER`,
-        },
-        body: minified,
-      });
+      // Siapkan payOptionDetails jika menggunakan Gapura Custom Checkout (scenario: "API")
+      let payOptionDetails: any[] | undefined = undefined;
+      const bankName = (params.vaBank || "BCA").toUpperCase();
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`DANA Create Order Failed: ${response.status} - ${errorText}`);
+      if (scenario === "API") {
+        if (rail === "qris") {
+          payOptionDetails = [
+            {
+              payMethod: "NETWORK_PAY",
+              payOption: "NETWORK_PAY_PG_QRIS",
+              transAmount: {
+                value: `${params.amount.toFixed(2)}`,
+                currency: "IDR",
+              },
+            },
+          ];
+        } else if (rail === "va") {
+          const isSandboxEnv = config.dana.env === "sandbox" || config.isSandbox;
+          const optionMap: Record<string, string> = {
+            BCA: isSandboxEnv ? "VIRTUAL_ACCOUNT_BRI" : "VIRTUAL_ACCOUNT_BCA",
+            MANDIRI: isSandboxEnv ? "VIRTUAL_ACCOUNT_BRI" : "VIRTUAL_ACCOUNT_MANDIRI",
+            BNI: isSandboxEnv ? "VIRTUAL_ACCOUNT_BRI" : "VIRTUAL_ACCOUNT_BNI",
+            BRI: "VIRTUAL_ACCOUNT_BRI",
+            CIMB: "VIRTUAL_ACCOUNT_CIMB",
+            PERMATA: isSandboxEnv ? "VIRTUAL_ACCOUNT_CIMB" : "VIRTUAL_ACCOUNT_PERMATA",
+            BSI: "VIRTUAL_ACCOUNT_BSI_PAYMENT",
+          };
+          const payOption = optionMap[bankName] || (isSandboxEnv ? "VIRTUAL_ACCOUNT_BRI" : "VIRTUAL_ACCOUNT_BCA");
+          payOptionDetails = [
+            {
+              payMethod: "VIRTUAL_ACCOUNT",
+              payOption,
+              transAmount: {
+                value: `${params.amount.toFixed(2)}`,
+                currency: "IDR",
+              },
+            },
+          ];
+        } else if (rail === "balance" || rail === "ewallet") {
+          payOptionDetails = [
+            {
+              payMethod: "BALANCE",
+              payOption: "BALANCE",
+              transAmount: {
+                value: `${params.amount.toFixed(2)}`,
+                currency: "IDR",
+              },
+            },
+          ];
+        }
       }
 
-      const resData = (await response.json()) as any;
+      const createOrderPayload: any = {
+        partnerReferenceNo,
+        merchantId: config.dana.merchantId || config.dana.clientId,
+        amount: {
+          value: `${params.amount.toFixed(2)}`,
+          currency: "IDR",
+        },
+        validUpTo: validUpTo,
+        urlParams: [
+          {
+            url: defaultRedirect,
+            type: "PAY_RETURN",
+            isDeeplink: "Y",
+          },
+          {
+            url: `${config.publicAppUrl}/webhook/dana/notify`,
+            type: "NOTIFICATION",
+            isDeeplink: "Y",
+          },
+        ],
+        additionalInfo: {
+          order: {
+            orderTitle: params.description || "Payment Order",
+            scenario: scenario,
+            merchantTransType: "SPECIAL_MOVIE",
+            buyer: {},
+          },
+          mcc: "5732",
+          envInfo: {
+            sourcePlatform: "IPG",
+            terminalType: "SYSTEM",
+            orderTerminalType: "WEB",
+          },
+        },
+      };
+
+      if (payOptionDetails && payOptionDetails.length > 0) {
+        createOrderPayload.payOptionDetails = payOptionDetails;
+      }
+
+      if (rail === "qris") {
+        createOrderPayload.externalStoreId = config.dana.merchantId || "TERTAUT_STORE";
+      }
+
+      const response = await this.paymentGateway.createOrder(createOrderPayload);
+
       const orderId =
-        resData?.referenceNo ||
-        resData?.partnerReferenceNo ||
+        response?.referenceNo ||
+        response?.partnerReferenceNo ||
         params.externalId;
       const checkoutUrl =
-        resData?.webRedirectUrl ||
+        response?.webRedirectUrl ||
         `${config.publicAppUrl}/checkout/dana/finish?orderId=${params.externalId}`;
+
+      const paymentCode = response?.additionalInfo?.paymentCode;
+      let qrDataUrl: string | undefined;
+
+      if (paymentCode && rail === "qris") {
+        try {
+          qrDataUrl = await QRCode.toDataURL(paymentCode, { width: 320, margin: 2 });
+        } catch {}
+      }
 
       return {
         orderId,
@@ -169,30 +367,55 @@ export class DanaService {
         description: params.description,
         checkoutUrl,
         expiryDate: validUpTo,
+        scenario,
+        paymentRail: rail,
+        paymentCode,
+        qrDataUrl,
+        vaBank: bankName,
+        bankName,
       };
     } catch (err: any) {
-      console.error("[DanaService] API Call Error:", err.message);
+      console.error("[DanaService] dana-node SDK createOrder Error:", err.message);
       throw err;
     }
   }
 
   /**
-   * Verifikasi Webhook DANA Finish Payment & Disburse Notify
+   * Verifikasi Webhook DANA Finish Payment & Disburse Notify menggunakan WebhookParser dana-node
    */
-  static verifyWebhook(headers: Record<string, string | undefined>, body: any): boolean {
+  static verifyWebhook(
+    headers: Record<string, string | undefined>,
+    body: any,
+    options?: { method?: string; path?: string }
+  ): boolean {
     if (config.isSandbox && (!config.dana.publicKey || !config.dana.clientSecret)) {
       return true; // Bypass verifikasi di sandbox saat credential belum diset
     }
 
-    const signature = headers["signature"] || headers["x-signature"];
+    const signature = headers["signature"] || headers["x-signature"] || headers["X-SIGNATURE"];
     if (!signature) {
       if (config.isSandbox) return true;
       console.warn("[DanaService] Missing signature header in DANA webhook.");
       return false;
     }
 
-    // Jika public key RSA tersedia, verifikasi SHA256withRSA
+    // Jika public key RSA tersedia, verifikasi via SDK WebhookParser atau fallback crypto
     if (config.dana.publicKey) {
+      try {
+        if (options?.method && options?.path) {
+          const parser = new WebhookParser(config.dana.publicKey);
+          const rawHeaders: Record<string, string> = {};
+          for (const [k, v] of Object.entries(headers)) {
+            if (v !== undefined) rawHeaders[k] = v;
+          }
+          const bodyStr = typeof body === "string" ? body : JSON.stringify(body);
+          parser.parseWebhook(options.method, options.path, rawHeaders, bodyStr);
+          return true;
+        }
+      } catch (parserErr: any) {
+        // Fallback ke verifikasi RSA standar
+      }
+
       try {
         const rawPubKey = config.dana.publicKey;
         const pubKeyPem = rawPubKey.includes("-----BEGIN")
@@ -207,7 +430,6 @@ export class DanaService {
       }
     }
 
-    // Kritis: Di production, jika publicKey tidak tersedia, TIDAK BOLEH bypass/fallback true!
     if (!config.isSandbox) {
       console.error("[DanaService] DANA public key tidak dikonfigurasi di production. Webhook ditolak demi keamanan.");
       return false;
@@ -217,7 +439,7 @@ export class DanaService {
   }
 
   /**
-   * Cairkan dana bersih builder via DANA Disburse to Bank / Payout
+   * Cairkan dana bersih builder via DANA Disburse to Bank / Payout menggunakan dana-node SDK
    */
   static async createDisbursement(params: {
     externalId: string;
@@ -226,6 +448,7 @@ export class DanaService {
     accountHolderName: string;
     accountNumber: string;
     description: string;
+    forceMock?: boolean;
   }): Promise<{
     id: string;
     external_id: string;
@@ -235,7 +458,8 @@ export class DanaService {
     status: string;
   }> {
     const mockEnabled =
-      config.isSandbox && (!config.dana.clientId || !config.dana.clientSecret);
+      params.forceMock ||
+      (config.isSandbox && (config.isTest || (!config.dana.clientId || !config.dana.clientSecret)));
 
     if (mockEnabled) {
       return {
@@ -252,39 +476,34 @@ export class DanaService {
       throw new Error("DANA Disbursement Failed: Kredensial DANA tidak dikonfigurasi.");
     }
 
-    const response = await fetch(`${config.dana.baseUrl}/dana/v1/disbursement/transferToBank`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CLIENT-ID": config.dana.clientId,
-        "X-TIMESTAMP": new Date().toISOString(),
-      },
-      body: JSON.stringify({
+    try {
+      const response = await this.disbursement.transferToBank({
         partnerReferenceNo: params.externalId,
+        customerNumber: "6280000000000",
+        beneficiaryAccountNumber: params.accountNumber,
+        beneficiaryBankCode: params.bankCode,
         amount: {
           currency: "IDR",
-          value: params.amount.toString(),
+          value: `${params.amount.toFixed(2)}`,
         },
-        beneficiaryAccountNo: params.accountNumber,
-        beneficiaryBankCode: params.bankCode,
-        beneficiaryName: params.accountHolderName,
-        remark: params.description,
-      }),
-    });
+        additionalInfo: {
+          fundType: "1",
+          beneficiaryName: params.accountHolderName,
+          remark: params.description,
+        } as any,
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`DANA Disbursement Failed: ${response.status} - ${errorText}`);
+      return {
+        id: response?.referenceNo || `dana_disb_${Date.now()}`,
+        external_id: params.externalId,
+        amount: params.amount,
+        bank_code: params.bankCode,
+        account_holder_name: params.accountHolderName,
+        status: "COMPLETED",
+      };
+    } catch (err: any) {
+      console.error("[DanaService] dana-node SDK transferToBank Error:", err.message);
+      throw err;
     }
-
-    const resData = (await response.json()) as any;
-    return {
-      id: resData?.acquirementId || `dana_disb_${Date.now()}`,
-      external_id: params.externalId,
-      amount: params.amount,
-      bank_code: params.bankCode,
-      account_holder_name: params.accountHolderName,
-      status: "COMPLETED",
-    };
   }
 }

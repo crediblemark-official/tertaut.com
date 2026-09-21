@@ -185,7 +185,7 @@ Informasi Proyek:
 Langkah Integrasi:
 1. Pasang SDK: npm install @tertaut/sdk
 2. Inisialisasi SDK:
-   import { Tertaut } from '@tertaut/sdk';
+   ${'import { Tertaut } from \'@tertaut/sdk\';'}
    const tertaut = new Tertaut({ apiKey: '${sampleApiKey.value}', appId: '${currentAppId.value}', baseUrl: 'https://tertaut.com' });
 3. Modul 1 (Checkout): Di tombol upgrade/beli, panggil tertaut.checkout({ amount: ${currentAppPrice.value}, grantDays: 30, redirectUrl: window.location.origin + '/dashboard' });
 4. Modul 2 (Lisensi): Di startup aplikasi, validasi lisensi:
@@ -203,7 +203,7 @@ const widgetEmbedScript = computed(() => {
 <tertaut-badge app="${selectedAppSlug.value || 'my-app'}" type="${selectedWidgetType.value}"></tertaut-badge>`
 })
 
-const sdkFullSnippet = computed(() => `import { Tertaut } from '@tertaut/sdk';
+const sdkFullSnippet = computed(() => `${'import { Tertaut } from \'@tertaut/sdk\';'}
 
 // Inisialisasi client library (< 15KB)
 export const tertaut = new Tertaut({
@@ -212,7 +212,7 @@ export const tertaut = new Tertaut({
   baseUrl: 'https://tertaut.com'
 });
 
-// 1. Modul 1: Direct Live Checkout (MoR Engine via Xendit)
+// 1. Modul 1: Direct Live Checkout (MoR Engine via DANA Enterprise)
 export async function buyProduct() {
   await tertaut.checkout({
     amount: ${currentAppPrice.value},

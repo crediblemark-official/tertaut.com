@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "DANA-MCP-INTEGRATION": {
+      "serverUrl": "https://dana-mcp.dana.id/sse"
+    }
+  }
+}

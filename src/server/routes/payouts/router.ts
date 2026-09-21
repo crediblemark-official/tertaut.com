@@ -2,7 +2,6 @@ import { Elysia, t } from "elysia";
 import { db } from "../../db";
 import { transactions, builders, apps } from "../../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { XenditService } from "../../services/xendit";
 import { DanaService } from "../../services/dana";
 import { config } from "../../config";
 import { authenticate } from "../../middleware/auth";
@@ -165,7 +164,7 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
         };
       }
 
-      const recipient = XenditService.resolveDisbursementAccount(builder);
+      const recipient = DanaService.resolveDisbursementAccount(builder);
       // Production TANPA rekening tersimpan → tolak pencairan (jangan pakai data palsu)
       if (!recipient) {
         set.status = 400;
@@ -187,20 +186,12 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
       };
 
       try {
-        const disbResult =
-          config.paymentGateway === "dana"
-            ? await DanaService.createDisbursement({
-                externalId,
-                amount: disburseAmount,
-                ...recipient,
-                description: `Pencairan Saldo Bersih Builder tertaut.com (DANA)`,
-              })
-            : await XenditService.createDisbursement({
-                externalId,
-                amount: disburseAmount,
-                ...recipient,
-                description: `Pencairan Saldo Bersih Builder tertaut.com`,
-              });
+        const disbResult = await DanaService.createDisbursement({
+          externalId,
+          amount: disburseAmount,
+          ...recipient,
+          description: `Pencairan Saldo Bersih Builder tertaut.com (DANA Transfer to Bank)`,
+        });
 
         // Hanya tandai COMPLETED kalau gateway benar-benar menyelesaikannya.
         const finalStatus =

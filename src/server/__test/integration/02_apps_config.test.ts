@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { setupTestAuth } from "../setup";
-import { XenditService } from "../../services/xendit";
+import { DanaService } from "../../services/dana";
 import { LicenseService } from "../../services/license";
 import { LicenseTokenService } from "../../services/licenseToken";
 
@@ -10,7 +10,7 @@ describe("App End-to-End Validation & MoR Calculations", () => {
   it("should verify 5% MoR cut holds true for micro-transactions", () => {
     const prices = [10000, 25000, 49000, 99000, 149000, 299000];
     for (const p of prices) {
-      const { grossAmount, platformFee, netAmount } = XenditService.calculateMorBreakdown(p);
+      const { grossAmount, platformFee, netAmount } = DanaService.calculateMorBreakdown(p);
       expect(grossAmount).toBe(p);
       expect(platformFee + netAmount).toBe(grossAmount);
       expect(platformFee).toBe(Math.round(p * 0.05));

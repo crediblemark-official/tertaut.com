@@ -182,12 +182,21 @@ export const api = {
     customerEmail: string;
     grantDays?: number;
     preferredPaymentChannel?: string;
+    paymentRail?: "qris" | "va" | "ewallet";
+    scenario?: "API" | "REDIRECT";
+    vaBank?: string;
     redirectUrl?: string;
     couponCode?: string;
   }): Promise<{
     success: boolean;
     transactionId?: string;
     checkoutUrl?: string;
+    scenario?: "API" | "REDIRECT";
+    paymentRail?: "qris" | "va" | "ewallet";
+    paymentCode?: string;
+    qrDataUrl?: string;
+    vaBank?: string;
+    amount?: number;
     error?: string;
   }> {
     const res = await fetch("/api/v1/checkout/session", {
@@ -195,6 +204,29 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+    return parseJson(res);
+  },
+
+  async getPaymentStatus(txId: string): Promise<{
+    success: boolean;
+    transactionId: string;
+    paymentStatus: "PENDING" | "PAID" | "EXPIRED" | "FAILED";
+    amount: number;
+    channel?: string;
+    licenseKey?: string | null;
+    paidAt?: string | null;
+    error?: string;
+  }> {
+    const res = await fetch(`/api/v1/checkout/status/${txId}`);
+    return parseJson(res);
+  },
+
+  async getConsultPay(amount: number): Promise<{
+    success: boolean;
+    data: any;
+    error?: string;
+  }> {
+    const res = await fetch(`/api/v1/checkout/consult-pay?amount=${amount}`);
     return parseJson(res);
   },
 

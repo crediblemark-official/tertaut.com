@@ -18,7 +18,7 @@ import { auth } from "../auth";
 import { eq } from "drizzle-orm";
 import { CryptoService } from "../services/crypto";
 import { LicenseService } from "../services/license";
-import { XenditService } from "../services/xendit";
+import { DanaService } from "../services/dana";
 import { randomBytes } from "crypto";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../routes/apps/api-key";
 import type { DeliveryConfig } from "../db/schema/apps";
@@ -165,19 +165,61 @@ export async function seed() {
       : a.platform === "chrome_extension"
         ? ({ licenseKey: { enabled: true, description: "Lisensi Universal Tertaut", expiresInDays: 180, maxSeats: 1, offlineGraceDays: 7 } } as DeliveryConfig)
         : ({ licenseKey: { enabled: true, description: "Lisensi Universal Tertaut", expiresInDays: 30, maxSeats: 1 } } as DeliveryConfig),
-    features: {},
   }))).returning();
   console.log(`✅ ${seededApps.length} Aplikasi di-seed:`, seededApps.map((a) => a.name));
+
+  // Seed sample apps untuk builder lain yang terdaftar di sistem jika belum punya app
+  const otherBuilders = await db.select().from(builders);
+  for (const ob of otherBuilders) {
+    if (ob.id !== builder.id) {
+      const existing = await db.select().from(apps).where(eq(apps.builderId, ob.id));
+      if (existing.length === 0) {
+        await db.insert(apps).values([
+          {
+            id: `app_${ob.id.slice(0, 8)}_pro`,
+            builderId: ob.id,
+            apiKey: generateAppApiKey("live"),
+            name: "Desktop License Manager Pro",
+            slug: `license-manager-${ob.id.slice(0, 6)}`,
+            mode: "live" as const,
+            targetPrice: 99999,
+            description: "Solusi lisensi desktop offline-first & online sync dengan integrasi DANA Enterprise.",
+            headline: "Desktop License Manager Pro",
+            subheadline: "Solusi lisensi software terdepan",
+            mediaUrl: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80",
+            deliveryConfig: { licenseKey: { enabled: true, description: "Lisensi Universal Tertaut", expiresInDays: 31, maxSeats: 3 } } as DeliveryConfig,
+          },
+          {
+            id: `app_${ob.id.slice(0, 8)}_ai`,
+            builderId: ob.id,
+            apiKey: generateAppApiKey("live"),
+            name: "FastAI Code Assistant",
+            slug: `fastai-code-${ob.id.slice(0, 6)}`,
+            mode: "live" as const,
+            targetPrice: 149000,
+            description: "AI coding assistant dengan proxy streaming anti-leak.",
+            headline: "FastAI Code Assistant",
+            subheadline: "Asisten AI untuk developer",
+            mediaUrl: "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80",
+            deliveryConfig: { licenseKey: { enabled: true, description: "Lisensi Universal Tertaut", expiresInDays: 30, maxSeats: 1 } } as DeliveryConfig,
+          }
+        ]);
+        console.log(`✅ Aplikasi contoh berhasil dibuat untuk builder: ${ob.email}`);
+      }
+    }
+  }
 
   // 5. Transactions
   await db.insert(transactions).values(TXS.map((t) => ({
     ...t,
     builderId: builder.id,
-    ...XenditService.calculateMorBreakdown(t.amount),
+    paymentProvider: "dana",
+    providerReferenceId: t.xenditInvoiceId,
+    ...DanaService.calculateMorBreakdown(t.amount),
     paymentChannel: t.channel,
     paymentStatus: t.status,
     disbursementStatus: t.disbursementStatus,
-    disbursementId: t.status === "PAID" ? `disb_xnd_${t.id.slice(0, 6)}` : null,
+    disbursementId: t.status === "PAID" ? `disb_dana_${t.id.slice(0, 6)}` : null,
     paidAt: t.paidAt,
     createdAt: t.paidAt,
   })));

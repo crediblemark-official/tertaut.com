@@ -149,7 +149,7 @@ function copySdkInstall() {
 
         <!-- Subtitle -->
         <p class="max-w-2xl mx-auto text-sm sm:text-base md:text-lg text-jetblack/70 leading-relaxed">
-          Uji minat pasar sebelum coding, terima pembayaran instan via <strong>Merchant of Record Xendit</strong> (5% flat fee), lindungi software dengan <strong>Universal Licensing offline-first</strong>, dan amankan API AI Anda tanpa kebocoran kunci.
+          Uji minat pasar sebelum coding, terima pembayaran instan via <strong>Merchant of Record DANA Enterprise</strong> (5% flat fee), lindungi software dengan <strong>Universal Licensing offline-first</strong>, dan amankan API AI Anda tanpa kebocoran kunci.
         </p>
 
         <!-- CTA Action Buttons -->
@@ -342,7 +342,7 @@ function copySdkInstall() {
           </div>
           <div class="space-y-1.5">
             <span class="text-[10px] font-bold uppercase tracking-wider text-jetblack/50 font-mono">Modul 01</span>
-            <h4 class="text-base font-bold text-jetblack">Dynamic Checkout &amp; MoR Xendit</h4>
+            <h4 class="text-base font-bold text-jetblack">Dynamic Checkout &amp; MoR DANA Enterprise</h4>
             <p class="text-xs text-jetblack/65 leading-relaxed">
               Terima pembayaran QRIS, Virtual Account (BCA, Mandiri, BRI), dan E-Wallet tanpa perlu izin PT/CV. Merchant of Record dengan potongan flat 5% dan pencairan net 95% otomatis.
             </p>

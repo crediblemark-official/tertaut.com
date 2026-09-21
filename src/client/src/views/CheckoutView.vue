@@ -14,6 +14,7 @@ import {
   Copy,
   Check,
   ArrowUpRight,
+  AlertTriangle,
 } from 'lucide-vue-next'
 import DynamicCheckoutForm from '../components/checkout/DynamicCheckoutForm.vue'
 import CheckoutResultCard from '../components/checkout/CheckoutResultCard.vue'
@@ -22,9 +23,9 @@ import { useClipboard } from '../composables/useClipboard'
 
 const appsList = ref<AppItem[]>([])
 const selectedAppId = ref('')
-const amount = ref(0)
+const amount = ref<number | string>(0)
 const customerEmail = ref('')
-const grantDays = ref(30)
+const grantDays = ref<number | string>(30)
 const loading = ref(false)
 const disburseLoading = ref<string | null>(null)
 const disburseAlert = ref<string | null>(null)
@@ -98,15 +99,18 @@ async function loadTransactions() {
 }
 
 async function createCheckout() {
-  if (!selectedAppId.value) return
+  if (!selectedAppId.value) {
+    disburseAlert.value = 'Peringatan: Silakan buat atau pilih software terlebih dahulu sebelum membuat link checkout.'
+    return
+  }
   loading.value = true
   disburseAlert.value = null
   try {
     const res = await api.createCheckoutSession({
       appId: selectedAppId.value,
-      amount: amount.value,
+      amount: Number(amount.value) || 0,
       customerEmail: customerEmail.value,
-      grantDays: grantDays.value
+      grantDays: Number(grantDays.value) || 30
     })
     if (res && res.success !== false) {
       checkoutResult.value = res
@@ -145,7 +149,7 @@ async function triggerDisbursement(tx: TransactionItem) {
   try {
     const res = await api.disburseTransaction(tx.id)
     if (res.success) {
-      disburseAlert.value = `Berhasil! Pencairan ${formatRupiah(tx.netAmount)} untuk transaksi ${tx.id} berhasil diproses ke rekening builder via API Xendit.`
+      disburseAlert.value = `Berhasil! Pencairan ${formatRupiah(tx.netAmount)} untuk transaksi ${tx.id} berhasil diproses ke rekening builder via DANA Transfer to Bank.`
     } else {
       disburseAlert.value = `Info: ${res.error || res.message}`
     }
@@ -163,7 +167,7 @@ async function triggerBatchPayout() {
   try {
     const res = await api.triggerPayout()
     if (res && res.success && res.data) {
-      disburseAlert.value = `Berhasil! Pencairan ${formatRupiah(res.data.amount)} berhasil diproses ke rekening ${res.data.bankCode} (${res.data.recipientName}) via Xendit API.`
+      disburseAlert.value = `Berhasil! Pencairan ${formatRupiah(res.data.amount)} berhasil diproses ke rekening ${res.data.bankCode} (${res.data.recipientName}) via DANA Transfer to Bank.`
     } else {
       disburseAlert.value = `Info: ${res?.error || res?.message || 'Pencairan berhasil diproses.'}`
     }
@@ -235,6 +239,24 @@ const activeTab = ref<'generator' | 'history'>('generator')
       </div>
     </div>
 
+    <!-- Unified Alert Banner (Visible on all tabs) -->
+    <div v-if="disburseAlert"
+      :class="[
+        'p-3 rounded-lg text-xs font-bold flex items-center justify-between transition animate-fadeIn',
+        disburseAlert.startsWith('Error') || disburseAlert.startsWith('Peringatan') || disburseAlert.startsWith('Silakan')
+          ? 'bg-amber-50 border border-amber-200 text-amber-900'
+          : 'bg-forest/10 border border-forest/25 text-forest'
+      ]">
+      <div class="flex items-center gap-2">
+        <component
+          :is="disburseAlert.startsWith('Error') || disburseAlert.startsWith('Peringatan') || disburseAlert.startsWith('Silakan') ? AlertTriangle : CheckCircle2"
+          class="w-4 h-4 shrink-0"
+        />
+        <span>{{ disburseAlert }}</span>
+      </div>
+      <button @click="disburseAlert = null" class="text-xs underline cursor-pointer ml-3 shrink-0">Tutup</button>
+    </div>
+
     <!-- TAB 1: DYNAMIC CHECKOUT GENERATOR & HOSTED LINK -->
     <div v-if="activeTab === 'generator'" class="space-y-3.5 animate-fadeIn">
       <!-- Quick Hosted Checkout Link (FR-1.1) - Compact Bar -->
@@ -292,15 +314,7 @@ const activeTab = ref<'generator' | 'history'>('generator')
         </router-link>
       </div>
 
-      <!-- Alert Disbursement Banner -->
-      <div v-if="disburseAlert"
-        class="p-2.5 rounded-lg bg-forest/10 border border-forest/25 text-forest text-xs font-bold flex items-center justify-between">
-        <div class="flex items-center gap-1.5">
-          <CheckCircle2 class="w-4 h-4 shrink-0" />
-          <span>{{ disburseAlert }}</span>
-        </div>
-        <button @click="disburseAlert = null" class="text-xs underline cursor-pointer">Tutup</button>
-      </div>
+
 
       <!-- Transactions & Disbursement Ledger Table Component -->
       <TransactionsLedgerTable :transactions="transactions" :loading-txs="loadingTxs" :simulating-tx-id="simulatingTxId"

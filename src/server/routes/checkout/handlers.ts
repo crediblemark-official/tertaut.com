@@ -1,7 +1,6 @@
 import { db } from "../../db";
 import { apps, transactions, licenses } from "../../db/schema";
 import { eq, inArray, or, and, sql } from "drizzle-orm";
-import { XenditService } from "../../services/xendit";
 import { LicenseService } from "../../services/license";
 import { CouponService } from "../../services/coupon";
 import { config as checkoutConfig } from "../../config";
@@ -58,6 +57,62 @@ export async function handleDanaFinish({ query, set }: any) {
     redirectUrl: finalRedirect,
   };
 }
+
+/**
+ * Polling status pembayaran untuk Gapura Custom Checkout
+ */
+export async function handleGetPaymentStatus({ params, set }: any) {
+  const { txId } = params as { txId: string };
+  if (!txId) {
+    set.status = 400;
+    return { error: "txId parameter wajib disertakan" };
+  }
+
+  const tx = await db.query.transactions.findFirst({
+    where: or(
+      eq(transactions.id, txId),
+      eq(transactions.xenditExternalId, txId),
+      eq(transactions.providerReferenceId, txId)
+    ),
+  });
+
+  if (!tx) {
+    set.status = 404;
+    return { error: "Transaksi tidak ditemukan" };
+  }
+
+  let licenseKey: string | null = null;
+  if (tx.paymentStatus === "PAID") {
+    const lic = await db.query.licenses.findFirst({
+      where: eq(licenses.transactionId, tx.id),
+    });
+    licenseKey = lic?.licenseKey || null;
+  }
+
+  return {
+    success: true,
+    transactionId: tx.id,
+    paymentStatus: tx.paymentStatus,
+    amount: tx.grossAmount,
+    channel: tx.paymentChannel,
+    licenseKey,
+    paidAt: tx.paidAt,
+  };
+}
+
+/**
+ * Konsultasi opsi pembayaran DANA aktif
+ */
+export async function handleConsultPay({ query }: any) {
+  const { DanaService } = await import("../../services/dana");
+  const amount = Number(query?.amount) || 10000;
+  const result = await DanaService.consultPay(amount);
+  return {
+    success: true,
+    data: result,
+  };
+}
+
 
 /**
  * Preview kupon tanpa membuat transaksi (dipakai halaman /pay/:slug)

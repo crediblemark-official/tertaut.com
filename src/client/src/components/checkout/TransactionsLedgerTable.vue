@@ -193,7 +193,7 @@ const filteredTransactions = computed(() => {
                   v-if="tx.xenditInvoiceUrl && tx.paymentStatus === 'PENDING' && !isSandbox"
                   :href="tx.xenditInvoiceUrl"
                   target="_blank"
-                  title="Buka Invoice Xendit Asli"
+                  title="Buka Invoice DANA Asli"
                   class="px-2 py-0.5 rounded bg-jetblack text-white hover:bg-jetblack-hover text-[10px] font-bold transition inline-flex items-center gap-1"
                 >
                   <ExternalLink class="w-2.5 h-2.5" />

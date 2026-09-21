@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { Sparkles } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { Sparkles, AlertTriangle } from 'lucide-vue-next'
 import { formatRupiah } from '../../lib/utils'
 import type { AppItem } from '../../lib/api'
 import SearchPicker from '../common/SearchPicker.vue'
+import { dashboardEnv, envPath } from '../../lib/environment'
 
 defineProps<{
   loading: boolean
@@ -10,9 +12,14 @@ defineProps<{
 }>()
 
 const selectedAppId = defineModel<string>('selectedAppId', { default: '' })
-const amount = defineModel<number>('amount', { default: 0 })
+const amount = defineModel<number | string>('amount', { default: 0 })
 const customerEmail = defineModel<string>('customerEmail', { default: '' })
-const grantDays = defineModel<number>('grantDays', { default: 30 })
+const grantDays = defineModel<number | string>('grantDays', { default: 30 })
+
+const numericAmount = computed(() => {
+  const n = typeof amount.value === 'number' ? amount.value : Number(amount.value)
+  return isNaN(n) ? 0 : n
+})
 
 const emit = defineEmits<{
   (e: 'createCheckout'): void
@@ -40,6 +47,15 @@ const emit = defineEmits<{
             search-placeholder="Cari software..."
             button-class="w-full !h-9 !rounded-lg !min-w-0 justify-between px-3 text-xs border-slate-300/80 hover:border-slate-400 bg-white shadow-2xs focus:ring-2 focus:ring-gold/20 focus:border-gold"
           />
+        </div>
+        <div v-else class="sm:col-span-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div class="flex items-center gap-2 text-xs">
+            <AlertTriangle class="w-4 h-4 text-amber-600 shrink-0" />
+            <span>Belum ada software terdaftar di mode <strong>{{ dashboardEnv.toUpperCase() }}</strong>. Daftarkan software terlebih dahulu untuk membuat checkout link.</span>
+          </div>
+          <router-link :to="envPath(dashboardEnv, '/apps')" class="px-2.5 py-1 rounded bg-jetblack text-gold text-xs font-bold hover:bg-jetblack-hover transition shrink-0 inline-flex items-center gap-1">
+            <span>+ Buat Software</span>
+          </router-link>
         </div>
 
         <div>
@@ -76,14 +92,14 @@ const emit = defineEmits<{
       <div class="px-3 py-2 rounded-lg bg-jetblack/[0.02] border border-jetblack/10 text-xs">
         <div class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
           <div class="flex items-center gap-3 text-jetblack/70 text-[11px]">
-            <span>Gross: <strong class="font-mono text-jetblack font-bold">{{ formatRupiah(amount) }}</strong></span>
+            <span>Gross: <strong class="font-mono text-jetblack font-bold">{{ formatRupiah(numericAmount) }}</strong></span>
             <span class="text-jetblack/30">•</span>
-            <span>Fee 5%: <strong class="font-mono text-crimson font-bold">-{{ formatRupiah(Math.round(amount * 0.05)) }}</strong></span>
+            <span>Fee 5%: <strong class="font-mono text-crimson font-bold">-{{ formatRupiah(Math.round(numericAmount * 0.05)) }}</strong></span>
           </div>
           <div class="flex items-center gap-1.5 font-bold">
             <span class="text-[11px] text-jetblack/60">Net Payout (95%):</span>
             <span class="font-mono text-forest bg-forest/10 px-2 py-0.5 rounded text-xs font-black">
-              {{ formatRupiah(amount - Math.round(amount * 0.05)) }}
+              {{ formatRupiah(numericAmount - Math.round(numericAmount * 0.05)) }}
             </span>
           </div>
         </div>
@@ -92,11 +108,19 @@ const emit = defineEmits<{
       <!-- Action Button (Mobile-First Thumb-Friendly) -->
       <button
         @click="emit('createCheckout')"
-        :disabled="loading"
-        class="w-full min-h-[40px] py-2.5 rounded-lg btn-gold text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs active:scale-95 cursor-pointer disabled:opacity-50"
+        :disabled="loading || !selectedAppId"
+        class="w-full min-h-[40px] py-2.5 rounded-lg btn-gold text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Sparkles class="w-4 h-4" />
-        <span>{{ loading ? 'Menghubungkan ke API Xendit...' : 'Generate Dynamic Checkout Link' }}</span>
+        <span>
+          {{
+            loading
+              ? 'Menghubungkan ke API DANA...'
+              : !selectedAppId
+              ? 'Pilih atau Buat Software Terlebih Dahulu'
+              : 'Generate Dynamic Checkout Link'
+          }}
+        </span>
       </button>
     </div>
   </div>

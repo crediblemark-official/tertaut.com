@@ -12,30 +12,18 @@ dist
 
 .git
 .gitignore
-docs
+# Unnecessary markdown at root
 BUGS_AND_PREMATURE_FEATURES.md
 README.md
+LICENSE_UPGRADE_ROADMAP.md
+PRD.md
+src/client/node_modules
 
-# Test & source maps
+# Test fixtures and logs
 src/**/__test__
-src/**/__tests__
 src/server/__test
-src/client/src/__test
-src/client/src/__tests__
-src/**/*.test.ts
-src/**/*.spec.ts
-*.test.ts
-*.spec.ts
 coverage
-*.tsbuildinfo
-*.map
-
 *.log
 .vscode
 .idea
 
-# Docs & unnecessary files
-*.md
-LICENSE_UPGRADE_ROADMAP.md
-PRD.md
-src/client/node_modules
