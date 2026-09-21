@@ -38,9 +38,11 @@ export function setupTestAuth() {
         headers.set("cookie", authCookie);
       }
       init.headers = headers;
-      // Normalize URL ke port yang dipakai server test
-      const normalizedUrl = url.replace("http://localhost:3001", "http://localhost:8081");
-      const req = input instanceof Request ? new Request(new Request(input, init), { ...init }) : new Request(normalizedUrl, init);
+      const normalizedUrl = url
+        .replace("http://localhost:3001", "http://localhost:8081");
+      const req = typeof input === "string"
+        ? new Request(normalizedUrl, init)
+        : new Request(new Request(input.url.replace("http://localhost:3001", "http://localhost:8081"), input), init);
       return app.handle(req);
     }
     return originalFetch(input, init);
