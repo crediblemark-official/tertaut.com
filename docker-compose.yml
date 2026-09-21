@@ -34,9 +34,14 @@ services:
       DANA_SANDBOX_BASE_URL: ${DANA_SANDBOX_BASE_URL:-https://api.sandbox.dana.id}
       DANA_SANDBOX_PUBLIC_KEY: ${DANA_SANDBOX_PUBLIC_KEY:-}
       DANA_SANDBOX_PRIVATE_KEY: ${DANA_SANDBOX_PRIVATE_KEY:-}
+      DATABASE_SSL: ${DATABASE_SSL:-}
+      PUBLIC_STORE_URL: ${PUBLIC_STORE_URL:-}
+      DEFAULT_PRICE: ${DEFAULT_PRICE:-}
       # Bun runtime optimasi
       BUN_LOG_SCOPE: "*"
       BUN_JSX_RUNTIME: "haste"
+    volumes:
+      - ./keys:/app/keys:ro
     ports:
       - "${APP_PORT:-3001}:3001"
     deploy:
