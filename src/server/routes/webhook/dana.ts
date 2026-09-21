@@ -62,7 +62,9 @@ export async function handleDanaFinishPaymentWebhook({ request, headers, body, s
   const isSnapBi = data?.latestTransactionStatus !== undefined;
 
   // Verifikasi signature baik format SNAP BI maupun legacy DANA Enterprise
-  if (!DanaService.verifyWebhook(headers, body)) {
+  const webhookMethod = request?.method || "POST";
+  const webhookPath = request?.url ? new URL(request.url).pathname : "/v1.0/debit/notify";
+  if (!DanaService.verifyWebhook(headers, body, { method: webhookMethod, path: webhookPath })) {
     set.status = 401;
     return {
       responseCode: "4015600",
@@ -184,7 +186,9 @@ export async function handleDanaDisburseNotifyWebhook({ request, headers, body, 
     return { error: "Too many requests" };
   }
 
-  if (!DanaService.verifyWebhook(headers, body)) {
+  const webhookMethod = request?.method || "POST";
+  const webhookPath = request?.url ? new URL(request.url).pathname : "/v1.0/emoney/transfer-bank-notify.htm";
+  if (!DanaService.verifyWebhook(headers, body, { method: webhookMethod, path: webhookPath })) {
     set.status = 401;
     return { error: "Invalid Webhook Signature" };
   }

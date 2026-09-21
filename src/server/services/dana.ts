@@ -319,7 +319,10 @@ export class DanaService {
             orderTitle: params.description || "Payment Order",
             scenario: scenario,
             merchantTransType: "SPECIAL_MOVIE",
-            buyer: {},
+            buyer: {
+              externalUserType: "EMAIL",
+              externalUserId: (params.payerEmail || `buyer_${params.externalId}`).slice(0, 32),
+            },
           },
           mcc: "5732",
           envInfo: {
@@ -507,13 +510,18 @@ export class DanaService {
         } as any,
       });
 
+      const responseCode = (response as any)?.responseCode;
+      // DANA SNAP BI: 2004300/2001800 = instant success, 2024300 = in-progress (akan difinalisasi via webhook)
+      const isInstantSuccess = responseCode === "2004300" || responseCode === "2001800";
+      const status = isInstantSuccess ? "COMPLETED" : "PROCESSING";
+
       return {
         id: response?.referenceNo || `dana_disb_${Date.now()}`,
         external_id: params.externalId,
         amount: params.amount,
         bank_code: params.bankCode,
         account_holder_name: params.accountHolderName,
-        status: "COMPLETED",
+        status,
       };
     } catch (err: any) {
       console.error("[DanaService] dana-node SDK transferToBank Error:", err.message);

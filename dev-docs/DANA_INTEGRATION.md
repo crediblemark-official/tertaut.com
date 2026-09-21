@@ -1,5 +1,7 @@
 # Panduan & Dokumentasi Integrasi DANA Enterprise Engine (`dana-node` SDK)
 
+> 📚 Referensi teknis spesifikasi API resmi DANA (Create Order, Finish Notify, X-SIGNATURE SNAP, Disbursement flow) + gap analysis implementasi: lihat **[DANA_API_REFERENCE_2026-09-21.md](./DANA_API_REFERENCE_2026-09-21.md)**.
+
 Dokumen ini menjelaskan arsitektur, konfigurasi, dan alur operasional integrasi Payment Gateway resmi **DANA Enterprise** pada **tertaut.com** menggunakan SDK resmi `@dana-node` versi 2.2.2. Implementasi legacy Xendit telah sepenuhnya dihapus dan digantikan secara permanen oleh DANA Enterprise sebagai *single, unified payment gateway engine*.
 
 ---
