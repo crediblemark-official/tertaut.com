@@ -9,7 +9,7 @@ import {
   type KeyObject,
 } from "crypto";
 import { existsSync, writeFileSync, mkdirSync } from "fs";
-import { config } from "../config";
+import { config, cleanPemKey } from "../config";
 
 export interface LicenseTokenClaims {
   typ: "license";
@@ -56,8 +56,7 @@ export class LicenseTokenService {
     let privateKeyPem: string;
 
     if (envKey && envKey.includes("PRIVATE KEY")) {
-      // Perbaiki escape newline yang umum dipakai di env var.
-      privateKeyPem = envKey.replace(/\\n/g, "\n");
+      privateKeyPem = cleanPemKey(envKey);
     } else if (!config.isProd) {
       const generated = generateKeyPairSync("ed25519");
       privateKeyPem = generated.privateKey.export({ type: "pkcs8", format: "pem" }).toString();

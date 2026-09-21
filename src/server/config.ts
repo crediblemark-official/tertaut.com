@@ -54,9 +54,23 @@ function requireEnv(envName: string): string {
   return value;
 }
 
+function looksLikeFilePath(val: string): boolean {
+  if (!val || typeof val !== "string") return false;
+  const trimmed = val.trim();
+  return (
+    trimmed.startsWith("/") ||
+    trimmed.startsWith("./") ||
+    trimmed.startsWith("../") ||
+    trimmed.startsWith("keys/") ||
+    trimmed.endsWith(".pem") ||
+    trimmed.endsWith(".key") ||
+    trimmed.endsWith(".pub")
+  );
+}
+
 /**
  * Membersihkan format string kunci PEM (menghilangkan quotes pembungkus,
- * menormalkan literal \n, dan menyusun ulang baris base64 64-karakter).
+ * menormalkan literal \n, mendeteksi string base64 PEM, dan menyusun ulang baris base64 64-karakter).
  */
 export function cleanPemKey(raw: string): string {
   if (!raw || typeof raw !== "string") return "";
@@ -67,6 +81,16 @@ export function cleanPemKey(raw: string): string {
   }
   // Normalkan newline literal \n dan Windows linebreaks CRLF/CR
   val = val.replace(/\\n/g, "\n").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  // Jika input berupa single-line base64 yang membungkus PEM (mis. tanpa header BEGIN di string luar)
+  if (!val.includes("-----BEGIN")) {
+    try {
+      const decoded = Buffer.from(val, "base64").toString("utf8");
+      if (decoded.includes("-----BEGIN")) {
+        val = decoded.trim().replace(/\\n/g, "\n").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+      }
+    } catch {}
+  }
 
   // Re-format PEM jika memiliki header BEGIN dan footer END
   const beginMatch = val.match(/-----BEGIN [^-]+-----/);
@@ -85,24 +109,54 @@ export function cleanPemKey(raw: string): string {
 }
 
 /**
- * Membaca nilai kunci/sertifikat, mendukung file path lokal (mis. keys/*.pem)
- * maupun nilai string inline dari environment variable.
+ * Membaca nilai kunci/sertifikat dengan urutan prioritas 12-Factor Cloud-Native:
+ * 1. Environment variable [ENV_NAME]_BASE64 (Best practice untuk Dokploy/Docker - single line tanpa problem newline)
+ * 2. Environment variable [ENV_NAME] (Bisa berupa single-line base64, raw PEM inline, atau path file mounted)
+ * 3. File path lokal default (mis. keys/*.pem untuk kenyamanan local development)
  */
-function resolveKeyOrFile(envName: string, defaultFilePath?: string): string {
+export function resolveKeyOrFile(envName: string, defaultFilePath?: string): string {
+  // 1. Cek [ENV_NAME]_BASE64 terlebih dahulu (Dokploy / 12-factor cloud standard)
+  const base64Env = getEnv(`${envName}_BASE64`);
+  if (base64Env) {
+    try {
+      const decoded = Buffer.from(base64Env.trim(), "base64").toString("utf8");
+      if (decoded) {
+        return cleanPemKey(decoded);
+      }
+    } catch {}
+  }
+
+  // 2. Cek envName standar
   const value = getEnv(envName);
   if (value) {
-    if (existsSync(value)) {
-      try {
-        return cleanPemKey(readFileSync(value, "utf8"));
-      } catch {}
+    if (looksLikeFilePath(value)) {
+      if (existsSync(value)) {
+        try {
+          return cleanPemKey(readFileSync(value, "utf8"));
+        } catch {}
+      } else {
+        // PERINGATAN: Path file dikonfigurasi di env tapi tidak ada di filesystem (misal di Docker container)
+        // Jangan kembalikan nama file sebagai isi kunci!
+        if (!config?.isTest) {
+          console.warn(
+            `[config] Path file kunci "${value}" untuk ${envName} tidak ditemukan di filesystem. ` +
+              `Gunakan ${envName}_BASE64 untuk container Dokploy/Docker.`
+          );
+        }
+        return "";
+      }
     }
+    // Jika value adalah string kunci langsung (inline PEM atau base64)
     return cleanPemKey(value);
   }
+
+  // 3. Fallback ke file path default (hanya jika ada di filesystem dev lokal)
   if (defaultFilePath && existsSync(defaultFilePath)) {
     try {
       return cleanPemKey(readFileSync(defaultFilePath, "utf8"));
     } catch {}
   }
+
   return "";
 }
 

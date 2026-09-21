@@ -381,8 +381,13 @@ export class DanaService {
         err.message?.includes("Invalid private key format") ||
         err.message?.includes("Failed to generate signature")
       ) {
+        if (config.isSandbox) {
+          console.warn("[DanaService] Falling back to mock order due to DANA SDK key/signature error in sandbox:", err.message);
+          return DanaService.createOrder({ ...params, forceMock: true });
+        }
         throw new Error(
-          "Format DANA_PRIVATE_KEY di server tidak valid (harus berupa kunci RSA PEM yang diawali -----BEGIN PRIVATE KEY----- atau -----BEGIN RSA PRIVATE KEY-----). Jika Anda sedang dalam tahap uji coba, silakan beralih ke software mode Sandbox."
+          "Format DANA_PRIVATE_KEY di server tidak valid (harus berupa kunci RSA PEM yang diawali -----BEGIN PRIVATE KEY----- atau -----BEGIN RSA PRIVATE KEY-----). " +
+          "Untuk Dokploy/Docker, gunakan DANA_PRIVATE_KEY_BASE64. Jika Anda sedang dalam tahap uji coba, silakan gunakan software mode Sandbox."
         );
       }
       throw err;
