@@ -396,10 +396,34 @@ export async function handleCreateSession({ request, body, set }: any) {
   };
 } catch (err: any) {
   console.error("[handleCreateSession Error]:", err);
+  const msg = err?.message || "";
   set.status = 500;
+  let errorMsg = "Terjadi kesalahan internal saat membuat sesi checkout. Silakan coba lagi.";
+  if (
+    msg.includes("Invalid Merchant") ||
+    msg.includes("externalStoreId") ||
+    msg.includes("submerchant")
+  ) {
+    // QRIS-ish: merchant belum mendaftarkan store/submerchant di dashboard DANA.
+    errorMsg =
+      "Gateway DANA menolak transaksi: merchant/submerchant (externalStoreId) untuk " +
+      "metode pembayaran ini belum terdaftar di dashboard DANA. Daftarkan di " +
+      "https://dashboard.dana.id/sandbox/submerchants, atau gunakan aplikasi mode Sandbox untuk pengujian.";
+    set.status = 502;
+  } else if (
+    msg.includes("DANA_CLIENT_ID") ||
+    msg.includes("DANA_PRIVATE_KEY") ||
+    msg.includes("tidak dikonfigurasi")
+  ) {
+    errorMsg = "Gateway pembayaran DANA belum dikonfigurasi dengan benar di server.";
+    set.status = 502;
+  } else if (msg.toLowerCase().includes("timeout")) {
+    errorMsg = "Gateway DANA tidak merespons tepat waktu. Silakan coba lagi beberapa saat.";
+    set.status = 502;
+  }
   return {
     success: false,
-    error: err?.message || "Terjadi kesalahan internal saat membuat sesi checkout.",
+    error: errorMsg,
   };
 }
 }

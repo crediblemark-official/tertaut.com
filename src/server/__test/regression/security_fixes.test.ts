@@ -1,7 +1,9 @@
 /**
  * Regression test untuk 6 perbaikan keamanan:
- *  1. BUG-1: finish ?mock=true hanya mem-fulfill transaksi mockOrder=true di app sandbox
- *     (aplikasi Live TIDAK pernah menghasilkan mock — session, createOrder, & finish).
+ *  1. BUG-1: finish ?mock=true hanya mem-fulfill transaksi mockOrder=true di app sandbox.
+ *     Aplikasi Live di PRODUKSI tidak pernah menghasilkan mock (session, createOrder,
+ *     & finish). Di deployment non-produksi app Live boleh mendapat invoice DEMO
+ *     (mock:true) tetapi dicatat mockOrder=false → tidak pernah bisa mem-fulfill lisensi.
  *  2. BUG-2: webhook wajib rekonsiliasi nominal amount vs grossAmount.
  *  3. BUG-3: signature webhook wajib ketika public key DANA terpasang (semua env).
  *  4. BUG-4: simulate-paid butuh autentikasi (tidak lagi publik).
@@ -149,18 +151,92 @@ describe("Regression BUG-1: finish ?mock=true hanya untuk transaksi mockOrder", 
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Regression BUG-1 lanjutan: aplikasi Live tidak pernah menghasilkan mock", () => {
-  it("createOrder menolak forceMock untuk aplikasi Live (allowMock=false)", async () => {
+  it("createOrder menolak forceMock untuk aplikasi Live (allowMock=false) di PRODUCTION", async () => {
     const { DanaService } = await import("../../services/dana");
-    await expect(
-      (DanaService.createOrder as any)({
-        externalId: `ext_guard_${suffix()}`,
+    const { config } = await import("../../config");
+    const origProd = (config as any).isProd;
+    (config as any).isProd = true;
+    try {
+      await expect(
+        (DanaService.createOrder as any)({
+          externalId: `ext_guard_${suffix()}`,
+          amount: 50000,
+          payerEmail: `guard_${suffix()}@t.com`,
+          description: "live forceMock guard",
+          forceMock: true,
+          allowMock: false,
+        })
+      ).rejects.toThrow(/Mock order ditolak/);
+    } finally {
+      (config as any).isProd = origProd;
+    }
+  });
+
+  it("createOrder: app Live di NON-PRODUKSI boleh forceMock → invoice DEMO (mock:true, tak di-fulfill session)", async () => {
+    const { DanaService } = await import("../../services/dana");
+    const { config } = await import("../../config");
+    const origProd = (config as any).isProd;
+    (config as any).isProd = false;
+    try {
+      const res = await (DanaService.createOrder as any)({
+        externalId: `ext_demo_${suffix()}`,
         amount: 50000,
-        payerEmail: `guard_${suffix()}@t.com`,
-        description: "live forceMock guard",
+        payerEmail: `demo_${suffix()}@t.com`,
+        description: "live demo invoice",
         forceMock: true,
         allowMock: false,
-      })
-    ).rejects.toThrow(/Mock order ditolak/);
+      });
+      expect(res.mock).toBe(true);
+      expect(res.checkoutUrl).toContain("mock=true");
+    } finally {
+      (config as any).isProd = origProd;
+    }
+  });
+
+  it("createOrder fallback QRIS Invalid Merchant: app Live non-prod → invoice DEMO; prod → THROW", async () => {
+    const { DanaService } = await import("../../services/dana");
+    const { config } = await import("../../config");
+    const origProd = (config as any).isProd;
+    const origGet = Object.getOwnPropertyDescriptor(DanaService, "paymentGateway")!;
+    const gatewayErr = new Error(
+      "404: Invalid Merchant. ... make sure externalStoreId / subMerchant exists. ... https://dashboard.dana.id/sandbox/submerchants"
+    );
+    Object.defineProperty(DanaService, "paymentGateway", {
+      get: () => ({ createOrder: async () => { throw gatewayErr; } }),
+      configurable: true,
+    });
+    const restore = () => Object.defineProperty(DanaService, "paymentGateway", origGet);
+
+    try {
+      // Non-produksi: fallback demo menyala walau app Live.
+      (config as any).isProd = false;
+      const demo = await (DanaService.createOrder as any)({
+        externalId: `ext_qris_np_${suffix()}`,
+        amount: 50000,
+        payerEmail: `qrisnp_${suffix()}@t.com`,
+        description: "qris fallback non-prod",
+        paymentRail: "qris",
+        allowMock: false,
+      });
+      expect(demo.mock).toBe(true);
+      expect(demo.qrDataUrl).toBeDefined();
+
+      // Produksi: wajib meneruskan error asli (tidak ada mock untuk app Live).
+      (config as any).isProd = true;
+      await expect(
+        (DanaService.createOrder as any)({
+          externalId: `ext_qris_p_${suffix()}`,
+          amount: 50000,
+          payerEmail: `qrisp_${suffix()}@t.com`,
+          description: "qris fallback prod",
+          paymentRail: "qris",
+          allowMock: false,
+        })
+      ).rejects.toThrow(/Invalid Merchant/);
+    } finally {
+      restore();
+      (config as any).isProd = origProd;
+    }
   });
 
   it("session app LIVE: mockOrder selalu false walau createOrder mengembalikan mock:true", async () => {

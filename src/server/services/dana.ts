@@ -20,10 +20,13 @@ export interface CreateDanaOrderParams {
   finishRedirectUrl?: string;
   forceMock?: boolean;
   /**
-   * true = caller mengizinkan order mock (hanya aplikasi mode sandbox).
+   * true = caller mengizinkan order mock (aplikasi mode sandbox).
    * Default = config.isSandbox (deployment sandbox) untuk menjaga perilaku
    * pemanggil lama; session selalu mengirim `app.mode === "sandbox"` secara
-   * eksplisit sehingga aplikasi Live TIDAK PERNAH menghasilkan mock.
+   * eksplisit. Aplikasi Live di produksi TIDAK PERNAH menghasilkan mock
+   * (guard forceMock + fallback nonaktif); di deployment non-produksi app Live
+   * hanya boleh mendapat invoice DEMO (mock:true, dicatat mockOrder=false oleh
+   * session sehingga tidak pernah mem-fulfill lisensi).
    */
   allowMock?: boolean;
   scenario?: "API" | "REDIRECT";
@@ -59,6 +62,34 @@ function getDanaInstance(): Dana {
     env: config.dana.env,
     clientSecret: config.dana.clientSecret,
   });
+}
+
+/** Batas waktu panggilan HTTP ke gateway DANA (mencegah request menggantung saat DANA lambat/down). */
+const DANA_HTTP_TIMEOUT_MS = 15_000;
+
+/**
+ * Bungkus promise panggilan SDK dana-node dengan timeout. Request yang sudah
+ * berjalan tidak dibatalkan, namun handler tetap selesai dalam batas waktu —
+ * origin tidak pernah menggantung menunggu gateway yang tidak merespons.
+ */
+async function withDanaTimeout<T>(label: string, promise: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () =>
+        reject(
+          new Error(
+            `DANA ${label} timeout setelah ${DANA_HTTP_TIMEOUT_MS}ms — gateway tidak merespons. Silakan coba lagi.`
+          )
+        ),
+      DANA_HTTP_TIMEOUT_MS
+    );
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export class DanaService {
@@ -102,20 +133,23 @@ export class DanaService {
     }
 
     try {
-      return await this.paymentGateway.consultPay({
-        merchantId: config.dana.merchantId || config.dana.clientId,
-        amount: {
-          value: `${amount.toFixed(2)}`,
-          currency: "IDR",
-        },
-        additionalInfo: {
-          envInfo: {
-            sourcePlatform: "IPG",
-            terminalType: "SYSTEM",
-            orderTerminalType: "WEB",
+      return await withDanaTimeout(
+        "consultPay",
+        this.paymentGateway.consultPay({
+          merchantId: config.dana.merchantId || config.dana.clientId,
+          amount: {
+            value: `${amount.toFixed(2)}`,
+            currency: "IDR",
           },
-        },
-      });
+          additionalInfo: {
+            envInfo: {
+              sourcePlatform: "IPG",
+              terminalType: "SYSTEM",
+              orderTerminalType: "WEB",
+            },
+          },
+        })
+      );
     } catch (err: any) {
       console.warn("[DanaService] consultPay fallback:", err.message);
       return {
@@ -177,14 +211,18 @@ export class DanaService {
    * Mendukung Gapura Custom Checkout (scenario: "API") dan Gapura Hosted Checkout (scenario: "REDIRECT")
    */
   static async createOrder(params: CreateDanaOrderParams): Promise<DanaOrderResponse> {
-    // Mock hanya boleh bila caller menyetujui (default: deployment sandbox).
-    // Session mengirim allowMock = (app.mode === "sandbox"), sehingga aplikasi Live
-    // tidak pernah menghasilkan order mock — baik lewat forceMock maupun fallback
-    // otomatis sandbox (hardening BUG-1).
+    // Kebijakan mock (BUG-1 + opsional demo non-prod):
+    //  - Aplikasi sandbox (allowMock=true): mock penuh, bisa di-fulfill.
+    //  - Aplikasi Live di deployment PRODUKSI: 100% gateway asli — forceMock
+    //    ditolak dan fallback otomatis nonaktif (tidak pernah ada mock).
+    //  - Aplikasi Live di deployment NON-produksi: boleh mendapat invoice DEMO
+    //    (fallback QRIS / key error) agar UI checkout tetap berfungsi, TAPI
+    //    session selalu menyimpan mockOrder=false untuk app Live sehingga
+    //    invoice demo itu TIDAK PERNAH bisa mem-fulfill lisensi.
     const allowMock = params.allowMock ?? config.isSandbox;
-    if (params.forceMock && !allowMock) {
+    if (params.forceMock && !allowMock && config.isProd) {
       throw new Error(
-        "Mock order ditolak: aplikasi mode Live tidak boleh membuat order mock (forceMock)."
+        "Mock order ditolak: aplikasi mode Live di environment produksi tidak boleh membuat order mock (forceMock)."
       );
     }
     const mockEnabled =
@@ -366,13 +404,18 @@ export class DanaService {
 
       let response: any;
       try {
-        response = await this.paymentGateway.createOrder(createOrderPayload);
+        response = await withDanaTimeout(
+          "createOrder",
+          this.paymentGateway.createOrder(createOrderPayload)
+        );
       } catch (gatewayErr: any) {
         // Jika DANA menolak QRIS karena merchant belum mendaftarkan store/submerchant di dashboard DANA.
-        // Fallback QRIS mock HANYA untuk aplikasi sandbox (allowMock) — aplikasi Live wajib
-        // menerima error asli agar konfigurasi merchant dapat diperbaiki, bukan di-mock.
+        // Fallback QRIS mock untuk: (a) aplikasi sandbox (allowMock), atau (b) deployment non-produksi —
+        // aplikasi Live di non-prod mendapat invoice DEMO (mock:true) yang dicatat session sebagai
+        // mockOrder=false sehingga tidak pernah mem-fulfill lisensi. Di produksi, aplikasi Live wajib
+        // menerima error asli agar konfigurasi merchant diperbaiki, bukan di-mock.
         if (
-          allowMock &&
+          (allowMock || !config.isProd) &&
           rail === "qris" &&
           (gatewayErr?.message?.includes("externalStoreId") ||
             gatewayErr?.message?.includes("submerchant") ||
@@ -490,12 +533,15 @@ export class DanaService {
 
     try {
       const partnerReferenceNo = (params.externalId || "").slice(0, 25);
-      const res = await this.paymentGateway.queryPayment({
-        merchantId: config.dana.merchantId || config.dana.clientId,
-        originalPartnerReferenceNo: partnerReferenceNo,
-        originalReferenceNo: params.referenceNo,
-        serviceCode: "54",
-      });
+      const res = await withDanaTimeout(
+        "queryPayment",
+        this.paymentGateway.queryPayment({
+          merchantId: config.dana.merchantId || config.dana.clientId,
+          originalPartnerReferenceNo: partnerReferenceNo,
+          originalReferenceNo: params.referenceNo,
+          serviceCode: "54",
+        })
+      );
 
       const paymentCode =
         res?.additionalInfo?.paymentViews?.[0]?.payOptionInfos?.[0]?.paymentCode;
