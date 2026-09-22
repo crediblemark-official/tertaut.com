@@ -14,7 +14,7 @@ import {
 } from "./handlers";
 
 /** Endpoint checkout yang memang harus publik (webhook, buat sesi, preview kupon, redirect DANA, polling status). */
-const PUBLIC_CHECKOUT_PATHS = ["webhook", "/session", "preview-coupon", "dana/finish", "/status", "consult-pay", "simulate-paid"];
+const PUBLIC_CHECKOUT_PATHS = ["webhook", "/session", "preview-coupon", "dana/finish", "/status", "consult-pay"];
 
 export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
   // Dashboard-only: /transactions, /disburse/:txId, /simulate-paid/:txId
@@ -63,6 +63,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
    */
   .get("/status/:txId", handleGetPaymentStatus, {
     params: t.Object({ txId: t.String() }),
+    query: t.Object({ ticket: t.Optional(t.String()) }),
     detail: {
       tags: ["MoR Checkout"],
       summary: "Get Payment Status",

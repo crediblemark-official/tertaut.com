@@ -19,7 +19,9 @@ describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
       builderId: builder.id,
       name: "Coupon E2E Test App",
       slug: testSlug,
-      mode: "live",
+      // Aplikasi sandbox: invoice mock (sesuai komentar "invoice mock di sandbox").
+      // Aplikasi Live tidak pernah menghasilkan invoice mock (kebijakan BUG-1).
+      mode: "sandbox",
       targetPrice: 100000,
     });
 

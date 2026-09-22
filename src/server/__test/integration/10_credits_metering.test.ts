@@ -7,6 +7,7 @@ import { apps, licenses, transactions, creditLedger } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { config } from "../../config";
 import { handleDanaFinishPaymentWebhook } from "../../routes/webhook/dana";
+import { danaWebhookHeaders } from "../setup";
 
 setupTestAuth();
 
@@ -34,9 +35,10 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
     });
 
     try {
+      const body = { partnerReferenceNo: extId, status: "PAID", amount: { value: "100000" } };
       const result: any = await handleDanaFinishPaymentWebhook({
-        headers: {},
-        body: { partnerReferenceNo: extId, status: "PAID" },
+        headers: danaWebhookHeaders(body),
+        body,
         set: {},
       });
 
@@ -109,9 +111,10 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
     });
 
     try {
+      const body = { partnerReferenceNo: extId, status: "PAID", amount: { value: "50000" } };
       const result: any = await handleDanaFinishPaymentWebhook({
-        headers: {},
-        body: { partnerReferenceNo: extId, status: "PAID" },
+        headers: danaWebhookHeaders(body),
+        body,
         set: {},
       });
 

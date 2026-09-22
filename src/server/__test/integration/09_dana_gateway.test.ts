@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { setupTestAuth } from "../setup";
+import { setupTestAuth, danaWebhookHeaders } from "../setup";
 import { DanaService } from "../../services/dana";
 import { db } from "../../db";
 import { apps, licenses, transactions } from "../../db/schema";
@@ -126,15 +126,16 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
     });
 
     // 1. First webhook call: harus berhasil dan terbitkan lisensi
+    const body1 = {
+      merchantTransId: extId,
+      orderStatus: "SUCCESS",
+      orderAmount: { currency: "IDR", value: "50000" },
+      paymentChannel: "DANA_WALLET",
+    };
     const webhookRes1 = await fetch("http://localhost:3001/webhook/dana/finish-payment", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        merchantTransId: extId,
-        orderStatus: "SUCCESS",
-        orderAmount: { currency: "IDR", value: "50000" },
-        paymentChannel: "DANA_WALLET",
-      }),
+      headers: { "Content-Type": "application/json", ...danaWebhookHeaders(body1) },
+      body: JSON.stringify(body1),
     });
 
     expect(webhookRes1.status).toBe(200);
@@ -148,13 +149,14 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
     expect(txAfter?.paymentChannel).toBe("DANA_WALLET");
 
     // 2. Second webhook call (Idempotency): tidak boleh duplikasi lisensi
+    const body2 = {
+      merchantTransId: extId,
+      orderStatus: "SUCCESS",
+    };
     const webhookRes2 = await fetch("http://localhost:3001/webhook/dana/finish-payment", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        merchantTransId: extId,
-        orderStatus: "SUCCESS",
-      }),
+      headers: { "Content-Type": "application/json", ...danaWebhookHeaders(body2) },
+      body: JSON.stringify(body2),
     });
 
     expect(webhookRes2.status).toBe(200);
@@ -168,13 +170,14 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
     expect(issuedLicenses.length).toBe(1);
 
     // 3. Test DANA Disburse to Bank Notify Webhook
+    const disbBody = {
+      partnerReferenceNo: extId,
+      status: "SUCCESS",
+    };
     const disburseWebhookRes = await fetch("http://localhost:3001/webhook/dana/disburse-notify", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        partnerReferenceNo: extId,
-        status: "SUCCESS",
-      }),
+      headers: { "Content-Type": "application/json", ...danaWebhookHeaders(disbBody) },
+      body: JSON.stringify(disbBody),
     });
 
     expect(disburseWebhookRes.status).toBe(200);
@@ -188,15 +191,16 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
 
   it("should acknowledge DANA Transaction Success Finish Notify (/v1.0/debit/notify) with 2005600 and Successful", async () => {
     // 1. Test against SNAP BI standard route POST /v1.0/debit/notify
+    const bodyOk = {
+      originalPartnerReferenceNo: `dana_order_${Date.now()}`,
+      originalReferenceNo: `dana_ref_${Date.now()}`,
+      latestTransactionStatus: "00",
+      amount: { value: "11011.00", currency: "IDR" },
+    };
     const notifyRes = await fetch("http://localhost:3001/v1.0/debit/notify", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        originalPartnerReferenceNo: `dana_order_${Date.now()}`,
-        originalReferenceNo: `dana_ref_${Date.now()}`,
-        latestTransactionStatus: "00",
-        amount: { value: "11011.00", currency: "IDR" },
-      }),
+      headers: { "Content-Type": "application/json", ...danaWebhookHeaders(bodyOk) },
+      body: JSON.stringify(bodyOk),
     });
 
     expect(notifyRes.status).toBe(200);
@@ -205,14 +209,15 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
     expect(body.responseMessage).toBe("Successful");
 
     // 2. Test Internal Server Error condition (amount = 11012.00)
+    const bodyErr = {
+      originalPartnerReferenceNo: `dana_err_${Date.now()}`,
+      latestTransactionStatus: "00",
+      amount: { value: "11012.00", currency: "IDR" },
+    };
     const errNotifyRes = await fetch("http://localhost:3001/v1.0/debit/notify", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        originalPartnerReferenceNo: `dana_err_${Date.now()}`,
-        latestTransactionStatus: "00",
-        amount: { value: "11012.00", currency: "IDR" },
-      }),
+      headers: { "Content-Type": "application/json", ...danaWebhookHeaders(bodyErr) },
+      body: JSON.stringify(bodyErr),
     });
 
     expect(errNotifyRes.status).toBe(500);
@@ -247,15 +252,16 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
       grantDays: 30,
     });
 
+    const snapBody = {
+      originalPartnerReferenceNo: extId,
+      originalReferenceNo: `dana_ref_${Date.now()}`,
+      latestTransactionStatus: "00",
+      amount: { value: "50000.00", currency: "IDR" },
+    };
     const res = await fetch("http://localhost:3001/v1.0/debit/notify", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        originalPartnerReferenceNo: extId,
-        originalReferenceNo: `dana_ref_${Date.now()}`,
-        latestTransactionStatus: "00",
-        amount: { value: "50000.00", currency: "IDR" },
-      }),
+      headers: { "Content-Type": "application/json", ...danaWebhookHeaders(snapBody) },
+      body: JSON.stringify(snapBody),
     });
 
     expect(res.status).toBe(200);

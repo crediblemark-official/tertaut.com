@@ -202,6 +202,7 @@ export const api = {
   }): Promise<{
     success: boolean;
     transactionId?: string;
+    ticket?: string;
     checkoutUrl?: string;
     scenario?: "API" | "REDIRECT";
     paymentRail?: "qris" | "va" | "ewallet";
@@ -219,7 +220,7 @@ export const api = {
     return parseJson(res);
   },
 
-  async getPaymentStatus(txId: string): Promise<{
+  async getPaymentStatus(txId: string, ticket?: string): Promise<{
     success: boolean;
     transactionId: string;
     paymentStatus: "PENDING" | "PAID" | "EXPIRED" | "FAILED";
@@ -232,7 +233,9 @@ export const api = {
     checkoutUrl?: string;
     error?: string;
   }> {
-    const res = await fetch(`/api/v1/checkout/status/${txId}`);
+    const sep = ticket ? (txId.includes("?") ? "&" : "?") : "";
+    const qs = ticket ? `${sep}ticket=${encodeURIComponent(ticket)}` : "";
+    const res = await fetch(`/api/v1/checkout/status/${txId}${qs}`);
     return parseJson(res);
   },
 

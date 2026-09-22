@@ -7,6 +7,8 @@ import { LicenseService } from "../../services/license";
 import { CreditService } from "../../services/credits";
 import { EmailService } from "../../services/email";
 import { config as checkoutConfig, resolveRequestOrigin } from "../../config";
+import { enforceRateLimit } from "../../services/rateLimiter";
+import { createPollTicket } from "../../utils/pollTicket";
 import { randomBytes } from "crypto";
 
 const DEFAULT_PRICE = checkoutConfig.defaultPrice;
@@ -19,6 +21,14 @@ const formatIdr = (value: number) =>
  */
 export async function handleCreateSession({ request, body, set }: any) {
   try {
+    // BUG-6: batasi pembuatan sesi per IP agar endpoint publik ini tidak bisa
+    // dipakai untuk brute-force / spam invoice.
+    const rl = enforceRateLimit(request, "checkout:session", 60, 60_000);
+    if (!rl.allowed) {
+      set.status = 429;
+      return { success: false, error: "Terlalu banyak permintaan. Coba lagi sebentar lagi." };
+    }
+
     const requestOrigin = resolveRequestOrigin(request);
     const {
       appId,
@@ -66,11 +76,12 @@ export async function handleCreateSession({ request, body, set }: any) {
     }
 
     const isSandboxApp = app.mode === "sandbox";
-    // Hanya mock jika aplikasi mode sandbox, atau dalam unit test, atau jika secara eksplisit dipaksa via forceMock.
-    // Aplikasi mode Live tidak boleh dipaksa mock jika kredensial DANA tersedia.
+    // Hanya mock jika aplikasi mode sandbox, atau dalam unit test.
+    // Aplikasi mode Live TIDAK BOLEH dipaksa mock lewat body (BUG-1): forceMock dari
+    // klien anonim tidak boleh menimbulkan lisensi gratis pada aplikasi Live.
     const isMockOrder = isSandboxApp
       ? (checkoutConfig.isTest || Boolean(body.forceMock) || (!checkoutConfig.dana.clientId || !checkoutConfig.dana.privateKey))
-      : (checkoutConfig.isTest || Boolean(body.forceMock));
+      : (checkoutConfig.isTest && isSandboxApp);
 
     // Jika aplikasi mode Live tapi kredensial DANA belum terpasang
     if (!isMockOrder && (!checkoutConfig.dana.clientId || !checkoutConfig.dana.privateKey)) {
@@ -279,11 +290,16 @@ export async function handleCreateSession({ request, body, set }: any) {
     returnUrl: redirectUrl || app.redirectUrl || undefined,
     finishRedirectUrl: `${requestOrigin}/checkout/dana/finish?externalId=${externalId}`,
     forceMock: isMockOrder,
+    allowMock: isSandboxApp,
     scenario: selectedScenario,
     paymentRail: selectedRail,
     vaBank: selectedBank,
   });
 
+  // Sebuah transaksi HANYA ditandai mock bila aplikasinya benar-benar mode sandbox.
+  // Aplikasi Live tidak pernah mockOrder=true, apapun respons createOrder (GUARD ganda:
+  // createOrder menolak mock untuk allowMock=false; di sini tetap dijaga eksplisit).
+  const mockOrder = isSandboxApp && (isMockOrder || danaOrder.mock === true);
   const invoiceUrl = danaOrder.checkoutUrl;
   const invoiceId = danaOrder.orderId;
   const expiryDate = danaOrder.expiryDate;
@@ -317,8 +333,13 @@ export async function handleCreateSession({ request, body, set }: any) {
       disbursementStatus: "PENDING",
       grantDays,
       grantCredits,
+      mockOrder,
     })
     .returning();
+
+  // Ticket polling status: bukti kepemilikan transaksi (BUG-5) supaya licenseKey
+  // tidak bisa diambil oleh siapa pun yang hanya mengetahui txId.
+  const pollTicket = createPollTicket(newTx.id);
 
   // 3. Klaim kuota kupon ATOMIK hanya setelah transaksi tercatat.
   // Jika kehabisan kuota di sini (race), hapus transaksi tadi dan gagalkan
@@ -340,6 +361,7 @@ export async function handleCreateSession({ request, body, set }: any) {
     success: true,
     data: {
       sessionId: newTx.id,
+      ticket: pollTicket,
       paymentGateway: selectedGateway,
       checkoutUrl: invoiceUrl,
       xenditInvoiceUrl: invoiceUrl,
@@ -353,6 +375,7 @@ export async function handleCreateSession({ request, body, set }: any) {
       hostedPayUrl,
     },
     transactionId: newTx.id,
+    ticket: pollTicket,
     checkoutUrl: invoiceUrl,
     hostedPayUrl,
     scenario: danaOrder.scenario,

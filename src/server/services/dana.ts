@@ -19,6 +19,13 @@ export interface CreateDanaOrderParams {
   returnUrl?: string;
   finishRedirectUrl?: string;
   forceMock?: boolean;
+  /**
+   * true = caller mengizinkan order mock (hanya aplikasi mode sandbox).
+   * Default = config.isSandbox (deployment sandbox) untuk menjaga perilaku
+   * pemanggil lama; session selalu mengirim `app.mode === "sandbox"` secara
+   * eksplisit sehingga aplikasi Live TIDAK PERNAH menghasilkan mock.
+   */
+  allowMock?: boolean;
   scenario?: "API" | "REDIRECT";
   paymentRail?: DanaPaymentRail;
   vaBank?: DanaVaBank | string;
@@ -40,6 +47,8 @@ export interface DanaOrderResponse {
   qrDataUrl?: string;
   vaBank?: string;
   bankName?: string;
+  /** true jika order dibuat sebagai mock (sandbox/forceMock). */
+  mock: boolean;
 }
 
 function getDanaInstance(): Dana {
@@ -168,9 +177,19 @@ export class DanaService {
    * Mendukung Gapura Custom Checkout (scenario: "API") dan Gapura Hosted Checkout (scenario: "REDIRECT")
    */
   static async createOrder(params: CreateDanaOrderParams): Promise<DanaOrderResponse> {
+    // Mock hanya boleh bila caller menyetujui (default: deployment sandbox).
+    // Session mengirim allowMock = (app.mode === "sandbox"), sehingga aplikasi Live
+    // tidak pernah menghasilkan order mock — baik lewat forceMock maupun fallback
+    // otomatis sandbox (hardening BUG-1).
+    const allowMock = params.allowMock ?? config.isSandbox;
+    if (params.forceMock && !allowMock) {
+      throw new Error(
+        "Mock order ditolak: aplikasi mode Live tidak boleh membuat order mock (forceMock)."
+      );
+    }
     const mockEnabled =
       params.forceMock ||
-      (config.isSandbox && (config.isTest || (!config.dana.clientId || !config.dana.privateKey)));
+      (allowMock && config.isSandbox && (config.isTest || !config.dana.clientId || !config.dana.privateKey));
 
     const defaultRedirect =
       params.returnUrl ||
@@ -227,6 +246,7 @@ export class DanaService {
         qrDataUrl,
         vaBank: bankName,
         bankName,
+        mock: true,
       };
     }
 
@@ -348,8 +368,11 @@ export class DanaService {
       try {
         response = await this.paymentGateway.createOrder(createOrderPayload);
       } catch (gatewayErr: any) {
-        // Jika DANA menolak QRIS karena merchant belum mendaftarkan store/submerchant di dashboard DANA
+        // Jika DANA menolak QRIS karena merchant belum mendaftarkan store/submerchant di dashboard DANA.
+        // Fallback QRIS mock HANYA untuk aplikasi sandbox (allowMock) — aplikasi Live wajib
+        // menerima error asli agar konfigurasi merchant dapat diperbaiki, bukan di-mock.
         if (
+          allowMock &&
           rail === "qris" &&
           (gatewayErr?.message?.includes("externalStoreId") ||
             gatewayErr?.message?.includes("submerchant") ||
@@ -381,6 +404,7 @@ export class DanaService {
             qrDataUrl,
             vaBank: bankName,
             bankName,
+            mock: true,
           };
         }
         throw gatewayErr;
@@ -420,6 +444,7 @@ export class DanaService {
         qrDataUrl,
         vaBank: bankName,
         bankName,
+        mock: false,
       };
     } catch (err: any) {
       console.error("[DanaService] dana-node SDK createOrder Error:", err.message);
@@ -490,19 +515,27 @@ export class DanaService {
 
   /**
    * Verifikasi Webhook DANA Finish Payment & Disburse Notify menggunakan WebhookParser dana-node
+   *
+   * Aturan keamanan (BUG-3): begitu public key DANA dikonfigurasi, signature webhook
+   * WAJIB diverifikasi di SEMUA environment — termasuk sandbox. Sebelumnya sandbox
+   * menerima webhook tanpa signature meskipun public key sudah dipasang, sehingga
+   * webhook palsu bisa diterima di deployment non-produksi.
+   * Bypass hanya berlaku saat TIDAK ada public key sama sekali (mode mock UAT murni).
    */
   static verifyWebhook(
     headers: Record<string, string | undefined>,
     body: any,
     options?: { method?: string; path?: string }
   ): boolean {
+    // Sandbox/dev murni TANPA public key: mode UAT mock, tidak ada kunci yang bisa
+    // diverifikasi sehingga webhook DANA (yang umumnya tanpa signature di UAT) tetap
+    // diproses. Jangan bypass jika public key sudah tersedia!
     if (config.isSandbox && !config.dana.publicKey) {
-      return true; // Bypass verifikasi di sandbox saat public key belum diset
+      return true;
     }
 
     const signature = headers["signature"] || headers["x-signature"] || headers["X-SIGNATURE"];
     if (!signature) {
-      if (config.isSandbox) return true;
       console.warn("[DanaService] Missing signature header in DANA webhook.");
       return false;
     }

@@ -4,7 +4,6 @@ import {
   QrCode,
   Building,
   Wallet,
-  FlaskConical,
   CreditCard,
   ArrowRight,
   CheckCircle2,
@@ -44,9 +43,6 @@ const props = defineProps<{
   } | null
   isPaid?: boolean
   paidResult?: { licenseKey?: string; message?: string } | null
-  sandboxSessionId: string | null
-  sandboxResult: { message: string; licenseKey?: string } | null
-  isSimulating: boolean
 }>()
 
 const emit = defineEmits<{
@@ -54,7 +50,6 @@ const emit = defineEmits<{
   'update:selectedPaymentRail': [value: 'qris' | 'va' | 'ewallet']
   'update:selectedBank': [value: string]
   'pay': []
-  'simulate': []
   'resetOrder': []
 }>()
 
@@ -94,7 +89,7 @@ const BANKS = [
     <!-- ======================================================== -->
     <!-- 1. PAID SUCCESS STATE (Real-time Confirmed via Webhook)  -->
     <!-- ======================================================== -->
-    <div v-if="isPaid || sandboxResult" class="space-y-4 p-4 sm:p-5 rounded-2xl bg-emerald-50/80 border border-emerald-200">
+    <div v-if="isPaid" class="space-y-4 p-4 sm:p-5 rounded-2xl bg-emerald-50/80 border border-emerald-200">
       <div class="flex items-start gap-3">
         <div class="p-2 rounded-xl bg-emerald-500 text-white shadow-xs shrink-0 mt-0.5">
           <CheckCircle2 class="w-5 h-5" />
@@ -107,7 +102,7 @@ const BANKS = [
         </div>
       </div>
 
-      <div v-if="(paidResult?.licenseKey || sandboxResult?.licenseKey)" class="pt-3 border-t border-emerald-200 space-y-2">
+      <div v-if="paidResult?.licenseKey" class="pt-3 border-t border-emerald-200 space-y-2">
         <div class="flex items-center justify-between">
           <span class="text-xs font-bold text-slate-800">Kunci Lisensi Resmi Anda</span>
           <span class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
@@ -117,9 +112,9 @@ const BANKS = [
         <div class="relative group">
           <div
             class="p-3 bg-slate-900 rounded-xl border border-slate-700 font-mono font-bold text-emerald-400 text-xs sm:text-sm tracking-wider break-all select-all text-center shadow-inner">
-            {{ paidResult?.licenseKey || sandboxResult?.licenseKey }}
+            {{ paidResult?.licenseKey }}
           </div>
-          <button @click="copyToClipboard(paidResult?.licenseKey || sandboxResult?.licenseKey || '', true)"
+          <button @click="copyToClipboard(paidResult?.licenseKey || '', true)"
             type="button"
             class="mt-2 w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs">
             <Check v-if="copiedLicense" class="w-3.5 h-3.5" />
@@ -201,19 +196,6 @@ const BANKS = [
               </button>
             </div>
           </div>
-        </div>
-
-        <!-- Sandbox Quick Simulator Button -->
-        <div v-if="product.mode === 'sandbox'" class="p-3 rounded-xl bg-blue-50 border border-blue-200 space-y-2">
-          <div class="flex items-center gap-2 text-blue-900 text-xs font-bold">
-            <FlaskConical class="w-4 h-4 text-blue-600" />
-            <span>Mode Pengujian Sandbox</span>
-          </div>
-          <button @click="emit('simulate')" :disabled="isSimulating" type="button"
-            class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-50">
-            <FlaskConical class="w-3.5 h-3.5" />
-            <span>{{ isSimulating ? 'Memvalidasi...' : 'Simulasikan Pembayaran Lunas' }}</span>
-          </button>
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, mock } from "bun:test";
-import { setupTestAuth, authCookie } from "../setup";
+import { setupTestAuth, authCookie, danaWebhookHeaders } from "../setup";
 import { app } from "../../index";
 import { db } from "../../db";
 import {
@@ -331,12 +331,14 @@ describe("Coverage Booster2: webhook/dana.ts", () => {
 
   it("handleDanaFinishPaymentWebhook: no identifiers → ack (line 117-118)", async () => {
     const { config } = await import("../../config");
-    // Sandbox mode: verifyWebhook returns true without valid keys
+    // Sandbox mode: verifyWebhook bypass tidak lagi berlaku bila public key terpasang,
+    // jadi kirim signature valid.
+    const body = { orderStatus: "SUCCESS" };
     const set: any = {};
     const res = await handleDanaFinishPaymentWebhook({
       request: new Request("http://localhost"),
-      headers: { signature: "any" },
-      body: { orderStatus: "SUCCESS" }, // no externalId/orderId/acquirementId
+      headers: danaWebhookHeaders(body),
+      body, // no externalId/orderId/acquirementId
       set,
     });
     // Should ack without error
@@ -344,22 +346,24 @@ describe("Coverage Booster2: webhook/dana.ts", () => {
   });
 
   it("handleDanaFinishPaymentWebhook: string body gets parsed", async () => {
+    const body = JSON.stringify({ orderStatus: "EXPIRED", merchantTransId: "ext_nonexistent" });
     const set: any = {};
     const res = await handleDanaFinishPaymentWebhook({
       request: new Request("http://localhost"),
-      headers: { signature: "any" },
-      body: JSON.stringify({ orderStatus: "EXPIRED", merchantTransId: "ext_nonexistent" }),
+      headers: danaWebhookHeaders(body),
+      body,
       set,
     });
     expect((res as any).responseCode).toBeDefined();
   });
 
   it("handleDanaFinishPaymentWebhook: invalid string body gracefully handled", async () => {
+    const body = "not-valid-json{{{";
     const set: any = {};
     const res = await handleDanaFinishPaymentWebhook({
       request: new Request("http://localhost"),
-      headers: { signature: "any" },
-      body: "not-valid-json{{{",
+      headers: danaWebhookHeaders(body),
+      body,
       set,
     });
     expect(res).toBeDefined();
@@ -380,14 +384,15 @@ describe("Coverage Booster2: webhook/dana.ts", () => {
   it("handleDanaDisburseNotifyWebhook: FAILED status returns ack", async () => {
     const { builder, app: a } = await seedBuilderApp();
     const tx = await createTx(builder.id, a.id, { disbursementStatus: "PROCESSING" });
+    const body = {
+      partnerReferenceNo: tx.xenditExternalId,
+      status: "FAILED",
+    };
     const set: any = {};
     const res = await handleDanaDisburseNotifyWebhook({
       request: new Request("http://localhost"),
-      headers: { signature: "test_sig" },
-      body: {
-        partnerReferenceNo: tx.xenditExternalId,
-        status: "FAILED",
-      },
+      headers: danaWebhookHeaders(body),
+      body,
       set,
     });
     // In sandbox verifyWebhook bypasses → ack response
@@ -395,14 +400,15 @@ describe("Coverage Booster2: webhook/dana.ts", () => {
   });
 
   it("handleDanaDisburseNotifyWebhook: PENDING status → no update, returns ack", async () => {
+    const body = {
+      partnerReferenceNo: "ext_pending_ref",
+      status: "PENDING",
+    };
     const set: any = {};
     const res = await handleDanaDisburseNotifyWebhook({
       request: new Request("http://localhost"),
-      headers: {},
-      body: {
-        partnerReferenceNo: "ext_pending_ref",
-        status: "PENDING",
-      },
+      headers: danaWebhookHeaders(body),
+      body,
       set,
     });
     // verifyWebhook in sandbox (no keys) returns true
@@ -412,14 +418,16 @@ describe("Coverage Booster2: webhook/dana.ts", () => {
   it("handleDanaFinishPaymentWebhook: SNAP BI format with success status 00 → fulfill", async () => {
     const { builder, app: a } = await seedBuilderApp();
     const tx = await createTx(builder.id, a.id, { paymentStatus: "PENDING" });
+    const body = {
+      latestTransactionStatus: "00",
+      originalPartnerReferenceNo: tx.xenditExternalId,
+      amount: { value: "100000" },
+    };
     const set: any = {};
     const res = await handleDanaFinishPaymentWebhook({
       request: new Request("http://localhost"),
-      headers: {},
-      body: {
-        latestTransactionStatus: "00",
-        originalPartnerReferenceNo: tx.xenditExternalId,
-      },
+      headers: danaWebhookHeaders(body),
+      body,
       set,
     });
     // SNAP BI ack
@@ -429,14 +437,15 @@ describe("Coverage Booster2: webhook/dana.ts", () => {
   it("handleDanaFinishPaymentWebhook: SNAP BI expired status 05 → marks EXPIRED", async () => {
     const { builder, app: a } = await seedBuilderApp();
     const tx = await createTx(builder.id, a.id, { paymentStatus: "PENDING" });
+    const body = {
+      latestTransactionStatus: "05",
+      originalPartnerReferenceNo: tx.xenditExternalId,
+    };
     const set: any = {};
     await handleDanaFinishPaymentWebhook({
       request: new Request("http://localhost"),
-      headers: {},
-      body: {
-        latestTransactionStatus: "05",
-        originalPartnerReferenceNo: tx.xenditExternalId,
-      },
+      headers: danaWebhookHeaders(body),
+      body,
       set,
     });
     const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) });

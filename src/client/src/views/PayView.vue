@@ -54,14 +54,16 @@ const activeCustomOrder = ref<{
   vaBank?: string
   amount?: number
   checkoutUrl?: string
+  ticket?: string
 } | null>(null)
 const isPaid = ref(false)
 const paidResult = ref<{ licenseKey?: string; message?: string } | null>(null)
 let pollTimer: any = null
 
-const sandboxSessionId = ref<string | null>(null)
-const sandboxResult = ref<{ message: string; licenseKey?: string } | null>(null)
-const isSimulating = ref(false)
+// Poll ticket (BUG-5): bukti kepemilikan transaksi untuk polling status publik.
+// Diterima dari respons createCheckoutSession atau dari redirect finish (?ticket=...).
+let currentTicket = ''
+
 const isMobileOrderExpanded = ref(false)
 
 /** Estimasi diskon & total bayar untuk pratinjau langsung saat mengetik kupon. */
@@ -84,7 +86,7 @@ function startPolling(txId: string) {
   stopPolling()
   pollTimer = setInterval(async () => {
     try {
-      const res = await api.getPaymentStatus(txId)
+      const res = await api.getPaymentStatus(txId, currentTicket)
       if (res && res.paymentStatus === 'PAID') {
         stopPolling()
         isPaid.value = true
@@ -139,8 +141,10 @@ async function loadCheckoutData() {
     // Cek jika halaman dibuka dengan parameter externalId (misal dari redirect finish / link transaksi)
     const externalIdParam = (route.query.externalId as string) || ''
     if (externalIdParam) {
+      // Ticket polling disematkan server saat redirect finish ke /pay (BUG-5)
+      currentTicket = (route.query.ticket as string) || ''
       try {
-        const statusRes = await api.getPaymentStatus(externalIdParam)
+        const statusRes = await api.getPaymentStatus(externalIdParam, currentTicket)
         if (statusRes && statusRes.success) {
           if (statusRes.paymentStatus === 'PAID') {
             isPaid.value = true
@@ -218,7 +222,6 @@ async function handlePay() {
   if (!product.value || !emailInput.value) return
   isSubmitting.value = true
   errorMessage.value = ''
-  sandboxResult.value = null
   isPaid.value = false
   paidResult.value = null
 
@@ -248,6 +251,9 @@ async function handlePay() {
       window.history.replaceState({}, '', currentUrl.toString())
     }
 
+    // Simpan ticket polling (BUG-5) supaya licenseKey tidak bocor ke pemegang txId saja.
+    currentTicket = data.ticket || (data as any).data?.ticket || ''
+
     if (data.scenario === 'API' && (data.paymentCode || data.qrDataUrl)) {
       activeCustomOrder.value = {
         transactionId: data.transactionId || '',
@@ -258,50 +264,18 @@ async function handlePay() {
         vaBank: data.vaBank || selectedBank.value,
         amount: data.amount || payableAmount.value,
         checkoutUrl: data.checkoutUrl,
-      }
-      if (product.value.mode === 'sandbox') {
-        sandboxSessionId.value = data.transactionId || ''
+        ticket: currentTicket,
       }
       if (data.transactionId) {
         startPolling(data.transactionId)
       }
     } else if (data.checkoutUrl) {
       window.location.href = data.checkoutUrl
-    } else if (product.value.mode === 'sandbox') {
-      sandboxSessionId.value = data.transactionId || ''
     }
   } catch (err: any) {
     errorMessage.value = err.message || 'Terjadi kesalahan jaringan'
   } finally {
     isSubmitting.value = false
-  }
-}
-
-async function simulateSandboxPayment() {
-  const txId = sandboxSessionId.value || activeCustomOrder.value?.transactionId
-  if (!txId) return
-  isSimulating.value = true
-  errorMessage.value = ''
-  try {
-    const data = await api.simulatePayment(txId)
-    if (!data.success) {
-      errorMessage.value = data.message || 'Gagal mensimulasikan pembayaran'
-      return
-    }
-    stopPolling()
-    isPaid.value = true
-    sandboxResult.value = {
-      message: data.message,
-      licenseKey: data.licenseKey || '',
-    }
-    paidResult.value = {
-      licenseKey: data.licenseKey || '',
-      message: data.message,
-    }
-  } catch (err: any) {
-    errorMessage.value = err.message || 'Terjadi kesalahan jaringan'
-  } finally {
-    isSimulating.value = false
   }
 }
 
@@ -415,14 +389,10 @@ onUnmounted(() => {
               :active-order="activeCustomOrder"
               :is-paid="isPaid"
               :paid-result="paidResult"
-              :sandbox-session-id="sandboxSessionId"
-              :sandbox-result="sandboxResult"
-              :is-simulating="isSimulating"
               @update:selected-payment-rail="selectedPaymentRail = $event"
               @update:selected-bank="selectedBank = $event"
               @reset-order="activeCustomOrder = null; stopPolling()"
               @pay="handlePay"
-              @simulate="simulateSandboxPayment"
             />
           </div>
         </div>

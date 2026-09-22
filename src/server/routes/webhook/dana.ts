@@ -32,6 +32,19 @@ export async function handleDanaFinishPaymentWebhook({ request, headers, body, s
   // Flatten so we can access fields uniformly.
   const data = (raw?.request?.body ? { ...raw.request.body, _legacy: true } : raw) as any;
 
+  // *** Verifikasi signature WAJIB dilakukan SEBELUM memproses skenario apa pun ***
+  // (termasuk branch UAT) supaya webhook palsu tidak bisa mengeksploitasi jalur
+  // pengujian sandbox — BUG-3.
+  const webhookMethod = request?.method || "POST";
+  const webhookPath = request?.url ? new URL(request.url).pathname : "/v1.0/debit/notify";
+  if (!DanaService.verifyWebhook(headers, body, { method: webhookMethod, path: webhookPath })) {
+    set.status = 401;
+    return {
+      responseCode: "4015600",
+      responseMessage: "Unauthorized",
+    };
+  }
+
   if (config.isSandbox) {
     console.log(`[DanaWebhook] Incoming /v1.0/debit/notify (sandbox)`);
   }
@@ -60,17 +73,6 @@ export async function handleDanaFinishPaymentWebhook({ request, headers, body, s
 
   // Deteksi format notifikasi: SNAP BI (punya latestTransactionStatus) atau legacy DANA Enterprise
   const isSnapBi = data?.latestTransactionStatus !== undefined;
-
-  // Verifikasi signature baik format SNAP BI maupun legacy DANA Enterprise
-  const webhookMethod = request?.method || "POST";
-  const webhookPath = request?.url ? new URL(request.url).pathname : "/v1.0/debit/notify";
-  if (!DanaService.verifyWebhook(headers, body, { method: webhookMethod, path: webhookPath })) {
-    set.status = 401;
-    return {
-      responseCode: "4015600",
-      responseMessage: "Unauthorized",
-    };
-  }
 
   // Ekstrak identifier order (mendukung standar DANA Enterprise & SNAP BI)
   const externalId =
@@ -152,6 +154,37 @@ export async function handleDanaFinishPaymentWebhook({ request, headers, body, s
     "DANA_WALLET";
 
   if (isSuccess) {
+    // Rekonsiliasi nominal (BUG-2): webhook tidak boleh mem-fully pay transaksi dengan
+    // nominal yang tidak cocok (atau tanpa info nominal). DANA selalu menyertakan
+    // amount pada finish notify; forged webhook tanpa verifikasi ini dulu bisa
+    // mengubah transaksi 50rb menjadi PAID hanya dengan status "00".
+    const amountPresent =
+      data?.amount?.value !== undefined ||
+      data?.transAmount?.value !== undefined ||
+      data?.orderAmount?.value !== undefined ||
+      data?.amount !== undefined;
+
+    const rawAmountValue =
+      data?.amount?.value ??
+      data?.transAmount?.value ??
+      data?.orderAmount?.value ??
+      data?.amount;
+    const paidAmount = Number.isFinite(Number(rawAmountValue))
+      ? Math.round(Number(rawAmountValue))
+      : NaN;
+
+    // Transaksi yang masih PENDING: nominal Wajib cocok dengan grossAmount.
+    if (tx.paymentStatus === "PENDING" && (!amountPresent || !Number.isFinite(paidAmount) || paidAmount !== tx.grossAmount)) {
+      if (!config.isProd) {
+        console.warn(
+          `[DanaWebhook] Amount mismatch: paid=${String(rawAmountValue)} (${paidAmount}) vs expected=${tx.grossAmount} (${externalId || orderId}) — tidak mem-fulfill.`
+        );
+      }
+      return isSnapBi
+        ? snapBiAck
+        : { status: "error", message: "AMOUNT_MISMATCH", transactionId: tx.id };
+    }
+
     const result = await fulfillPaymentTransaction(tx, paymentChannel);
     // SNAP BI hanya menerima field ack; legacy mempertahankan payload kaya (status & licenseKey).
     return isSnapBi ? snapBiAck : result;

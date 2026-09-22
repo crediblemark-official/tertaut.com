@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { setupTestAuth, authCookie } from "../setup";
+import { setupTestAuth, authCookie, danaWebhookHeaders } from "../setup";
 import { app } from "../../index";
 import { db } from "../../db";
 import {
@@ -129,14 +129,15 @@ describe("Coverage Booster3: webhook/dana.ts", () => {
   it("handleDanaFinishPaymentWebhook: lookup by externalId / partnerReferenceNo", async () => {
     const { builder, app: a } = await seedBuilderApp();
     const tx = await createTx(builder.id, a.id);
+    const body = {
+      partnerReferenceNo: tx.xenditExternalId,
+      resultInfo: { resultStatus: "00" },
+    };
     const set: any = {};
     const res = await handleDanaFinishPaymentWebhook({
       request: new Request("http://localhost"),
-      headers: {},
-      body: {
-        partnerReferenceNo: tx.xenditExternalId,
-        resultInfo: { resultStatus: "00" },
-      },
+      headers: danaWebhookHeaders(body),
+      body,
       set,
     });
     expect(res).toBeDefined();
@@ -146,14 +147,15 @@ describe("Coverage Booster3: webhook/dana.ts", () => {
   it("handleDanaFinishPaymentWebhook: EXPIRED status marks transaction expired", async () => {
     const { builder, app: a } = await seedBuilderApp();
     const tx = await createTx(builder.id, a.id);
+    const body = {
+      partnerReferenceNo: tx.xenditExternalId,
+      latestTransactionStatus: "05",
+    };
     const set: any = {};
     const res = await handleDanaFinishPaymentWebhook({
       request: new Request("http://localhost"),
-      headers: {},
-      body: {
-        partnerReferenceNo: tx.xenditExternalId,
-        latestTransactionStatus: "05",
-      },
+      headers: danaWebhookHeaders(body),
+      body,
       set,
     });
     expect(res).toBeDefined();
@@ -164,14 +166,15 @@ describe("Coverage Booster3: webhook/dana.ts", () => {
   it("handleDanaFinishPaymentWebhook: FAILED status marks transaction failed", async () => {
     const { builder, app: a } = await seedBuilderApp();
     const tx = await createTx(builder.id, a.id);
+    const body = {
+      partnerReferenceNo: tx.xenditExternalId,
+      latestTransactionStatus: "06",
+    };
     const set: any = {};
     await handleDanaFinishPaymentWebhook({
       request: new Request("http://localhost"),
-      headers: {},
-      body: {
-        partnerReferenceNo: tx.xenditExternalId,
-        latestTransactionStatus: "06",
-      },
+      headers: danaWebhookHeaders(body),
+      body,
       set,
     });
     const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) });
@@ -186,11 +189,12 @@ describe("Coverage Booster3: webhook/dana.ts", () => {
       disbursementStatus: "PROCESSING",
       providerReferenceId: extId,
     });
+    const body = { partnerReferenceNo: extId, status: "SUCCESS" };
     const set: any = {};
     const res = await handleDanaDisburseNotifyWebhook({
       request: new Request("http://localhost"),
-      headers: {},
-      body: { partnerReferenceNo: extId, status: "SUCCESS" },
+      headers: danaWebhookHeaders(body),
+      body,
       set,
     });
     expect((res as any).status).toBe("COMPLETED");

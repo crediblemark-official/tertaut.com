@@ -26,7 +26,6 @@ const PUBLIC_PREFIXES = [
   "/api/v1/checkout/consult-pay",
   "/api/v1/checkout/preview-coupon",
   "/api/v1/checkout/dana/finish",
-  "/api/v1/checkout/simulate-paid",
   "/api/v1/apps/by-slug",
   "/api/v1/licensing/verify",
   "/api/v1/licensing/validate",

@@ -9,6 +9,8 @@ import QRCode from "qrcode";
 import { randomBytes } from "crypto";
 import { resolveCurrentBuilder } from "../apps/builder";
 import { handleDisburse } from "../apps/disburse";
+import { enforceRateLimit } from "../../services/rateLimiter";
+import { createPollTicket, verifyPollTicket } from "../../utils/pollTicket";
 
 /**
  * Endpoint Redirect pembeli setelah menyelesaikan pembayaran DANA (Finish Redirect URL)
@@ -42,8 +44,11 @@ export async function handleDanaFinish({ query, request, set }: any) {
     where: eq(apps.id, tx.appId),
   });
 
-  // Jika simulasi mock (?mock=true) dan transaksi masih PENDING, tandai lunas otomatis & terbitkan lisensi
-  if (mock === "true" && tx.paymentStatus === "PENDING") {
+  // Jika simulasi mock (?mock=true) dan transaksi masih PENDING, tandai lunas otomatis & terbitkan lisensi.
+  // BUG-1: fulfillment mock HANYA boleh untuk transaksi yang benar-benar mock (mockOrder=true)
+  // PADA aplikasi mode sandbox. Transaksi aplikasi Live TIDAK boleh di-fulfill lewat ?mock=true,
+  // bahkan bila kolom mockOrder sempat terisi true oleh versi sebelumnya (guard ganda).
+  if (mock === "true" && tx.paymentStatus === "PENDING" && tx.mockOrder === true && app?.mode === "sandbox") {
     const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
     await fulfillPaymentTransaction(tx, tx.paymentChannel || "DANA");
     const updated = await db.query.transactions.findFirst({
@@ -63,7 +68,7 @@ export async function handleDanaFinish({ query, request, set }: any) {
     ? (app.redirectUrl.includes("?")
         ? `${app.redirectUrl}&status=success&externalId=${externalId}&licenseKey=${lic?.licenseKey || ""}`
         : `${app.redirectUrl}?status=success&externalId=${externalId}&licenseKey=${lic?.licenseKey || ""}`)
-    : `${requestOrigin}/pay/${targetSlug}?paid=1&externalId=${externalId}`;
+    : `${requestOrigin}/pay/${targetSlug}?paid=1&externalId=${externalId}&ticket=${createPollTicket(tx.id)}`;
 
   // Jika diakses langsung via browser (Accept: text/html), arahkan pembeli ke UI
   const acceptHeader = request?.headers?.get?.("accept") || "";
@@ -78,7 +83,7 @@ export async function handleDanaFinish({ query, request, set }: any) {
     success: true,
     message: "Pembayaran DANA berhasil diverifikasi",
     transactionId: tx.id,
-    paymentStatus: tx.paymentStatus === "PENDING" && mock === "true" ? "PAID" : tx.paymentStatus,
+    paymentStatus: tx.paymentStatus,
     licenseKey: lic?.licenseKey || null,
     redirectUrl: targetRedirect,
   };
@@ -87,11 +92,18 @@ export async function handleDanaFinish({ query, request, set }: any) {
 /**
  * Polling status pembayaran untuk Gapura Custom Checkout
  */
-export async function handleGetPaymentStatus({ params, set }: any) {
+export async function handleGetPaymentStatus({ params, query, request, set }: any) {
   const { txId } = params as { txId: string };
   if (!txId) {
     set.status = 400;
     return { error: "txId parameter wajib disertakan" };
+  }
+
+  // BUG-6: batasi polling status per IP (endpoint publik yang rawan di-scan).
+  const rl = enforceRateLimit(request, "checkout:status", 120, 60_000);
+  if (!rl.allowed) {
+    set.status = 429;
+    return { error: "Terlalu banyak permintaan. Coba lagi sebentar lagi." };
   }
 
   let tx = await db.query.transactions.findFirst({
@@ -150,10 +162,16 @@ export async function handleGetPaymentStatus({ params, set }: any) {
 
   let licenseKey: string | null = null;
   if (tx.paymentStatus === "PAID") {
-    const lic = await db.query.licenses.findFirst({
-      where: eq(licenses.transactionId, tx.id),
-    });
-    licenseKey = lic?.licenseKey || null;
+    // BUG-5: licenseKey hanya dibeberkan ke pemanggil yang memiliki poll ticket valid
+    // (dikembalikan oleh create-session / disematkan di redirect finish). Mengetahui
+    // txId saja tidak lagi cukup untuk mencuri lisensi.
+    const ticket = (query as any)?.ticket;
+    if (verifyPollTicket(tx.id, ticket)) {
+      const lic = await db.query.licenses.findFirst({
+        where: eq(licenses.transactionId, tx.id),
+      });
+      licenseKey = lic?.licenseKey || null;
+    }
   }
 
   if (tx.paymentStatus === "PENDING") {
@@ -197,7 +215,15 @@ export async function handleGetPaymentStatus({ params, set }: any) {
 /**
  * Konsultasi opsi pembayaran DANA aktif
  */
-export async function handleConsultPay({ query }: any) {
+export async function handleConsultPay({ query, request, set }: any) {
+  // BUG-6: endpoint publik tanpa rate limit sebelumnya bisa menembak gateway DANA
+  // (setiap panggilan memicu HTTP ke DANA consultPay).
+  const rl = enforceRateLimit(request, "checkout:consult-pay", 60, 60_000);
+  if (!rl.allowed) {
+    set.status = 429;
+    return { error: "Terlalu banyak permintaan. Coba lagi sebentar lagi." };
+  }
+
   const { DanaService } = await import("../../services/dana");
   const amount = Number(query?.amount) || 10000;
   const result = await DanaService.consultPay(amount);
@@ -311,7 +337,7 @@ export async function handleDisburseTx(ctx: any) {
 /**
  * One-Click Local Payment Simulator for Developers (Hanya Sandbox)
  */
-export async function handleSimulatePaid({ params: { txId }, set }: any) {
+export async function handleSimulatePaid({ params: { txId }, request, set }: any) {
   const tx = await db.query.transactions.findFirst({
     where: eq(transactions.id, txId),
   });
@@ -319,6 +345,25 @@ export async function handleSimulatePaid({ params: { txId }, set }: any) {
   if (!tx) {
     set.status = 404;
     return { error: "Transaksi tidak ditemukan" };
+  }
+
+  // BUG-4: simulasi pembayaran adalah operasi dashboard — hanya admin (super) atau
+  // builder pemilik aplikasi yang berhak. Endpoint ini sebelumnya publik tanpa
+  // pemeriksaan kepemilikan, sehingga siapa pun bisa mem-PAID-kan transaksi milik
+  // builder lain dan mencetak lisensi + kredit.
+  const { builder, isAdmin } = request?.headers
+    ? await resolveCurrentBuilder(request.headers)
+    : { builder: null, isAdmin: true };
+
+  if (!isAdmin) {
+    if (!builder) {
+      set.status = 401;
+      return { error: "Autentikasi diperlukan untuk simulasi pembayaran." };
+    }
+    if (builder.id !== tx.builderId) {
+      set.status = 403;
+      return { error: "Anda tidak berhak mensimulasikan pembayaran transaksi ini." };
+    }
   }
 
   // Simulasi pembayaran hanya boleh untuk aplikasi yang sedang dalam mode sandbox.

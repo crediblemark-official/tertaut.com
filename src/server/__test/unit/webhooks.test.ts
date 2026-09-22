@@ -4,6 +4,7 @@ import {
   handleDanaDisburseNotifyWebhook,
 } from "../../routes/webhook/dana";
 import { config } from "../../config";
+import { danaWebhookHeaders } from "../setup";
 
 describe("Unit Tests - Webhook Handlers", () => {
   it("should handle DANA finish payment webhook UAT scenarios (11012 and 11011)", async () => {
@@ -11,18 +12,20 @@ describe("Unit Tests - Webhook Handlers", () => {
     config.isSandbox = true;
 
     const set500: any = {};
+    const body500 = { amount: { value: "11012" } };
     const res500: any = await handleDanaFinishPaymentWebhook({
-      headers: {},
-      body: { amount: { value: "11012" } },
+      headers: danaWebhookHeaders(body500),
+      body: body500,
       set: set500,
     });
     expect(set500.status).toBe(500);
     expect(res500.responseCode).toBe("5005601");
 
     const set200: any = {};
+    const body200 = JSON.stringify({ amount: { value: "11011" } });
     const res200: any = await handleDanaFinishPaymentWebhook({
-      headers: {},
-      body: JSON.stringify({ amount: { value: "11011" } }),
+      headers: danaWebhookHeaders(body200),
+      body: body200,
       set: set200,
     });
     expect(set200.status).toBe(200);
@@ -53,10 +56,11 @@ describe("Unit Tests - Webhook Handlers", () => {
   });
 
   it("should acknowledge DANA finish webhook when transaction is missing or not found", async () => {
+    const body = { merchantTransId: "tx_non_existent_99999" };
     const set: any = {};
     const res: any = await handleDanaFinishPaymentWebhook({
-      headers: {},
-      body: { merchantTransId: "tx_non_existent_99999" },
+      headers: danaWebhookHeaders(body),
+      body,
       set,
     });
 
@@ -70,24 +74,26 @@ describe("Unit Tests - Webhook Handlers", () => {
 
     // Completed webhook
     const setOk: any = {};
+    const bodyOk = {
+      partnerReferenceNo: "disb_ext_999",
+      status: "SUCCESS",
+    };
     const resOk = await handleDanaDisburseNotifyWebhook({
-      headers: {},
-      body: {
-        partnerReferenceNo: "disb_ext_999",
-        status: "SUCCESS",
-      },
+      headers: danaWebhookHeaders(bodyOk),
+      body: bodyOk,
       set: setOk,
     });
     expect(resOk.responseCode).toBe("2002900");
     expect(resOk.status).toBe("COMPLETED");
 
     // Pending webhook
+    const bodyPending = {
+      partnerReferenceNo: "disb_ext_999",
+      status: "PENDING",
+    };
     const resPending = await handleDanaDisburseNotifyWebhook({
-      headers: {},
-      body: {
-        partnerReferenceNo: "disb_ext_999",
-        status: "PENDING",
-      },
+      headers: danaWebhookHeaders(bodyPending),
+      body: bodyPending,
       set: {},
     });
     expect(resPending.responseCode).toBe("2002900");
