@@ -33,7 +33,6 @@ const customersCount = computed(() => props.stats?.customers30d ?? 0)
 const emit = defineEmits<{
   'update:searchQuery': [value: string]
   'open-create': []
-  'toggle-mode': [app: AppItem]
 }>()
 
 const filteredApps = computed(() => {
@@ -72,12 +71,6 @@ function getPricingBadge(app: AppItem): string {
         <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold">
           {{ apps.length }} produk
         </span>
-        <span
-          class="px-2 py-0.5 rounded-md font-bold text-[10px]"
-          :class="dashboardEnv === 'sandbox' ? 'bg-gold text-jetblack' : 'bg-forest text-white'"
-        >
-          {{ dashboardEnv === 'sandbox' ? 'Sandbox' : 'Live' }}
-        </span>
       </div>
 
       <div class="flex items-center gap-2">
@@ -108,7 +101,7 @@ function getPricingBadge(app: AppItem): string {
         <div class="text-xs font-semibold text-jetblack/60">Active products</div>
         <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">{{ activeProductsCount }}</div>
         <div class="text-[11px] text-jetblack/50 font-medium">
-          {{ archivedProductsCount > 0 ? `${archivedProductsCount} diarsipkan` : (dashboardEnv === 'sandbox' ? 'Mode Sandbox' : 'Siap Jual') }}
+          {{ archivedProductsCount > 0 ? `${archivedProductsCount} diarsipkan` : 'Semua Produk Aktif' }}
         </div>
       </div>
 
@@ -238,16 +231,13 @@ function getPricingBadge(app: AppItem): string {
               <span v-else class="text-jetblack/30 text-[10px] font-mono">—</span>
             </td>
             <td class="py-2.5 px-3">
-              <button
-                type="button"
-                @click.stop="emit('toggle-mode', app)"
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer hover:ring-2 hover:ring-gold/40 transition shadow-2xs active:scale-95"
-                :class="app.mode === 'sandbox' ? 'bg-gold/15 text-[#8a6d1f] hover:bg-gold/25' : 'bg-forest/10 text-forest hover:bg-forest/20'"
-                :title="`Klik untuk beralih ke mode ${app.mode === 'sandbox' ? 'LIVE' : 'SANDBOX'}`"
+              <span
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                :class="app.mode === 'sandbox' ? 'bg-gold/15 text-[#8a6d1f] border border-gold/25' : 'bg-forest/10 text-forest border border-forest/20'"
               >
                 <span class="w-1.5 h-1.5 rounded-full" :class="app.mode === 'sandbox' ? 'bg-gold' : 'bg-forest'"></span>
                 <span>{{ app.mode === 'sandbox' ? 'Sandbox' : 'Live' }}</span>
-              </button>
+              </span>
             </td>
             <td class="py-2.5 px-3 font-mono text-[11px]">
               <a

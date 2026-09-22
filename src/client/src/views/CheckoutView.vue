@@ -2,23 +2,20 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { api } from '../lib/api'
 import type { AppItem } from '../types/app'
-import type { TransactionItem } from '../types/transaction'
 import { dashboardEnv, envPath } from '../lib/environment'
-import { formatRupiah } from '../lib/utils'
 import {
   Sparkles,
   ExternalLink,
-  Send,
-  CheckCircle2,
   Receipt,
   Copy,
   Check,
   ArrowUpRight,
   AlertTriangle,
+  CheckCircle2,
 } from 'lucide-vue-next'
 import DynamicCheckoutForm from '../components/checkout/DynamicCheckoutForm.vue'
 import CheckoutResultCard from '../components/checkout/CheckoutResultCard.vue'
-import TransactionsLedgerTable from '../components/checkout/TransactionsLedgerTable.vue'
+import PaymentsLedger from '../components/payments/PaymentsLedger.vue'
 import { useClipboard } from '../composables/useClipboard'
 
 const appsList = ref<AppItem[]>([])
@@ -28,8 +25,8 @@ const amount = ref<number | string>(0)
 const customerEmail = ref('')
 const grantDays = ref<number | string>(30)
 const loading = ref(false)
-const disburseLoading = ref<string | null>(null)
 const disburseAlert = ref<string | null>(null)
+const paymentsLedgerRef = ref<InstanceType<typeof PaymentsLedger> | null>(null)
 
 const { copied: hostedCopied, copy: copyClipboard } = useClipboard()
 
@@ -49,12 +46,6 @@ const checkoutResult = ref<{
   netDisbursementAmount?: number
 } | null>(null)
 
-const transactions = ref<TransactionItem[]>([])
-const loadingTxs = ref(false)
-const searchQuery = ref('')
-const statusFilter = ref<'ALL' | 'PAID' | 'PENDING'>('ALL')
-const simulatingTxId = ref<string | null>(null)
-
 const currentApp = computed(() => {
   return appsList.value.find(a => a.id === selectedAppId.value)
 })
@@ -66,7 +57,7 @@ watch(selectedAppId, (newId) => {
   }
 })
 
-async function loadAppsAndTransactions() {
+async function loadApps() {
   try {
     const appsRes = await api.getApps()
     appsList.value = appsRes.apps || []
@@ -89,19 +80,9 @@ async function loadAppsAndTransactions() {
         }
       } catch {}
     }
-    if (!customerEmail.value) {
-      try {
-        const me = await api.getBuilderMyself()
-        if (me?.builder?.email) {
-          customerEmail.value = me.builder.email
-        }
-      } catch {}
-    }
   } catch (e) {
     console.error('Failed to load apps:', e)
   }
-
-  await loadTransactions()
 }
 
 async function handleMigrateApp(app: AppItem) {
@@ -110,7 +91,7 @@ async function handleMigrateApp(app: AppItem) {
     disburseAlert.value = null
     const targetMode = dashboardEnv.value === 'sandbox' ? 'sandbox' : 'live'
     await api.updateAppMode(app.id, targetMode)
-    await loadAppsAndTransactions()
+    await loadApps()
     disburseAlert.value = `Berhasil memindahkan "${app.name}" ke mode ${targetMode.toUpperCase()}.`
   } catch (err: any) {
     disburseAlert.value = `Gagal mengubah mode software: ${err?.message || err}`
@@ -122,18 +103,6 @@ async function handleMigrateApp(app: AppItem) {
 function onAppChange() {
   if (currentApp.value) {
     amount.value = currentApp.value.targetPrice || 0
-  }
-}
-
-async function loadTransactions() {
-  loadingTxs.value = true
-  try {
-    const res = await api.getTransactions()
-    transactions.value = res.transactions || []
-  } catch (e) {
-    console.error('Failed to load transactions:', e)
-  } finally {
-    loadingTxs.value = false
   }
 }
 
@@ -157,7 +126,7 @@ async function createCheckout() {
     })
     if (res && res.success !== false) {
       checkoutResult.value = res
-      await loadTransactions()
+      paymentsLedgerRef.value?.refresh()
     } else {
       disburseAlert.value = `Error: ${res?.error || 'Gagal membuat sesi checkout.'}`
     }
@@ -168,75 +137,16 @@ async function createCheckout() {
   }
 }
 
-async function handleSimulatePayment(tx: TransactionItem) {
-  simulatingTxId.value = tx.id
-  disburseAlert.value = null
-  try {
-    const res = await api.simulatePayment(tx.id)
-    if (res.success) {
-      disburseAlert.value = `Berhasil! Pembayaran ${tx.id} disimulasikan lunas. Lisensi ${res.licenseKey || ''} berhasil diterbitkan.`
-    } else {
-      disburseAlert.value = `Info: ${res.message}`
-    }
-    await loadTransactions()
-  } catch (err: any) {
-    disburseAlert.value = `Error: ${err.message || 'Gagal simulasi pembayaran.'}`
-  } finally {
-    simulatingTxId.value = null
-  }
-}
-
-async function triggerDisbursement(tx: TransactionItem) {
-  disburseLoading.value = tx.id
-  disburseAlert.value = null
-  try {
-    const res = await api.disburseTransaction(tx.id)
-    if (res.success) {
-      disburseAlert.value = `Berhasil! Pencairan ${formatRupiah(tx.netAmount)} untuk transaksi ${tx.id} berhasil diproses ke rekening builder via DANA Transfer to Bank.`
-    } else {
-      disburseAlert.value = `Info: ${res.error || res.message}`
-    }
-    await loadTransactions()
-  } catch (err: any) {
-    disburseAlert.value = `Error: ${err.message || 'Gagal memproses pencairan.'}`
-  } finally {
-    disburseLoading.value = null
-  }
-}
-
-async function triggerBatchPayout() {
-  disburseLoading.value = 'all'
-  disburseAlert.value = null
-  try {
-    const res = await api.triggerPayout()
-    if (res && res.success && res.data) {
-      disburseAlert.value = `Berhasil! Pencairan ${formatRupiah(res.data.amount)} berhasil diproses ke rekening ${res.data.bankCode} (${res.data.recipientName}) via DANA Transfer to Bank.`
-    } else {
-      disburseAlert.value = `Info: ${res?.error || res?.message || 'Pencairan berhasil diproses.'}`
-    }
-    await loadTransactions()
-  } catch (err: any) {
-    disburseAlert.value = `Error: ${err.message || 'Gagal memproses payout.'}`
-  } finally {
-    disburseLoading.value = null
-  }
-}
-
-const totalPendingPayout = computed(() => {
-  return transactions.value
-    .filter(t => t.paymentStatus === 'PAID' && t.disbursementStatus === 'PENDING')
-    .reduce((sum, t) => sum + t.netAmount, 0)
-})
-
 onMounted(() => {
-  loadAppsAndTransactions()
+  loadApps()
 })
 
 // Muat ulang saat environment Live/Sandbox berganti
 watch(dashboardEnv, () => {
   checkoutResult.value = null
-  loadAppsAndTransactions()
+  loadApps()
 })
+
 const activeTab = ref<'generator' | 'history'>('generator')
 </script>
 
@@ -262,30 +172,26 @@ const activeTab = ref<'generator' | 'history'>('generator')
             : 'text-white/60 hover:text-white hover:bg-white/10'
         ]">
           <Receipt class="w-3.5 h-3.5" :class="activeTab === 'history' ? 'text-gold' : ''" />
-          <span>Riwayat Transaksi</span>
-          <span :class="[
-            'px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold',
-            activeTab === 'history' ? 'bg-white text-jetblack' : 'bg-white/10 text-white'
-          ]">
-            {{ transactions.length }}
-          </span>
+          <span>Riwayat Transaksi & Pembayaran</span>
         </button>
       </div>
 
-      <!-- Batch Disburse if live & pending -->
-      <div v-if="totalPendingPayout >= 50000 && dashboardEnv === 'live'">
-        <button @click="triggerBatchPayout" :disabled="disburseLoading === 'all'"
-          class="px-2.5 py-1 rounded-lg bg-forest text-white text-xs font-bold hover:bg-forest/90 transition shadow-2xs flex items-center gap-1 cursor-pointer active:scale-95 disabled:opacity-50">
-          <Send class="w-3 h-3" />
-          <span>Cairkan Semua ({{ formatRupiah(totalPendingPayout) }})</span>
-        </button>
+      <div class="flex items-center gap-2">
+        <router-link
+          :to="envPath(dashboardEnv, '/payments')"
+          class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition"
+          title="Buka Halaman Payments Terpadu"
+        >
+          <span>Halaman Penuh Payments</span>
+          <ArrowUpRight class="w-3 h-3 text-gold" />
+        </router-link>
       </div>
     </div>
 
-    <!-- Unified Alert Banner (Visible on all tabs) -->
+    <!-- Unified Alert Banner -->
     <div v-if="disburseAlert"
       :class="[
-        'p-3 rounded-lg text-xs font-bold flex items-center justify-between transition animate-fadeIn',
+        'p-3 rounded-lg text-xs font-bold flex items-center justify-between transition animate-fadeIn mb-3',
         disburseAlert.startsWith('Error') || disburseAlert.startsWith('Peringatan') || disburseAlert.startsWith('Silakan')
           ? 'bg-amber-50 border border-amber-200 text-amber-900'
           : 'bg-forest/10 border border-forest/25 text-forest'
@@ -346,24 +252,9 @@ const activeTab = ref<'generator' | 'history'>('generator')
       </div>
     </div>
 
-    <!-- TAB 2: TRANSACTIONS & DISBURSEMENTS -->
+    <!-- TAB 2: UNIFIED TRANSACTIONS & PAYMENTS LEDGER -->
     <div v-else-if="activeTab === 'history'" class="space-y-3.5 animate-fadeIn">
-      <!-- Role Clarification Notice -->
-      <div class="p-2.5 rounded-lg bg-jetblack/[0.03] border border-jetblack/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-        <span class="text-jetblack/70">Untuk pelacakan transaksi terpusat, filter status lengkap (PAID, PENDING, EXPIRED, FAILED), dan ekspor:</span>
-        <router-link :to="envPath(dashboardEnv, '/payments')" class="font-bold text-gold hover:underline inline-flex items-center gap-1 shrink-0">
-          <span>Buka Menu Payments</span>
-          <ArrowUpRight class="w-3.5 h-3.5" />
-        </router-link>
-      </div>
-
-
-
-      <!-- Transactions & Disbursement Ledger Table Component -->
-      <TransactionsLedgerTable :transactions="transactions" :loading-txs="loadingTxs" :simulating-tx-id="simulatingTxId"
-        :disburse-loading="disburseLoading" :is-sandbox="dashboardEnv === 'sandbox'" v-model:search-query="searchQuery"
-        v-model:status-filter="statusFilter" @refresh="loadTransactions" @simulate-payment="handleSimulatePayment"
-        @disburse="triggerDisbursement" />
+      <PaymentsLedger ref="paymentsLedgerRef" />
     </div>
   </div>
 </template>

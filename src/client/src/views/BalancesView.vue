@@ -1,33 +1,24 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { api } from '../lib/api'
-import type { AppItem } from '../types/app'
 import type { TransactionItem } from '../types/transaction'
 import { dashboardEnv } from '../lib/environment'
 import { formatRupiah } from '../lib/utils'
 import {
-  Wallet,
-  Landmark,
-  ArrowDownLeft,
-  ArrowUpRight,
-  Clock,
-  CheckCircle2,
   AlertCircle,
   RefreshCw,
-  Sparkles,
   Building2,
   X,
-  Plus,
-  ShieldCheck,
-  ChevronRight,
   Send,
   Search,
+  Landmark,
+  CheckCircle2,
+  ArrowDownLeft,
 } from 'lucide-vue-next'
 
 const env = dashboardEnv
 const loading = ref(false)
 const transactions = ref<TransactionItem[]>([])
-const appsList = ref<AppItem[]>([])
 
 const isPayoutModalOpen = ref(false)
 const payoutAmount = ref<number>(0)
@@ -35,8 +26,7 @@ const isSubmittingPayout = ref(false)
 const payoutError = ref<string | null>(null)
 const payoutSuccess = ref<string | null>(null)
 
-const statusFilter = ref<'ALL' | 'PENDING' | 'PROCESSING' | 'COMPLETED'>('ALL')
-const searchQuery = ref('')
+const disbSearchQuery = ref('')
 
 const isAccountModalOpen = ref(false)
 const isSavingAccount = ref(false)
@@ -90,12 +80,10 @@ async function handleSaveAccount() {
 async function loadData() {
   loading.value = true
   try {
-    const [txRes, appRes] = await Promise.all([
+    const [txRes] = await Promise.all([
       api.getTransactions(),
-      api.getApps(),
     ])
     transactions.value = txRes.transactions || []
-    appsList.value = appRes.apps || []
     await loadAccountData()
   } catch (err) {
     console.error('Gagal memuat data balances:', err)
@@ -107,22 +95,19 @@ async function loadData() {
 onMounted(loadData)
 watch(env, loadData)
 
+// ── KPI ──────────────────────────────────────────────────────────
 const balanceKPIs = computed(() => {
   const paidTxs = transactions.value.filter(t => t.paymentStatus === 'PAID')
 
-  // Saldo tersedia: transaksi PAID yang belum pernah ditarik (disbursementStatus === 'PENDING')
   const availableTxs = paidTxs.filter(t => t.disbursementStatus === 'PENDING' || !t.disbursementStatus)
   const availableBalance = availableTxs.reduce((acc, t) => acc + (t.netAmount || 0), 0)
 
-  // Saldo sedang diproses
   const processingTxs = paidTxs.filter(t => t.disbursementStatus === 'PROCESSING')
   const processingBalance = processingTxs.reduce((acc, t) => acc + (t.netAmount || 0), 0)
 
-  // Total yang sudah dicairkan ke bank
   const completedTxs = paidTxs.filter(t => t.disbursementStatus === 'COMPLETED')
   const totalPaidOut = completedTxs.reduce((acc, t) => acc + (t.netAmount || 0), 0)
 
-  // Total Platform MoR fee
   const totalFeeMoR = paidTxs.reduce((acc, t) => acc + (t.platformFee || 0), 0)
 
   return {
@@ -131,27 +116,55 @@ const balanceKPIs = computed(() => {
     totalPaidOut,
     totalFeeMoR,
     availableCount: availableTxs.length,
-    completedCount: completedTxs.length,
   }
 })
 
-const filteredLedger = computed(() => {
+// ── Disbursement groups (COMPLETED + PROCESSING) ──────────────────
+interface DisbursementGroup {
+  disbursementId: string
+  status: 'COMPLETED' | 'PROCESSING'
+  totalNet: number
+  latestDate: string | null
+}
+
+const disbursementGroups = computed((): DisbursementGroup[] => {
   const paidTxs = transactions.value.filter(t => t.paymentStatus === 'PAID')
-  return paidTxs.filter(t => {
-    if (statusFilter.value !== 'ALL' && t.disbursementStatus !== statusFilter.value) {
-      return false
+  const disbursed = paidTxs.filter(t =>
+    (t.disbursementStatus === 'COMPLETED' || t.disbursementStatus === 'PROCESSING') &&
+    t.disbursementId
+  )
+
+  const map = new Map<string, DisbursementGroup>()
+  for (const tx of disbursed) {
+    const key = tx.disbursementId!
+    if (!map.has(key)) {
+      map.set(key, {
+        disbursementId: key,
+        status: tx.disbursementStatus as 'COMPLETED' | 'PROCESSING',
+        totalNet: 0,
+        latestDate: null,
+      })
     }
-    if (searchQuery.value.trim()) {
-      const q = searchQuery.value.toLowerCase().trim()
-      const matchId = t.id.toLowerCase().includes(q)
-      const matchEmail = (t.customerEmail || '').toLowerCase().includes(q)
-      const matchApp = getAppName(t.appId).toLowerCase().includes(q)
-      if (!matchId && !matchEmail && !matchApp) return false
-    }
-    return true
+    const g = map.get(key)!
+    g.totalNet += tx.netAmount || 0
+    const d = tx.paidAt || tx.createdAt
+    if (d && (!g.latestDate || d > g.latestDate)) g.latestDate = d
+  }
+
+  const q = disbSearchQuery.value.toLowerCase().trim()
+  let groups = [...map.values()]
+  if (q) {
+    groups = groups.filter(g => g.disbursementId.toLowerCase().includes(q))
+  }
+
+  return groups.sort((a, b) => {
+    if (!a.latestDate) return 1
+    if (!b.latestDate) return -1
+    return b.latestDate.localeCompare(a.latestDate)
   })
 })
 
+// ── Helpers ────────────────────────────────────────────────────────
 function openPayoutModal() {
   payoutAmount.value = balanceKPIs.value.availableBalance
   payoutError.value = null
@@ -205,11 +218,6 @@ async function handleRequestPayout() {
   }
 }
 
-function getAppName(appId: string): string {
-  const app = appsList.value.find(a => a.id === appId)
-  return app ? app.name : appId
-}
-
 function formatDate(dateStr?: string | null): string {
   if (!dateStr) return '-'
   const d = new Date(dateStr)
@@ -225,7 +233,7 @@ function formatDate(dateStr?: string | null): string {
 
 <template>
   <div class="animate-fadeIn pb-12">
-    <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
+    <!-- Unified Header & Toolbar -->
     <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-0">
       <div class="flex items-center gap-2">
         <h1 class="text-xs font-bold uppercase tracking-wider text-white">Balances</h1>
@@ -241,45 +249,6 @@ function formatDate(dateStr?: string | null): string {
       </div>
 
       <div class="flex items-center gap-2 overflow-x-auto no-scrollbar w-full sm:w-auto">
-        <!-- Search Input -->
-        <div class="relative w-full sm:w-52">
-          <Search class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Cari ref, email, produk..."
-            class="w-full pl-8 pr-2.5 py-1 rounded-lg bg-white/10 border border-white/15 text-xs text-white placeholder:text-white/40 focus:outline-none focus:bg-white/15 focus:border-gold transition"
-          />
-        </div>
-
-        <!-- Status Filter Pill -->
-        <div class="flex items-center h-7 rounded-md bg-white/10 p-0.5 text-[10px] font-medium shrink-0">
-          <button
-            @click="statusFilter = 'ALL'"
-            :class="['px-2 h-full rounded transition cursor-pointer flex items-center', statusFilter === 'ALL' ? 'bg-white font-bold text-jetblack' : 'text-white/70 hover:text-white']"
-          >
-            Semua
-          </button>
-          <button
-            @click="statusFilter = 'PENDING'"
-            :class="['px-2 h-full rounded transition cursor-pointer flex items-center', statusFilter === 'PENDING' ? 'bg-white font-bold text-jetblack' : 'text-white/70 hover:text-white']"
-          >
-            Siap Tarik
-          </button>
-          <button
-            @click="statusFilter = 'PROCESSING'"
-            :class="['px-2 h-full rounded transition cursor-pointer flex items-center', statusFilter === 'PROCESSING' ? 'bg-white font-bold text-jetblack' : 'text-white/70 hover:text-white']"
-          >
-            Diproses
-          </button>
-          <button
-            @click="statusFilter = 'COMPLETED'"
-            :class="['px-2 h-full rounded transition cursor-pointer flex items-center', statusFilter === 'COMPLETED' ? 'bg-white font-bold text-jetblack' : 'text-white/70 hover:text-white']"
-          >
-            Dicairkan
-          </button>
-        </div>
-
         <button
           type="button"
           @click="isAccountModalOpen = true"
@@ -308,7 +277,7 @@ function formatDate(dateStr?: string | null): string {
               ? 'bg-white/15 text-white/40 cursor-not-allowed'
               : 'btn-gold cursor-pointer active:scale-95'
           ]"
-          :title="env === 'sandbox' ? 'Pencairan dana hanya tersedia di mode LIVE (Saldo Sandbox bersifat simulasi)' : 'Tarik Saldo Tersedia'"
+          :title="env === 'sandbox' ? 'Pencairan dana hanya tersedia di mode LIVE' : 'Tarik Saldo Tersedia'"
         >
           <Send class="w-3.5 h-3.5 stroke-[2.5]" />
           <span>{{ env === 'sandbox' ? 'Simulasi' : 'Tarik Dana' }}</span>
@@ -316,15 +285,15 @@ function formatDate(dateStr?: string | null): string {
       </div>
     </div>
 
-    <!-- Product Catalog Stats KPI Bar (Flush Canvas, Creem/Polar style) -->
+    <!-- KPI Bar -->
     <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 py-2.5 sm:py-3 border-b border-jetblack/15 mb-0">
       <div class="space-y-0.5">
         <div class="text-xs font-semibold text-jetblack/60 flex items-center gap-1.5">
-          <span>Saldo Tersedia (Available)</span>
-          <span v-if="env === 'sandbox'" class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-800 font-bold uppercase">Simulasi</span>
+          <span>Saldo Tersedia</span>
+          <span v-if="env === 'sandbox'" class="text-[9px] px-1.5 rounded bg-amber-500/15 text-amber-800 font-bold uppercase">Simulasi</span>
         </div>
         <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">{{ formatRupiah(balanceKPIs.availableBalance) }}</div>
-        <div class="text-[11px] text-jetblack/50 font-medium">{{ balanceKPIs.availableCount }} transaksi siap ditarik (Min Rp 50.000)</div>
+        <div class="text-[11px] text-jetblack/50 font-medium">Dari {{ balanceKPIs.availableCount }} penjualan · Min tarik Rp 50.000</div>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
@@ -336,7 +305,7 @@ function formatDate(dateStr?: string | null): string {
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Total Telah Dicairkan</div>
         <div class="text-2xl font-bold text-forest font-mono tracking-tight">{{ formatRupiah(balanceKPIs.totalPaidOut) }}</div>
-        <div class="text-[11px] text-jetblack/50 font-medium">{{ balanceKPIs.completedCount }} transfer berhasil ke rekening</div>
+        <div class="text-[11px] text-jetblack/50 font-medium">{{ disbursementGroups.length }} batch transfer ke rekening</div>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
@@ -346,75 +315,122 @@ function formatDate(dateStr?: string | null): string {
       </div>
     </div>
 
-    <!-- Edge-to-Edge Table -->
+    <!-- Available Balance Card (sandbox notice or CTA) -->
+    <div
+      v-if="balanceKPIs.availableBalance > 0"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-3 border-b border-jetblack/10"
+    >
+      <div
+        class="rounded-xl border flex items-center justify-between gap-4 px-4 py-3"
+        :class="env === 'sandbox' ? 'bg-amber-50 border-amber-200' : 'bg-forest/5 border-forest/20'"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+            :class="env === 'sandbox' ? 'bg-amber-100' : 'bg-forest/10'"
+          >
+            <ArrowDownLeft :class="env === 'sandbox' ? 'w-4 h-4 text-amber-600' : 'w-4 h-4 text-forest'" />
+          </div>
+          <div>
+            <div class="text-xs font-bold text-jetblack">
+              {{ env === 'sandbox' ? 'Saldo Simulasi Tersedia' : 'Saldo Siap Ditarik ke Rekening' }}
+            </div>
+            <div class="text-[11px] text-jetblack/60 mt-0.5">
+              {{ env === 'sandbox'
+                ? 'Di mode sandbox, saldo bersifat simulasi dan tidak dapat dicairkan.'
+                : `${formatRupiah(balanceKPIs.availableBalance)} bersih setelah potongan fee 5%. Klik "Tarik Dana" untuk mencairkan.`
+              }}
+            </div>
+          </div>
+        </div>
+        <button
+          v-if="env !== 'sandbox'"
+          type="button"
+          @click="openPayoutModal"
+          class="btn-gold shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95"
+        >
+          <Send class="w-3.5 h-3.5 stroke-[2.5]" />
+          Tarik Dana
+        </button>
+      </div>
+    </div>
+
+    <!-- Section: Riwayat Pencairan -->
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 flex items-center justify-between py-1.5 border-b border-jetblack/10">
+      <div class="flex items-center gap-2">
+        <Landmark class="w-3.5 h-3.5 text-jetblack/50" />
+        <span class="text-[11px] font-bold uppercase tracking-wider text-jetblack/60">Riwayat Pencairan</span>
+        <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-jetblack/8 text-jetblack/60 font-mono font-bold">
+          {{ disbursementGroups.length }} batch
+        </span>
+      </div>
+      <div class="relative w-64">
+        <Search class="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-jetblack/30 pointer-events-none" />
+        <input
+          v-model="disbSearchQuery"
+          type="text"
+          placeholder="Cari ID pencairan..."
+          class="w-full pl-7 pr-2.5 py-1 rounded-lg bg-jetblack/5 border border-jetblack/12 text-[11px] text-jetblack placeholder:text-jetblack/30 focus:outline-none focus:border-gold/60 transition"
+        />
+      </div>
+    </div>
+
     <div class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
       <table class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15">
         <thead class="border-b border-jetblack/20 text-xs font-semibold text-jetblack/70 bg-white">
           <tr>
-            <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">ID Transaksi / Ref</th>
-            <th class="py-2.5 px-3">Produk</th>
-            <th class="py-2.5 px-3">Pelanggan</th>
-            <th class="py-2.5 px-3">Gross (Rp)</th>
-            <th class="py-2.5 px-3">Fee MoR (5%)</th>
-            <th class="py-2.5 px-3">Net Payout (95%)</th>
-            <th class="py-2.5 px-3">Status Pencairan</th>
+            <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">ID Pencairan</th>
+            <th class="py-2.5 px-3">Total Dicairkan (Net)</th>
+            <th class="py-2.5 px-3">Status</th>
             <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Tanggal</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
-          <tr v-if="filteredLedger.length === 0">
-            <td colspan="8" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
-              <div class="space-y-1">
-                <p class="font-semibold text-xs text-jetblack/60">Tidak ada riwayat saldo ditemukan.</p>
-                <p class="text-[11px] text-jetblack/40">
-                  Coba sesuaikan filter atau lakukan transaksi penjualan pertama.
+          <tr v-if="disbursementGroups.length === 0 && !loading">
+            <td colspan="4" class="py-10 px-3.5 sm:px-4 md:px-6 text-center">
+              <div class="space-y-2">
+                <Landmark class="w-7 h-7 text-jetblack/20 mx-auto" />
+                <p class="font-semibold text-xs text-jetblack/50">Belum ada riwayat pencairan.</p>
+                <p class="text-[11px] text-jetblack/35">
+                  Pencairan akan muncul di sini setelah Anda menarik saldo ke rekening bank.
                 </p>
               </div>
             </td>
           </tr>
+
+          <tr v-if="loading">
+            <td colspan="4" class="py-8 text-center text-jetblack/40 text-xs">Memuat data...</td>
+          </tr>
+
           <tr
-            v-for="tx in filteredLedger"
-            :key="tx.id"
-            class="hover:bg-slate-50/70 transition"
+            v-for="group in disbursementGroups"
+            :key="group.disbursementId"
+            class="hover:bg-slate-50/80 transition"
           >
-            <td class="py-3 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-mono font-bold text-jetblack">
-              {{ tx.id }}
+            <td class="py-3 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-mono font-bold text-jetblack text-[11px]">
+              {{ group.disbursementId }}
             </td>
-            <td class="py-3 px-3 font-medium text-jetblack">
-              {{ getAppName(tx.appId) }}
-            </td>
-            <td class="py-3 px-3 text-jetblack/80">
-              {{ tx.customerEmail }}
-            </td>
-            <td class="py-3 px-3 font-mono font-bold text-jetblack">
-              {{ formatRupiah(tx.grossAmount) }}
-            </td>
-            <td class="py-3 px-3 font-mono text-red-600 font-semibold">
-              - {{ formatRupiah(tx.platformFee) }}
-            </td>
-            <td class="py-3 px-3 font-mono font-bold text-forest">
-              {{ formatRupiah(tx.netAmount) }}
+            <td class="py-3 px-3 font-mono font-bold text-forest text-sm">
+              {{ formatRupiah(group.totalNet) }}
             </td>
             <td class="py-3 px-3">
               <span
                 :class="[
                   'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
-                  tx.disbursementStatus === 'COMPLETED'
+                  group.status === 'COMPLETED'
                     ? 'bg-forest/10 text-forest border border-forest/30'
-                    : tx.disbursementStatus === 'PROCESSING'
-                    ? 'bg-blue-50 text-blue-600 border border-blue-200'
-                    : 'bg-gold/15 text-[#8a6d1f] border border-gold/30'
+                    : 'bg-blue-50 text-blue-600 border border-blue-200'
                 ]"
               >
                 <span
                   class="w-1.5 h-1.5 rounded-full"
-                  :class="tx.disbursementStatus === 'COMPLETED' ? 'bg-forest' : tx.disbursementStatus === 'PROCESSING' ? 'bg-blue-500' : 'bg-gold'"
+                  :class="group.status === 'COMPLETED' ? 'bg-forest' : 'bg-blue-500'"
                 ></span>
-                {{ tx.disbursementStatus === 'COMPLETED' ? 'Dicairkan' : tx.disbursementStatus === 'PROCESSING' ? 'Diproses' : 'Siap Tarik' }}
+                {{ group.status === 'COMPLETED' ? 'Dicairkan' : 'Diproses' }}
               </span>
             </td>
             <td class="py-3 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right text-[11px] text-jetblack/60 font-mono">
-              {{ formatDate(tx.paidAt || tx.createdAt) }}
+              {{ formatDate(group.latestDate) }}
             </td>
           </tr>
         </tbody>
@@ -428,7 +444,6 @@ function formatDate(dateStr?: string | null): string {
       @click.self="closePayoutModal"
     >
       <div class="bg-white border border-jetblack/15 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-scaleIn flex flex-col">
-        <!-- Header -->
         <div class="px-5 py-3.5 border-b border-jetblack/10 flex items-center justify-between bg-white shrink-0">
           <div class="flex items-center gap-2">
             <div class="w-2 h-2 rounded-full bg-gold"></div>
@@ -445,16 +460,15 @@ function formatDate(dateStr?: string | null): string {
           </button>
         </div>
 
-        <!-- Body Form -->
         <form @submit.prevent="handleRequestPayout" class="p-5 space-y-4 text-xs">
-          <!-- Available Balance Overview Box -->
+          <!-- Saldo Tersedia -->
           <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
             <span class="text-[11px] text-jetblack/60 font-semibold">Saldo Bersih Siap Ditarik</span>
             <div class="text-2xl font-mono font-bold text-jetblack">
               {{ formatRupiah(balanceKPIs.availableBalance) }}
             </div>
             <p class="text-[10px] text-jetblack/50">
-              Saldo otomatis didebet dari transaksi yang sudah berstatus lunas.
+              Total akumulasi penjualan setelah potongan fee platform 5%.
             </p>
           </div>
 
@@ -485,7 +499,7 @@ function formatDate(dateStr?: string | null): string {
             <p class="text-[10px] text-jetblack/50 mt-1">Minimal penarikan dana adalah Rp 50.000.</p>
           </div>
 
-          <!-- Payout Destination Info -->
+          <!-- Payout Destination -->
           <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-start gap-2.5">
             <Building2 class="w-4 h-4 text-gold shrink-0 mt-0.5" />
             <div>
@@ -496,19 +510,16 @@ function formatDate(dateStr?: string | null): string {
             </div>
           </div>
 
-          <!-- Error Alert -->
           <div v-if="payoutError" class="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
             <AlertCircle class="w-4 h-4 shrink-0" />
             <span>{{ payoutError }}</span>
           </div>
 
-          <!-- Success Alert -->
           <div v-if="payoutSuccess" class="p-3 rounded-lg bg-forest/10 border border-forest/20 text-forest text-xs flex items-center gap-2">
             <CheckCircle2 class="w-4 h-4 shrink-0" />
             <span>{{ payoutSuccess }}</span>
           </div>
 
-          <!-- Actions -->
           <div class="pt-2 flex items-center justify-end gap-2 border-t border-jetblack/10">
             <button
               type="button"

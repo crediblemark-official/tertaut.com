@@ -160,28 +160,6 @@ watch(dashboardEnv, () => {
 
 <template>
   <div class="animate-fadeIn pb-12">
-    <!-- Tab switcher -->
-    <div class="flex items-center gap-4 px-1 mb-3">
-      <button
-        @click="switchTab('licenses')"
-        :class="['text-[11px] font-bold uppercase tracking-wider transition cursor-pointer relative pb-1.5', activeTab === 'licenses' ? 'text-jetblack' : 'text-jetblack/40 hover:text-jetblack/70']"
-      >
-        <span class="inline-flex items-center gap-1.5">
-          <KeyRound class="w-3.5 h-3.5" /> Lisensi
-        </span>
-        <span v-if="activeTab === 'licenses'" class="absolute left-0 right-0 bottom-0 h-0.5 bg-gold" />
-      </button>
-      <button
-        @click="switchTab('webhooks')"
-        :class="['text-[11px] font-bold uppercase tracking-wider transition cursor-pointer relative pb-1.5', activeTab === 'webhooks' ? 'text-jetblack' : 'text-jetblack/40 hover:text-jetblack/70']"
-      >
-        <span class="inline-flex items-center gap-1.5">
-          <Webhook class="w-3.5 h-3.5" /> Webhooks
-        </span>
-        <span v-if="activeTab === 'webhooks'" class="absolute left-0 right-0 bottom-0 h-0.5 bg-gold" />
-      </button>
-    </div>
-
     <!-- Licenses tab -->
     <template v-if="activeTab === 'licenses'">
       <LicenseTable
@@ -194,11 +172,55 @@ watch(dashboardEnv, () => {
         @deactivate-seat="handleDeactivateSeat"
         @revoke="revokeLicense"
         @detail="openDetail"
-      />
+      >
+        <template #tabs>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button
+              @click="switchTab('licenses')"
+              class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer bg-white/20 text-white shadow-2xs"
+            >
+              <KeyRound class="w-3.5 h-3.5 text-gold" />
+              <span>Lisensi</span>
+              <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 font-mono text-white font-bold ml-0.5">
+                {{ licensesList.length }}
+              </span>
+            </button>
+            <button
+              @click="switchTab('webhooks')"
+              class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer text-white/60 hover:text-white hover:bg-white/10"
+            >
+              <Webhook class="w-3.5 h-3.5" />
+              <span>Webhooks</span>
+            </button>
+          </div>
+        </template>
+      </LicenseTable>
     </template>
 
     <!-- Webhooks tab -->
-    <WebhookManager v-else />
+    <WebhookManager v-else>
+      <template #tabs>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button
+            @click="switchTab('licenses')"
+            class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer text-white/60 hover:text-white hover:bg-white/10"
+          >
+            <KeyRound class="w-3.5 h-3.5" />
+            <span>Lisensi</span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 font-mono text-white font-bold ml-0.5">
+              {{ licensesList.length }}
+            </span>
+          </button>
+          <button
+            @click="switchTab('webhooks')"
+            class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer bg-white/20 text-white shadow-2xs"
+          >
+            <Webhook class="w-3.5 h-3.5 text-gold" />
+            <span>Webhooks</span>
+          </button>
+        </div>
+      </template>
+    </WebhookManager>
 
     <!-- Alert Feedback -->
     <div

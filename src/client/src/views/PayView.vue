@@ -111,11 +111,11 @@ async function loadCheckoutData() {
       return
     }
 
+    let loadedApp: any = null
     try {
       const data = await api.getAppBySlug(identifier)
       if (data && data.id) {
-        setProductData(data)
-        return
+        loadedApp = data
       }
     } catch {
       try {
@@ -123,12 +123,44 @@ async function loadCheckoutData() {
         if (json.apps) {
           const found = json.apps.find((a: any) => a.slug === identifier || a.id === identifier)
           if (found) {
-            setProductData(found)
-            return
+            loadedApp = found
           }
         }
       } catch {}
+    }
+
+    if (!loadedApp) {
       notFound.value = true
+      return
+    }
+
+    setProductData(loadedApp)
+
+    // Cek jika halaman dibuka dengan parameter externalId (misal dari redirect finish / link transaksi)
+    const externalIdParam = (route.query.externalId as string) || ''
+    if (externalIdParam) {
+      try {
+        const statusRes = await api.getPaymentStatus(externalIdParam)
+        if (statusRes && statusRes.success) {
+          if (statusRes.paymentStatus === 'PAID') {
+            isPaid.value = true
+            paidResult.value = {
+              licenseKey: statusRes.licenseKey || undefined,
+              message: 'Pembayaran DANA berhasil diverifikasi.'
+            }
+          } else if (statusRes.paymentStatus === 'PENDING') {
+            activeCustomOrder.value = {
+              transactionId: statusRes.transactionId || externalIdParam,
+              paymentRail: statusRes.channel?.toLowerCase().includes('va') ? 'va' : 'qris',
+              paymentCode: statusRes.paymentCode,
+              qrDataUrl: statusRes.qrDataUrl,
+              amount: statusRes.amount || payableAmount.value,
+              checkoutUrl: statusRes.checkoutUrl,
+            }
+            startPolling(statusRes.transactionId || externalIdParam)
+          }
+        }
+      } catch {}
     }
   } catch (err: any) {
     errorMessage.value = err.message || 'Gagal memuat produk pembayaran'
@@ -191,7 +223,7 @@ async function handlePay() {
   paidResult.value = null
 
   try {
-    const isCustomScenario = selectedPaymentRail.value === 'qris' || selectedPaymentRail.value === 'va'
+    const isCustomScenario = selectedPaymentRail.value === 'qris' || selectedPaymentRail.value === 'va' || selectedPaymentRail.value === 'ewallet'
     const data = await api.createCheckoutSession({
       appId: product.value.id,
       customerEmail: emailInput.value,
@@ -207,6 +239,13 @@ async function handlePay() {
     if (!data.success) {
       errorMessage.value = data.error || 'Gagal menyiapkan sesi checkout'
       return
+    }
+
+    const activeExtId = (data as any).externalId || (data as any).data?.externalId || data.transactionId
+    if (activeExtId && typeof window !== 'undefined') {
+      const currentUrl = new URL(window.location.href)
+      currentUrl.searchParams.set('externalId', activeExtId)
+      window.history.replaceState({}, '', currentUrl.toString())
     }
 
     if (data.scenario === 'API' && (data.paymentCode || data.qrDataUrl)) {
@@ -226,10 +265,10 @@ async function handlePay() {
       if (data.transactionId) {
         startPolling(data.transactionId)
       }
-    } else if (product.value.mode === 'sandbox') {
-      sandboxSessionId.value = data.transactionId || ''
     } else if (data.checkoutUrl) {
       window.location.href = data.checkoutUrl
+    } else if (product.value.mode === 'sandbox') {
+      sandboxSessionId.value = data.transactionId || ''
     }
   } catch (err: any) {
     errorMessage.value = err.message || 'Terjadi kesalahan jaringan'
@@ -340,21 +379,26 @@ onUnmounted(() => {
 
       <!-- Master Unified Luxury Card (50/50 Precision Split, High Contrast) -->
       <div
-        class="relative z-10 w-full max-w-4xl h-auto lg:h-[540px] lg:max-h-[calc(100vh-5rem)] rounded-2xl border border-slate-200/90 bg-white text-slate-900 shadow-[0_25px_70px_rgba(0,0,0,0.6)] overflow-hidden grid grid-cols-1 lg:grid-cols-2 shrink-0 my-auto">
+        class="relative z-10 w-full max-w-4xl h-auto lg:h-[560px] lg:max-h-[calc(100vh-4rem)] rounded-2xl border border-slate-200/90 bg-white text-slate-900 shadow-[0_25px_70px_rgba(0,0,0,0.6)] overflow-hidden grid grid-cols-1 lg:grid-cols-2 shrink-0 my-auto">
 
         <!-- LEFT PANE: Order Summary & Product Details (Desktop & Mobile) -->
         <PayOrderSummary
           :product="product"
+          :email-input="emailInput"
+          :active-order="activeCustomOrder"
+          :is-paid="isPaid"
           :applied-coupon="appliedCoupon"
           :coupon-input="couponInput"
           :coupon-error="couponError"
           :estimated-discount="estimatedDiscount"
           :payable-amount="payableAmount"
           :is-mobile-order-expanded="isMobileOrderExpanded"
+          @update:email-input="emailInput = $event"
           @update:coupon-input="couponInput = $event"
           @update:is-mobile-order-expanded="isMobileOrderExpanded = $event"
           @apply-coupon="applyCoupon"
           @remove-coupon="appliedCoupon = null; couponInput = ''"
+          @pay="handlePay"
         />
 
         <!-- RIGHT PANE: Payment Form & Multi-Rail Selection -->
@@ -374,21 +418,12 @@ onUnmounted(() => {
               :sandbox-session-id="sandboxSessionId"
               :sandbox-result="sandboxResult"
               :is-simulating="isSimulating"
-              @update:email-input="emailInput = $event"
               @update:selected-payment-rail="selectedPaymentRail = $event"
               @update:selected-bank="selectedBank = $event"
               @reset-order="activeCustomOrder = null; stopPolling()"
               @pay="handlePay"
               @simulate="simulateSandboxPayment"
             />
-
-            <!-- Bottom Disclaimer Notice -->
-            <div class="pt-3 border-t border-slate-200 text-center shrink-0">
-              <p class="text-xs text-slate-600 leading-relaxed">
-                Pembayaran diproses secara aman oleh <span class="text-slate-900 font-bold">DANA Enterprise Indonesia</span>.
-                Merchant of Record resmi oleh <span class="text-slate-900 font-bold">tertaut.com</span>.
-              </p>
-            </div>
           </div>
         </div>
 

@@ -39,9 +39,9 @@ export async function handleCreateSession({ request, body, set }: any) {
     } = body;
 
     // B8: Dukung preferredPaymentChannel (dari PayView) maupun paymentRail secara konsisten
-    const selectedRail = (paymentRail || preferredPaymentChannel || "qris") as "qris" | "va" | "ewallet";
+    const selectedRail = (paymentRail || preferredPaymentChannel || "ewallet") as "qris" | "va" | "ewallet";
     const selectedBank = (vaBank || bank || "BCA").toUpperCase();
-    const selectedScenario = scenario || (selectedRail === "qris" || selectedRail === "va" ? "API" : "REDIRECT");
+    const selectedScenario = scenario || (selectedRail === "qris" || selectedRail === "va" || selectedRail === "ewallet" ? "API" : "REDIRECT");
 
     const targetIdentifier = appId || appSlug || slug;
     if (!targetIdentifier) {
@@ -66,14 +66,18 @@ export async function handleCreateSession({ request, body, set }: any) {
     }
 
     const isSandboxApp = app.mode === "sandbox";
-    const isMockOrder = isSandboxApp || checkoutConfig.isSandbox || checkoutConfig.isTest;
+    // Hanya mock jika aplikasi mode sandbox, atau dalam unit test, atau jika secara eksplisit dipaksa via forceMock.
+    // Aplikasi mode Live tidak boleh dipaksa mock jika kredensial DANA tersedia.
+    const isMockOrder = isSandboxApp
+      ? (checkoutConfig.isTest || Boolean(body.forceMock) || (!checkoutConfig.dana.clientId || !checkoutConfig.dana.privateKey))
+      : (checkoutConfig.isTest || Boolean(body.forceMock));
 
-    // Jika aplikasi mode Live tapi kredensial DANA belum terpasang di production
+    // Jika aplikasi mode Live tapi kredensial DANA belum terpasang
     if (!isMockOrder && (!checkoutConfig.dana.clientId || !checkoutConfig.dana.privateKey)) {
       set.status = 400;
       return {
         success: false,
-        error: "Gateway pembayaran DANA produksi belum dikonfigurasi (DANA_CLIENT_ID / DANA_PRIVATE_KEY kosong). Silakan beralih ke mode Sandbox pada aplikasi untuk pengujian checkout.",
+        error: "Gateway pembayaran DANA produksi belum dikonfigurasi (DANA_CLIENT_ID / DANA_PRIVATE_KEY kosong). Silakan pasang kredensial DANA atau beralih ke mode Sandbox pada aplikasi untuk pengujian checkout.",
       };
     }
 
@@ -283,6 +287,7 @@ export async function handleCreateSession({ request, body, set }: any) {
   const invoiceUrl = danaOrder.checkoutUrl;
   const invoiceId = danaOrder.orderId;
   const expiryDate = danaOrder.expiryDate;
+  const hostedPayUrl = `${requestOrigin}/pay/${app.slug || targetIdentifier}?externalId=${externalId}`;
 
   // Tentukan label paymentChannel yang disimpan
   const savedChannel = danaOrder.paymentRail === "va"
@@ -345,9 +350,11 @@ export async function handleCreateSession({ request, body, set }: any) {
       paymentCode: danaOrder.paymentCode,
       qrDataUrl: danaOrder.qrDataUrl,
       vaBank: danaOrder.vaBank,
+      hostedPayUrl,
     },
     transactionId: newTx.id,
     checkoutUrl: invoiceUrl,
+    hostedPayUrl,
     scenario: danaOrder.scenario,
     paymentRail: danaOrder.paymentRail,
     paymentCode: danaOrder.paymentCode,

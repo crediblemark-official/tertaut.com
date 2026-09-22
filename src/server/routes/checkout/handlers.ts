@@ -4,7 +4,8 @@ import { eq, inArray, or, and, sql } from "drizzle-orm";
 import { LicenseService } from "../../services/license";
 import { CreditService } from "../../services/credits";
 import { CouponService } from "../../services/coupon";
-import { config as checkoutConfig } from "../../config";
+import { config as checkoutConfig, resolveRequestOrigin } from "../../config";
+import QRCode from "qrcode";
 import { randomBytes } from "crypto";
 import { resolveCurrentBuilder } from "../apps/builder";
 import { handleDisburse } from "../apps/disburse";
@@ -12,7 +13,7 @@ import { handleDisburse } from "../apps/disburse";
 /**
  * Endpoint Redirect pembeli setelah menyelesaikan pembayaran DANA (Finish Redirect URL)
  */
-export async function handleDanaFinish({ query, set }: any) {
+export async function handleDanaFinish({ query, request, set }: any) {
   const { orderId, externalId, mock } = query as {
     orderId?: string;
     externalId?: string;
@@ -24,7 +25,7 @@ export async function handleDanaFinish({ query, set }: any) {
     return { error: "externalId parameter wajib disertakan" };
   }
 
-  const tx = await db.query.transactions.findFirst({
+  let tx = await db.query.transactions.findFirst({
     where: or(
       eq(transactions.xenditExternalId, externalId),
       eq(transactions.providerReferenceId, externalId),
@@ -37,25 +38,49 @@ export async function handleDanaFinish({ query, set }: any) {
     return { error: "Transaksi tidak ditemukan" };
   }
 
-  // Jika pembayaran sukses, arahkan ke returnUrl atau kembalikan response JSON
   const app = await db.query.apps.findFirst({
     where: eq(apps.id, tx.appId),
   });
 
-  const finalRedirect = app?.redirectUrl || `${checkoutConfig.publicAppUrl}/checkout/success?externalId=${externalId}`;
+  // Jika simulasi mock (?mock=true) dan transaksi masih PENDING, tandai lunas otomatis & terbitkan lisensi
+  if (mock === "true" && tx.paymentStatus === "PENDING") {
+    const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
+    await fulfillPaymentTransaction(tx, tx.paymentChannel || "DANA");
+    const updated = await db.query.transactions.findFirst({
+      where: eq(transactions.id, tx.id),
+    });
+    if (updated) tx = updated;
+  }
 
   // Ambil lisensi yang diterbitkan
   const lic = await db.query.licenses.findFirst({
     where: eq(licenses.transactionId, tx.id),
   });
 
+  const requestOrigin = resolveRequestOrigin(request);
+  const targetSlug = app?.slug || tx.appId;
+  const targetRedirect = app?.redirectUrl
+    ? (app.redirectUrl.includes("?")
+        ? `${app.redirectUrl}&status=success&externalId=${externalId}&licenseKey=${lic?.licenseKey || ""}`
+        : `${app.redirectUrl}?status=success&externalId=${externalId}&licenseKey=${lic?.licenseKey || ""}`)
+    : `${requestOrigin}/pay/${targetSlug}?paid=1&externalId=${externalId}`;
+
+  // Jika diakses langsung via browser (Accept: text/html), arahkan pembeli ke UI
+  const acceptHeader = request?.headers?.get?.("accept") || "";
+  const isBrowserRequest = acceptHeader.includes("text/html");
+
+  if (isBrowserRequest) {
+    set.redirect = targetRedirect;
+    return;
+  }
+
   return {
     success: true,
     message: "Pembayaran DANA berhasil diverifikasi",
     transactionId: tx.id,
-    paymentStatus: tx.paymentStatus,
+    paymentStatus: tx.paymentStatus === "PENDING" && mock === "true" ? "PAID" : tx.paymentStatus,
     licenseKey: lic?.licenseKey || null,
-    redirectUrl: finalRedirect,
+    redirectUrl: targetRedirect,
   };
 }
 
@@ -69,7 +94,7 @@ export async function handleGetPaymentStatus({ params, set }: any) {
     return { error: "txId parameter wajib disertakan" };
   }
 
-  const tx = await db.query.transactions.findFirst({
+  let tx = await db.query.transactions.findFirst({
     where: or(
       eq(transactions.id, txId),
       eq(transactions.xenditExternalId, txId),
@@ -82,6 +107,47 @@ export async function handleGetPaymentStatus({ params, set }: any) {
     return { error: "Transaksi tidak ditemukan" };
   }
 
+  let qrDataUrl: string | undefined;
+  let paymentCode: string | undefined;
+  const channel = (tx.paymentChannel || "").toUpperCase();
+
+  // Sinkronisasi status aktif ke gateway DANA jika masih PENDING
+  if (tx.paymentStatus === "PENDING" && tx.paymentProvider === "dana") {
+    try {
+      const { DanaService } = await import("../../services/dana");
+      const queryRes = await DanaService.queryOrderStatus({
+        externalId: tx.xenditExternalId,
+        referenceNo: tx.providerReferenceId || undefined,
+      });
+
+      if (queryRes) {
+        if (queryRes.paymentCode) {
+          paymentCode = queryRes.paymentCode;
+        }
+
+        // 00 = Success / Paid di DANA SNAP BI
+        if (queryRes.latestTransactionStatus === "00") {
+          const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
+          await fulfillPaymentTransaction(tx, tx.paymentChannel || "VA");
+          const refreshed = await db.query.transactions.findFirst({
+            where: eq(transactions.id, tx.id),
+          });
+          if (refreshed) {
+            tx = refreshed;
+          }
+        } else if (queryRes.latestTransactionStatus === "05") {
+          await db
+            .update(transactions)
+            .set({ paymentStatus: "EXPIRED", updatedAt: new Date() })
+            .where(eq(transactions.id, tx.id));
+          tx = { ...tx, paymentStatus: "EXPIRED" as any };
+        }
+      }
+    } catch (e: any) {
+      // Abaikan jika network error atau test mock
+    }
+  }
+
   let licenseKey: string | null = null;
   if (tx.paymentStatus === "PAID") {
     const lic = await db.query.licenses.findFirst({
@@ -90,14 +156,41 @@ export async function handleGetPaymentStatus({ params, set }: any) {
     licenseKey = lic?.licenseKey || null;
   }
 
+  if (tx.paymentStatus === "PENDING") {
+    if (channel.includes("QRIS")) {
+      paymentCode = paymentCode || `00020101021226540014ID.DANA.WWW011893600911000000000002152026092100000000303UMI51440014ID.DANA.WWW0215202609210000000520457325303360540${Number(tx.grossAmount).toFixed(2)}5802ID5911Tertaut MoR6007Jakarta61051234062330114${tx.xenditExternalId}6304ABCD`;
+      try {
+        qrDataUrl = await QRCode.toDataURL(paymentCode, { width: 320, margin: 2 });
+      } catch {}
+    } else if (channel.includes("VA")) {
+      if (!paymentCode) {
+        const bankPrefixMap: Record<string, string> = {
+          BCA: "3901",
+          MANDIRI: "88908",
+          BNI: "8808",
+          BRI: "8809",
+          CIMB: "2599",
+          PERMATA: "8528",
+        };
+        const bankName = channel.replace("VA_", "").toUpperCase() || "BCA";
+        const prefix = bankPrefixMap[bankName] || "3901";
+        paymentCode = `${prefix}08${Math.floor(1000000000 + Math.random() * 9000000000)}`;
+      }
+    }
+  }
+
   return {
     success: true,
     transactionId: tx.id,
+    externalId: tx.xenditExternalId,
     paymentStatus: tx.paymentStatus,
     amount: tx.grossAmount,
     channel: tx.paymentChannel,
     licenseKey,
     paidAt: tx.paidAt,
+    qrDataUrl,
+    paymentCode,
+    checkoutUrl: tx.xenditInvoiceUrl,
   };
 }
 

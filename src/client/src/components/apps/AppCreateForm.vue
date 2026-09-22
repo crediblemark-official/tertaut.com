@@ -153,6 +153,16 @@ const deliveryConfigState = ref<DeliveryConfig>({
   },
 })
 
+// Jika Akses API & Auto-Provisioning dinonaktifkan, reset juga konfigurasi Metered Billing
+watch(
+  () => deliveryConfigState.value.apiAccess?.enabled,
+  (enabled) => {
+    if (!enabled && meteringEnabled.value) {
+      removeMetering()
+    }
+  }
+)
+
 async function handleCreateProduct() {
   if (!newAppName.value || !newAppSlug.value) return
   isCreating.value = true
@@ -321,7 +331,7 @@ async function handleCreateProduct() {
         <!-- 2. MANFAAT PRODUK (BENEFITS) -->
         <AppBenefitsForm v-model="benefits" />
 
-        <!-- 3. PENETAPAN HARGA & METERING -->
+        <!-- 3. PENETAPAN HARGA -->
         <AppPricingSection
           v-model:pricingType="pricingType"
           v-model:price="newAppPrice"
@@ -329,6 +339,11 @@ async function handleCreateProduct() {
           v-model:customBillingDays="customBillingDays"
           v-model:hasTrialPeriod="hasTrialPeriod"
           v-model:trialPeriodDays="trialPeriodDays"
+        />
+
+        <!-- 4. PENGIRIMAN DIGITAL (DELIVERY CONFIG) -->
+        <AppDeliverySection
+          v-model="deliveryConfigState"
           :meteringEnabled="meteringEnabled"
           :meterName="meterName"
           :meterAggregation="meteringAggregation"
@@ -338,9 +353,6 @@ async function handleCreateProduct() {
           @openMeteringModal="isMeteringModalOpen = true"
           @removeMetering="removeMetering"
         />
-
-        <!-- 4. PENGIRIMAN DIGITAL (DELIVERY CONFIG) -->
-        <AppDeliverySection v-model="deliveryConfigState" />
 
         <!-- 5. ALUR CHECKOUT & RETENSI -->
         <div class="space-y-4">

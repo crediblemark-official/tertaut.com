@@ -36,11 +36,11 @@ async function loadData() {
   loading.value = true
   try {
     const [appsRes, statsRes] = await Promise.all([
-      api.getApps(),
-      api.getCatalogStats().catch((err) => {
+      api.getApps('all'),
+      api.getCatalogStats('all').catch((err) => {
         console.error('Failed to load catalog stats:', err)
         return null
-      })
+      }),
     ])
     appsList.value = appsRes.apps || []
     catalogStats.value = statsRes
@@ -67,9 +67,6 @@ async function handleToggleMode(app: AppItem) {
 }
 
 onMounted(() => loadData())
-watch(dashboardEnv, () => {
-  loadData()
-})
 </script>
 
 <template>

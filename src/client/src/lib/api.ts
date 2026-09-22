@@ -74,8 +74,8 @@ export const api = {
     return parseJson(res);
   },
 
-  async getApps(mode?: "sandbox" | "live"): Promise<{ apps: AppItem[] }> {
-    const url = mode ? `/api/v1/apps?mode=${mode}` : withMode("/api/v1/apps");
+  async getApps(mode?: "sandbox" | "live" | "all"): Promise<{ apps: AppItem[] }> {
+    const url = mode === "all" ? "/api/v1/apps" : (mode ? `/api/v1/apps?mode=${mode}` : withMode("/api/v1/apps"));
     const res = await fetch(url);
     return parseJson(res);
   },
@@ -85,8 +85,9 @@ export const api = {
     return parseJson(res);
   },
 
-  async getCatalogStats(): Promise<CatalogKPIStats> {
-    const res = await fetch(withMode("/api/v1/apps/stats/catalog"));
+  async getCatalogStats(mode?: "sandbox" | "live" | "all"): Promise<CatalogKPIStats> {
+    const url = mode === "all" ? "/api/v1/apps/stats/catalog" : (mode ? `/api/v1/apps/stats/catalog?mode=${mode}` : withMode("/api/v1/apps/stats/catalog"));
+    const res = await fetch(url);
     return parseJson<CatalogKPIStats>(res);
   },
 
@@ -226,6 +227,9 @@ export const api = {
     channel?: string;
     licenseKey?: string | null;
     paidAt?: string | null;
+    qrDataUrl?: string;
+    paymentCode?: string;
+    checkoutUrl?: string;
     error?: string;
   }> {
     const res = await fetch(`/api/v1/checkout/status/${txId}`);

@@ -3,9 +3,9 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { dashboardEnv, envPath, SANDBOX_PREFIX, type DashboardEnv } from '../../lib/environment'
 import {
-  LayoutDashboard, CreditCard, KeyRound, Boxes, Bot, BookOpen,
+  LayoutDashboard, Receipt, KeyRound, Boxes, Bot, BookOpen,
   Ticket, MoreHorizontal, ShieldAlert, X, LogOut, LogIn,
-  Receipt, Repeat, Wallet,
+  Repeat, Wallet,
 } from 'lucide-vue-next'
 
 interface NavItem { name: string; key: string; path: string; icon: any }
@@ -41,12 +41,12 @@ const mobileNavItems = computed<NavItem[]>(() => {
   return [
     { name: 'Ringkasan', key: '/', path: envPath(e), icon: LayoutDashboard },
     { name: 'Aplikasi', key: '/apps', path: envPath(e, '/apps'), icon: Boxes },
-    { name: 'Checkout', key: '/checkout', path: envPath(e, '/checkout'), icon: CreditCard },
+    { name: 'Payments', key: '/payments', path: envPath(e, '/payments'), icon: Receipt },
     { name: 'Lisensi', key: '/licensing', path: envPath(e, '/licensing'), icon: KeyRound },
   ]
 })
 
-const isMoreActive = computed(() => ['/payments', '/subscriptions', '/balances', '/coupons', '/ai-proxy', '/docs'].includes(navKey.value))
+const isMoreActive = computed(() => ['/subscriptions', '/balances', '/coupons', '/ai-proxy', '/docs'].includes(navKey.value))
 const moreBadgeCount = computed(() => props.activeCouponCount)
 </script>
 

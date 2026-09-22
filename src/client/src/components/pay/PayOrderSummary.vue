@@ -5,7 +5,8 @@ import {
   Lock,
   Sparkles,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Mail
 } from 'lucide-vue-next'
 import { formatRupiah } from '../../lib/utils'
 
@@ -31,6 +32,9 @@ interface AppliedCoupon {
 
 const props = defineProps<{
   product: ProductData
+  emailInput: string
+  activeOrder?: any
+  isPaid?: boolean
   appliedCoupon: AppliedCoupon | null
   couponInput: string
   couponError: string
@@ -40,11 +44,18 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  'update:emailInput': [value: string]
   'update:couponInput': [value: string]
   'update:isMobileOrderExpanded': [value: boolean]
   'applyCoupon': []
   'removeCoupon': []
+  'pay': []
 }>()
+
+const emailInputValue = computed({
+  get: () => props.emailInput,
+  set: (val: string) => emit('update:emailInput', val)
+})
 
 const couponInputValue = computed({
   get: () => props.couponInput,
@@ -54,8 +65,8 @@ const couponInputValue = computed({
 
 <template>
   <!-- Desktop Left Pane: Order Summary & Product Details -->
-  <div class="hidden lg:flex flex-col justify-between p-7 xl:p-8 border-r border-slate-200 bg-slate-50/70 h-full overflow-hidden shrink-0">
-    <div class="space-y-4 my-auto py-1">
+  <div class="hidden lg:flex flex-col justify-between p-6 xl:p-7 border-r border-slate-200 bg-slate-50/70 h-full overflow-y-auto custom-scrollbar shrink-0">
+    <div class="space-y-3.5 my-auto py-1">
       <div class="space-y-1.5">
         <h1 class="text-2xl xl:text-3xl font-black tracking-tight text-slate-950 leading-tight">
           {{ product.headline || product.name }}
@@ -66,12 +77,34 @@ const couponInputValue = computed({
       </div>
 
       <!-- Value Propositions Bullets -->
-      <div v-if="product.valueProps && product.valueProps.length > 0" class="space-y-2 py-1">
+      <div v-if="product.valueProps && product.valueProps.length > 0" class="space-y-2 py-0.5">
         <div v-for="(vp, idx) in product.valueProps.slice(0, 3)" :key="idx"
           class="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-800">
           <CheckCircle2 class="w-4 h-4 text-emerald-600 shrink-0" />
           <span class="leading-tight">{{ vp }}</span>
         </div>
+      </div>
+
+      <!-- Email Penerima Lisensi Digital (Kolom Kiri) -->
+      <div class="space-y-1.5 pt-3 border-t border-slate-200">
+        <label class="block text-xs font-bold text-slate-900">
+          Email Penerima Lisensi Digital <span class="text-amber-500">*</span>
+        </label>
+        <div class="relative">
+          <Mail class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+          <input
+            v-model="emailInputValue"
+            type="email"
+            required
+            :disabled="!!activeOrder || isPaid"
+            placeholder="nama@email.com"
+            class="auth-input w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs sm:text-sm font-semibold text-slate-950 placeholder-slate-400 outline-none transition focus:border-slate-800 focus:ring-1 focus:ring-slate-800 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+            @keyup.enter="emit('pay')"
+          />
+        </div>
+        <p class="text-[11px] text-slate-600 leading-relaxed font-normal">
+          Kunci lisensi resmi dan petunjuk aktivasi otomatis dikirimkan ke alamat email ini setelah pembayaran tervalidasi.
+        </p>
       </div>
 
       <!-- Price Breakdown & Kupon -->
@@ -155,6 +188,28 @@ const couponInputValue = computed({
           <component :is="isMobileOrderExpanded ? ChevronUp : ChevronDown" class="w-3 h-3" />
         </button>
       </div>
+    </div>
+
+    <!-- Mobile Email Input (Always visible) -->
+    <div class="pt-2.5 border-t border-slate-200/80 space-y-1.5">
+      <label class="block text-xs font-bold text-slate-900">
+        Email Penerima Lisensi Digital <span class="text-amber-500">*</span>
+      </label>
+      <div class="relative">
+        <Mail class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+        <input
+          v-model="emailInputValue"
+          type="email"
+          required
+          :disabled="!!activeOrder || isPaid"
+          placeholder="nama@email.com"
+          class="auth-input w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs sm:text-sm font-semibold text-slate-950 placeholder-slate-400 outline-none transition focus:border-slate-800 focus:ring-1 focus:ring-slate-800 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+          @keyup.enter="emit('pay')"
+        />
+      </div>
+      <p class="text-[11px] text-slate-600 leading-relaxed font-normal">
+        Kunci lisensi resmi dan petunjuk aktivasi otomatis dikirimkan ke alamat email ini setelah pembayaran tervalidasi.
+      </p>
     </div>
 
     <!-- Expandable Mobile Details & Coupon Input -->

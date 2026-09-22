@@ -7,6 +7,7 @@ defineProps<{
   checkoutResult: {
     success: boolean
     checkoutUrl?: string
+    hostedPayUrl?: string
     transactionId?: string
     scenario?: string
     paymentRail?: string
@@ -21,6 +22,7 @@ defineProps<{
 
 const { copied, copy } = useClipboard()
 const { copied: copiedCode, copy: copyCode } = useClipboard()
+
 </script>
 
 <template>
@@ -84,7 +86,7 @@ const { copied: copiedCode, copy: copyCode } = useClipboard()
 
         <div class="pt-1 flex items-center gap-2">
           <a
-            :href="checkoutResult.checkoutUrl"
+            :href="checkoutResult.hostedPayUrl || checkoutResult.checkoutUrl"
             target="_blank"
             class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold text-jetblack font-bold text-xs hover:bg-gold/90 transition shadow-xs"
           >
@@ -93,9 +95,9 @@ const { copied: copiedCode, copy: copyCode } = useClipboard()
           </a>
 
           <button
-            v-if="checkoutResult.checkoutUrl"
+            v-if="checkoutResult.hostedPayUrl || checkoutResult.checkoutUrl"
             type="button"
-            @click="copy(checkoutResult.checkoutUrl)"
+            @click="copy(checkoutResult.hostedPayUrl || checkoutResult.checkoutUrl || '')"
             class="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium text-xs transition inline-flex items-center gap-1 cursor-pointer"
             title="Salin URL Checkout"
           >

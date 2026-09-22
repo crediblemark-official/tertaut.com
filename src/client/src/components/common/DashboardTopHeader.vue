@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Search, Globe, Code2, LogOut, LogIn } from 'lucide-vue-next'
+import { Globe, Code2, LogOut, LogIn } from 'lucide-vue-next'
 import { dashboardEnv } from '../../lib/environment'
 
 const props = defineProps<{
@@ -26,12 +26,6 @@ const env = dashboardEnv
 
     <!-- Right: Actions & Profile -->
     <div class="flex items-center gap-3">
-      <!-- Quick Search Bar -->
-      <div class="relative hidden lg:block">
-        <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-        <input type="text" placeholder="Cari fitur, aplikasi, dokumen..." class="w-60 xl:w-72 pl-9 pr-10 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/60 focus:bg-white border border-slate-200/80 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-xs font-medium text-slate-900 placeholder:text-slate-400 transition outline-none" />
-        <kbd class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9.5px] font-mono text-slate-400 bg-white px-1.5 py-0.5 rounded-md border border-slate-200/90 shadow-2xs pointer-events-none">⌘K</kbd>
-      </div>
 
       <!-- Environment Status Pill -->
       <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold" :class="env === 'sandbox' ? 'bg-gold/15 border-gold/30 text-[#8a6d1f]' : 'bg-forest/10 border-forest/20 text-forest'" :title="env === 'sandbox' ? 'Environment Sandbox: pembayaran disimulasikan' : 'Environment Live: DANA produksi aktif'">

@@ -243,8 +243,8 @@ describe("Payouts, Disbursements, and Checkout Handlers", () => {
     });
 
     const finishSuccess = await handleDanaFinish({ query: { externalId: extId }, set: {} });
-    expect(finishSuccess.success).toBe(true);
-    expect(finishSuccess.paymentStatus).toBe("PAID");
+    expect(finishSuccess?.success).toBe(true);
+    expect(finishSuccess?.paymentStatus).toBe("PAID");
 
     // 2. handlePreviewCoupon
     const previewNoApp = await handlePreviewCoupon({ body: { appId: "fake_app", couponCode: "DISC10" }, set });

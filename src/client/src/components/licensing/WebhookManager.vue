@@ -207,7 +207,32 @@ onMounted(loadWebhooks)
 </script>
 
 <template>
-  <div class="animate-fadeIn space-y-4">
+  <div class="animate-fadeIn space-y-3">
+    <!-- Unified Header & Toolbar -->
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-2 shadow-xs mb-1">
+      <div class="flex items-center gap-2 shrink-0">
+        <slot name="tabs">
+          <div class="flex items-center gap-2">
+            <Webhook class="w-4 h-4 text-gold" />
+            <h2 class="text-xs font-bold uppercase tracking-wider">Webhook Endpoints</h2>
+          </div>
+        </slot>
+      </div>
+
+      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 font-mono text-white">
+          {{ webhooks.length }} endpoint
+        </span>
+        <button
+          @click="loadWebhooks"
+          title="Segarkan"
+          class="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer transition shrink-0"
+        >
+          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': loading }" />
+        </button>
+      </div>
+    </div>
+
     <!-- Feedback -->
     <div
       v-if="feedback"
@@ -215,26 +240,6 @@ onMounted(loadWebhooks)
     >
       <Check class="w-4 h-4" />
       <span>{{ feedback }}</span>
-    </div>
-
-    <!-- Create Webhook -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-3 bg-jetblack text-white">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <Webhook class="w-4 h-4 text-gold" />
-          <h2 class="text-xs font-bold uppercase tracking-wider">Webhook Endpoints</h2>
-          <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 font-mono">
-            {{ webhooks.length }} endpoint
-          </span>
-        </div>
-        <button
-          @click="loadWebhooks"
-          title="Segarkan"
-          class="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white cursor-pointer transition"
-        >
-          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': loading }" />
-        </button>
-      </div>
     </div>
 
     <!-- New endpoint form -->

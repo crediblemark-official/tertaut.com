@@ -18,12 +18,6 @@ const liveDashboardRoutes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
-    path: "/dashboard/checkout",
-    name: "checkout",
-    component: () => import("../views/CheckoutView.vue"),
-    meta: { requiresAuth: true },
-  },
-  {
     path: "/dashboard/licensing",
     name: "licensing",
     component: () => import("../views/LicensingView.vue"),

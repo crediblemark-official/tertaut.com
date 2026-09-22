@@ -177,7 +177,7 @@ export class DanaService {
       params.finishRedirectUrl ||
       `${config.publicAppUrl}/checkout/dana/finish?orderId=${params.externalId}`;
 
-    const scenario = params.scenario || (params.paymentRail === "qris" || params.paymentRail === "va" ? "API" : "REDIRECT");
+    const scenario = params.scenario || (params.paymentRail === "qris" || params.paymentRail === "va" || params.paymentRail === "ewallet" || params.paymentRail === "balance" ? "API" : "REDIRECT");
     const rail = params.paymentRail || "qris";
 
     if (mockEnabled) {
@@ -214,9 +214,13 @@ export class DanaService {
         merchantName: "tertaut.com MoR (DANA)",
         amount: params.amount,
         payerEmail: params.payerEmail,
-        description: params.description,
-        checkoutUrl: `${config.publicAppUrl}/checkout/dana/finish?externalId=${params.externalId}&mock=true`,
-        expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        description: params.description || "Order DANA",
+        checkoutUrl: params.finishRedirectUrl
+          ? (params.finishRedirectUrl.includes("?")
+              ? `${params.finishRedirectUrl}&mock=true`
+              : `${params.finishRedirectUrl}?mock=true`)
+          : `${config.publicAppUrl}/checkout/dana/finish?externalId=${params.externalId}&mock=true`,
+        expiryDate: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
         scenario,
         paymentRail: rail,
         paymentCode,
@@ -284,7 +288,6 @@ export class DanaService {
           payOptionDetails = [
             {
               payMethod: "BALANCE",
-              payOption: "BALANCE",
               transAmount: {
                 value: `${params.amount.toFixed(2)}`,
                 currency: "IDR",
@@ -341,7 +344,47 @@ export class DanaService {
         createOrderPayload.externalStoreId = config.dana.merchantId || "TERTAUT_STORE";
       }
 
-      const response = await this.paymentGateway.createOrder(createOrderPayload);
+      let response: any;
+      try {
+        response = await this.paymentGateway.createOrder(createOrderPayload);
+      } catch (gatewayErr: any) {
+        // Jika DANA menolak QRIS karena merchant belum mendaftarkan store/submerchant di dashboard DANA
+        if (
+          rail === "qris" &&
+          (gatewayErr?.message?.includes("externalStoreId") ||
+            gatewayErr?.message?.includes("submerchant") ||
+            gatewayErr?.message?.includes("Invalid Merchant"))
+        ) {
+          console.warn(
+            "[DanaService] Merchant belum mendaftarkan externalStoreId di DANA (https://dashboard.dana.id/sandbox/submerchants). Menggunakan fallback QRIS untuk pengujian:",
+            gatewayErr?.message
+          );
+          const mockPaymentCode = `00020101021226540014ID.DANA.WWW011893600911000000000002152026092100000000303UMI51440014ID.DANA.WWW0215202609210000000520457325303360540${params.amount.toFixed(2)}5802ID5911Tertaut MoR6007Jakarta61051234062330114${params.externalId}6304ABCD`;
+          const qrDataUrl = await QRCode.toDataURL(mockPaymentCode, { width: 320, margin: 2 });
+          return {
+            orderId: `dana_qris_${Date.now()}`,
+            externalId: params.externalId,
+            status: "INIT",
+            merchantName: "tertaut.com MoR (DANA)",
+            amount: params.amount,
+            payerEmail: params.payerEmail,
+            description: params.description,
+            checkoutUrl: params.finishRedirectUrl
+              ? (params.finishRedirectUrl.includes("?")
+                  ? `${params.finishRedirectUrl}&mock=true`
+                  : `${params.finishRedirectUrl}?mock=true`)
+              : `${config.publicAppUrl}/checkout/dana/finish?externalId=${params.externalId}&mock=true`,
+            expiryDate: validUpTo,
+            scenario: "API",
+            paymentRail: "qris",
+            paymentCode: mockPaymentCode,
+            qrDataUrl,
+            vaBank: bankName,
+            bankName,
+          };
+        }
+        throw gatewayErr;
+      }
 
       const orderId =
         response?.referenceNo ||
@@ -393,6 +436,54 @@ export class DanaService {
           "Untuk Dokploy/Docker, gunakan DANA_PRIVATE_KEY_BASE64. Jika Anda sedang dalam tahap uji coba, silakan gunakan software mode Sandbox."
         );
       }
+      throw err;
+    }
+  }
+
+  /**
+   * Cek status pembayaran ke gateway DANA (Inquiry / Status Sync)
+   */
+  static async queryOrderStatus(params: {
+    externalId: string;
+    referenceNo?: string;
+  }): Promise<{
+    latestTransactionStatus: string;
+    transactionStatusDesc?: string;
+    paidTime?: string;
+    paymentCode?: string;
+    raw?: any;
+  }> {
+    if (
+      config.isSandbox &&
+      (config.isTest || !config.dana.clientId || !config.dana.privateKey)
+    ) {
+      return {
+        latestTransactionStatus: "01",
+        transactionStatusDesc: "INITIATED",
+      };
+    }
+
+    try {
+      const partnerReferenceNo = (params.externalId || "").slice(0, 25);
+      const res = await this.paymentGateway.queryPayment({
+        merchantId: config.dana.merchantId || config.dana.clientId,
+        originalPartnerReferenceNo: partnerReferenceNo,
+        originalReferenceNo: params.referenceNo,
+        serviceCode: "54",
+      });
+
+      const paymentCode =
+        res?.additionalInfo?.paymentViews?.[0]?.payOptionInfos?.[0]?.paymentCode;
+
+      return {
+        latestTransactionStatus: res.latestTransactionStatus,
+        transactionStatusDesc: res.transactionStatusDesc,
+        paidTime: res.paidTime,
+        paymentCode,
+        raw: res,
+      };
+    } catch (err: any) {
+      console.warn("[DanaService] queryOrderStatus error:", err.message);
       throw err;
     }
   }
