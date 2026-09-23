@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { setupTestAuth, authCookie } from "../setup";
 import { app } from "../../index";
 import { db } from "../../db";
@@ -476,9 +476,21 @@ describe("Coverage Booster4: DanaService more branches", () => {
 //  services/dana.ts — lines 149-150, 173-174, 214, 276-277
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster4: services/dana.ts additional branches", () => {
+  let origConfigDana: typeof config.dana;
+  let origSandbox: boolean;
+
+  beforeEach(() => {
+    origConfigDana = { ...config.dana };
+    origSandbox = config.isSandbox;
+  });
+
+  afterEach(() => {
+    Object.assign(config.dana, origConfigDana);
+    (config as any).isSandbox = origSandbox;
+  });
+
   it("DanaService.verifyWebhook: SNAP BI format with x-signature header", async () => {
     const { DanaService } = await import("../../services/dana");
-    const origSandbox = config.isSandbox;
     (config as any).isSandbox = true; // sandbox bypass
     config.dana.publicKey = "";
     config.dana.clientSecret = "";
@@ -486,13 +498,10 @@ describe("Coverage Booster4: services/dana.ts additional branches", () => {
     // SNAP BI format: headers has x-signature
     const result = DanaService.verifyWebhook({ "x-signature": "some_sig" }, { key: "value" });
     expect(result).toBe(true); // sandbox bypass
-
-    (config as any).isSandbox = origSandbox;
   });
 
   it("DanaService.createOrder: throws in production with invalid private key", async () => {
     const { DanaService } = await import("../../services/dana");
-    const origSandbox = config.isSandbox;
     (config as any).isSandbox = false;
     config.dana.clientId = "test_client";
     config.dana.privateKey = "INVALID_PRIVATE_KEY_NOT_PEM";
@@ -505,24 +514,15 @@ describe("Coverage Booster4: services/dana.ts additional branches", () => {
         description: "test order",
       })
     ).rejects.toThrow();
-
-    (config as any).isSandbox = origSandbox;
-    config.dana.clientId = "";
-    config.dana.privateKey = "";
   });
 
   it("DanaService.verifyWebhook: throws in production with no keys", async () => {
     const { DanaService } = await import("../../services/dana");
-    const origSandbox = config.isSandbox;
-    const origId = config.dana.clientId;
     (config as any).isSandbox = false;
     config.dana.clientId = "";
 
     const result = DanaService.verifyWebhook({ signature: "ext_check_test" }, {});
     expect(result).toBe(false);
-
-    (config as any).isSandbox = origSandbox;
-    config.dana.clientId = origId;
   });
 });
 

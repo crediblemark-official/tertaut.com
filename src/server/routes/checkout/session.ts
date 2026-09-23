@@ -91,23 +91,13 @@ export async function handleCreateSession({ request, body, set }: any) {
         !checkoutConfig.dana.privateKey
       : checkoutConfig.isTest && isSandboxApp;
 
-    // Jika aplikasi mode Live tapi kredensial DANA belum terpasang
-    if (!isMockOrder && (!checkoutConfig.dana.clientId || !checkoutConfig.dana.privateKey)) {
-      set.status = 400;
-      return {
-        success: false,
-        error:
-          "Gateway pembayaran DANA produksi belum dikonfigurasi (DANA_CLIENT_ID / DANA_PRIVATE_KEY kosong). Silakan pasang kredensial DANA atau beralih ke mode Sandbox pada aplikasi untuk pengujian checkout.",
-      };
-    }
-
     const email = (buyerEmail || customerEmail || "").trim().toLowerCase();
     if (!email || !email.includes("@")) {
       set.status = 400;
       return { error: "Email pembeli tidak valid" };
     }
 
-    // P1 & P2: Eksekusi Free Trial jika diminta dan produk memiliki trialPeriodDays > 0
+    // P1 & P2: Eksekusi Free Trial jika diminta dan produk memiliki trialPeriodDays > 0 (tidak butuh gateway pembayaran)
     const isTrialRequested = Boolean(body.startTrial || body.isTrial);
     if (isTrialRequested && (app.trialPeriodDays ?? 0) > 0) {
       // Pre-check cepat (UX): 409 bila sudah pernah trial. Bukan pengaman utama —

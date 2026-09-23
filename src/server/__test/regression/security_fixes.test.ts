@@ -195,7 +195,7 @@ describe("Regression BUG-1 lanjutan: aplikasi Live tidak pernah menghasilkan moc
 
   it("createOrder fallback QRIS Invalid Merchant: app Live non-prod → invoice DEMO; prod → THROW", async () => {
     const { DanaService } = await import("../../services/dana");
-    const { config } = await import("../../config");
+    const { config, DEFAULT_TEST_SANDBOX_PRIVATE_KEY } = await import("../../config");
     const origProd = (config as any).isProd;
     const origGet = Object.getOwnPropertyDescriptor(DanaService, "paymentGateway")!;
     const gatewayErr = new Error(
@@ -227,16 +227,26 @@ describe("Regression BUG-1 lanjutan: aplikasi Live tidak pernah menghasilkan moc
 
       // Produksi: wajib meneruskan error asli (tidak ada mock untuk app Live).
       (config as any).isProd = true;
-      await expect(
-        (DanaService.createOrder as any)({
-          externalId: `ext_qris_p_${suffix()}`,
-          amount: 50000,
-          payerEmail: `qrisp_${suffix()}@t.com`,
-          description: "qris fallback prod",
-          paymentRail: "qris",
-          allowMock: false,
-        })
-      ).rejects.toThrow(/Invalid Merchant/);
+      const origClientId = config.dana.clientId;
+      const origKey = config.dana.privateKey;
+      if (!config.dana.clientId) config.dana.clientId = "2026091703024650623472";
+      if (!config.dana.privateKey) config.dana.privateKey = DEFAULT_TEST_SANDBOX_PRIVATE_KEY;
+
+      try {
+        await expect(
+          (DanaService.createOrder as any)({
+            externalId: `ext_qris_p_${suffix()}`,
+            amount: 50000,
+            payerEmail: `qrisp_${suffix()}@t.com`,
+            description: "qris fallback prod",
+            paymentRail: "qris",
+            allowMock: false,
+          })
+        ).rejects.toThrow(/Invalid Merchant/);
+      } finally {
+        config.dana.clientId = origClientId;
+        config.dana.privateKey = origKey;
+      }
     } finally {
       restore();
       (config as any).isProd = origProd;

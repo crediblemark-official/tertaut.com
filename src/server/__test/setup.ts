@@ -2,7 +2,7 @@ import { beforeAll, beforeEach } from "bun:test";
 import { resetRateLimits } from "../services/rateLimiter";
 import { auth } from "../auth";
 import { createSign } from "crypto";
-import { config } from "../config";
+import { config, DEFAULT_TEST_SANDBOX_PRIVATE_KEY } from "../config";
 
 /**
  * Tanda tangani payload webhook DANA dengan private key yang dikonfigurasi
@@ -14,7 +14,8 @@ export function signDanaWebhook(body: unknown): string {
   const raw = typeof body === "string" ? body : JSON.stringify(body);
   const signer = createSign("SHA256");
   signer.update(raw);
-  return signer.sign(config.dana.privateKey || "", "base64");
+  const key = config.dana.privateKey || DEFAULT_TEST_SANDBOX_PRIVATE_KEY;
+  return signer.sign(key, "base64");
 }
 
 /** Kembalikan object headers webhook yang valid (signature RSA-SHA256) + header ekstra. */
