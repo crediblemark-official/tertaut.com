@@ -39,8 +39,19 @@ function toggleMode(target: "signin" | "signup") {
 }
 
 function redirectAfterAuth() {
-  const target = (route.query.redirect as string) || "/dashboard";
-  window.location.href = target.startsWith("/") ? target : "/dashboard";
+  let target = (route.query.redirect as string) || "/dashboard";
+
+  // Anti open-redirect: tolak URL eksternal, termasuk protocol-relative
+  // ("//evil.com") dan backslash ("/\\evil.com") yang bisa dimanfaatkan browser.
+  if (target.startsWith("//") || target.startsWith("/\\")) target = "/dashboard";
+  try {
+    const resolved = new URL(target, window.location.origin);
+    if (resolved.origin !== window.location.origin) target = "/dashboard";
+  } catch {
+    target = "/dashboard";
+  }
+
+  window.location.href = target;
 }
 
 async function submit() {

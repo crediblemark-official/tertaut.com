@@ -429,11 +429,13 @@ describe("Regression BUG-5: status butuh poll ticket untuk licenseKey", () => {
     const lic = await db.query.licenses.findFirst({ where: eq(licenses.transactionId, tx.id) });
     expect(lic).toBeDefined();
 
-    // Tanpa ticket → status PAID tapi licenseKey disembunyikan
+    // Tanpa ticket → status PAID tapi licenseKey & detail pembayaran disembunyikan
     const resNoTicket = await app.handle(new Request(`${BASE}/api/v1/checkout/status/${tx.id}`));
     const bodyNoTicket: any = await resNoTicket.json();
     expect(bodyNoTicket.paymentStatus).toBe("PAID");
-    expect(bodyNoTicket.licenseKey).toBeNull();
+    expect(bodyNoTicket.licenseKey).toBeUndefined();
+    expect(bodyNoTicket.amount).toBeUndefined();
+    expect(bodyNoTicket.externalId).toBeUndefined();
 
     // Ticket salah (di-tamper) → tetap disembunyikan
     const resBadTicket = await app.handle(
@@ -442,7 +444,7 @@ describe("Regression BUG-5: status butuh poll ticket untuk licenseKey", () => {
       )
     );
     const bodyBadTicket: any = await resBadTicket.json();
-    expect(bodyBadTicket.licenseKey).toBeNull();
+    expect(bodyBadTicket.licenseKey).toBeUndefined();
 
     // Ticket valid → licenseKey kembali dibawa
     const ticket = createPollTicket(tx.id);

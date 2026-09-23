@@ -232,11 +232,24 @@ export async function handleGetPaymentStatus({ params, query, request, set }: an
     }
   }
 
-  return {
+  // P0-AUTH: detail sensitif (QR/payment code, amount, externalId, checkoutUrl,
+  // licenseKey) HANYA dibeberkan ke pemegang poll ticket yang sah (hasil
+  // create-session / redirect finish). Pemegang txId saja hanya menerima status —
+  // cukup untuk polling UX, tanpa membocorkan data pembayaran pengguna lain.
+  const reqTicket = (query as any)?.ticket;
+  const isTicketValid = Boolean(reqTicket) && verifyPollTicket(tx.id, reqTicket);
+
+  const base = {
     success: true,
     transactionId: tx.id,
-    externalId: tx.xenditExternalId,
     paymentStatus: tx.paymentStatus,
+  };
+
+  if (!isTicketValid) return base;
+
+  return {
+    ...base,
+    externalId: tx.xenditExternalId,
     amount: tx.grossAmount,
     channel: tx.paymentChannel,
     licenseKey,

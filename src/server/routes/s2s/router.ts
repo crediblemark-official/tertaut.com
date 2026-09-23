@@ -3,7 +3,6 @@ import { db } from "../../db";
 import { apps } from "../../db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { authenticateSecretApiKey } from "../../middleware/auth";
-import type { Builder } from "../../db/schema/builders";
 import { ownedApp } from "./helpers";
 import {
   handleS2SListLicenses,
@@ -28,13 +27,12 @@ import {
 } from "./webhooks";
 
 export const s2sRoutes = new Elysia({ prefix: "/s2s" })
-  .onBeforeHandle(async ({ request: { headers }, status }) => {
+  // Auth sekali per request (sebelumnya dipanggil 2× di onBeforeHandle + resolve,
+  // memicu 2 query DB ganda). Resolve berfungsi sebagai guard: status(401) menghentikan request.
+  .resolve(async ({ request: { headers }, status }) => {
     const result = await authenticateSecretApiKey(headers);
     if ("status" in result) return status(result.status, { error: result.error });
-  })
-  .resolve(async ({ request: { headers } }) => {
-    const result = await authenticateSecretApiKey(headers);
-    return { builder: ("status" in result ? null : result.builder) as Builder };
+    return { builder: result.builder };
   })
 
   /**

@@ -46,6 +46,27 @@ function resolveSecret(envName: string, devFallback = ""): string {
 }
 
 /**
+ * Secret turunan (vault, better-auth, HWID salt): boleh mewarisi JWT_SECRET hanya
+ * untuk menjaga kompatibilitas, TAPI selalu diperingatkan. Dengan STRICT_SECRETS=true
+ * di production, startup GAGAL jika secret terpisah tidak disetel — mencegah satu
+ * secret publik dipakai ulang untuk enkripsi vault & tanda tangan sesi sekaligus.
+ */
+function resolveDerivedSecret(envName: string, parent: string, label: string): string {
+  const value = getEnv(envName);
+  if (value) return value;
+  if (parent) {
+    const message =
+      `[config] ${envName} tidak disetel — mewarisi JWT_SECRET untuk ${label}. ` +
+      `Tetapkan secret acak terpisah (lihat .env.example) agar satu kebocoran tidak memengaruhi semua domain.`;
+    if (isProd && getEnv("STRICT_SECRETS") === "true") {
+      throw new Error(message);
+    }
+    console.warn(message);
+  }
+  return parent;
+}
+
+/**
  * Nilai yang wajib berasal dari environment di semua mode (tanpa fallback hardcode).
  * Dipakai untuk koneksi database agar kredensial tidak pernah tertanam di kode.
  */
@@ -280,6 +301,22 @@ export const config = {
    * sandbox dilarang keras aktif demi mencegah bypass pembayaran riil.
    */
   isSandbox: !isProd,
+  /**
+   * Apakah request berjalan di belakang reverse-proxy tepercaya (Dokploy/Traefik,
+   * nginx, Cloudflare). Jika true (default untuk deploy self-hosted ini), header
+   * x-forwarded-for/x-real-ip/cf-connecting-ip dipercaya untuk rate limiting —
+   * namun hanya entry paling kanan (yang ditambahkan proxy) yang dipakai.
+   * Set false jika aplikasi terekspos langsung ke internet tanpa proxy.
+   */
+  trustProxy: getEnv("TRUST_PROXY", "true") !== "false",
+  /**
+   * Apakah cookie sesi memakai atribut Secure. Default: production. Bisa di-override
+   * via USE_SECURE_COOKIES=true untuk staging yang disajikan via HTTPS.
+   */
+  get useSecureCookies(): boolean {
+    const override = getEnv("USE_SECURE_COOKIES");
+    return override !== "" ? override === "true" : isProd;
+  },
   get publicAppUrl(): string {
     const envUrl = getEnv("PUBLIC_APP_URL");
     if (envUrl) return envUrl;
@@ -307,18 +344,26 @@ export const config = {
     const jwtSecret = resolveSecret("JWT_SECRET", DEFAULT_JWT_SECRET);
     return {
       jwtSecret,
-      /** Kunci enkripsi AES-256-GCM Vault; otomatis mewarisi JWT_SECRET jika tidak disetel terpisah */
-      vaultEncryptionKey: getEnv("VAULT_ENCRYPTION_KEY") || jwtSecret,
-      /** Secret untuk Better Auth (sesi & token); otomatis mewarisi JWT_SECRET jika tidak disetel terpisah */
-      betterAuthSecret: getEnv("BETTER_AUTH_SECRET") || jwtSecret,
+      /** Kunci enkripsi AES-256-GCM Vault; wajib disetel terpisah di production. */
+      vaultEncryptionKey: resolveDerivedSecret(
+        "VAULT_ENCRYPTION_KEY",
+        jwtSecret,
+        "enkripsi Vault kredensial AI"
+      ),
+      /** Secret untuk Better Auth (sesi & token); wajib disetel terpisah di production. */
+      betterAuthSecret: resolveDerivedSecret(
+        "BETTER_AUTH_SECRET",
+        jwtSecret,
+        "tanda tangan sesi Better Auth"
+      ),
       /** Private key Ed25519 (base64/PEM atau path ke keys/license_signing_private.pem). */
       licensePrivateKey: resolveKeyOrFile(
         "LICENSE_SIGNING_PRIVATE_KEY",
         "keys/license_signing_private.pem"
       ),
-      /** Salt untuk hashing hardware ID (HMAC); otomatis mewarisi JWT_SECRET jika tidak disetel terpisah */
+      /** Salt untuk hashing hardware ID (HMAC); wajib disetel terpisah di production. */
       hwidSalt: isProd
-        ? getEnv("HWID_SALT") || jwtSecret
+        ? resolveDerivedSecret("HWID_SALT", jwtSecret, "hash hardware ID (HWID)")
         : getEnv("HWID_SALT") || "dev-hwid-salt-unique-seed-67890",
     };
   })(),

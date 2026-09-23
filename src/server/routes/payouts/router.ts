@@ -4,7 +4,7 @@ import { transactions, builders, apps } from "../../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { DanaService } from "../../services/dana";
 import { config } from "../../config";
-import { authenticate } from "../../middleware/auth";
+import { authenticate, isAdminUser } from "../../middleware/auth";
 
 /** FR-4.2 Minimum disbursement threshold Rp 50.000 */
 const MIN_THRESHOLD = 50000;
@@ -42,7 +42,7 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
         set.status = authResult.status;
         return { success: false, error: authResult.error };
       }
-      const isAdmin = authResult.user.role === "admin";
+      const isAdmin = isAdminUser(authResult.user);
 
       let builder = builderId
         ? await db.query.builders.findFirst({ where: eq(builders.id, builderId) })

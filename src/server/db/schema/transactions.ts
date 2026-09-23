@@ -8,6 +8,7 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { apps } from "./apps";
 import { builders } from "./builders";
 
@@ -65,6 +66,11 @@ export const transactions = pgTable(
     index("idx_transactions_app_payment_status").on(table.appId, table.paymentStatus),
     index("idx_transactions_customer_email").on(table.customerEmail),
     uniqueIndex("uniq_transactions_xendit_ext_id").on(table.xenditExternalId),
+    // Anti-TOCTOU free trial: maksimal SATU trial per (app, email). Index parsial
+    // hanya berlaku untuk baris FREE_TRIAL sehingga invoice berbayar tidak terpengaruh.
+    uniqueIndex("uniq_transactions_trial_per_app_email")
+      .on(table.appId, table.customerEmail, table.paymentChannel)
+      .where(sql`${table.paymentChannel} = 'FREE_TRIAL'`),
     index("idx_transactions_created_at").on(table.createdAt),
   ]
 );

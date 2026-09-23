@@ -26,6 +26,20 @@ export type AuthResult =
   { user: AuthUser; session: unknown | null } | { status: 401 | 403; error: string };
 
 /**
+ * SATU sumber kebenaran untuk menentukan "apakah user berstatus admin".
+ * Digunakan oleh authenticate(), macro requireAdmin, resolveCurrentBuilder,
+ * dan route handler lain — supaya tidak ada definisi admin yang berbeda-beda.
+ *
+ * Admin = role DB "admin" ATAU email tercantum di env ADMIN_EMAIL (override opsional).
+ */
+export function isAdminUser(user: { role?: string | null; email?: string | null }): boolean {
+  if (user.role === "admin") return true;
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail || !user.email) return false;
+  return user.email.toLowerCase() === adminEmail.toLowerCase();
+}
+
+/**
  * Helper guard untuk dipakai di `onBeforeHandle` router yang seluruh endpoint-nya privat.
  * Menegakkan sesi autentikasi Better Auth yang valid untuk semua lingkungan.
  */
@@ -34,17 +48,9 @@ export async function authenticate(headers: Headers, admin = false): Promise<Aut
   const user = session?.user as AuthUser | undefined;
   if (!user) return { status: 401, error: "Unauthorized" };
 
-  let isUserAdmin = user.role === "admin";
-  if (admin && !isUserAdmin) {
-    const adminEmail = process.env.ADMIN_EMAIL;
-    if (adminEmail && user.email.toLowerCase() === adminEmail.toLowerCase()) {
-      isUserAdmin = true;
-    }
-  }
-
-  if (admin && !isUserAdmin) return { status: 403, error: "Forbidden" };
+  if (admin && !isAdminUser(user)) return { status: 403, error: "Forbidden" };
   return {
-    user: { ...user, role: isUserAdmin ? "admin" : user.role || "user" },
+    user: { ...user, role: isAdminUser(user) ? "admin" : user.role || "user" },
     session: session?.session ?? null,
   };
 }
@@ -80,13 +86,13 @@ export const authMiddleware = new Elysia({ name: "auth" })
         return status(401, { error: "Unauthorized" });
       },
     },
-    /** Wajib login + role `admin`. */
+    /** Wajib login + role `admin` (atau ADMIN_EMAIL yang dikonfigurasi). */
     requireAdmin: {
       async resolve({ status, request: { headers } }) {
         const session = await resolveSession(headers);
         const user = session?.user;
         if (!user) return status(401, { error: "Unauthorized" });
-        if ((user as AuthUser).role !== "admin") {
+        if (!isAdminUser(user as AuthUser)) {
           return status(403, { error: "Forbidden" });
         }
         return { user, session: session?.session ?? null };

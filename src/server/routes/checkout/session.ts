@@ -110,6 +110,8 @@ export async function handleCreateSession({ request, body, set }: any) {
     // P1 & P2: Eksekusi Free Trial jika diminta dan produk memiliki trialPeriodDays > 0
     const isTrialRequested = Boolean(body.startTrial || body.isTrial);
     if (isTrialRequested && (app.trialPeriodDays ?? 0) > 0) {
+      // Pre-check cepat (UX): 409 bila sudah pernah trial. Bukan pengaman utama —
+      // anti-race (TOCTOU) ditangani cek ulang di dalam transaksi + unique index.
       const existingTrial = await db.query.transactions.findFirst({
         where: and(
           eq(transactions.appId, app.id),
@@ -141,44 +143,82 @@ export async function handleCreateSession({ request, body, set }: any) {
       const txId = `tx_trial_${randomBytes(8).toString("hex")}`;
       const licId = `lic_${randomBytes(8).toString("hex")}`;
 
-      const { trialTx, newLic } = await db.transaction(async (trx) => {
-        const [tTx] = await trx
-          .insert(transactions)
-          .values({
-            id: txId,
-            appId: app.id,
-            builderId: app.builderId,
-            paymentProvider: "xendit",
-            paymentChannel: "FREE_TRIAL",
-            xenditExternalId: txId,
-            customerEmail: email,
-            grossAmount: 0,
-            platformFee: 0,
-            netAmount: 0,
-            paymentStatus: "PAID",
-            disbursementStatus: "COMPLETED",
-            grantDays: trialDays,
-            grantCredits: trialGrantCredits,
-          })
-          .returning();
+      let issued:
+        | { duplicate: true }
+        | { trialTx: typeof transactions.$inferSelect; newLic: typeof licenses.$inferSelect };
+      try {
+        issued = await db.transaction(async (trx) => {
+          // Cek ulang DI DALAM transaksi: tanpa ini, dua request paralel bisa
+          // sama-sama lolos pre-check lalu menerbitkan 2 lisensi trial (TOCTOU).
+          const dupCheck = await trx.query.transactions.findFirst({
+            where: and(
+              eq(transactions.appId, app.id),
+              eq(transactions.customerEmail, email),
+              eq(transactions.paymentChannel, "FREE_TRIAL")
+            ),
+          });
+          if (dupCheck) return { duplicate: true };
 
-        const [nLic] = await trx
-          .insert(licenses)
-          .values({
-            id: licId,
-            appId: app.id,
-            transactionId: tTx.id,
-            customerEmail: email,
-            licenseKey,
-            status: "ACTIVE",
-            expiresAt,
-            maxSeats: app.deliveryConfig?.licenseKey?.maxSeats ?? 3,
-            apiKey: trialApiKey,
-          })
-          .returning();
+          const [tTx] = await trx
+            .insert(transactions)
+            .values({
+              id: txId,
+              appId: app.id,
+              builderId: app.builderId,
+              paymentProvider: "xendit",
+              paymentChannel: "FREE_TRIAL",
+              xenditExternalId: txId,
+              customerEmail: email,
+              grossAmount: 0,
+              platformFee: 0,
+              netAmount: 0,
+              paymentStatus: "PAID",
+              disbursementStatus: "COMPLETED",
+              grantDays: trialDays,
+              grantCredits: trialGrantCredits,
+            })
+            .returning();
 
-        return { trialTx: tTx, newLic: nLic };
-      });
+          const [nLic] = await trx
+            .insert(licenses)
+            .values({
+              id: licId,
+              appId: app.id,
+              transactionId: tTx.id,
+              customerEmail: email,
+              licenseKey,
+              status: "ACTIVE",
+              expiresAt,
+              maxSeats: app.deliveryConfig?.licenseKey?.maxSeats ?? 3,
+              apiKey: trialApiKey,
+            })
+            .returning();
+
+          return { trialTx: tTx, newLic: nLic };
+        });
+      } catch (err: any) {
+        // Backstop unik DB (uniq_transactions_trial_per_app_email): bila dua request
+        // paralel menang balapan, salah satunya gagal di sini → balas 409, bukan 500.
+        if (err?.code === "23505") {
+          set.status = 409;
+          return {
+            success: false,
+            error:
+              "Email ini sudah pernah mengaktifkan masa uji coba untuk produk ini (permintaan bersamaan).",
+          };
+        }
+        throw err;
+      }
+
+      if ("duplicate" in issued) {
+        set.status = 409;
+        return {
+          success: false,
+          error: "Email ini sudah pernah mengaktifkan masa uji coba untuk produk ini.",
+        };
+      }
+
+      const { trialTx, newLic } = issued;
 
       if (trialGrantCredits > 0) {
         try {

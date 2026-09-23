@@ -4,6 +4,7 @@ import { admin } from "better-auth/plugins";
 import { db } from "./db";
 import { config } from "./config";
 import { user, session, account, verification } from "./db/schema";
+import { EmailService } from "./services/email";
 
 const trustedOrigins = [
   "http://localhost:5173",
@@ -11,12 +12,22 @@ const trustedOrigins = [
   "http://localhost:8081",
   "http://127.0.0.1:8081",
   "https://tertaut.com",
-  "http://tertaut.com",
   "https://*.tertaut.com",
-  "http://*.tertaut.com",
   config.publicAppUrl,
   config.publicStoreUrl,
 ].filter(Boolean);
+
+/**
+ * Verifikasi email wajib (anti-registrasi email orang lain / akun palsu).
+ * Diaktifkan hanya bila:
+ *  - mail provider (Resend) terkonfigurasi sehingga tautan verifikasi benar-benar terkirim,
+ *  - bukan environment test (suite tes memakai user seed tanpa alur verifikasi),
+ *  - tidak dimatikan eksplisit via REQUIRE_EMAIL_VERIFICATION=false (development lokal).
+ */
+const verifyEmailEnabled =
+  EmailService.isConfigured() &&
+  config.nodeEnv !== "test" &&
+  process.env.REQUIRE_EMAIL_VERIFICATION !== "false";
 
 export const auth = betterAuth({
   appName: "tertaut.com",
@@ -30,6 +41,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
+    requireEmailVerification: verifyEmailEnabled,
   },
   rateLimit: {
     window: 60,
@@ -41,15 +53,38 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24, // refresh harian
   },
   advanced: {
-    trustedProxyHeaders: true,
-    // Jangan pakai Secure/__Secure- cookie di development (proxy http localhost).
-    useSecureCookies: config.isProd,
+    // trustedProxyHeaders otomatis mengikuti konfigurasi TRUST_PROXY — jangan
+    // percaya header client (x-forwarded-for) bila tidak ada proxy tepercaya.
+    trustedProxyHeaders: config.trustProxy,
+    // Cookie Secure default production; bisa di-override via USE_SECURE_COOKIES
+    // untuk staging HTTPS (NODE_ENV != production).
+    useSecureCookies: config.useSecureCookies,
     defaultCookieAttributes: {
       sameSite: "lax",
-      secure: config.isProd,
+      secure: config.useSecureCookies,
     },
   },
   plugins: [admin()],
+  ...(verifyEmailEnabled
+    ? {
+        emailVerification: {
+          sendOnSignUp: true,
+          expiresIn: 60 * 60, // tautan verifikasi berlaku 1 jam
+          sendVerificationEmail: async ({ user, url }) => {
+            const name = (user as { name?: string }).name;
+            await EmailService.send({
+              to: user.email,
+              subject: "Verifikasi email Tertaut",
+              html: `<p>Halo${name ? ` ${name}` : ""},</p>
+<p>Terima kasih telah mendaftar di Tertaut. Klik tautan berikut untuk memverifikasi email Anda:</p>
+<p><a href="${url}">Verifikasi Email</a></p>
+<p>Tautan berlaku 1 jam. Jika Anda tidak mendaftar, abaikan email ini.</p>`,
+              text: `Verifikasi email Anda: ${url}`,
+            });
+          },
+        },
+      }
+    : {}),
 });
 
 export type Auth = typeof auth;

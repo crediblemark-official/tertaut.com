@@ -59,8 +59,11 @@ export const app = new Elysia()
     cors({
       origin: (request: Request) => {
         const origin = request.headers.get("origin");
-        // Allow requests with no origin, or opaque origin 'null' (sandboxed iframes, local previews)
-        if (!origin || origin === "null") return true;
+        // Request tanpa header Origin (same-origin GET, curl, navigasi) diizinkan.
+        // Origin "null" (sandboxed iframe / data: URL) DITOLAK — kombinasi dengan
+        // credentials:true memperluas permukaan CSRF/cross-origin read.
+        if (!origin) return true;
+        if (origin === "null") return false;
 
         // Allow any origin for public embeddable endpoints (widgets, embed scripts, badges)
         try {
@@ -85,11 +88,12 @@ export const app = new Elysia()
           }
         }
 
+        // Regex DIN-ANCHOR (^...$): mencegah origin tiruan yang hanya "berakhiran"
+        // tertaut.com (mis. https://evil-tertaut.com) lolos pemeriksaan.
         const allowedPatterns = [
           /^https?:\/\/localhost(:\d+)?$/,
           /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
-          /(https?:\/\/|\.)tertaut\.com(:[0-9]+)?$/,
-          /\.ngrok-free\.app$/,
+          /^https:\/\/([a-z0-9-]+\.)*tertaut\.com(:\d+)?$/,
         ];
         if (config.publicAppUrl) {
           try {

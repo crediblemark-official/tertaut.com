@@ -278,7 +278,12 @@ export async function seed() {
     });
     [adminUser] = await db.select().from(user).where(eq(user.email, ADMIN_CREDENTIALS.email));
   }
-  await db.update(user).set({ role: "admin" }).where(eq(user.email, ADMIN_CREDENTIALS.email));
+  // emailVerified: true — admin dibuat langsung (bukan lewat alur verifikasi email),
+  // sehingga akun selalu bisa login meski requireEmailVerification aktif.
+  await db
+    .update(user)
+    .set({ role: "admin", emailVerified: true })
+    .where(eq(user.email, ADMIN_CREDENTIALS.email));
   console.log(`✅ Super Admin terverifikasi: ${ADMIN_CREDENTIALS.email} (role: admin)`);
 
   // Secondary Builder User (Ahmad Rizky)
@@ -294,6 +299,12 @@ export async function seed() {
       });
       [secondaryUser] = await db.select().from(user).where(eq(user.email, SECONDARY_BUILDER.email));
     } catch {}
+  }
+  if (secondaryUser) {
+    await db
+      .update(user)
+      .set({ emailVerified: true })
+      .where(eq(user.email, SECONDARY_BUILDER.email));
   }
 
   // 3. Profil Builder Utama (admin@tertaut.com memiliki profil builder sehingga dashboard langsung terisi)
