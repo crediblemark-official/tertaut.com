@@ -228,6 +228,46 @@ export function resolveRequestOrigin(request?: Request | { headers?: any; url?: 
   return config.publicAppUrl;
 }
 
+// Default test RSA 2048-bit key pair for CI / test runners when keys/ or .env is not mounted
+const DEFAULT_TEST_SANDBOX_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu0Hc4ZivslhsSQ0AhStB
+b0x4DTrgYeq4fJOzZHiDAUghN/g+CG5EVRh0vnalPmV4cO5XBiRvAoe1X/t61jeB
+TGov/Dv+Iz0O0qfClM8l3Qui0eseiQsFXySrukdl1U+mXpR5WfuFUp5zaje+USqj
+MQ5xM4W1GS9wK+KWXshNwQMl7zS21Yi+x+96eut8nAvo+z3QVH2jncgNb3ymVm2u
+8I37VPZ0/e9UMW3xcQxlE1WbI1YrIL5Nr03GZZP1qkKrEJGt5zI2cP3JBSY0DnQy
+xSX/yrvTSWQJCx9vRpIIQVnv4d9D6Uo9OAzSn8UdKuO609qcYLpJoqt9V52vShVV
+VwIDAQAB
+-----END PUBLIC KEY-----`;
+
+const DEFAULT_TEST_SANDBOX_PRIVATE_KEY = `-----BEGIN RSA PRIVATE KEY-----
+MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC7QdzhmK+yWGxJ
+DQCFK0FvTHgNOuBh6rh8k7NkeIMBSCE3+D4IbkRVGHS+dqU+ZXhw7lcGJG8Ch7Vf
++3rWN4FMai/8O/4jPQ7Sp8KUzyXdC6LR6x6JCwVfJKu6R2XVT6ZelHlZ+4VSnnNq
+N75RKqMxDnEzhbUZL3Ar4pZeyE3BAyXvNLbViL7H73p663ycC+j7PdBUfaOdyA1v
+fKZWba7wjftU9nT971QxbfFxDGUTVZsjVisgvk2vTcZlk/WqQqsQka3nMjZw/ckF
+JjQOdDLFJf/Ku9NJZAkLH29GkghBWe/h30PpSj04DNKfxR0q47rT2pxgukmiq31X
+na9KFVVXAgMBAAECggEARVbEnybGPGCArGYroKQdRUTIGYIJL0jWio64uUXkoLdg
+UZTTB5UpKWd2Z0aQtrOlLxAaWlRoZMPytfltiWAhOTYC0cA3QT4tPHTRWQABkcHq
+xxdshat2kD4IduBURXIKdXA+JUM9IZQ5wYWlq/GBXzttUHo8zngh7aYoLy21mPfa
+scEMSpNLooWc3j5rSvWHbvBz/ur/R3KfggyfSUEEzmyM6hw3uEl2BX4Mfeikncgk
+8ItStytjQw7yKZL+lUMuY1iyn9S/UK9ojUGFRBSgUbLgMI1bLVG7uG5s/xOsuddm
+3OyH02l3fHXlsaWcQWQdHhTy3nj+y6Qyckdgs7O1KQKBgQDjiMKvQ3aHsD4wXf59
+Kyg1nvl+IVFxo831aKrhHJ61nekTWXUacDJ+vQJEjjls/EY+CN8+DEHZFNPwA+PN
+EmdQVqKJ/STyPJ70uy77/HYxs6oTlTRU7rmpSL6EUIjVzPdfyQ0pdkkj5ThMYiCh
+bZS0bWdtvMgA9MFR9MgawMjTPwKBgQDSrycHxQx4EPm1zLJpvtP3wXndGeGbFpI+
+axDnNgSlpI3XoTFyOHJDqrdNSmd35fpGEp5YZV7FZOkmKgTYUTOYjzsD0YALUxj5
+2OOmdcxbH1fw4LmD0m9/yjRX6XsPjYRRW6vhnzUIfOwZlwmc/CPz9q6ADyHB2vRC
+Pa1PLNuv6QKBgFPPcEa2htZ8KKwQM0lPuEPoBuZax3EgcSDQKQE6VYt4Wv3xmZzf
+bvoYDNnLuYNXeVgoVHK6eRbJATgLdsF24e9Juh0xzYYcpkBnImtXFwI/t4n3D4up
+U2HzlZmPQJfgI854dAytsUszh4U7L+HGR1weYFafjtwrS3owu/R+xnppAoGAYwh+
+GkLfx5iDKJfdzaMr1CwX8nx19ga4G6sMOQLFUG93VUKqEXzDCVe37hbpaAyshj++
+OuL7l2IFzjC2MlCJJk89eGAEBk67UMZIzDhXJQYoukuIKJTEYJdV33UaqYbmCbBD
+rTy/GwxNlwHOPQKwi78K65sxTQR1CKYhTzRQ1/ECgYBG+BL8k0Q6R2QtMfSaSXBO
+a7LFweHA/+92G9CS6Zaern/lZ5xgLqNMgWvlp9143KNGWW6Wv23VtzPxnSbxpFFX
+AsyQpuFl62KL+rmGwBph6ZSs2diZeDf9xmFve67kFQ8Ze7W4fzy5o7urfD+Le8JD
+oybGWOHNqCIm10Ryqke/nw==
+-----END RSA PRIVATE KEY-----`;
+
 export const config = {
   port: resolvedPort,
   nodeEnv,
@@ -307,24 +347,32 @@ export const config = {
         if (val) dynamicAppUrl = val.replace(/\/+$/, "");
       },
       clientId: isSandbox
-        ? getEnv("DANA_SANDBOX_CLIENT_ID") || getEnv("DANA_CLIENT_ID")
+        ? getEnv("DANA_SANDBOX_CLIENT_ID") ||
+          getEnv("DANA_CLIENT_ID") ||
+          (isTest ? "2026092111025202221544" : "")
         : getEnv("DANA_CLIENT_ID"),
       clientSecret: isSandbox
-        ? getEnv("DANA_SANDBOX_CLIENT_SECRET") || getEnv("DANA_CLIENT_SECRET")
+        ? getEnv("DANA_SANDBOX_CLIENT_SECRET") ||
+          getEnv("DANA_CLIENT_SECRET") ||
+          (isTest ? "00b18d19398bcd9ddad4b0792a0bdeaf5f2d70ee65c8359d4066a933515a5" : "")
         : getEnv("DANA_CLIENT_SECRET"),
       merchantId: isSandbox
-        ? getEnv("DANA_SANDBOX_MERCHANT_ID") || getEnv("DANA_MERCHANT_ID")
+        ? getEnv("DANA_SANDBOX_MERCHANT_ID") ||
+          getEnv("DANA_MERCHANT_ID") ||
+          (isTest ? "216620090021032077318" : "")
         : getEnv("DANA_MERCHANT_ID"),
       baseUrl: isSandbox
         ? getEnv("DANA_SANDBOX_BASE_URL") || getEnv("DANA_BASE_URL", "https://api.sandbox.dana.id")
         : getEnv("DANA_BASE_URL", "https://api.saas.dana.id"),
       publicKey: isSandbox
         ? resolveKeyOrFile("DANA_SANDBOX_PUBLIC_KEY", "keys/dana_sandbox_public.pem") ||
-          resolveKeyOrFile("DANA_PUBLIC_KEY", "keys/dana_production_public.pem")
+          resolveKeyOrFile("DANA_PUBLIC_KEY", "keys/dana_production_public.pem") ||
+          (isTest ? cleanPemKey(DEFAULT_TEST_SANDBOX_PUBLIC_KEY) : "")
         : resolveKeyOrFile("DANA_PUBLIC_KEY", "keys/dana_production_public.pem"),
       privateKey: isSandbox
         ? resolveKeyOrFile("DANA_SANDBOX_PRIVATE_KEY", "keys/dana_sandbox_private.pem") ||
-          resolveKeyOrFile("DANA_PRIVATE_KEY", "keys/dana_production_private.pem")
+          resolveKeyOrFile("DANA_PRIVATE_KEY", "keys/dana_production_private.pem") ||
+          (isTest ? cleanPemKey(DEFAULT_TEST_SANDBOX_PRIVATE_KEY) : "")
         : resolveKeyOrFile("DANA_PRIVATE_KEY", "keys/dana_production_private.pem"),
       platformFeePercent: 5, // 5% Merchant of Record platform fee
     };

@@ -54,10 +54,12 @@ jobs:
       JWT_SECRET: super_secret_jwt_key_at_least_32_characters_tertaut_dev
       BETTER_AUTH_SECRET: super_secret_better_auth_key_at_least_32_chars
       VAULT_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      PAYMENT_GATEWAY: xendit
-      XENDIT_SECRET_KEY: xnd_development_sample_key_tertaut
-      XENDIT_PUBLIC_KEY: xnd_public_development_sample_key_tertaut
-      XENDIT_WEBHOOK_VERIFICATION_TOKEN: tertaut_webhook_verification_token_dev
+      PAYMENT_GATEWAY: dana
+      DANA_ENV: sandbox
+      DANA_CLIENT_ID: 2026092111025202221544
+      DANA_CLIENT_SECRET: 00b18d19398bcd9ddad4b0792a0bdeaf5f2d70ee65c8359d4066a933515a5
+      DANA_MERCHANT_ID: 216620090021032077318
+      DANA_SANDBOX_BASE_URL: https://api.sandbox.dana.id
       NODE_ENV: test
       PORT: 8081
 
