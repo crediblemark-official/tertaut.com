@@ -43,6 +43,7 @@ export const queryClient = postgres(databaseUrl, {
   idle_timeout: 15,
   connect_timeout: 5,
   ssl: useSsl,
+  onnotice: () => {},
 });
 
 export const db = drizzle(queryClient, { schema });
