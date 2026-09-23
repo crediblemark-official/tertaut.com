@@ -31,10 +31,28 @@ export let authCookie = "";
 export async function ensureAdminAuth(): Promise<string> {
   if (authCookie) return authCookie;
   try {
-    const res = await auth.api.signInEmail({
+    let res = await auth.api.signInEmail({
       body: { email: "admin@tertaut.com", password: "AdminPassword123!" },
       asResponse: true,
     });
+    if (!res.ok) {
+      await auth.api.signUpEmail({
+        body: { email: "admin@tertaut.com", password: "AdminPassword123!", name: "Admin Test" },
+        asResponse: true,
+      });
+      const { user } = await import("../db/schema/auth");
+      const { db } = await import("../db");
+      const { eq } = await import("drizzle-orm");
+      await db
+        .update(user)
+        .set({ role: "admin", emailVerified: true })
+        .where(eq(user.email, "admin@tertaut.com"));
+
+      res = await auth.api.signInEmail({
+        body: { email: "admin@tertaut.com", password: "AdminPassword123!" },
+        asResponse: true,
+      });
+    }
     const setCookie = res.headers.get("set-cookie");
     if (setCookie) {
       authCookie = setCookie.split(";")[0];

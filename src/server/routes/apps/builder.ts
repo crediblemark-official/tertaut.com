@@ -27,7 +27,13 @@ export async function resolveCurrentBuilder(
     const b = await db.query.builders.findFirst({
       where: eq(builders.email, user.email),
     });
-    if (b) return { builder: b, isAdmin };
+    if (b) {
+      if (!b.userId && user.id && user.id !== "dev-user") {
+        await db.update(builders).set({ userId: user.id }).where(eq(builders.id, b.id));
+        b.userId = user.id;
+      }
+      return { builder: b, isAdmin };
+    }
   }
 
   // 3. Jika user login belum memiliki profil builder, buatkan profil spesifik untuk user ini
