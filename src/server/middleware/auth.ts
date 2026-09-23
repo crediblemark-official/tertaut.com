@@ -25,17 +25,19 @@ async function resolveSession(headers: Headers) {
 export type AuthResult =
   { user: AuthUser; session: unknown | null } | { status: 401 | 403; error: string };
 
+export const DEFAULT_ADMIN_EMAIL = "platformtertaut@gmail.com";
+
 /**
  * SATU sumber kebenaran untuk menentukan "apakah user berstatus admin".
  * Digunakan oleh authenticate(), macro requireAdmin, resolveCurrentBuilder,
  * dan route handler lain — supaya tidak ada definisi admin yang berbeda-beda.
  *
- * Akun admin default adalah akun pertama yang didaftarkan (otomatis ber-role "admin").
- * Admin = role DB "admin" ATAU email tercantum di env ADMIN_EMAIL (override opsional).
+ * Admin hanya diperuntukkan bagi email platform (platformtertaut@gmail.com)
+ * atau ADMIN_EMAIL yang dikonfigurasi pada environment.
  */
 export function isAdminUser(user: { role?: string | null; email?: string | null }): boolean {
   if (user.role === "admin") return true;
-  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminEmail = process.env.ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL;
   if (!adminEmail || !user.email) return false;
   return user.email.toLowerCase() === adminEmail.toLowerCase();
 }

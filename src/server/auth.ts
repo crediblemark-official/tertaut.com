@@ -71,14 +71,15 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (userRecord) => {
-          // Akun pertama yang didaftarkan di sistem otomatis menjadi admin default
-          const [existingUser] = await db.select({ id: user.id }).from(user).limit(1);
-          const isFirstUser = !existingUser;
+          // Hanya email platform (platformtertaut@gmail.com atau ADMIN_EMAIL) yang berhak menjadi admin.
+          // Akun pertama TIDAK otomatis menjadi admin.
+          const adminEmail = (process.env.ADMIN_EMAIL || "platformtertaut@gmail.com").toLowerCase();
+          const isPlatformAdmin = userRecord.email?.toLowerCase() === adminEmail;
           return {
             data: {
               ...userRecord,
-              role: isFirstUser ? "admin" : userRecord.role || "user",
-              ...(isFirstUser ? { emailVerified: true } : {}),
+              role: isPlatformAdmin ? "admin" : "user",
+              ...(isPlatformAdmin ? { emailVerified: true } : {}),
             },
           };
         },

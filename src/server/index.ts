@@ -465,32 +465,34 @@ async function runAutoMigrations(): Promise<void> {
   }
 }
 
-/** Pastikan akun pertama yang didaftarkan di sistem berstatus admin jika belum ada admin */
-export async function ensureFirstUserIsAdmin(): Promise<void> {
+/**
+ * Pastikan akun admin platform (platformtertaut@gmail.com atau ADMIN_EMAIL)
+ * memiliki role "admin" dan emailVerified: true.
+ * Akun lain tidak boleh dipromosikan otomatis hanya karena terdaftar pertama.
+ */
+export async function ensurePlatformAdmin(): Promise<void> {
   try {
-    const adminUser = await db.query.user.findFirst({
-      where: eq(user.role, "admin"),
+    const adminEmail = (process.env.ADMIN_EMAIL || "platformtertaut@gmail.com").toLowerCase();
+    const platformUser = await db.query.user.findFirst({
+      where: eq(user.email, adminEmail),
     });
-    if (!adminUser) {
-      const firstUser = await db.query.user.findFirst({
-        orderBy: asc(user.createdAt),
-      });
-      if (firstUser) {
-        await db
-          .update(user)
-          .set({ role: "admin", emailVerified: true })
-          .where(eq(user.id, firstUser.id));
-        console.log(`[Auth] Akun pertama (${firstUser.email}) ditetapkan sebagai admin default.`);
-      }
+    if (platformUser && platformUser.role !== "admin") {
+      await db
+        .update(user)
+        .set({ role: "admin", emailVerified: true })
+        .where(eq(user.id, platformUser.id));
+      console.log(`[Auth] Akun platform (${adminEmail}) dipastikan sebagai admin.`);
     }
   } catch (error: any) {
-    console.warn("[Auth] Gagal memeriksa status admin akun pertama:", error?.message || error);
+    console.warn("[Auth] Gagal memeriksa status admin platform:", error?.message || error);
   }
 }
 
+export const ensureFirstUserIsAdmin = ensurePlatformAdmin;
+
 if (process.env.NODE_ENV !== "test") {
   await runAutoMigrations();
-  await ensureFirstUserIsAdmin();
+  await ensurePlatformAdmin();
 
   expireLicenses();
   setInterval(expireLicenses, 10 * 60 * 1000); // 10 menit (was 5 menit)
