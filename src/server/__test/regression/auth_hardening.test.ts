@@ -6,12 +6,16 @@
  *     pemegang txId saja hanya menerima status (tanpa paymentCode/QR/amount/externalId).
  *  4. Free trial: anti-TOCTOU — dua permintaan paralel => tepat satu sukses (200),
  *     satu 409 (unique index uniq_transactions_trial_per_app_email).
+ *  5. Admin Panel: endpoint /api/v1/panel/* wajib 403 untuk akun login ber-role user
+ *     (bukan hanya 401), sehingga user biasa tidak bisa membuka data platform walau
+ *     shell /panel sempat dirender oleh router client (guard role ada di client juga).
  */
 import { describe, it, expect, afterEach } from "bun:test";
 import { setupTestAuth } from "../setup";
 import { app } from "../../index";
 import { db } from "../../db";
-import { apps, builders, transactions, licenses } from "../../db/schema";
+import { apps, builders, transactions, licenses, user } from "../../db/schema";
+import { auth } from "../../auth";
 import { eq } from "drizzle-orm";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
 import { handleGetPaymentStatus } from "../../routes/checkout/handlers";
@@ -301,5 +305,52 @@ describe("Free trial — anti-TOCTOU (satu trial per email per aplikasi)", () =>
       builderId: builder.id,
       txIds: trialLicenses.map((l) => l.transactionId).filter((id): id is string => Boolean(id)),
     });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe("Admin Panel /api/v1/panel/* — hanya admin (role admin) yang boleh akses", () => {
+  it("akun login ber-role user: semua endpoint panel => 403 Forbidden, tanpa data platform", async () => {
+    const email = `paneluser_${suffix()}@test.com`;
+    const password = "PanelUser123!";
+
+    // Daftar akun non-admin lewat Better Auth -> dapat sesi + cookie sendiri.
+    const signUpRes = await auth.api.signUpEmail({
+      body: { email, password, name: "Panel Regular User" },
+      asResponse: true,
+    });
+    const setCookie = signUpRes.headers.get("set-cookie");
+    expect(setCookie).toBeTruthy();
+    const cookie = setCookie!.split(";")[0];
+
+    try {
+      const check = async (path: string) => {
+        const res = await app.handle(
+          new Request(`http://localhost:8081${path}`, { headers: { cookie } })
+        );
+        return { status: res.status, body: await res.json() };
+      };
+
+      // Tidak ada satupun endpoint panel yang boleh lolos untuk non-admin.
+      const stats = await check("/api/v1/panel/stats");
+      expect(stats.status).toBe(403);
+      expect(stats.body.error).toBe("Forbidden");
+
+      const buildersRes = await check("/api/v1/panel/builders");
+      expect(buildersRes.status).toBe(403);
+      expect(buildersRes.body.error).toBe("Forbidden");
+
+      const txs = await check("/api/v1/panel/transactions?limit=5");
+      expect(txs.status).toBe(403);
+      expect(txs.body.error).toBe("Forbidden");
+
+      // Tanpa sesi sama sekali => tetap 401 (jalur deny-by-default tetap ada).
+      const anon = await app.handle(new Request("http://localhost:8081/api/v1/panel/stats"));
+      expect(anon.status).toBe(401);
+    } finally {
+      // Hapus user percobaan (session & account ikut ter-cascade).
+      const [u] = await db.select().from(user).where(eq(user.email, email));
+      if (u) await db.delete(user).where(eq(user.id, u.id));
+    }
   });
 });

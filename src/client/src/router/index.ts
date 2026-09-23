@@ -118,5 +118,15 @@ router.beforeEach(async (to) => {
     if (!data) {
       return { path: "/login", query: { redirect: to.fullPath } };
     }
+
+    // /panel = Admin Panel yang EKSKLUSIF admin. Akun biasa (role != admin)
+    // diarahkan ke dashboard pribadinya — sebelumnya mereka bisa membuka kerangka
+    // panel dan hanya melihat error "Forbidden" dari API (bocor UI shell + UX buruk).
+    if (to.path.startsWith("/panel")) {
+      const role = (data.user as { role?: string | null } | undefined)?.role;
+      if (role !== "admin") {
+        return { path: "/dashboard" };
+      }
+    }
   }
 });
