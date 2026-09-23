@@ -133,14 +133,7 @@ async function submit() {
       >
         <!-- Brand Header -->
         <div class="flex items-center gap-2.5 shrink-0">
-          <div
-            class="w-7 h-7 rounded-lg bg-black border border-white/20 flex items-center justify-center font-bold text-white shadow relative"
-          >
-            <span class="text-xs font-black tracking-tighter">T</span>
-            <span
-              class="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_6px_#D4AF37]"
-            ></span>
-          </div>
+          <img src="/logo.svg" alt="tertaut.com" class="w-8 h-8 rounded-lg shadow shrink-0" />
           <div>
             <div
               class="font-extrabold text-sm tracking-tight text-white flex items-center gap-0.5 font-mono leading-tight"
@@ -148,7 +141,7 @@ async function submit() {
               tertaut<span class="text-gold">.com</span>
             </div>
             <div class="text-[9px] text-white/40 font-mono tracking-wider uppercase leading-tight">
-              Developer Infrastructure Engine
+              Merchant of Record &amp; Licensing
             </div>
           </div>
         </div>
@@ -249,17 +242,12 @@ async function submit() {
             <!-- Mobile Logo (on mobile view only) -->
             <div class="lg:hidden flex items-center justify-between mb-3.5">
               <div class="flex items-center gap-2">
-                <div
-                  class="w-6 h-6 rounded-lg bg-black border border-white/20 flex items-center justify-center font-bold text-white shadow relative"
-                >
-                  <span class="text-xs font-black">T</span>
-                  <span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-gold"></span>
-                </div>
+                <img src="/logo.svg" alt="tertaut.com" class="w-6 h-6 rounded-md shadow shrink-0" />
                 <span class="font-extrabold text-xs tracking-tight text-white font-mono">
                   tertaut<span class="text-gold">.com</span>
                 </span>
               </div>
-              <span class="text-[9.5px] text-emerald-400 font-mono">● v2.2 Ready</span>
+              <span class="text-[9.5px] text-emerald-400 font-mono">● Online</span>
             </div>
 
             <!-- Segmented Tab -->

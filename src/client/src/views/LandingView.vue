@@ -180,14 +180,11 @@ function copySdkInstall() {
       <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <!-- Logo -->
         <router-link to="/" class="flex items-center gap-2.5 group">
-          <div
-            class="w-8 h-8 rounded-lg bg-jetblack flex items-center justify-center font-bold text-white shadow-md relative overflow-hidden group-hover:scale-105 transition"
-          >
-            <span class="text-sm font-black tracking-tighter">T</span>
-            <span
-              class="absolute bottom-1 right-1 w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_6px_#D4AF37]"
-            ></span>
-          </div>
+          <img
+            src="/logo.svg"
+            alt="tertaut.com"
+            class="w-8 h-8 rounded-lg shadow-md group-hover:scale-105 transition"
+          />
           <div>
             <div
               class="font-extrabold text-base tracking-tight text-jetblack flex items-center gap-0.5 font-mono"
@@ -1375,11 +1372,7 @@ function copySdkInstall() {
           <!-- Column 1: Brand & Bio -->
           <div class="space-y-3 md:col-span-1">
             <div class="flex items-center gap-2">
-              <div
-                class="w-7 h-7 rounded-md bg-jetblack flex items-center justify-center font-bold text-white text-xs"
-              >
-                T
-              </div>
+              <img src="/logo.svg" alt="tertaut.com" class="w-7 h-7 rounded-md shadow-xs" />
               <span class="font-extrabold text-jetblack font-mono text-sm"
                 >tertaut<span class="text-gold">.com</span></span
               >

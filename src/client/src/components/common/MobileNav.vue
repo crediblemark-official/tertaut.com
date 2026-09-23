@@ -75,11 +75,7 @@ const moreBadgeCount = computed(() => props.activeCouponCount);
   <header class="md:hidden bg-white border-b border-jetblack/10 sticky top-0 z-40 shadow-xs">
     <div class="flex items-center justify-between px-3.5 py-2">
       <router-link to="/" class="flex items-center gap-2 group">
-        <div
-          class="w-7 h-7 rounded-md bg-jetblack flex items-center justify-center font-bold text-white text-xs relative shadow-xs"
-        >
-          T<span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-gold"></span>
-        </div>
+        <img src="/logo.svg" alt="tertaut.com" class="w-7 h-7 rounded-md shadow-xs shrink-0" />
         <span class="font-extrabold text-xs tracking-tight text-jetblack font-mono"
           >tertaut<span class="text-gold">.com</span></span
         >

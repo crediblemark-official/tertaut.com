@@ -145,11 +145,7 @@ onMounted(() => {
       >
         <div class="space-y-1.5">
           <div class="flex items-center gap-2">
-            <div
-              class="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center font-bold text-sm"
-            >
-              T
-            </div>
+            <img src="/logo.svg" alt="tertaut.com" class="w-8 h-8 rounded-lg shadow-xs" />
             <span class="font-mono text-base font-extrabold tracking-tight"
               >tertaut<span class="text-[#D4AF37]">.com</span></span
             >

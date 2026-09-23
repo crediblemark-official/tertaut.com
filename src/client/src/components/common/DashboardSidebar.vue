@@ -80,14 +80,11 @@ const emit = defineEmits<{ "switch-env": [target: DashboardEnv] }>();
     <div class="space-y-5">
       <!-- Brand Header -->
       <router-link to="/" class="flex items-center gap-2.5 px-2 py-1 group">
-        <div
-          class="w-8 h-8 rounded-lg bg-jetblack flex items-center justify-center font-bold text-white shadow-md relative overflow-hidden group-hover:scale-105 transition"
-        >
-          <span class="text-sm font-black tracking-tighter">T</span>
-          <span
-            class="absolute bottom-1 right-1 w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_6px_#D4AF37]"
-          ></span>
-        </div>
+        <img
+          src="/logo.svg"
+          alt="tertaut.com"
+          class="w-8 h-8 rounded-lg shadow-md group-hover:scale-105 transition shrink-0"
+        />
         <div>
           <div
             class="font-extrabold text-sm tracking-tight text-jetblack flex items-center gap-0.5 font-mono"
