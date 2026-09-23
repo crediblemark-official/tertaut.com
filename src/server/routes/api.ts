@@ -12,6 +12,7 @@ import { panelRoutes } from "./panel/router";
 import { couponRoutes } from "./coupons/router";
 import { meteringRoutes } from "./metering/router";
 import { s2sRoutes } from "./s2s/router";
+import { handleGetPublicAnnouncement } from "./panel/settings";
 import { authMiddleware, authenticate } from "../middleware/auth";
 
 const PUBLIC_PREFIXES = [
@@ -26,6 +27,8 @@ const PUBLIC_PREFIXES = [
   "/api/v1/checkout/consult-pay",
   "/api/v1/checkout/preview-coupon",
   "/api/v1/checkout/dana/finish",
+  "/api/v1/checkout/invoice",
+  "/api/v1/announcement",
   "/api/v1/apps/by-slug",
   "/api/v1/licensing/verify",
   "/api/v1/licensing/validate",
@@ -68,4 +71,5 @@ export const apiV1Routes = new Elysia({ prefix: "/api/v1" })
   .use(panelRoutes)
   .use(couponRoutes)
   .use(meteringRoutes)
-  .use(s2sRoutes);
+  .use(s2sRoutes)
+  .get("/announcement", handleGetPublicAnnouncement);

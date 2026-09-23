@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { Globe, Code2, LogOut, LogIn } from "lucide-vue-next";
+import { ref, computed, onMounted } from "vue";
+import { Globe, Code2, LogOut, LogIn, Bell } from "lucide-vue-next";
 import { dashboardEnv } from "../../lib/environment";
+import { api } from "../../lib/api";
 
 const props = defineProps<{
   currentPage: { title: string; category: string };
@@ -11,9 +12,45 @@ const props = defineProps<{
 
 const emit = defineEmits<{ logout: [] }>();
 const env = dashboardEnv;
+
+const announcement = ref<{ message: string; type: "info" | "warning" | "alert" } | null>(null);
+
+onMounted(async () => {
+  try {
+    const res = await api.getPublicAnnouncement();
+    if (res.success && res.hasAnnouncement && res.announcement) {
+      announcement.value = res.announcement;
+    }
+  } catch {}
+});
 </script>
 
 <template>
+  <!-- Broadcast Announcement Banner (If Active) -->
+  <div
+    v-if="announcement"
+    :class="[
+      'w-full px-6 py-2 text-xs font-semibold flex items-center justify-between border-b transition no-print',
+      announcement.type === 'alert'
+        ? 'bg-red-50 text-red-700 border-red-200'
+        : announcement.type === 'warning'
+          ? 'bg-amber-50 text-amber-800 border-amber-200'
+          : 'bg-blue-50 text-blue-700 border-blue-200',
+    ]"
+  >
+    <div class="flex items-center gap-2">
+      <Bell class="w-3.5 h-3.5 shrink-0" />
+      <span>{{ announcement.message }}</span>
+    </div>
+    <button
+      @click="announcement = null"
+      class="text-xs opacity-60 hover:opacity-100 p-0.5 cursor-pointer"
+      title="Tutup pengumuman"
+    >
+      ✕
+    </button>
+  </div>
+
   <!-- Desktop Top Header -->
   <header
     class="hidden md:flex items-center justify-between px-6 py-3 border-b border-jetblack/10 bg-white/90 backdrop-blur-md shrink-0 z-20"

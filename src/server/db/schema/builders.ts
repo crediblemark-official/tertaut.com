@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, jsonb, boolean, index } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 
 export const builders = pgTable(
@@ -12,6 +12,7 @@ export const builders = pgTable(
     apiKey: text("api_key").notNull().unique(),
     /** Secret API key untuk server-to-server (S2S): `tt_secret_...`. Hanya dipakai di backend pembangun. */
     secretApiKey: text("secret_api_key").notNull().default(""),
+    isSuspended: boolean("is_suspended").default(false).notNull(),
     disbursementAccount: jsonb("disbursement_account").$type<{
       bankCode?: string;
       accountNumber?: string;

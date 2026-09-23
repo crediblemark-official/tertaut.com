@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { apps, transactions, licenses } from "../../db/schema";
+import { apps, transactions, licenses, builders } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { DanaService } from "../../services/dana";
 import { CouponService } from "../../services/coupon";
@@ -78,6 +78,28 @@ export async function handleCreateSession({ request, body, set }: any) {
     if (!app) {
       set.status = 404;
       return { error: `Produk / Aplikasi "${targetIdentifier}" tidak ditemukan` };
+    }
+
+    if (app.isSuspended) {
+      set.status = 403;
+      return {
+        success: false,
+        error:
+          "Aplikasi ini sedang dinonaktifkan sementara oleh platform. Transaksi tidak dapat diproses.",
+        errorCode: "APP_SUSPENDED",
+      };
+    }
+
+    const builder = await db.query.builders.findFirst({
+      where: eq(builders.id, app.builderId),
+    });
+    if (builder?.isSuspended) {
+      set.status = 403;
+      return {
+        success: false,
+        error: "Akun builder aplikasi ini sedang dibekukan sementara oleh platform.",
+        errorCode: "BUILDER_SUSPENDED",
+      };
     }
 
     const isSandboxApp = app.mode === "sandbox";

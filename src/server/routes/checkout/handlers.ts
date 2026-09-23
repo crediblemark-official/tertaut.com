@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { apps, transactions, licenses } from "../../db/schema";
+import { apps, transactions, licenses, builders } from "../../db/schema";
 import { eq, inArray, or, and, sql } from "drizzle-orm";
 import { LicenseService } from "../../services/license";
 import { CreditService } from "../../services/credits";
@@ -446,5 +446,96 @@ export async function handleSimulatePaid({ params: { txId }, request, set }: any
     licenseKey: newLic?.licenseKey || null,
     grantedCredits,
     creditBalance,
+  };
+}
+
+/**
+ * Ambil data invoice resmi / E-Receipt untuk cetak dan unduh PDF
+ */
+export async function handleGetInvoiceData({ params, query, request, set }: any) {
+  const txId = params.txId;
+  const ticket = query?.ticket;
+
+  const tx = await db.query.transactions.findFirst({
+    where: eq(transactions.id, txId),
+  });
+
+  if (!tx) {
+    set.status = 404;
+    return { success: false, error: "Faktur transaksi tidak ditemukan." };
+  }
+
+  // Verifikasi otorisasi: jika ada ticket, verifikasi HMAC pollTicket
+  // Jika tidak ada ticket, periksa apakah pemanggil adalah user terautentikasi (admin/builder)
+  const isTicketValid = ticket ? verifyPollTicket(tx.id, ticket) : false;
+  if (!isTicketValid) {
+    const authBuilder = await resolveCurrentBuilder(request.headers);
+    const isOwner = authBuilder.builder && authBuilder.builder.id === tx.builderId;
+    const isAdmin = authBuilder.isAdmin;
+    if (!isOwner && !isAdmin) {
+      set.status = 403;
+      return {
+        success: false,
+        error:
+          "Akses invoice ditolak. Sertakan ticket polling yang valid atau login sebagai admin.",
+      };
+    }
+  }
+
+  const [app, builder, license] = await Promise.all([
+    db.query.apps.findFirst({ where: eq(apps.id, tx.appId) }),
+    db.query.builders.findFirst({ where: eq(builders.id, tx.builderId) }),
+    db.query.licenses.findFirst({ where: eq(licenses.transactionId, tx.id) }),
+  ]);
+
+  const gross = tx.grossAmount;
+  const dpp = Math.round(gross / 1.11);
+  const ppn = gross - dpp;
+  const invoiceNumber = `INV-${tx.createdAt.toISOString().slice(0, 10).replace(/-/g, "")}-${tx.id.slice(-6).toUpperCase()}`;
+
+  return {
+    success: true,
+    invoice: {
+      invoiceNumber,
+      transactionId: tx.id,
+      merchantOfRecord: {
+        name: "tertaut.com (PT Tertaut Digital)",
+        legalEntity: "Merchant of Record resmi untuk lisensi perangkat lunak",
+        website: "https://tertaut.com",
+        supportEmail: "support@tertaut.com",
+      },
+      seller: {
+        name: builder?.name || "Independent Software Builder",
+        email: builder?.email || "",
+      },
+      buyer: {
+        email: tx.customerEmail,
+      },
+      item: {
+        name: app?.name || tx.appId,
+        description:
+          app?.description || `Lisensi Penggunaan Perangkat Lunak (${tx.grantDays || 30} Hari)`,
+        pricingType: app?.pricingType || "one_time",
+        grantDays: tx.grantDays || 30,
+        grantCredits: tx.grantCredits || 0,
+      },
+      financials: {
+        grossAmount: gross,
+        dpp,
+        ppn11: ppn,
+        discountAmount: tx.discountAmount || 0,
+        couponCode: tx.couponCode || null,
+        currency: "IDR",
+      },
+      payment: {
+        channel: tx.paymentChannel || "DANA",
+        status: tx.paymentStatus,
+        disbursementStatus: tx.disbursementStatus,
+        paidAt: tx.paidAt ? tx.paidAt.toISOString() : null,
+        createdAt: tx.createdAt.toISOString(),
+      },
+      licenseKey: license?.licenseKey || null,
+      verificationUrl: `${resolveRequestOrigin(request)}/invoice/${tx.id}?ticket=${ticket || ""}`,
+    },
   };
 }

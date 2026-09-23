@@ -12,6 +12,7 @@ import {
   TrendingUp,
   CheckCircle2,
   AlertTriangle,
+  Sliders,
 } from "lucide-vue-next";
 import AdminSidebar from "../components/admin/AdminSidebar.vue";
 import AdminTopHeader from "../components/admin/AdminTopHeader.vue";
@@ -24,6 +25,7 @@ import { useConfirm } from "../composables/useConfirm";
 import BuilderDirectoryTable from "../components/admin/BuilderDirectoryTable.vue";
 import GlobalLedgerTable from "../components/admin/GlobalLedgerTable.vue";
 import SystemTelemetryCard from "../components/admin/SystemTelemetryCard.vue";
+import PlatformSettingsCard from "../components/admin/PlatformSettingsCard.vue";
 
 const router = useRouter();
 const session = authClient.useSession();
@@ -36,7 +38,7 @@ const builders = ref<PanelBuilderItem[]>([]);
 const transactions = ref<PanelTransactionItem[]>([]);
 const loading = ref(true);
 const refreshing = ref(false);
-const activeTab = ref<"overview" | "builders" | "ledger" | "system">("overview");
+const activeTab = ref<"overview" | "builders" | "ledger" | "system" | "settings">("overview");
 
 // Search & Filters
 const txStatusFilter = ref<string>("");
@@ -131,6 +133,52 @@ async function handleLogout() {
   router.push("/login");
 }
 
+async function handleRefundTransaction(tx: PanelTransactionItem) {
+  const confirmed = await confirmDialog({
+    title: "Konfirmasi Refund Transaksi",
+    message: `Kembalikan dana sebesar Rp ${tx.grossAmount.toLocaleString("id-ID")} untuk transaksi ${tx.id}? Lisensi terkait akan otomatis dicabut (REVOKED).`,
+    confirmText: "Ya, Refund Transaksi",
+    variant: "danger",
+  });
+  if (!confirmed) return;
+
+  try {
+    const res = await api.refundTransaction(tx.id, "Refund diminta oleh Super Admin");
+    if (res.success) {
+      showAlert("success", res.message || "Transaksi berhasil di-refund.");
+      await loadAllData();
+    } else {
+      showAlert("error", res.error || "Gagal memproses refund.");
+    }
+  } catch (err: any) {
+    showAlert("error", err.message || "Terjadi kesalahan saat memproses refund.");
+  }
+}
+
+async function handleToggleSuspendBuilder(builderId: string) {
+  const target = builders.value.find((b) => b.id === builderId);
+  const actionName = target?.isSuspended ? "mengaktifkan kembali" : "membekukan";
+  const confirmed = await confirmDialog({
+    title: target?.isSuspended ? "Aktifkan Builder" : "Bekukan Builder",
+    message: `Apakah Anda yakin ingin ${actionName} builder ${target?.name || builderId}?`,
+    confirmText: target?.isSuspended ? "Ya, Aktifkan" : "Ya, Bekukan",
+    variant: target?.isSuspended ? "info" : "warning",
+  });
+  if (!confirmed) return;
+
+  try {
+    const res = await api.toggleBuilderSuspend(builderId);
+    if (res.success) {
+      showAlert("success", res.message);
+      await loadAllData();
+    } else {
+      showAlert("error", res.error || "Gagal mengubah status builder.");
+    }
+  } catch (err: any) {
+    showAlert("error", err.message || "Terjadi kesalahan saat mengubah status builder.");
+  }
+}
+
 const adminNavItems = computed(() => [
   {
     key: "overview",
@@ -157,6 +205,12 @@ const adminNavItems = computed(() => [
     name: "System & Telemetri",
     icon: Server,
     category: "Infrastructure",
+  },
+  {
+    key: "settings",
+    name: "Pengaturan Platform",
+    icon: Sliders,
+    category: "Konfigurasi",
   },
 ]);
 
@@ -266,7 +320,10 @@ onMounted(() => {
                 >{{ builders.length }} Builder Aktif</span
               >
             </div>
-            <BuilderDirectoryTable :builders="builders" />
+            <BuilderDirectoryTable
+              :builders="builders"
+              @toggle-suspend="handleToggleSuspendBuilder"
+            />
           </div>
 
           <!-- TAB 3: GLOBAL LEDGER -->
@@ -282,6 +339,7 @@ onMounted(() => {
               v-model:status-filter="txStatusFilter"
               v-model:search-query="txSearchQuery"
               @filter-change="loadAllData"
+              @refund="handleRefundTransaction"
             />
           </div>
 
@@ -297,6 +355,17 @@ onMounted(() => {
               </span>
             </div>
             <SystemTelemetryCard :stats="stats" />
+          </div>
+
+          <!-- TAB 5: PLATFORM SETTINGS & MODERATION -->
+          <div v-else-if="activeTab === 'settings'" class="space-y-4">
+            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
+              <h1 class="text-base font-extrabold text-jetblack">
+                Pengaturan Platform &amp; Moderasi
+              </h1>
+              <span class="text-xs text-jetblack/50 font-mono">Dinamis Tanpa Redeploy</span>
+            </div>
+            <PlatformSettingsCard @alert="showAlert($event.type, $event.text)" />
           </div>
         </div>
       </main>

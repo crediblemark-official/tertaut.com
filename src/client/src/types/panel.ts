@@ -36,6 +36,7 @@ export interface PanelBuilderItem {
     accountNumber: string;
     accountHolderName: string;
   };
+  isSuspended?: boolean;
   appCount?: number;
   totalApps?: number;
   apps?: Array<{
@@ -43,6 +44,7 @@ export interface PanelBuilderItem {
     name: string;
     slug: string;
     mode: string;
+    isSuspended?: boolean;
   }>;
   totalSales?: number;
   totalGMV?: number;

@@ -154,10 +154,20 @@ export async function handleBatchPayout() {
     }
   }
 
+  const successfulCount = results.filter((r) => r.status === "SUCCESS").length;
+  if (totalDisbursedAmount > 0) {
+    const { NotifierService } = await import("../../services/notifier");
+    NotifierService.notifyBatchPayout({
+      builderCount: successfulCount,
+      transactionCount: results.reduce((acc, r) => acc + (r.status === "SUCCESS" ? 1 : 0), 0),
+      totalAmount: totalDisbursedAmount,
+    }).catch(() => null);
+  }
+
   return {
     success: true,
-    message: `Batch payout selesai diproses untuk ${results.filter((r) => r.status === "SUCCESS").length} builder.`,
-    processedCount: results.filter((r) => r.status === "SUCCESS").length,
+    message: `Batch payout selesai diproses untuk ${successfulCount} builder.`,
+    processedCount: successfulCount,
     totalDisbursed: totalDisbursedAmount,
     totalAmount: totalDisbursedAmount,
     details: results,

@@ -4,6 +4,10 @@ import { handlePanelStats } from "./stats";
 import { handlePanelBuilders } from "./builders";
 import { handlePanelTransactions } from "./transactions";
 import { handleBatchPayout } from "./payouts";
+import { handleRefundTransaction } from "./refund";
+import { handleToggleSuspendBuilder, handleToggleSuspendApp } from "./moderation";
+import { handleExportTransactions, handleExportBuilders } from "./export";
+import { handleGetPlatformSettings, handleUpdatePlatformSettings } from "./settings";
 
 export const panelRoutes = new Elysia({ prefix: "/panel" })
   .onBeforeHandle(async ({ request: { headers }, status }) => {
@@ -54,5 +58,80 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
     detail: {
       tags: ["Admin Panel"],
       summary: "Execute Batch Payouts to Builders",
+    },
+  })
+
+  /**
+   * Refund Transaksi & Auto-Revoke Lisensi
+   */
+  .post("/transactions/:txId/refund", handleRefundTransaction, {
+    body: t.Optional(
+      t.Object({
+        reason: t.Optional(t.String()),
+      })
+    ),
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Refund Transaction & Revoke License",
+    },
+  })
+
+  /**
+   * Moderasi: Suspend / Unsuspend Builder
+   */
+  .post("/builders/:builderId/toggle-suspend", handleToggleSuspendBuilder, {
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Toggle Suspend Status for Builder",
+    },
+  })
+
+  /**
+   * Moderasi: Suspend / Unsuspend App
+   */
+  .post("/apps/:appId/toggle-suspend", handleToggleSuspendApp, {
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Toggle Suspend Status for App",
+    },
+  })
+
+  /**
+   * Ekspor CSV: Ledger Transaksi
+   */
+  .get("/export/transactions", handleExportTransactions, {
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Export Transactions Ledger to CSV",
+    },
+  })
+
+  /**
+   * Ekspor CSV: Direktori Builder
+   */
+  .get("/export/builders", handleExportBuilders, {
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Export Builders Directory to CSV",
+    },
+  })
+
+  /**
+   * Pengaturan Platform: Baca Pengaturan
+   */
+  .get("/settings", handleGetPlatformSettings, {
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Get Platform Configuration & Settings",
+    },
+  })
+
+  /**
+   * Pengaturan Platform: Perbarui Pengaturan
+   */
+  .put("/settings", handleUpdatePlatformSettings, {
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Update Platform Configuration & Settings",
     },
   });

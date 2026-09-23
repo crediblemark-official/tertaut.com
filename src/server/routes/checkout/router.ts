@@ -11,9 +11,10 @@ import {
   handleListTransactions,
   handleDisburseTx,
   handleSimulatePaid,
+  handleGetInvoiceData,
 } from "./handlers";
 
-/** Endpoint checkout yang memang harus publik (webhook, buat sesi, preview kupon, redirect DANA, polling status). */
+/** Endpoint checkout yang memang harus publik (webhook, buat sesi, preview kupon, redirect DANA, polling status, invoice). */
 const PUBLIC_CHECKOUT_PATHS = [
   "webhook",
   "/session",
@@ -21,6 +22,7 @@ const PUBLIC_CHECKOUT_PATHS = [
   "dana/finish",
   "/status",
   "consult-pay",
+  "/invoice",
 ];
 
 export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
@@ -139,5 +141,16 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
     detail: {
       tags: ["MoR Checkout"],
       summary: "Simulate Successful Payment (Local Developer Sandbox)",
+    },
+  })
+  /**
+   * Detail Invoice & E-Receipt Resmi
+   */
+  .get("/invoice/:txId", handleGetInvoiceData, {
+    params: t.Object({ txId: t.String() }),
+    query: t.Object({ ticket: t.Optional(t.String()) }),
+    detail: {
+      tags: ["MoR Checkout"],
+      summary: "Get Official Invoice / E-Receipt",
     },
   });

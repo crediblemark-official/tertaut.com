@@ -1,4 +1,13 @@
-import { pgTable, text, timestamp, uuid, integer, jsonb, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  integer,
+  jsonb,
+  boolean,
+  index,
+} from "drizzle-orm/pg-core";
 import { builders } from "./builders";
 
 export interface CaptureConfig {
@@ -92,6 +101,7 @@ export const apps = pgTable(
     mode: text("mode", { enum: ["sandbox", "live"] })
       .default("sandbox")
       .notNull(),
+    isSuspended: boolean("is_suspended").default(false).notNull(),
     targetPrice: integer("target_price").default(0).notNull(), // dalam IDR
     pricingType: text("pricing_type", { enum: ["one_time", "subscription", "free"] })
       .default("one_time")

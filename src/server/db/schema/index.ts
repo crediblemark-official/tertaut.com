@@ -6,3 +6,4 @@ export * from "./licenses";
 export * from "./credits";
 export * from "./aiproxy";
 export * from "./coupons";
+export * from "./settings";

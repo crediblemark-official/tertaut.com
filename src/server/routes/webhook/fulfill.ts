@@ -154,6 +154,15 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
 
     if (result?.newlyFulfilled) {
       await sendLicenseIssuedEmail(result);
+      const app = await db.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
+      const { NotifierService } = await import("../../services/notifier");
+      NotifierService.notifyPaymentSuccess({
+        transactionId: tx.id,
+        appName: app?.name || tx.appId,
+        grossAmount: tx.grossAmount,
+        customerEmail: tx.customerEmail,
+        paymentChannel,
+      }).catch(() => null);
     }
 
     return result;

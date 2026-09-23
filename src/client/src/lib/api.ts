@@ -844,4 +844,95 @@ export const api = {
     });
     return parseJson(res);
   },
+
+  async refundTransaction(
+    txId: string,
+    reason?: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data?: any;
+    error?: string;
+  }> {
+    const res = await apiFetch(`/api/v1/panel/transactions/${txId}/refund`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    });
+    return parseJson(res);
+  },
+
+  async toggleBuilderSuspend(builderId: string): Promise<{
+    success: boolean;
+    builderId: string;
+    isSuspended: boolean;
+    message: string;
+    error?: string;
+  }> {
+    const res = await apiFetch(`/api/v1/panel/builders/${builderId}/toggle-suspend`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    return parseJson(res);
+  },
+
+  async toggleAppSuspend(appId: string): Promise<{
+    success: boolean;
+    appId: string;
+    isSuspended: boolean;
+    message: string;
+    error?: string;
+  }> {
+    const res = await apiFetch(`/api/v1/panel/apps/${appId}/toggle-suspend`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    return parseJson(res);
+  },
+
+  async getPlatformSettings(): Promise<{
+    success: boolean;
+    settings: Record<string, string>;
+    items?: any[];
+    error?: string;
+  }> {
+    const res = await apiFetch("/api/v1/panel/settings");
+    return parseJson(res);
+  },
+
+  async updatePlatformSettings(settings: Record<string, string>): Promise<{
+    success: boolean;
+    settings: Record<string, string>;
+    items?: any[];
+    error?: string;
+  }> {
+    const res = await apiFetch("/api/v1/panel/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ settings }),
+    });
+    return parseJson(res);
+  },
+
+  async getPublicAnnouncement(): Promise<{
+    success: boolean;
+    hasAnnouncement: boolean;
+    announcement: { message: string; type: "info" | "warning" | "alert" } | null;
+  }> {
+    const res = await apiFetch("/api/v1/announcement");
+    return parseJson(res);
+  },
+
+  async getInvoiceData(
+    txId: string,
+    ticket?: string
+  ): Promise<{
+    success: boolean;
+    invoice: any;
+    error?: string;
+  }> {
+    const q = ticket ? `?ticket=${encodeURIComponent(ticket)}` : "";
+    const res = await apiFetch(`/api/v1/checkout/invoice/${txId}${q}`);
+    return parseJson(res);
+  },
 };

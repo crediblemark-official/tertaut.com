@@ -93,6 +93,12 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
+    path: "/invoice/:txId",
+    name: "invoice-page",
+    component: () => import("../views/InvoiceView.vue"),
+    meta: { public: true, standalone: true },
+  },
+  {
     path: "/panel",
     name: "admin-panel",
     component: () => import("../views/AdminPanelView.vue"),

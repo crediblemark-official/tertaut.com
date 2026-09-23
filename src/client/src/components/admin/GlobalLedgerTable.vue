@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { Search } from "lucide-vue-next";
+import { Search, Download, RotateCcw, Receipt } from "lucide-vue-next";
 import type { PanelTransactionItem } from "../../types/panel";
 
 const props = defineProps<{
@@ -12,7 +12,13 @@ const searchQuery = defineModel<string>("searchQuery", { default: "" });
 
 const emit = defineEmits<{
   (e: "filterChange"): void;
+  (e: "refund", tx: PanelTransactionItem): void;
 }>();
+
+function handleExportCsv() {
+  const q = statusFilter.value ? `?status=${encodeURIComponent(statusFilter.value)}` : "";
+  window.open(`/api/v1/panel/export/transactions${q}`, "_blank");
+}
 
 const filteredTransactions = computed(() => {
   return props.transactions.filter((tx) => {
@@ -58,7 +64,17 @@ const filteredTransactions = computed(() => {
           <option value="PAID">PAID</option>
           <option value="PENDING">PENDING</option>
           <option value="FAILED">FAILED</option>
+          <option value="REFUNDED">REFUNDED</option>
         </select>
+
+        <button
+          @click="handleExportCsv"
+          class="h-9 px-3 rounded-lg border border-slate-300/80 hover:border-slate-400 bg-white text-jetblack text-xs font-semibold inline-flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+          title="Unduh seluruh data ledger transaksi ke format CSV"
+        >
+          <Download class="w-3.5 h-3.5" />
+          <span>Ekspor CSV</span>
+        </button>
       </div>
     </div>
 
@@ -78,12 +94,13 @@ const filteredTransactions = computed(() => {
             <th class="py-2.5 px-3">MoR 5%</th>
             <th class="py-2.5 px-3">Net 95%</th>
             <th class="py-2.5 px-3">Status</th>
-            <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Disbursement</th>
+            <th class="py-2.5 px-3">Disbursement</th>
+            <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
           <tr v-if="filteredTransactions.length === 0">
-            <td colspan="10" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
+            <td colspan="11" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
               Tidak ada transaksi ditemukan.
             </td>
           </tr>
@@ -122,23 +139,48 @@ const filteredTransactions = computed(() => {
                     ? 'bg-forest/10 text-forest'
                     : tx.paymentStatus === 'PENDING'
                       ? 'bg-gold/20 text-[#996515]'
-                      : 'bg-[#B91C1C]/10 text-[#B91C1C]',
+                      : tx.paymentStatus === 'REFUNDED'
+                        ? 'bg-[#B91C1C]/15 text-[#B91C1C]'
+                        : 'bg-[#B91C1C]/10 text-[#B91C1C]',
                 ]"
               >
                 {{ tx.paymentStatus }}
               </span>
             </td>
-            <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
+            <td class="py-2.5 px-3">
               <span
                 :class="[
                   'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
                   tx.disbursementStatus === 'COMPLETED'
                     ? 'bg-forest/10 text-forest'
-                    : 'bg-jetblack/10 text-jetblack/70',
+                    : tx.disbursementStatus === 'CANCELLED'
+                      ? 'bg-[#B91C1C]/10 text-[#B91C1C]'
+                      : 'bg-jetblack/10 text-jetblack/70',
                 ]"
               >
                 {{ tx.disbursementStatus }}
               </span>
+            </td>
+            <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
+              <div class="inline-flex items-center gap-1.5">
+                <router-link
+                  :to="`/invoice/${tx.id}`"
+                  target="_blank"
+                  class="p-1 rounded text-jetblack/60 hover:text-jetblack hover:bg-jetblack/5 transition cursor-pointer"
+                  title="Lihat Faktur / E-Receipt"
+                >
+                  <Receipt class="w-3.5 h-3.5" />
+                </router-link>
+                <button
+                  v-if="tx.paymentStatus === 'PAID'"
+                  @click="emit('refund', tx)"
+                  class="px-2 py-0.5 rounded text-[10px] font-bold border border-red-300 bg-white text-red-600 hover:bg-red-50 transition cursor-pointer inline-flex items-center gap-1"
+                  title="Kembalikan dana ke pembeli & cabut lisensi otomatis"
+                >
+                  <RotateCcw class="w-3 h-3" />
+                  <span>Refund</span>
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>

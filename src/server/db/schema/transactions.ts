@@ -33,12 +33,12 @@ export const transactions = pgTable(
     netAmount: integer("net_amount").notNull(), // 95% = 46550
     paymentChannel: text("payment_channel"), // e.g. QRIS, BCA, GOPAY
     paymentStatus: text("payment_status", {
-      enum: ["PENDING", "PAID", "EXPIRED", "FAILED"],
+      enum: ["PENDING", "PAID", "EXPIRED", "FAILED", "REFUNDED"],
     })
       .default("PENDING")
       .notNull(),
     disbursementStatus: text("disbursement_status", {
-      enum: ["PENDING", "PROCESSING", "COMPLETED", "FAILED"],
+      enum: ["PENDING", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED"],
     })
       .default("PENDING")
       .notNull(),
