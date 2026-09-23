@@ -19,6 +19,10 @@ export interface CheckoutOptions {
   grantCredits?: number;
   customerEmail?: string;
   redirectUrl?: string;
+  couponCode?: string;
+  paymentRail?: "qris" | "va" | "ewallet";
+  vaBank?: string;
+  customAmount?: number;
 }
 
 export interface LicenseValidateOptions {

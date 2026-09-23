@@ -91,12 +91,19 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
     // Verifikasi seluruh modul tertaut.com terintegrasi (FR-3.2)
     expect(sdk.appId).toBe("app_sdk_test_123");
     expect(typeof sdk.checkout).toBe("function");
+    expect(typeof sdk.getPaymentStatus).toBe("function");
     expect(typeof sdk.licensing.validate).toBe("function");
     expect(typeof sdk.licensing.verify).toBe("function");
     expect(typeof sdk.licensing.activate).toBe("function");
     expect(typeof sdk.licensing.deactivate).toBe("function");
+    expect(typeof sdk.licensing.verifyApiKey).toBe("function");
+    expect(typeof sdk.credits.reportUsage).toBe("function");
+    expect(typeof sdk.credits.getUsage).toBe("function");
     expect(typeof sdk.aiProxy.chat).toBe("function");
     expect(typeof sdk.aiProxy.chatStream).toBe("function");
+    expect(typeof sdk.aiProxy.quotaStatus).toBe("function");
+    expect(typeof sdk.s2s.licenses.issue).toBe("function");
+    expect(typeof sdk.s2s.webhooks.create).toBe("function");
 
     // 2. Verifikasi NFR FR-3.1: Ukuran bundle SDK dist/index.js wajib < 15 KB
     const distPath = "packages/sdk/dist/index.js";

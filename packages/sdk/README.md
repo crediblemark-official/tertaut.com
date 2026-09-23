@@ -85,16 +85,21 @@ for await (const chunk of await tertaut.aiProxy.chatStream({ licenseKey, prompt:
 | Anggota                                                      | Deskripsi                                                                                 |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
 | `new Tertaut({ apiKey, baseUrl, appId })`                    | Inisialisasi klien (mendukung publishable `tt_live_`/`tt_test_` atau secret `tt_secret_`) |
-| `checkout(options)`                                          | Buat sesi checkout MoR (auto redirect di browser)                                         |
+| `checkout(options)`                                          | Buat sesi checkout MoR (auto redirect di browser, dukung kupon & payment rail)            |
+| `getPaymentStatus(txId, ticket?)`                            | Cek status transaksi pembayaran MoR dengan atau tanpa HMAC ticket                         |
 | `licensing.check(options)`                                   | Smart dual-mode check (online validate dengan graceful offline token fallback)            |
 | `licensing.startHeartbeatSession(options)`                   | Background session manager untuk floating rolling seat lease                              |
 | `licensing.activate / validate / verify / deactivate`        | Siklus hidup lisensi & seat binding                                                       |
+| `licensing.verifyApiKey(apiKey)`                             | Verifikasi customer API key auto-provisioning yang diterbitkan saat checkout              |
 | `licensing.entitlements({ licenseKey, hwid?, appVersion? })` | Ambil feature flags, entitlements & helper methods                                        |
 | `licensing.heartbeat({ licenseKey, hwid, leaseKey })`        | Perpanjang lease floating (rolling seat) manual                                           |
 | `licensing.getJwks()`                                        | Ambil public key Ed25519 JWKS                                                             |
 | `licensing.verifyOfflineToken(token, options?)`              | Verifikasi token offline Ed25519 secara lokal                                             |
 | `credits.balance / consume / history`                        | Saldo & pemakaian kredit lisensi (idempoten)                                              |
+| `credits.reportUsage(options)`                               | Kirim event konsumsi kredit terukur (metered usage event)                                 |
+| `credits.getUsage(licenseKey)`                               | Ambil ringkasan penggunaan metered billing untuk lisensi                                  |
 | `aiProxy.chat / chatStream`                                  | AI gateway (non-streaming & SSE streaming relay)                                          |
+| `aiProxy.quotaStatus(options)`                               | Periksa kuota harian & sisa limit token AI Proxy                                          |
 | `s2s.*`                                                      | Server-to-Server Admin API (apps, licenses, seats, webhooks, credits)                     |
 | `Tertaut.verifyWebhookSignature(rawBody, sig, secret)`       | Verifikasi HMAC-SHA256 webhook berbasis Web Crypto                                        |
 

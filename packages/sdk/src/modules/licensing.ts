@@ -297,4 +297,16 @@ export class LicensingModule {
       ? entitlements[featureName]
       : (defaultValue as T);
   }
+
+  /**
+   * Verifikasi customer API key yang diterbitkan otomatis saat checkout.
+   */
+  public async verifyApiKey(apiKey: string): Promise<any> {
+    const res = await this.ctx.request("/api/v1/licensing/api-key/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apiKey }),
+    });
+    return res.json();
+  }
 }

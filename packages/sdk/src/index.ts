@@ -5,7 +5,7 @@
  * Zero Heavy Third-Party Dependencies
  */
 
-import { executeCheckout } from "./modules/checkout";
+import { executeCheckout, getPaymentStatus } from "./modules/checkout";
 import { LicensingModule } from "./modules/licensing";
 import { CreditsModule } from "./modules/credits";
 import { AiProxyModule } from "./modules/aiproxy";
@@ -105,6 +105,20 @@ export class Tertaut {
         appId: this.appId,
       },
       options
+    );
+  }
+
+  /**
+   * Cek status pembayaran transaksi MoR dengan atau tanpa ticket HMAC.
+   */
+  public async getPaymentStatus(transactionId: string, ticket?: string): Promise<any> {
+    return getPaymentStatus(
+      {
+        request: this.request.bind(this),
+        appId: this.appId,
+      },
+      transactionId,
+      ticket
     );
   }
 }

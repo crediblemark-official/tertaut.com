@@ -99,4 +99,14 @@ export class AiProxyModule {
       },
     };
   }
+
+  /**
+   * Cek kuota dan status daily token limit untuk lisensi.
+   */
+  public async quotaStatus(options: { licenseKey: string; modelAlias?: string }): Promise<any> {
+    const params = new URLSearchParams({ licenseKey: options.licenseKey });
+    if (options.modelAlias) params.set("modelAlias", options.modelAlias);
+    const res = await this.ctx.request(`/api/v1/ai/quota-status?${params.toString()}`);
+    return res.json();
+  }
 }

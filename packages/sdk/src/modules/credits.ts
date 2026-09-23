@@ -57,4 +57,32 @@ export class CreditsModule {
     });
     return res.json();
   }
+
+  /**
+   * Kirim event penggunaan kredit terukur (metered usage event).
+   */
+  public async reportUsage(options: {
+    licenseKey: string;
+    eventName: string;
+    units?: number;
+    idempotencyKey?: string;
+    metadata?: Record<string, any>;
+  }): Promise<any> {
+    const res = await this.ctx.request("/api/v1/metering/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(options),
+    });
+    return res.json();
+  }
+
+  /**
+   * Ambil ringkasan penggunaan metered usage untuk lisensi.
+   */
+  public async getUsage(licenseKey: string): Promise<any> {
+    const res = await this.ctx.request(
+      `/api/v1/metering/usage/${encodeURIComponent(licenseKey.trim())}`
+    );
+    return res.json();
+  }
 }
