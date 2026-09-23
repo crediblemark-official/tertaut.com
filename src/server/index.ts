@@ -12,8 +12,8 @@ import { LicenseTokenService } from "./services/licenseToken";
 import { existsSync, statSync } from "fs";
 import { resolve } from "path";
 import { db } from "./db";
-import { licenses } from "./db/schema";
-import { eq, and, lt } from "drizzle-orm";
+import { licenses, user } from "./db/schema";
+import { eq, and, lt, asc } from "drizzle-orm";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { LicenseLeaseService } from "./services/licenseLease";
 import { AuditService } from "./services/audit";
@@ -465,8 +465,32 @@ async function runAutoMigrations(): Promise<void> {
   }
 }
 
+/** Pastikan akun pertama yang didaftarkan di sistem berstatus admin jika belum ada admin */
+export async function ensureFirstUserIsAdmin(): Promise<void> {
+  try {
+    const adminUser = await db.query.user.findFirst({
+      where: eq(user.role, "admin"),
+    });
+    if (!adminUser) {
+      const firstUser = await db.query.user.findFirst({
+        orderBy: asc(user.createdAt),
+      });
+      if (firstUser) {
+        await db
+          .update(user)
+          .set({ role: "admin", emailVerified: true })
+          .where(eq(user.id, firstUser.id));
+        console.log(`[Auth] Akun pertama (${firstUser.email}) ditetapkan sebagai admin default.`);
+      }
+    }
+  } catch (error: any) {
+    console.warn("[Auth] Gagal memeriksa status admin akun pertama:", error?.message || error);
+  }
+}
+
 if (process.env.NODE_ENV !== "test") {
   await runAutoMigrations();
+  await ensureFirstUserIsAdmin();
 
   expireLicenses();
   setInterval(expireLicenses, 10 * 60 * 1000); // 10 menit (was 5 menit)

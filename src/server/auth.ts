@@ -67,6 +67,24 @@ export const auth = betterAuth({
       secure: config.useSecureCookies,
     },
   },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (userRecord) => {
+          // Akun pertama yang didaftarkan di sistem otomatis menjadi admin default
+          const [existingUser] = await db.select({ id: user.id }).from(user).limit(1);
+          const isFirstUser = !existingUser;
+          return {
+            data: {
+              ...userRecord,
+              role: isFirstUser ? "admin" : userRecord.role || "user",
+              ...(isFirstUser ? { emailVerified: true } : {}),
+            },
+          };
+        },
+      },
+    },
+  },
   plugins: [admin()],
   ...(verifyEmailEnabled
     ? {

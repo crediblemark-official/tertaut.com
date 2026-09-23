@@ -28,17 +28,21 @@ import { randomBytes } from "crypto";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../routes/apps/api-key";
 import type { DeliveryConfig } from "../db/schema/apps";
 
+/**
+ * Satu-satunya akun default: milik pemilik platform.
+ * - DB baru / fresh install: akun dibuat dengan password default di bawah.
+ * - DB yang sudah memiliki akun ini: password TIDAK direset (tetap milik pemilik),
+ *   hanya role dinaikkan ke "admin" + emailVerified:true.
+ */
 const ADMIN_CREDENTIALS = {
-  name: "Super Admin (Tertaut)",
-  email: "admin@tertaut.com",
+  name: "Platform Tertaut",
+  email: "platformtertaut@gmail.com",
   password: "AdminPassword123!",
 };
 
-const SECONDARY_BUILDER = {
-  name: "Ahmad Rizky (Solo Founder)",
-  email: "ahmad.builder@tertaut.com",
-  password: "AdminPassword123!",
-};
+// Email akun default dari versi seed lama — dihapus agar tidak ada akun
+// admin/builder sisa yang tidak diinginkan setelah migrasi default account.
+const LEGACY_DEFAULT_EMAILS = ["admin@tertaut.com", "ahmad.builder@tertaut.com"];
 
 const APPS = [
   {
@@ -266,7 +270,16 @@ export async function seed() {
   await db.delete(apps);
   await db.delete(builders);
 
-  // 2. Setup Super Admin & Builder Users
+  // 2. Setup Super Admin — SATU-SATUNYA akun default
+  // Hapus akun default lama (bila ada) agar tidak ada admin "hantu" yang tersisa.
+  for (const legacyEmail of LEGACY_DEFAULT_EMAILS) {
+    const [legacy] = await db.select().from(user).where(eq(user.email, legacyEmail));
+    if (legacy) {
+      await db.delete(user).where(eq(user.id, legacy.id));
+      console.log(`🧹 Akun default lama dihapus: ${legacyEmail}`);
+    }
+  }
+
   let [adminUser] = await db.select().from(user).where(eq(user.email, ADMIN_CREDENTIALS.email));
   if (!adminUser) {
     await auth.api.signUpEmail({
@@ -278,36 +291,16 @@ export async function seed() {
     });
     [adminUser] = await db.select().from(user).where(eq(user.email, ADMIN_CREDENTIALS.email));
   }
-  // emailVerified: true — admin dibuat langsung (bukan lewat alur verifikasi email),
-  // sehingga akun selalu bisa login meski requireEmailVerification aktif.
+  // emailVerified: true + role admin — akun dibuat/dipromosikan langsung (bukan lewat
+  // alur verifikasi email), sehingga selalu bisa login walau requireEmailVerification aktif.
+  // CATATAN: password akun yang SUDAH ADA tidak pernah direset — tetap milik pemilik.
   await db
     .update(user)
     .set({ role: "admin", emailVerified: true })
     .where(eq(user.email, ADMIN_CREDENTIALS.email));
   console.log(`✅ Super Admin terverifikasi: ${ADMIN_CREDENTIALS.email} (role: admin)`);
 
-  // Secondary Builder User (Ahmad Rizky)
-  let [secondaryUser] = await db.select().from(user).where(eq(user.email, SECONDARY_BUILDER.email));
-  if (!secondaryUser) {
-    try {
-      await auth.api.signUpEmail({
-        body: {
-          email: SECONDARY_BUILDER.email,
-          password: SECONDARY_BUILDER.password,
-          name: SECONDARY_BUILDER.name,
-        },
-      });
-      [secondaryUser] = await db.select().from(user).where(eq(user.email, SECONDARY_BUILDER.email));
-    } catch {}
-  }
-  if (secondaryUser) {
-    await db
-      .update(user)
-      .set({ emailVerified: true })
-      .where(eq(user.email, SECONDARY_BUILDER.email));
-  }
-
-  // 3. Profil Builder Utama (admin@tertaut.com memiliki profil builder sehingga dashboard langsung terisi)
+  // 3. Profil Builder Utama (platformtertaut@gmail.com — dashboard langsung terisi)
   const [primaryBuilder] = await db
     .insert(builders)
     .values({
@@ -324,23 +317,6 @@ export async function seed() {
     })
     .returning();
   console.log(`✅ Primary Builder: ${primaryBuilder.name} (${primaryBuilder.email})`);
-
-  // Builder Tambahan jika ada akun secondaryUser
-  if (secondaryUser) {
-    await db.insert(builders).values({
-      userId: secondaryUser.id,
-      name: SECONDARY_BUILDER.name,
-      email: SECONDARY_BUILDER.email,
-      apiKey: `tt_live_${randomBytes(16).toString("hex")}`,
-      secretApiKey: generateBuilderSecretApiKey(),
-      disbursementAccount: {
-        bankCode: "MANDIRI",
-        accountNumber: "1230009876543",
-        accountHolderName: SECONDARY_BUILDER.name,
-      },
-    });
-    console.log(`✅ Secondary Builder: ${SECONDARY_BUILDER.name} (${SECONDARY_BUILDER.email})`);
-  }
 
   // 4. Aplikasi Unggulan (Flagship Showcase Apps)
   const seededApps = await db

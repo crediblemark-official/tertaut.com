@@ -30,6 +30,7 @@ export type AuthResult =
  * Digunakan oleh authenticate(), macro requireAdmin, resolveCurrentBuilder,
  * dan route handler lain — supaya tidak ada definisi admin yang berbeda-beda.
  *
+ * Akun admin default adalah akun pertama yang didaftarkan (otomatis ber-role "admin").
  * Admin = role DB "admin" ATAU email tercantum di env ADMIN_EMAIL (override opsional).
  */
 export function isAdminUser(user: { role?: string | null; email?: string | null }): boolean {
