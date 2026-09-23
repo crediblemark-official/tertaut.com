@@ -2,7 +2,7 @@
 
 > 📚 Referensi teknis spesifikasi API resmi DANA (Create Order, Finish Notify, X-SIGNATURE SNAP, Disbursement flow) + gap analysis implementasi: lihat **[DANA_API_REFERENCE_2026-09-21.md](./DANA_API_REFERENCE_2026-09-21.md)**.
 
-Dokumen ini menjelaskan arsitektur, konfigurasi, dan alur operasional integrasi Payment Gateway resmi **DANA Enterprise** pada **tertaut.com** menggunakan SDK resmi `@dana-node` versi 2.2.2. Implementasi legacy Xendit telah sepenuhnya dihapus dan digantikan secara permanen oleh DANA Enterprise sebagai *single, unified payment gateway engine*.
+Dokumen ini menjelaskan arsitektur, konfigurasi, dan alur operasional integrasi Payment Gateway resmi **DANA Enterprise** pada **tertaut.com** menggunakan SDK resmi `@dana-node` versi 2.2.2. Implementasi legacy Xendit telah sepenuhnya dihapus dan digantikan secara permanen oleh DANA Enterprise sebagai _single, unified payment gateway engine_.
 
 ---
 
@@ -10,15 +10,16 @@ Dokumen ini menjelaskan arsitektur, konfigurasi, dan alur operasional integrasi 
 
 Saat melakukan pendaftaran atau integrasi di **DANA Enterprise Dashboard (Production)** pada bagian **Endpoint URLs Initialization**, isikan endpoint resmi berikut:
 
-| Field di Form DANA | URL yang Diisikan | Keterangan & Tujuan |
-| :--- | :--- | :--- |
-| **Finish Payment URL** | `https://tertaut.com/v1.0/debit/notify` *(atau `/webhook/dana/finish-payment`)* | DANA memanggil webhook ini ketika pembeli berhasil menyelesaikan transaksi (*SNAP BI Debit Notify / DANA Finish Notify API*). Server merespons `2005600 Successful`, memotong 5% MoR platform fee, dan otomatis menerbitkan lisensi universal (`TT-XXXX-XXXX-XXXX`). |
-| **Disburse to Bank Notify URL** | `https://tertaut.com/v1.0/emoney/transfer-bank-notify.htm` *(atau `/webhook/dana/disburse-notify`)* | DANA memanggil notifikasi ini ketika proses pencairan dana (*SNAP BI Transfer to Bank Notify API*) ke rekening bank builder selesai untuk mengupdate status ke `COMPLETED`. |
-| **Finish Redirect URL** | `https://tertaut.com/checkout/dana/finish` | Halaman redirect browser pembeli setelah menyelesaikan pembayaran di aplikasi atau Web Checkout DANA. Pembeli akan diarahkan ke portal lisensi atau redirect URL milik builder. |
+| Field di Form DANA              | URL yang Diisikan                                                                                   | Keterangan & Tujuan                                                                                                                                                                                                                                                  |
+| :------------------------------ | :-------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Finish Payment URL**          | `https://tertaut.com/v1.0/debit/notify` _(atau `/webhook/dana/finish-payment`)_                     | DANA memanggil webhook ini ketika pembeli berhasil menyelesaikan transaksi (_SNAP BI Debit Notify / DANA Finish Notify API_). Server merespons `2005600 Successful`, memotong 5% MoR platform fee, dan otomatis menerbitkan lisensi universal (`TT-XXXX-XXXX-XXXX`). |
+| **Disburse to Bank Notify URL** | `https://tertaut.com/v1.0/emoney/transfer-bank-notify.htm` _(atau `/webhook/dana/disburse-notify`)_ | DANA memanggil notifikasi ini ketika proses pencairan dana (_SNAP BI Transfer to Bank Notify API_) ke rekening bank builder selesai untuk mengupdate status ke `COMPLETED`.                                                                                          |
+| **Finish Redirect URL**         | `https://tertaut.com/checkout/dana/finish`                                                          | Halaman redirect browser pembeli setelah menyelesaikan pembayaran di aplikasi atau Web Checkout DANA. Pembeli akan diarahkan ke portal lisensi atau redirect URL milik builder.                                                                                      |
 
 > **Catatan:**
-> * Backend `tertautv2` mendukung kedua format path sekaligus (standar regulasi SNAP BI Bank Indonesia `/v1.0/...` maupun modular `/webhook/dana/...`).
-> * Seluruh alur divalidasi dengan test suite 348 tests passing di runtime Bun 1.4.2.
+>
+> - Backend `tertautv2` mendukung kedua format path sekaligus (standar regulasi SNAP BI Bank Indonesia `/v1.0/...` maupun modular `/webhook/dana/...`).
+> - Seluruh alur divalidasi dengan test suite 348 tests passing di runtime Bun 1.4.2.
 
 ---
 
@@ -30,23 +31,62 @@ Seluruh konfigurasi gateway dikontrol via variabel environment di `.env`:
 # Payment Gateway Engine
 PAYMENT_GATEWAY=dana
 
-# Kredensial DANA Enterprise Production (dashboard.dana.id)
+# Kredensial Resmi DANA Enterprise Production (Diterima via Email 23 September 2026)
 DANA_ENV=production
 DANA_MERCHANT_ID=216620090021032077318
 DANA_CLIENT_ID=2026092111025202221544
-DANA_CLIENT_SECRET=
+DANA_CLIENT_SECRET=00b18d19398bcd9ddad4b0792a0bdeaf5f2d70ee65c8359d4066a933515a5
 DANA_BASE_URL=https://api.saas.dana.id
 DANA_ORIGIN=https://api.saas.dana.id
 
-# RSA Key Pairs (PILIH SALAH SATU):
-# Rekomendasi Dokploy / Docker / Cloud (Single-Line Base64):
-DANA_PRIVATE_KEY_BASE64=LS0tLS1CRUdJTi...
-DANA_PUBLIC_KEY_BASE64=LS0tLS1CRUdJTi...
+# RSA Key Pairs:
+# File PEM (Default Lokal/VPS):
+DANA_PRIVATE_KEY=keys/dana_production_private.pem
+DANA_PUBLIC_KEY=keys/dana_production_public.pem
 
-# Alternatif Local Development (Path File PEM):
-# DANA_PRIVATE_KEY=keys/dana_production_private.pem
-# DANA_PUBLIC_KEY=keys/dana_production_public.pem
+# Atau Single-Line Base64 (Rekomendasi Dokploy / Docker Container):
+# DANA_PRIVATE_KEY_BASE64=<output bun run keys:encode>
+# DANA_PUBLIC_KEY_BASE64=<DANA Public Key dari DANA Merchant Services>
 ```
+
+---
+
+## 2.1 SOP Registrasi Kunci & Webhook Production ke DANA
+
+### A. Arsitektur Kunci Kriptografi RSA DANA Production
+
+Pada lingkungan Production, DANA menganut standar keamanan finansial BI SNAP & PCI-DSS:
+
+1. **Private Key TIDAK PERNAH dibuat atau dikirimkan oleh DANA**. Private Key adalah rahasia merchant yang disimpan secara aman di server `tertautv2` (`keys/dana_production_private.pem`).
+2. **Merchant Public Key (`keys/dana_production_public.pem`)** di-generate oleh merchant dan didaftarkan ke DANA untuk memvalidasi tanda tangan digital (_signature_) setiap API call keluar dari Tertaut.
+3. **DANA Public Key** diberikan oleh DANA kepada Tertaut untuk memverifikasi keaslian signature webhook notifikasi yang dikirimkan oleh DANA.
+
+### B. Prosedur Pendaftaran via Email (`merchant.services@dana.id`)
+
+Karena Dashboard DANA Enterprise Production (`dashboard.dana.id`) tidak menyediakan form mandiri untuk upload Public Key (menu _Developers_ hanya memuat tautan dokumentasi), pendaftaran dilakukan melalui korespondensi resmi ke Tim Merchant Services DANA:
+
+- **Tujuan Email:** `merchant.services@dana.id`
+- **Subjek:** `Registrasi Merchant Public Key & Webhook URL Production - PT RETAS LINTAS BATAS (Crediblemark) - MID: 216620090021032077318`
+- **Data yang Dikirimkan:**
+  - Merchant ID: `216620090021032077318`
+  - Client ID: `2026092111025202221544`
+  - Webhook Finish Payment: `https://tertaut.com/webhook/dana/finish-payment` (atau `https://tertaut.com/v1.0/debit/notify`)
+  - Webhook Disburse: `https://tertaut.com/webhook/dana/disburse-notify` (atau `https://tertaut.com/v1.0/emoney/transfer-bank-notify.htm`)
+  - Merchant Public Key (RSA 2048-bit):
+    ```text
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn7E/18nPmOeCKgAxqnhZ
+    7ID8vmE0B3iGTMjM/QM0lSgVeqHuXuROv00K6KLHnt1IyT45kZERtTL6NVuE7Wf/
+    2IDZG5wAaSoUz4rKVy7A5WVZiS4WIRhZe3Qc6SoLYjmd0TUXouQmn2yLwxen7wlZ
+    N9VbLcg0+QZeeOGhSepW2UIx5XEKbUYhoRyg4ybqcrxUaU0bi4vsxcuZhWo2QV8o
+    0uxtZNwn16nxH5neDRR+lelzf9DbcFsapEtV3qy0QsofNEKrcTsduhnOasNmjxaU
+    /nQ1MHHLj/GSH+XNCUk3M8aAjU1Flw1RYHj2CO3AkQErV5jJQiDm0o/4JaEEpGdF
+    hQIDAQAB
+    -----END PUBLIC KEY-----
+    ```
+- **Hal yang Diminta ke DANA:**
+  1. Registrasi Merchant Public Key & Webhook URL pada sistem Production DANA.
+  2. DANA Public Key Production untuk verifikasi signature webhook.
 
 ---
 
@@ -88,8 +128,9 @@ DANA_PUBLIC_KEY_BASE64=LS0tLS1CRUdJTi...
 ## 4. Spesifikasi API & Webhook DANA
 
 ### A. Finish Payment Webhook
-* **Endpoint:** `POST /webhook/dana/finish-payment` (atau `POST /api/v1/webhook/dana/finish-payment`)
-* **Payload DANA:**
+
+- **Endpoint:** `POST /webhook/dana/finish-payment` (atau `POST /api/v1/webhook/dana/finish-payment`)
+- **Payload DANA:**
   ```json
   {
     "merchantTransId": "tt_app_1789588641732",
@@ -101,7 +142,7 @@ DANA_PUBLIC_KEY_BASE64=LS0tLS1CRUdJTi...
     "paymentChannel": "DANA_WALLET"
   }
   ```
-* **Respons Sistem (Sesuai DANA Standard Spec):**
+- **Respons Sistem (Sesuai DANA Standard Spec):**
   ```json
   {
     "responseCode": "2005600",
@@ -112,15 +153,16 @@ DANA_PUBLIC_KEY_BASE64=LS0tLS1CRUdJTi...
   ```
 
 ### B. Disburse to Bank Notify Webhook
-* **Endpoint:** `POST /webhook/dana/disburse-notify` (atau `POST /api/v1/webhook/dana/disburse-notify`)
-* **Payload DANA:**
+
+- **Endpoint:** `POST /webhook/dana/disburse-notify` (atau `POST /api/v1/webhook/dana/disburse-notify`)
+- **Payload DANA:**
   ```json
   {
     "partnerReferenceNo": "tt_app_1789588641732",
     "status": "SUCCESS"
   }
   ```
-* **Efek:** Memperbarui kolom `disbursement_status` pada tabel `transactions` menjadi `COMPLETED`.
+- **Efek:** Memperbarui kolom `disbursement_status` pada tabel `transactions` menjadi `COMPLETED`.
 
 ---
 
@@ -136,39 +178,42 @@ DANA_PUBLIC_KEY_BASE64=LS0tLS1CRUdJTi...
 Integrasi DANA Enterprise & SNAP Bank Indonesia di lingkungan Sandbox telah berhasil diselesaikan secara komprehensif pada sesi ini:
 
 ### A. Hasil Pengujian Skenario UAT (100% Verified - 60/60 Skenario)
+
 Seluruh skenario pengujian di DANA Sandbox Dashboard (`dashboard.dana.id/sandbox/golive`) telah dinyatakan **Lulus (Completed)**:
 
 1. **Disburse to Bank (7 dari 7 Skenario - 100%):**
-   * **Bank Account Inquiry:** Pengujian respon sukses (`2001800`), akun tidak ditemukan (`4041812`), dan format parameter tidak valid (`4001802`).
-   * **Transfer to Bank:** Pengujian transfer sukses (`2001800`), saldo merchant tidak mencukupi (`4031802`), dan duplikasi referensi partner (`4091800`).
-   * **Transfer to Bank Inquiry Status:** Pengujian pengecekan status akhir transaksi pencairan (`2001800`).
+   - **Bank Account Inquiry:** Pengujian respon sukses (`2001800`), akun tidak ditemukan (`4041812`), dan format parameter tidak valid (`4001802`).
+   - **Transfer to Bank:** Pengujian transfer sukses (`2001800`), saldo merchant tidak mencukupi (`4031802`), dan duplikasi referensi partner (`4091800`).
+   - **Transfer to Bank Inquiry Status:** Pengujian pengecekan status akhir transaksi pencairan (`2001800`).
 
 2. **Payment Gateway (Mandatory & Additional Scenarios - 100%):**
-   * **Consult Pay (3 Skenario):** Permintaan metode pembayaran sukses (`2005700`), invalid field (`4000001`), dan invalid signature.
-   * **Create Order & Webhook E2E:** Pembuatan order host-to-host SNAP BI dan simulasi pembayaran browser otomatis (via runner Playwright).
-   * **Debit Status (7 Skenario):** Pengecekan status transaksi pembayaran (sukses, pending, expired, refund).
-   * **Cancel Order (11 Skenario):** Pembatalan pesanan pembayaran aktif.
-   * **Refund Order (12 Skenario):** Pengembalian dana transaksi (full & partial refund).
-   * **Finish Notify Webhook (`POST /v1.0/debit/notify`):**
-     * Sukses notifikasi transaksi (`2005600`) dengan nominal Rp 11.011 (status `00`).
-     * Unauthorized signature handling (`4015600`).
-     * Internal server error simulasi (`5005601`) dengan nominal Rp 11.012.
+   - **Consult Pay (3 Skenario):** Permintaan metode pembayaran sukses (`2005700`), invalid field (`4000001`), dan invalid signature.
+   - **Create Order & Webhook E2E:** Pembuatan order host-to-host SNAP BI dan simulasi pembayaran browser otomatis (via runner Playwright).
+   - **Debit Status (7 Skenario):** Pengecekan status transaksi pembayaran (sukses, pending, expired, refund).
+   - **Cancel Order (11 Skenario):** Pembatalan pesanan pembayaran aktif.
+   - **Refund Order (12 Skenario):** Pengembalian dana transaksi (full & partial refund).
+   - **Finish Notify Webhook (`POST /v1.0/debit/notify`):**
+     - Sukses notifikasi transaksi (`2005600`) dengan nominal Rp 11.011 (status `00`).
+     - Unauthorized signature handling (`4015600`).
+     - Internal server error simulasi (`5005601`) dengan nominal Rp 11.012.
 
 ---
 
 ### B. Penandatanganan Dokumen UAT Sign-Off Report (Step 2 - Completed)
-* **Status:** **Completed** (Dokumen resmi telah ditandatangani secara digital via PrivyID pada **17 September 2026 08:56 WIB**).
-* **Data Perwakilan yang Digunakan:**
-  * **Badan Usaha:** PT Retas Lintas Batas
-  * **IT Representative Name:** Rasyiqi
-  * **IT Representative Email:** `crediblemarkofficial@gmail.com`
-  * **IT Representative Title:** Developer
+
+- **Status:** **Completed** (Dokumen resmi telah ditandatangani secara digital via PrivyID pada **17 September 2026 08:56 WIB**).
+- **Data Perwakilan yang Digunakan:**
+  - **Badan Usaha:** PT Retas Lintas Batas
+  - **IT Representative Name:** Rasyiqi
+  - **IT Representative Email:** `crediblemarkofficial@gmail.com`
+  - **IT Representative Title:** Developer
 
 ---
 
 ### C. Status ASPI Devsite Setup (Step 3 - In Progress)
-* **Status Saat Ini:** **"Uji Devsite in Progress"** (Required by Bank Indonesia under SNAP).
-* **Keterangan:** Akun ASPI `crediblemarkofficial@gmail.com` telah berhasil dihubungkan ke dashboard DANA. Pengujian devsite sedang berjalan secara otomatis di background server DANA & ASPI (*No further action required*).
+
+- **Status Saat Ini:** **"Uji Devsite in Progress"** (Required by Bank Indonesia under SNAP).
+- **Keterangan:** Akun ASPI `crediblemarkofficial@gmail.com` telah berhasil dihubungkan ke dashboard DANA. Pengujian devsite sedang berjalan secara otomatis di background server DANA & ASPI (_No further action required_).
 
 ---
 
@@ -177,8 +222,9 @@ Seluruh skenario pengujian di DANA Sandbox Dashboard (`dashboard.dana.id/sandbox
 Pada dashboard DANA Enterprise di menu **Pengajuan Production**, formulir berikut telah disiapkan dan diverifikasi:
 
 ### A. Production Key (RSA 2048-bit)
-* **Pasangan Kunci Telah Dibuat:** Disimpan di direktori lokal `keys/` (terproteksi otomatis di `.gitignore`).
-* **Public Key (Dimasukkan ke Form DANA):**
+
+- **Pasangan Kunci Telah Dibuat:** Disimpan di direktori lokal `keys/` (terproteksi otomatis di `.gitignore`).
+- **Public Key (Dimasukkan ke Form DANA):**
   ```text
   -----BEGIN PUBLIC KEY-----
   MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn7E/18nPmOeCKgAxqnhZ
@@ -190,7 +236,7 @@ Pada dashboard DANA Enterprise di menu **Pengajuan Production**, formulir beriku
   hQIDAQAB
   -----END PUBLIC KEY-----
   ```
-* **Private Key (Disimpan untuk Server):** `keys/dana_production_private.pem`. File ini nanti dimasukkan ke variabel `DANA_PRIVATE_KEY` di server production.
+- **Private Key (Disimpan untuk Server):** `keys/dana_production_private.pem`. File ini nanti dimasukkan ke variabel `DANA_PRIVATE_KEY` di server production.
 
 ---
 
@@ -198,11 +244,11 @@ Pada dashboard DANA Enterprise di menu **Pengajuan Production**, formulir beriku
 
 Ketiga URL telah diuji secara lokal dan terbukti berfungsi dengan baik:
 
-| Field di Form DANA | Nilai Endpoint | Status Pengujian |
-| :--- | :--- | :---: |
-| **URL Finish Payment** | `https://tertaut.com/v1.0/debit/notify` | ✅ HTTP 200 OK |
-| **URL Disbursement Notify** | `https://tertaut.com/v1.0/emoney/transfer-bank-notify.htm` | ✅ HTTP 200 OK |
-| **URL Finish Redirect** | `https://tertaut.com/checkout/dana/finish` | ✅ HTTP 200 OK |
+| Field di Form DANA          | Nilai Endpoint                                             | Status Pengujian |
+| :-------------------------- | :--------------------------------------------------------- | :--------------: |
+| **URL Finish Payment**      | `https://tertaut.com/v1.0/debit/notify`                    |  ✅ HTTP 200 OK  |
+| **URL Disbursement Notify** | `https://tertaut.com/v1.0/emoney/transfer-bank-notify.htm` |  ✅ HTTP 200 OK  |
+| **URL Finish Redirect**     | `https://tertaut.com/checkout/dana/finish`                 |  ✅ HTTP 200 OK  |
 
 ---
 
@@ -244,6 +290,7 @@ Sesuai persyaratan verifikasi produksi DANA Enterprise, dokumen pilot testing te
 📁 **File Zip:** `/media/rasyiqi/7653717A1C07B131/tertautv2/pilot_testing_filled.zip`
 
 ### Isi Dokumen:
+
 1. **`Pilot Testing - Gapura (Payment Gateway).xlsx`**:
    - **Scenario 1:** `Payment (Using Virtual Account)` — SNAP BI Host-to-Host `/payment-gateway/v1.0/debit/payment-host-to-host.htm` (Response: 2005400 Successful).
    - **Scenario 2:** `Payment (Using DANA Balance)` — SNAP BI Host-to-Host (Response: 2005400 Successful, Redirect URL ter-generate).
@@ -252,10 +299,10 @@ Sesuai persyaratan verifikasi produksi DANA Enterprise, dokumen pilot testing te
    - **Scenario 1:** `Transfer To Bank` — SNAP BI `/v1.0/emoney/transfer-bank.htm` (Bank BCA, Response: 2004300 Successful).
 
 ### Panduan Submit di Dashboard DANA:
+
 1. Masuk ke **DANA Dashboard** (`https://dashboard.dana.id/app/merchant/online-integration`).
 2. Buka menu **Verifikasi Test Prod E2E**.
 3. Klik **Upload Dokumen Pilot Testing** dan pilih file `pilot_testing_filled.zip`.
 4. Pada field **APK/URL Production**, isikan:
    `https://tertaut.com`
 5. Klik tombol **Submit** untuk memulai verifikasi akhir oleh tim QA DANA.
-

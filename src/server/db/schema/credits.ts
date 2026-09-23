@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { apps } from "./apps";
 import { licenses } from "./licenses";
 
@@ -32,6 +32,7 @@ export const creditLedger = pgTable(
     index("idx_credit_ledger_license_id").on(table.licenseId, table.createdAt),
     index("idx_credit_ledger_app_id").on(table.appId),
     index("idx_credit_ledger_customer_email").on(table.customerEmail),
+    uniqueIndex("uniq_credit_ledger_license_ref").on(table.licenseId, table.reference),
   ]
 );
 

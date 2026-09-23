@@ -55,3 +55,4 @@ keys/
 # Archives & Temporary Test Artifacts
 *.zip
 pilot_testing/
+coverage/

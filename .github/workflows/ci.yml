@@ -22,14 +22,15 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Typecheck Server
-        run: bun run build:server
+      - name: Code Formatting Check (Prettier)
+        run: bun run lint
 
-      - name: Typecheck Client (vue-tsc)
-        run: bunx vue-tsc -p src/client/tsconfig.json
+      - name: Typecheck (Server & Client)
+        run: bun run typecheck
 
       - name: Build Docs
         run: bun run build:docs
+
 
   test:
     name: Integration & Unit Tests
@@ -79,5 +80,6 @@ jobs:
       - name: Seed Database
         run: bun run db:seed
 
-      - name: Run Test Suite
-        run: bun run test
+      - name: Run Test Suite with Coverage
+        run: bun run test:coverage
+

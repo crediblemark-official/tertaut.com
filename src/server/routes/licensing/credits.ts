@@ -6,10 +6,10 @@ import { CreditService } from "../../services/credits";
 import { AuditService } from "../../services/audit";
 import { WebhookService } from "../../services/webhooks";
 import { enforceRateLimit } from "../../services/rateLimiter";
+import { getClientIp } from "../../lib/ip";
 
 export type LicenseAuthResult =
-  | { ok: true; license: any }
-  | { ok: false; status: number; reason: string; message: string };
+  { ok: true; license: any } | { ok: false; status: number; reason: string; message: string };
 
 /**
  * Bukti kepemilikan untuk endpoint kredit: lisensi harus ACTIVE & belum kedaluwarsa.
@@ -25,25 +25,35 @@ export async function authorizeLicense(
   });
 
   if (!lic) {
-    return { ok: false, status: 404, reason: "LICENSE_NOT_FOUND", message: "License key not found" };
+    return {
+      ok: false,
+      status: 404,
+      reason: "LICENSE_NOT_FOUND",
+      message: "License key not found",
+    };
   }
 
   if (lic.status !== "ACTIVE") {
-    return { ok: false, status: 403, reason: `LICENSE_${lic.status}`, message: `License is ${lic.status}` };
+    return {
+      ok: false,
+      status: 403,
+      reason: `LICENSE_${lic.status}`,
+      message: `License is ${lic.status}`,
+    };
   }
 
-  const now = new Date();
-  if (lic.expiresAt && lic.expiresAt < now) {
-    await db
-      .update(licenses)
-      .set({ status: "EXPIRED", updatedAt: now })
-      .where(eq(licenses.id, lic.id));
+  if (await LicenseService.checkAndMarkExpired(lic)) {
     return { ok: false, status: 403, reason: "LICENSE_EXPIRED", message: "License has expired" };
   }
 
   if (requireHwid || hwid) {
     if (!hwid) {
-      return { ok: false, status: 400, reason: "HWID_REQUIRED", message: "hwid wajib untuk operasi ini" };
+      return {
+        ok: false,
+        status: 400,
+        reason: "HWID_REQUIRED",
+        message: "hwid wajib untuk operasi ini",
+      };
     }
     const lookupHashes = LicenseService.hwidLookupHashes(hwid);
     const activation = await db.query.licenseActivations.findFirst({
@@ -115,10 +125,7 @@ export async function handleConsumeCredits({ body, set, request }: any) {
 
   if (!result.ok) {
     if (result.reason === "INSUFFICIENT_CREDITS") {
-      const ipAddress =
-        request?.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() ||
-        request?.headers?.get?.("x-real-ip") ||
-        null;
+      const ipAddress = getClientIp(request);
       await WebhookService.emit("credits.insufficient", {
         license: auth.license,
         actorType: "CLIENT",
@@ -126,14 +133,18 @@ export async function handleConsumeCredits({ body, set, request }: any) {
         ipAddress,
         payload: { amount, requestedBy: reason || null, balance: result.balance },
       });
-      await AuditService.record("credits.insufficient", {
-        licenseId: auth.license.id,
-        licenseKey: auth.license.licenseKey,
-        appId: auth.license.appId,
-        actorType: "CLIENT",
-        actorId: hwid,
-        ipAddress,
-      }, { amount, balance: result.balance, reference });
+      await AuditService.record(
+        "credits.insufficient",
+        {
+          licenseId: auth.license.id,
+          licenseKey: auth.license.licenseKey,
+          appId: auth.license.appId,
+          actorType: "CLIENT",
+          actorId: hwid,
+          ipAddress,
+        },
+        { amount, balance: result.balance, reference }
+      );
     }
     set.status = result.reason === "INSUFFICIENT_CREDITS" ? 402 : 404;
     return { success: false, reason: result.reason, balance: result.balance };

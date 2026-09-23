@@ -5,6 +5,7 @@ import { eq, and, desc, gte, isNotNull, sql, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { authenticate } from "../../middleware/auth";
 import { resolveCurrentBuilder } from "../apps/builder";
+import { verifyOwnedApp, verifyOwnedCoupon } from "../../lib/ownership";
 
 /**
  * Manajemen Kupon Diskon (Modul 1: Monetization)
@@ -33,7 +34,12 @@ export const couponRoutes = new Elysia({ prefix: "/coupons" })
         if (builderApps.length === 0) {
           return { success: true, count: 0, coupons: [] };
         }
-        conditions.push(inArray(coupons.appId, builderApps.map((a) => a.id)));
+        conditions.push(
+          inArray(
+            coupons.appId,
+            builderApps.map((a) => a.id)
+          )
+        );
       }
 
       if (query.appId) {
@@ -46,7 +52,12 @@ export const couponRoutes = new Elysia({ prefix: "/coupons" })
         if (appRows.length === 0) {
           return { success: true, count: 0, coupons: [] };
         }
-        conditions.push(inArray(coupons.appId, appRows.map((a) => a.id)));
+        conditions.push(
+          inArray(
+            coupons.appId,
+            appRows.map((a) => a.id)
+          )
+        );
       }
 
       const rows = await db.query.coupons.findMany({
@@ -125,7 +136,12 @@ export const couponRoutes = new Elysia({ prefix: "/coupons" })
             topCoupons: [],
           };
         }
-        scopeFilters.push(inArray(transactions.appId, appRows.map((a) => a.id)));
+        scopeFilters.push(
+          inArray(
+            transactions.appId,
+            appRows.map((a) => a.id)
+          )
+        );
       }
 
       const txFilter = and(...scopeFilters);
@@ -183,7 +199,8 @@ export const couponRoutes = new Elysia({ prefix: "/coupons" })
       detail: {
         tags: ["MoR Checkout"],
         summary: "Coupon Redemption Stats",
-        description: "Daily redemption counts, total discount granted, and top coupons over the last N days.",
+        description:
+          "Daily redemption counts, total discount granted, and top coupons over the last N days.",
       },
     }
   )
@@ -193,8 +210,23 @@ export const couponRoutes = new Elysia({ prefix: "/coupons" })
    */
   .post(
     "/",
-    async ({ body, set }) => {
+    async ({ body, request: { headers }, set }) => {
       const { appId, code, discountPercent, maxRedemptions = 0, expiresAt } = body;
+      const { builder, isAdmin } = await resolveCurrentBuilder(headers);
+
+      if (!isAdmin && !builder) {
+        set.status = 401;
+        return { success: false, error: "Unauthorized" };
+      }
+
+      // IDOR-5: Validasi kepemilikan appId oleh builder
+      if (!isAdmin && builder) {
+        const owned = await verifyOwnedApp(builder.id, appId, isAdmin);
+        if ("error" in owned) {
+          set.status = owned.status;
+          return { success: false, error: owned.error };
+        }
+      }
 
       const app = await db.query.apps.findFirst({ where: eq(apps.id, appId) });
       if (!app) {
@@ -207,7 +239,8 @@ export const couponRoutes = new Elysia({ prefix: "/coupons" })
         set.status = 400;
         return {
           success: false,
-          error: "Kode kupon hanya boleh huruf, angka, tanda hubung, atau underscore (3-32 karakter).",
+          error:
+            "Kode kupon hanya boleh huruf, angka, tanda hubung, atau underscore (3-32 karakter).",
         };
       }
 
@@ -260,7 +293,23 @@ export const couponRoutes = new Elysia({ prefix: "/coupons" })
    */
   .patch(
     "/:couponId",
-    async ({ params: { couponId }, body, set }) => {
+    async ({ params: { couponId }, body, request: { headers }, set }) => {
+      const { builder, isAdmin } = await resolveCurrentBuilder(headers);
+
+      if (!isAdmin && !builder) {
+        set.status = 401;
+        return { success: false, error: "Unauthorized" };
+      }
+
+      // IDOR-5: Validasi kepemilikan kupon oleh builder
+      if (!isAdmin && builder) {
+        const owned = await verifyOwnedCoupon(builder.id, couponId, isAdmin);
+        if ("error" in owned) {
+          set.status = owned.status;
+          return { success: false, error: owned.error };
+        }
+      }
+
       const updateData: Record<string, unknown> = { updatedAt: new Date() };
       if (body.isActive !== undefined) updateData.isActive = body.isActive;
       if (body.maxRedemptions !== undefined) updateData.maxRedemptions = body.maxRedemptions;
@@ -296,11 +345,24 @@ export const couponRoutes = new Elysia({ prefix: "/coupons" })
    */
   .delete(
     "/:couponId",
-    async ({ params: { couponId }, set }) => {
-      const [deleted] = await db
-        .delete(coupons)
-        .where(eq(coupons.id, couponId))
-        .returning();
+    async ({ params: { couponId }, request: { headers }, set }) => {
+      const { builder, isAdmin } = await resolveCurrentBuilder(headers);
+
+      if (!isAdmin && !builder) {
+        set.status = 401;
+        return { success: false, error: "Unauthorized" };
+      }
+
+      // IDOR-5: Validasi kepemilikan kupon oleh builder
+      if (!isAdmin && builder) {
+        const owned = await verifyOwnedCoupon(builder.id, couponId, isAdmin);
+        if ("error" in owned) {
+          set.status = owned.status;
+          return { success: false, error: owned.error };
+        }
+      }
+
+      const [deleted] = await db.delete(coupons).where(eq(coupons.id, couponId)).returning();
 
       if (!deleted) {
         set.status = 404;

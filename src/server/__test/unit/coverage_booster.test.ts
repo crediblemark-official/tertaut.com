@@ -2,7 +2,16 @@ import { describe, it, expect, beforeAll } from "bun:test";
 import { setupTestAuth, authCookie } from "../setup";
 import { app } from "../../index";
 import { db } from "../../db";
-import { builders, apps, licenses, coupons, transactions, user, webhookEndpoints, licenseLeases } from "../../db/schema";
+import {
+  builders,
+  apps,
+  licenses,
+  coupons,
+  transactions,
+  user,
+  webhookEndpoints,
+  licenseLeases,
+} from "../../db/schema";
 import { resolveCurrentBuilder, seedSandboxBuilderIfNeeded } from "../../routes/apps/builder";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
 import { auth } from "../../auth";
@@ -10,8 +19,13 @@ import { enforceRateLimit, resetRateLimits } from "../../services/rateLimiter";
 import { LicenseLeaseService } from "../../services/licenseLease";
 import { LicenseService } from "../../services/license";
 import { DanaService } from "../../services/dana";
-import { handleListSeats, handleHeartbeat, handleVerifyLicense } from "../../routes/licensing/device";
-import { handleListEvents, handleListLicenses, handleListWebhooks, handleCreateWebhook } from "../../routes/licensing/admin";
+import {
+  handleListSeats,
+  handleHeartbeat,
+  handleVerifyLicense,
+} from "../../routes/licensing/device";
+import { handleListEvents, handleListLicenses } from "../../routes/licensing/admin";
+import { handleListWebhooks, handleCreateWebhook } from "../../routes/licensing/adminWebhooks";
 import { handleBatchPayout } from "../../routes/panel/payouts";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
@@ -37,7 +51,9 @@ describe("Coverage Booster: Health & App Index Endpoints", () => {
   });
 
   it("GET /.well-known/license-public-key.pem", async () => {
-    const res = await app.handle(new Request("http://localhost:3001/.well-known/license-public-key.pem"));
+    const res = await app.handle(
+      new Request("http://localhost:3001/.well-known/license-public-key.pem")
+    );
     expect(res.status).toBe(200);
     const text = await res.text();
     expect(text).toContain("PUBLIC KEY");
@@ -91,7 +107,9 @@ describe("Coverage Booster: apps/builder.ts & Multi-User Resolution", () => {
 
 describe("Coverage Booster: Rate Limiter Header Parsing & Cleanup", () => {
   it("enforces rate limit with cf-connecting-ip, x-real-ip, and x-forwarded-for", () => {
-    const reqCf = new Request("http://localhost/test", { headers: { "cf-connecting-ip": "1.1.1.1" } });
+    const reqCf = new Request("http://localhost/test", {
+      headers: { "cf-connecting-ip": "1.1.1.1" },
+    });
     const r1 = enforceRateLimit(reqCf, "test-cf", 10, 60000);
     expect(r1.allowed).toBe(true);
 
@@ -99,7 +117,9 @@ describe("Coverage Booster: Rate Limiter Header Parsing & Cleanup", () => {
     const r2 = enforceRateLimit(reqReal, "test-real", 10, 60000);
     expect(r2.allowed).toBe(true);
 
-    const reqXff = new Request("http://localhost/test", { headers: { "x-forwarded-for": "3.3.3.3, 10.0.0.1" } });
+    const reqXff = new Request("http://localhost/test", {
+      headers: { "x-forwarded-for": "3.3.3.3, 10.0.0.1" },
+    });
     const r3 = enforceRateLimit(reqXff, "test-xff", 1, 60000);
     expect(r3.allowed).toBe(true);
 
@@ -115,14 +135,20 @@ describe("Coverage Booster: Rate Limiter Header Parsing & Cleanup", () => {
 describe("Coverage Booster: License Lease Service Edge Cases", () => {
   it("acquires existing lease, lists for license, and deletes expired leases", async () => {
     const email = `lease_cov_${suffix()}@test.com`;
-    const [b] = await db.insert(builders).values({ name: "B", email, apiKey: generateAppApiKey("live") }).returning();
-    const [a] = await db.insert(apps).values({
-      id: `app_ls_${suffix()}`,
-      name: "Lease App",
-      slug: `ls-${suffix()}`,
-      builderId: b.id,
-      targetPrice: 0,
-    }).returning();
+    const [b] = await db
+      .insert(builders)
+      .values({ name: "B", email, apiKey: generateAppApiKey("live") })
+      .returning();
+    const [a] = await db
+      .insert(apps)
+      .values({
+        id: `app_ls_${suffix()}`,
+        name: "Lease App",
+        slug: `ls-${suffix()}`,
+        builderId: b.id,
+        targetPrice: 0,
+      })
+      .returning();
     const issueRes = await LicenseService.issueDirect({
       appId: a.id,
       customerEmail: `c_${suffix()}@test.com`,
@@ -134,11 +160,17 @@ describe("Coverage Booster: License Lease Service Edge Cases", () => {
     const hwid = "HWID_LEASE_COV_01";
 
     // 1. Acquire new lease
-    const l1 = await LicenseLeaseService.acquire(licId, hwid, { deviceName: "PC 1", ttlSeconds: 300 });
+    const l1 = await LicenseLeaseService.acquire(licId, hwid, {
+      deviceName: "PC 1",
+      ttlSeconds: 300,
+    });
     expect(l1.isNew).toBe(true);
 
     // 2. Acquire again with same hwid -> triggers existing update branch
-    const l2 = await LicenseLeaseService.acquire(licId, hwid, { deviceName: "PC 1 Updated", ttlSeconds: 300 });
+    const l2 = await LicenseLeaseService.acquire(licId, hwid, {
+      deviceName: "PC 1 Updated",
+      ttlSeconds: 300,
+    });
     expect(l2.isNew).toBe(false);
     expect(l2.lease.deviceName).toBe("PC 1 Updated");
 
@@ -147,7 +179,10 @@ describe("Coverage Booster: License Lease Service Edge Cases", () => {
     expect(list.length).toBeGreaterThan(0);
 
     // 4. Set lease expiry to past and call deleteExpired
-    await db.update(licenseLeases).set({ expiresAt: new Date(Date.now() - 10000) }).where(eq(licenseLeases.id, l1.lease.id));
+    await db
+      .update(licenseLeases)
+      .set({ expiresAt: new Date(Date.now() - 10000) })
+      .where(eq(licenseLeases.id, l1.lease.id));
     const deletedCount = await LicenseLeaseService.deleteExpired();
     expect(deletedCount).toBeGreaterThan(0);
   });
@@ -163,14 +198,20 @@ describe("Coverage Booster: Licensing Device Routes & Seats", () => {
     expect(set.status).toBe(404);
 
     const email = `seat_cov_${suffix()}@test.com`;
-    const [b] = await db.insert(builders).values({ name: "B", email, apiKey: generateAppApiKey("live") }).returning();
-    const [a] = await db.insert(apps).values({
-      id: `app_st_${suffix()}`,
-      name: "Seat App",
-      slug: `st-${suffix()}`,
-      builderId: b.id,
-      targetPrice: 0,
-    }).returning();
+    const [b] = await db
+      .insert(builders)
+      .values({ name: "B", email, apiKey: generateAppApiKey("live") })
+      .returning();
+    const [a] = await db
+      .insert(apps)
+      .values({
+        id: `app_st_${suffix()}`,
+        name: "Seat App",
+        slug: `st-${suffix()}`,
+        builderId: b.id,
+        targetPrice: 0,
+      })
+      .returning();
     const issueRes = await LicenseService.issueDirect({
       appId: a.id,
       customerEmail: `c_${suffix()}@test.com`,
@@ -179,7 +220,10 @@ describe("Coverage Booster: Licensing Device Routes & Seats", () => {
       actor: { type: "ADMIN", id: "admin" },
     });
 
-    const success = await handleListSeats({ query: { licenseKey: issueRes.license.licenseKey }, set: {} });
+    const success = await handleListSeats({
+      query: { licenseKey: issueRes.license.licenseKey },
+      set: {},
+    });
     expect(success.success).toBe(true);
     expect(Array.isArray(success.seats)).toBe(true);
     expect(success.seatsUsed).toBe(0);
@@ -187,14 +231,20 @@ describe("Coverage Booster: Licensing Device Routes & Seats", () => {
 
   it("handleVerifyLicense: expired license status check", async () => {
     const email = `exp_cov_${suffix()}@test.com`;
-    const [b] = await db.insert(builders).values({ name: "B", email, apiKey: generateAppApiKey("live") }).returning();
-    const [a] = await db.insert(apps).values({
-      id: `app_exp_${suffix()}`,
-      name: "Exp App",
-      slug: `exp-${suffix()}`,
-      builderId: b.id,
-      targetPrice: 0,
-    }).returning();
+    const [b] = await db
+      .insert(builders)
+      .values({ name: "B", email, apiKey: generateAppApiKey("live") })
+      .returning();
+    const [a] = await db
+      .insert(apps)
+      .values({
+        id: `app_exp_${suffix()}`,
+        name: "Exp App",
+        slug: `exp-${suffix()}`,
+        builderId: b.id,
+        targetPrice: 0,
+      })
+      .returning();
     const issueRes = await LicenseService.issueDirect({
       appId: a.id,
       customerEmail: `c_${suffix()}@test.com`,
@@ -204,7 +254,10 @@ describe("Coverage Booster: Licensing Device Routes & Seats", () => {
     });
 
     // Make it expired in DB
-    await db.update(licenses).set({ expiresAt: new Date(Date.now() - 50000) }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ expiresAt: new Date(Date.now() - 50000) })
+      .where(eq(licenses.id, issueRes.license.id));
     const verifyRes = await handleVerifyLicense({
       body: { licenseKey: issueRes.license.licenseKey },
       set: {},
@@ -219,21 +272,35 @@ describe("Coverage Booster: Licensing Admin Events & Scoping", () => {
   it("handleListEvents: queries with licenseKey, appId, and non-admin builder", async () => {
     const adminHeaders = new Headers({ cookie: authCookie });
     const set: any = {};
-    const notFoundKey = await handleListEvents({ query: { licenseKey: "TT-FAKE-9999" }, set, request: { headers: adminHeaders } });
+    const notFoundKey = await handleListEvents({
+      query: { licenseKey: "TT-FAKE-9999" },
+      set,
+      request: { headers: adminHeaders },
+    });
     expect(set.status).toBe(404);
 
-    const notFoundApp = await handleListEvents({ query: { appId: "app_fake_9999" }, set, request: { headers: adminHeaders } });
+    const notFoundApp = await handleListEvents({
+      query: { appId: "app_fake_9999" },
+      set,
+      request: { headers: adminHeaders },
+    });
     expect(set.status).toBe(404);
 
     const email = `adm_ev_${suffix()}@test.com`;
-    const [b] = await db.insert(builders).values({ name: "B", email, apiKey: generateAppApiKey("live") }).returning();
-    const [a] = await db.insert(apps).values({
-      id: `app_ev_${suffix()}`,
-      name: "Event App",
-      slug: `ev-${suffix()}`,
-      builderId: b.id,
-      targetPrice: 0,
-    }).returning();
+    const [b] = await db
+      .insert(builders)
+      .values({ name: "B", email, apiKey: generateAppApiKey("live") })
+      .returning();
+    const [a] = await db
+      .insert(apps)
+      .values({
+        id: `app_ev_${suffix()}`,
+        name: "Event App",
+        slug: `ev-${suffix()}`,
+        builderId: b.id,
+        targetPrice: 0,
+      })
+      .returning();
     const issueRes = await LicenseService.issueDirect({
       appId: a.id,
       customerEmail: `c_${suffix()}@test.com`,
@@ -242,10 +309,18 @@ describe("Coverage Booster: Licensing Admin Events & Scoping", () => {
       actor: { type: "ADMIN", id: "admin" },
     });
 
-    const evByKey = await handleListEvents({ query: { licenseKey: issueRes.license.licenseKey }, set: {}, request: { headers: adminHeaders } });
+    const evByKey = await handleListEvents({
+      query: { licenseKey: issueRes.license.licenseKey },
+      set: {},
+      request: { headers: adminHeaders },
+    });
     expect(evByKey.success).toBe(true);
 
-    const evByApp = await handleListEvents({ query: { appId: a.id }, set: {}, request: { headers: adminHeaders } });
+    const evByApp = await handleListEvents({
+      query: { appId: a.id },
+      set: {},
+      request: { headers: adminHeaders },
+    });
     expect(evByApp.success).toBe(true);
   });
 });
@@ -261,36 +336,42 @@ describe("Coverage Booster: Panel Payouts Edges", () => {
 describe("Coverage Booster: Coupons Router Edge Cases", () => {
   it("tests coupon validation errors (discountValue > 100 on percentage, not found)", async () => {
     // Invalid percent > 100 on POST (Elysia returns 422 for schema validation)
-    const resInvalid = await app.handle(new Request("http://localhost:3001/api/v1/coupons", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        cookie: authCookie,
-      },
-      body: JSON.stringify({
-        code: `INV_${suffix()}`,
-        discountType: "percentage",
-        discountValue: 150,
-      }),
-    }));
+    const resInvalid = await app.handle(
+      new Request("http://localhost:3001/api/v1/coupons", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: authCookie,
+        },
+        body: JSON.stringify({
+          code: `INV_${suffix()}`,
+          discountType: "percentage",
+          discountValue: 150,
+        }),
+      })
+    );
     expect([400, 422]).toContain(resInvalid.status);
 
     // PATCH non existent coupon
-    const resPatch = await app.handle(new Request("http://localhost:3001/api/v1/coupons/nonexistent_id", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        cookie: authCookie,
-      },
-      body: JSON.stringify({ isActive: false }),
-    }));
+    const resPatch = await app.handle(
+      new Request("http://localhost:3001/api/v1/coupons/nonexistent_id", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: authCookie,
+        },
+        body: JSON.stringify({ isActive: false }),
+      })
+    );
     expect(resPatch.status).toBe(404);
 
     // DELETE non existent coupon
-    const resDel = await app.handle(new Request("http://localhost:3001/api/v1/coupons/nonexistent_id", {
-      method: "DELETE",
-      headers: { cookie: authCookie },
-    }));
+    const resDel = await app.handle(
+      new Request("http://localhost:3001/api/v1/coupons/nonexistent_id", {
+        method: "DELETE",
+        headers: { cookie: authCookie },
+      })
+    );
     expect(resDel.status).toBe(404);
   });
 });
@@ -319,27 +400,38 @@ describe("Coverage Booster: DanaService Live Signing & Disbursements", () => {
     globalThis.fetch = ((input: any, init?: any) => {
       const url = typeof input === "string" ? input : input?.url || "";
       if (url.includes("payment-host-to-host")) {
-        return Promise.resolve(new Response(JSON.stringify({
-          responseCode: "2005400",
-          responseMessage: "Success",
-          webRedirectUrl: "https://m.dana.id/pay",
-          referenceNo: "DANA_REF_123",
-          acquirementId: "ACQ_123",
-        }), { status: 200, headers: { "Content-Type": "application/json" } }));
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              responseCode: "2005400",
+              responseMessage: "Success",
+              webRedirectUrl: "https://m.dana.id/pay",
+              referenceNo: "DANA_REF_123",
+              acquirementId: "ACQ_123",
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          )
+        );
       }
       if (url.includes("transfer-bank") || url.includes("transferToBank")) {
-        return Promise.resolve(new Response(JSON.stringify({
-          responseCode: "2004300",
-          responseMessage: "Successful",
-          referenceNo: "DISB_ACQ_123",
-        }), { status: 200, headers: { "Content-Type": "application/json" } }));
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              responseCode: "2004300",
+              responseMessage: "Successful",
+              referenceNo: "DISB_ACQ_123",
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          )
+        );
       }
       return originalFetch(input, init);
     }) as any;
 
     try {
       // 1. Create order with RSA signature
-      const orderRes = await DanaService.createOrder({ payerEmail: "test@example.com",
+      const orderRes = await DanaService.createOrder({
+        payerEmail: "test@example.com",
         externalId: `dana_ext_${Date.now()}`,
         amount: 50000,
         description: "Test DANA Live Order",
@@ -370,4 +462,3 @@ describe("Coverage Booster: DanaService Live Signing & Disbursements", () => {
     }
   });
 });
-

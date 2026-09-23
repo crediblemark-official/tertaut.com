@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
-import { api } from '../lib/api'
-import type { AppItem } from '../types/app'
-import type { LicenseItem } from '../types/licensing'
-import type { TransactionItem } from '../types/transaction'
-import { dashboardEnv } from '../lib/environment'
-import { formatRupiah } from '../lib/utils'
-import { useClipboard } from '../composables/useClipboard'
+import { ref, onMounted, computed, watch } from "vue";
+import { api } from "../lib/api";
+import type { AppItem } from "../types/app";
+import type { LicenseItem } from "../types/licensing";
+import type { TransactionItem } from "../types/transaction";
+import { dashboardEnv } from "../lib/environment";
+import { formatRupiah, formatDate } from "../lib/utils";
+import { useClipboard } from "../composables/useClipboard";
 import {
   Repeat,
   Users,
@@ -25,185 +25,185 @@ import {
   KeyRound,
   ShieldCheck,
   Ban,
-} from 'lucide-vue-next'
+} from "lucide-vue-next";
 
 export interface SubscriptionItem extends LicenseItem {
-  ltv: number
-  isTrial: boolean
-  billingInterval: string
-  appName: string
+  ltv: number;
+  isTrial: boolean;
+  billingInterval: string;
+  appName: string;
 }
 
-const env = dashboardEnv
-const loading = ref(false)
-const licenses = ref<LicenseItem[]>([])
-const transactions = ref<TransactionItem[]>([])
-const appsList = ref<AppItem[]>([])
+const env = dashboardEnv;
+const loading = ref(false);
+const licenses = ref<LicenseItem[]>([]);
+const transactions = ref<TransactionItem[]>([]);
+const appsList = ref<AppItem[]>([]);
 
-const page = ref(1)
-const limit = ref(25)
-const total = ref(0)
-const hasMore = ref(false)
+const page = ref(1);
+const limit = ref(25);
+const total = ref(0);
+const hasMore = ref(false);
 
-const searchQuery = ref('')
-const selectedStatus = ref<'ALL' | 'ACTIVE' | 'EXPIRED' | 'REVOKED'>('ALL')
-const selectedAppId = ref<string>('ALL')
+const searchQuery = ref("");
+const selectedStatus = ref<"ALL" | "ACTIVE" | "EXPIRED" | "REVOKED">("ALL");
+const selectedAppId = ref<string>("ALL");
 
-const selectedSub = ref<SubscriptionItem | null>(null)
-const isDetailModalOpen = ref(false)
-const isRevoking = ref(false)
+const selectedSub = ref<SubscriptionItem | null>(null);
+const isDetailModalOpen = ref(false);
+const isRevoking = ref(false);
 
-const { copied, copy } = useClipboard()
+const { copied, copy } = useClipboard();
 
 async function loadData() {
-  loading.value = true
+  loading.value = true;
   try {
     const [licRes, txRes, appRes] = await Promise.all([
       api.getLicenses({ page: page.value, limit: limit.value }),
       api.getTransactions({ limit: 200 }),
       api.getApps(),
-    ])
-    licenses.value = licRes.licenses || []
-    total.value = licRes.total ?? licenses.value.length
-    hasMore.value = licRes.hasMore ?? false
-    transactions.value = txRes.transactions || []
-    appsList.value = appRes.apps || []
+    ]);
+    licenses.value = licRes.licenses || [];
+    total.value = licRes.total ?? licenses.value.length;
+    hasMore.value = licRes.hasMore ?? false;
+    transactions.value = txRes.transactions || [];
+    appsList.value = appRes.apps || [];
   } catch (err) {
-    console.error('Gagal memuat data subscriptions:', err)
+    console.error("Gagal memuat data subscriptions:", err);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / limit.value)))
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / limit.value)));
 
 function prevPage() {
   if (page.value > 1) {
-    page.value--
-    loadData()
+    page.value--;
+    loadData();
   }
 }
 
 function nextPage() {
   if (page.value < totalPages.value) {
-    page.value++
-    loadData()
+    page.value++;
+    loadData();
   }
 }
 
-onMounted(loadData)
+onMounted(loadData);
 watch(env, () => {
-  page.value = 1
-  loadData()
-})
+  page.value = 1;
+  loadData();
+});
 
 // Map cumulative LTV per customerEmail & appId
 const customerLtvMap = computed(() => {
-  const map = new Map<string, number>()
+  const map = new Map<string, number>();
   for (const tx of transactions.value) {
-    if (tx.paymentStatus === 'PAID') {
-      const key = `${tx.customerEmail.toLowerCase()}__${tx.appId}`
-      const prev = map.get(key) || 0
-      map.set(key, prev + (tx.grossAmount || 0))
+    if (tx.paymentStatus === "PAID") {
+      const key = `${tx.customerEmail.toLowerCase()}__${tx.appId}`;
+      const prev = map.get(key) || 0;
+      map.set(key, prev + (tx.grossAmount || 0));
     }
   }
-  return map
-})
+  return map;
+});
 
 function getCustomerLtv(email: string, appId: string): number {
-  const key = `${email.toLowerCase()}__${appId}`
-  return customerLtvMap.value.get(key) || 0
+  const key = `${email.toLowerCase()}__${appId}`;
+  return customerLtvMap.value.get(key) || 0;
 }
 
 function getAppName(appId: string): string {
-  const app = appsList.value.find((a: AppItem) => a.id === appId)
-  return app ? app.name : appId
+  const app = appsList.value.find((a: AppItem) => a.id === appId);
+  return app ? app.name : appId;
 }
 
 function getAppPrice(appId: string): number {
-  const app = appsList.value.find((a: AppItem) => a.id === appId)
-  return app?.targetPrice || 49000
+  const app = appsList.value.find((a: AppItem) => a.id === appId);
+  return app?.targetPrice || 49000;
 }
 
 function getAppBillingInterval(appId: string): string {
-  const app = appsList.value.find((a: AppItem) => a.id === appId)
-  if (app?.pricingType !== 'subscription') {
-    return 'Lisensi Lifetime / Sekali'
+  const app = appsList.value.find((a: AppItem) => a.id === appId);
+  if (app?.pricingType !== "subscription") {
+    return "Lisensi Lifetime / Sekali";
   }
-  const period = app.billingPeriod
-  if (period === 'daily') return 'Harian'
-  if (period === 'weekly') return 'Mingguan'
-  if (period === 'monthly') return 'Bulanan'
-  if (period === 'every_3_months') return '3 Bulan'
-  if (period === 'every_6_months') return '6 Bulan'
-  if (period === 'yearly') return 'Tahunan'
-  if (period === 'custom') return 'Kustom'
-  return 'Berulang'
+  const period = app.billingPeriod;
+  if (period === "daily") return "Harian";
+  if (period === "weekly") return "Mingguan";
+  if (period === "monthly") return "Bulanan";
+  if (period === "every_3_months") return "3 Bulan";
+  if (period === "every_6_months") return "6 Bulan";
+  if (period === "yearly") return "Tahunan";
+  if (period === "custom") return "Kustom";
+  return "Berulang";
 }
 
 const subscriptionsList = computed<SubscriptionItem[]>(() => {
   return licenses.value.map((lic: LicenseItem) => {
-    const ltv = getCustomerLtv(lic.customerEmail, lic.appId)
-    const app = appsList.value.find((a: AppItem) => a.id === lic.appId)
-    const isTrial = Boolean(app?.trialPeriodDays && app.trialPeriodDays > 0)
+    const ltv = getCustomerLtv(lic.customerEmail, lic.appId);
+    const app = appsList.value.find((a: AppItem) => a.id === lic.appId);
+    const isTrial = Boolean(app?.trialPeriodDays && app.trialPeriodDays > 0);
     return {
       ...lic,
       ltv,
       isTrial,
       billingInterval: getAppBillingInterval(lic.appId),
       appName: getAppName(lic.appId),
-    }
-  })
-})
+    };
+  });
+});
 
 const filteredSubscriptions = computed<SubscriptionItem[]>(() => {
   return subscriptionsList.value.filter((sub: SubscriptionItem) => {
-    if (selectedStatus.value !== 'ALL' && sub.status !== selectedStatus.value) {
-      return false
+    if (selectedStatus.value !== "ALL" && sub.status !== selectedStatus.value) {
+      return false;
     }
-    if (selectedAppId.value !== 'ALL' && sub.appId !== selectedAppId.value) {
-      return false
+    if (selectedAppId.value !== "ALL" && sub.appId !== selectedAppId.value) {
+      return false;
     }
     if (searchQuery.value.trim()) {
-      const q = searchQuery.value.toLowerCase().trim()
-      const matchEmail = sub.customerEmail.toLowerCase().includes(q)
-      const matchKey = sub.licenseKey.toLowerCase().includes(q)
-      const matchApp = sub.appName.toLowerCase().includes(q)
-      if (!matchEmail && !matchKey && !matchApp) return false
+      const q = searchQuery.value.toLowerCase().trim();
+      const matchEmail = sub.customerEmail.toLowerCase().includes(q);
+      const matchKey = sub.licenseKey.toLowerCase().includes(q);
+      const matchApp = sub.appName.toLowerCase().includes(q);
+      if (!matchEmail && !matchKey && !matchApp) return false;
     }
-    return true
-  })
-})
+    return true;
+  });
+});
 
 const kpiStats = computed(() => {
-  const activeSubs = subscriptionsList.value.filter((s: SubscriptionItem) => s.status === 'ACTIVE')
-  
+  const activeSubs = subscriptionsList.value.filter((s: SubscriptionItem) => s.status === "ACTIVE");
+
   // P7: Hitung MRR hanya dari produk langganan berulang (subscription), bukan produk one-time
-  const activeRecurringSubs = activeSubs.filter(s => {
-    const app = appsList.value.find(a => a.id === s.appId)
-    return app?.pricingType === 'subscription'
-  })
+  const activeRecurringSubs = activeSubs.filter((s) => {
+    const app = appsList.value.find((a) => a.id === s.appId);
+    return app?.pricingType === "subscription";
+  });
   const mrr = activeRecurringSubs.reduce((acc: number, s: SubscriptionItem) => {
-    const app = appsList.value.find(a => a.id === s.appId)
-    const price = app?.targetPrice || 0
-    if (app?.billingPeriod === 'yearly') return acc + Math.round(price / 12)
-    if (app?.billingPeriod === 'weekly') return acc + Math.round(price * 4)
-    if (app?.billingPeriod === 'daily') return acc + Math.round(price * 30)
-    return acc + price
-  }, 0)
+    const app = appsList.value.find((a) => a.id === s.appId);
+    const price = app?.targetPrice || 0;
+    if (app?.billingPeriod === "yearly") return acc + Math.round(price / 12);
+    if (app?.billingPeriod === "weekly") return acc + Math.round(price * 4);
+    if (app?.billingPeriod === "daily") return acc + Math.round(price * 30);
+    return acc + price;
+  }, 0);
 
   // Hitung average LTV
-  const totalLtv = activeSubs.reduce((acc: number, s: SubscriptionItem) => acc + s.ltv, 0)
-  const avgLtv = activeSubs.length > 0 ? Math.round(totalLtv / activeSubs.length) : 0
+  const totalLtv = activeSubs.reduce((acc: number, s: SubscriptionItem) => acc + s.ltv, 0);
+  const avgLtv = activeSubs.length > 0 ? Math.round(totalLtv / activeSubs.length) : 0;
 
   // Langganan yang akan kedaluwarsa dalam 7 hari
-  const now = Date.now()
-  const in7Days = now + 7 * 24 * 60 * 60 * 1000
+  const now = Date.now();
+  const in7Days = now + 7 * 24 * 60 * 60 * 1000;
   const expiringSoon = activeSubs.filter((s: SubscriptionItem) => {
-    if (!s.expiresAt) return false
-    const exp = new Date(s.expiresAt).getTime()
-    return exp > now && exp <= in7Days
-  }).length
+    if (!s.expiresAt) return false;
+    const exp = new Date(s.expiresAt).getTime();
+    return exp > now && exp <= in7Days;
+  }).length;
 
   return {
     activeCount: activeSubs.length,
@@ -212,84 +212,86 @@ const kpiStats = computed(() => {
     avgLtv,
     expiringSoon,
     totalCount: subscriptionsList.value.length,
-  }
-})
+  };
+});
 
-const actionFeedback = ref<string | null>(null)
+const actionFeedback = ref<string | null>(null);
 
 function openDetail(sub: SubscriptionItem) {
-  selectedSub.value = sub
-  isDetailModalOpen.value = true
+  selectedSub.value = sub;
+  isDetailModalOpen.value = true;
 }
 
 function closeDetail() {
-  isDetailModalOpen.value = false
-  selectedSub.value = null
+  isDetailModalOpen.value = false;
+  selectedSub.value = null;
 }
 
 const linkedTransactions = computed(() => {
-  if (!selectedSub.value) return []
+  if (!selectedSub.value) return [];
   return transactions.value.filter((tx) => {
     return (
       tx.customerEmail.toLowerCase() === selectedSub.value?.customerEmail.toLowerCase() &&
       tx.appId === selectedSub.value?.appId
-    )
-  })
-})
+    );
+  });
+});
 
 async function handleRevoke(key: string) {
-  if (!confirm(`Cabut akses langganan dan lisensi ${key}?`)) return
-  isRevoking.value = true
-  actionFeedback.value = null
+  if (!confirm(`Cabut akses langganan dan lisensi ${key}?`)) return;
+  isRevoking.value = true;
+  actionFeedback.value = null;
   try {
-    const res = await api.revokeLicense(key)
+    const res = await api.revokeLicense(key);
     if (res.success) {
-      actionFeedback.value = `Lisensi ${key} berhasil dicabut.`
-      await loadData()
-      closeDetail()
-      setTimeout(() => { actionFeedback.value = null }, 5000)
+      actionFeedback.value = `Lisensi ${key} berhasil dicabut.`;
+      await loadData();
+      closeDetail();
+      setTimeout(() => {
+        actionFeedback.value = null;
+      }, 5000);
     } else {
-      actionFeedback.value = `Gagal mencabut lisensi: ${res.error || 'Terjadi kesalahan'}`
+      actionFeedback.value = `Gagal mencabut lisensi: ${res.error || "Terjadi kesalahan"}`;
     }
   } catch (err: any) {
-    actionFeedback.value = `Error: ${err?.message || 'Gagal mencabut lisensi'}`
+    actionFeedback.value = `Error: ${err?.message || "Gagal mencabut lisensi"}`;
   } finally {
-    isRevoking.value = false
+    isRevoking.value = false;
   }
 }
 
-function formatDate(dateStr?: string | null): string {
-  if (!dateStr) return 'Masa aktif permanen'
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+function formatSubDate(dateStr?: string | null): string {
+  return formatDate(dateStr, { fallback: "Masa aktif permanen" });
 }
 </script>
 
 <template>
   <div class="animate-fadeIn pb-12">
     <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-0">
+    <div
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-0"
+    >
       <div class="flex items-center gap-2">
         <h1 class="text-xs font-bold uppercase tracking-wider text-white">Subscriptions</h1>
-        <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold">
+        <span
+          class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
+        >
           {{ subscriptionsList.length }} subs
         </span>
         <span
           class="px-2 py-0.5 rounded-md font-bold text-[10px]"
           :class="env === 'sandbox' ? 'bg-gold text-jetblack' : 'bg-forest text-white'"
         >
-          {{ env === 'sandbox' ? 'Sandbox' : 'Live' }}
+          {{ env === "sandbox" ? "Sandbox" : "Live" }}
         </span>
       </div>
 
       <div class="flex items-center gap-2 overflow-x-auto no-scrollbar w-full sm:w-auto">
         <!-- Search Input -->
         <div class="relative w-full sm:w-56">
-          <Search class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+          <Search
+            class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"
+          />
           <input
             v-model="searchQuery"
             type="text"
@@ -299,28 +301,50 @@ function formatDate(dateStr?: string | null): string {
         </div>
 
         <!-- Status Filter Pill -->
-        <div class="flex items-center h-7 rounded-md bg-white/10 p-0.5 text-[10px] font-medium shrink-0">
+        <div
+          class="flex items-center h-7 rounded-md bg-white/10 p-0.5 text-[10px] font-medium shrink-0"
+        >
           <button
             @click="selectedStatus = 'ALL'"
-            :class="['px-2 h-full rounded transition cursor-pointer flex items-center', selectedStatus === 'ALL' ? 'bg-white font-bold text-jetblack' : 'text-white/70 hover:text-white']"
+            :class="[
+              'px-2 h-full rounded transition cursor-pointer flex items-center',
+              selectedStatus === 'ALL'
+                ? 'bg-white font-bold text-jetblack'
+                : 'text-white/70 hover:text-white',
+            ]"
           >
             Semua
           </button>
           <button
             @click="selectedStatus = 'ACTIVE'"
-            :class="['px-2 h-full rounded transition cursor-pointer flex items-center', selectedStatus === 'ACTIVE' ? 'bg-white font-bold text-jetblack' : 'text-white/70 hover:text-white']"
+            :class="[
+              'px-2 h-full rounded transition cursor-pointer flex items-center',
+              selectedStatus === 'ACTIVE'
+                ? 'bg-white font-bold text-jetblack'
+                : 'text-white/70 hover:text-white',
+            ]"
           >
             Aktif
           </button>
           <button
             @click="selectedStatus = 'EXPIRED'"
-            :class="['px-2 h-full rounded transition cursor-pointer flex items-center', selectedStatus === 'EXPIRED' ? 'bg-white font-bold text-jetblack' : 'text-white/70 hover:text-white']"
+            :class="[
+              'px-2 h-full rounded transition cursor-pointer flex items-center',
+              selectedStatus === 'EXPIRED'
+                ? 'bg-white font-bold text-jetblack'
+                : 'text-white/70 hover:text-white',
+            ]"
           >
             Expired
           </button>
           <button
             @click="selectedStatus = 'REVOKED'"
-            :class="['px-2 h-full rounded transition cursor-pointer flex items-center', selectedStatus === 'REVOKED' ? 'bg-white font-bold text-jetblack' : 'text-white/70 hover:text-white']"
+            :class="[
+              'px-2 h-full rounded transition cursor-pointer flex items-center',
+              selectedStatus === 'REVOKED'
+                ? 'bg-white font-bold text-jetblack'
+                : 'text-white/70 hover:text-white',
+            ]"
           >
             Dicabut
           </button>
@@ -337,35 +361,53 @@ function formatDate(dateStr?: string | null): string {
     </div>
 
     <!-- Product Catalog Stats KPI Bar (Flush Canvas, Creem/Polar style) -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 py-2.5 sm:py-3 border-b border-jetblack/15 mb-0">
+    <div
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 py-2.5 sm:py-3 border-b border-jetblack/15 mb-0"
+    >
       <div class="space-y-0.5">
         <div class="text-xs font-semibold text-jetblack/60">Langganan Aktif</div>
-        <div class="text-2xl font-bold text-forest font-mono tracking-tight">{{ kpiStats.activeCount }}</div>
-        <div class="text-[11px] text-jetblack/50 font-medium">dari total {{ kpiStats.totalCount }} entitas langganan</div>
+        <div class="text-2xl font-bold text-forest font-mono tracking-tight">
+          {{ kpiStats.activeCount }}
+        </div>
+        <div class="text-[11px] text-jetblack/50 font-medium">
+          dari total {{ kpiStats.totalCount }} entitas langganan
+        </div>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Estimasi MRR</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">{{ formatRupiah(kpiStats.mrr) }}</div>
+        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
+          {{ formatRupiah(kpiStats.mrr) }}
+        </div>
         <div class="text-[11px] text-jetblack/50 font-medium">Monthly recurring revenue aktif</div>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Average LTV</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">{{ formatRupiah(kpiStats.avgLtv) }}</div>
-        <div class="text-[11px] text-jetblack/50 font-medium">Rata-rata akumulasi nilai per pelanggan</div>
+        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
+          {{ formatRupiah(kpiStats.avgLtv) }}
+        </div>
+        <div class="text-[11px] text-jetblack/50 font-medium">
+          Rata-rata akumulasi nilai per pelanggan
+        </div>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Jatuh Tempo (7 Hari)</div>
-        <div class="text-2xl font-bold text-gold font-mono tracking-tight">{{ kpiStats.expiringSoon }}</div>
-        <div class="text-[11px] text-jetblack/50 font-medium">Masa aktif lisensi akan berakhir dalam 7 hari</div>
+        <div class="text-2xl font-bold text-gold font-mono tracking-tight">
+          {{ kpiStats.expiringSoon }}
+        </div>
+        <div class="text-[11px] text-jetblack/50 font-medium">
+          Masa aktif lisensi akan berakhir dalam 7 hari
+        </div>
       </div>
     </div>
 
     <!-- Edge-to-Edge Table -->
     <div class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
-      <table class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15">
+      <table
+        class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15"
+      >
         <thead class="border-b border-jetblack/20 text-xs font-semibold text-jetblack/70 bg-white">
           <tr>
             <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Pelanggan</th>
@@ -419,19 +461,25 @@ function formatDate(dateStr?: string | null): string {
                   sub.status === 'ACTIVE'
                     ? 'bg-forest/10 text-forest border border-forest/30'
                     : sub.status === 'EXPIRED'
-                    ? 'bg-gold/15 text-[#8a6d1f] border border-gold/30'
-                    : 'bg-red-50 text-red-600 border border-red-200'
+                      ? 'bg-gold/15 text-[#8a6d1f] border border-gold/30'
+                      : 'bg-red-50 text-red-600 border border-red-200',
                 ]"
               >
                 <span
                   class="w-1.5 h-1.5 rounded-full"
-                  :class="sub.status === 'ACTIVE' ? 'bg-forest' : sub.status === 'EXPIRED' ? 'bg-gold' : 'bg-red-500'"
+                  :class="
+                    sub.status === 'ACTIVE'
+                      ? 'bg-forest'
+                      : sub.status === 'EXPIRED'
+                        ? 'bg-gold'
+                        : 'bg-red-500'
+                  "
                 ></span>
                 {{ sub.status }}
               </span>
             </td>
             <td class="py-3 px-3 text-[11px] text-jetblack/60 font-mono">
-              {{ formatDate(sub.expiresAt) }}
+              {{ formatSubDate(sub.expiresAt) }}
             </td>
             <td class="py-3 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right" @click.stop>
               <button
@@ -448,10 +496,15 @@ function formatDate(dateStr?: string | null): string {
     </div>
 
     <!-- Pagination Bar -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-3 border-b border-jetblack/15 bg-white flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+    <div
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-3 border-b border-jetblack/15 bg-white flex flex-col sm:flex-row items-center justify-between gap-3 text-xs"
+    >
       <div class="text-jetblack/60">
-        Menampilkan <span class="font-semibold text-jetblack">{{ total > 0 ? (page - 1) * limit + 1 : 0 }}</span> -
-        <span class="font-semibold text-jetblack">{{ Math.min(page * limit, total) }}</span> dari
+        Menampilkan
+        <span class="font-semibold text-jetblack">{{
+          total > 0 ? (page - 1) * limit + 1 : 0
+        }}</span>
+        - <span class="font-semibold text-jetblack">{{ Math.min(page * limit, total) }}</span> dari
         <span class="font-semibold text-jetblack">{{ total }}</span> langganan
       </div>
       <div class="flex items-center gap-2">
@@ -483,9 +536,13 @@ function formatDate(dateStr?: string | null): string {
       class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
       @click.self="closeDetail"
     >
-      <div class="bg-white border border-jetblack/15 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-scaleIn flex flex-col max-h-[90vh]">
+      <div
+        class="bg-white border border-jetblack/15 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-scaleIn flex flex-col max-h-[90vh]"
+      >
         <!-- Header -->
-        <div class="px-5 py-3.5 border-b border-jetblack/10 flex items-center justify-between bg-white shrink-0">
+        <div
+          class="px-5 py-3.5 border-b border-jetblack/10 flex items-center justify-between bg-white shrink-0"
+        >
           <div class="flex items-center gap-2">
             <div class="w-2 h-2 rounded-full bg-gold"></div>
             <h3 class="text-xs font-bold uppercase tracking-wider text-jetblack">
@@ -506,9 +563,15 @@ function formatDate(dateStr?: string | null): string {
           <!-- Top LTV Card -->
           <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
             <div class="flex items-center justify-between">
-              <span class="text-[11px] text-jetblack/60 font-semibold">Total Nilai Seumur Hidup (Lifetime Value)</span>
+              <span class="text-[11px] text-jetblack/60 font-semibold"
+                >Total Nilai Seumur Hidup (Lifetime Value)</span
+              >
               <span
-                :class="selectedSub.status === 'ACTIVE' ? 'bg-forest/10 text-forest border-forest/20' : 'bg-red-500/10 text-red-600 border-red-500/20'"
+                :class="
+                  selectedSub.status === 'ACTIVE'
+                    ? 'bg-forest/10 text-forest border-forest/20'
+                    : 'bg-red-500/10 text-red-600 border-red-500/20'
+                "
                 class="text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase"
               >
                 {{ selectedSub.status }}
@@ -518,7 +581,8 @@ function formatDate(dateStr?: string | null): string {
               {{ formatRupiah(selectedSub.ltv) }}
             </div>
             <p class="text-[10px] text-jetblack/50">
-              Total akumulasi pendapatan yang telah dibayarkan oleh pelanggan ini untuk produk {{ selectedSub.appName }}.
+              Total akumulasi pendapatan yang telah dibayarkan oleh pelanggan ini untuk produk
+              {{ selectedSub.appName }}.
             </p>
           </div>
 
@@ -553,7 +617,9 @@ function formatDate(dateStr?: string | null): string {
             </div>
             <div class="flex justify-between py-1 border-b border-slate-100">
               <span class="text-jetblack/60">Masa Berlaku</span>
-              <span class="font-semibold text-jetblack">{{ formatDate(selectedSub.expiresAt) }}</span>
+              <span class="font-semibold text-jetblack">{{
+                formatSubDate(selectedSub.expiresAt)
+              }}</span>
             </div>
           </div>
 
@@ -562,7 +628,10 @@ function formatDate(dateStr?: string | null): string {
             <div class="text-[11px] uppercase font-bold text-jetblack/70 tracking-wider">
               Riwayat Pembayaran Pelanggan Ini
             </div>
-            <div v-if="linkedTransactions.length === 0" class="p-3 text-center text-slate-400 bg-slate-50 rounded-lg text-xs">
+            <div
+              v-if="linkedTransactions.length === 0"
+              class="p-3 text-center text-slate-400 bg-slate-50 rounded-lg text-xs"
+            >
               Belum ada transaksi tercatat.
             </div>
             <div v-else class="space-y-1.5 max-h-40 overflow-y-auto">
@@ -573,11 +642,18 @@ function formatDate(dateStr?: string | null): string {
               >
                 <div>
                   <div class="font-mono font-bold text-jetblack">{{ tx.id }}</div>
-                  <div class="text-[10px] text-jetblack/50">{{ formatDate(tx.paidAt || tx.createdAt) }} • {{ tx.paymentChannel || 'QRIS' }}</div>
+                  <div class="text-[10px] text-jetblack/50">
+                    {{ formatDate(tx.paidAt || tx.createdAt, { includeTime: true }) }} •
+                    {{ tx.paymentChannel || "QRIS" }}
+                  </div>
                 </div>
                 <div class="text-right">
-                  <div class="font-mono font-bold text-forest">{{ formatRupiah(tx.grossAmount) }}</div>
-                  <div class="text-[10px] uppercase font-bold text-slate-500">{{ tx.paymentStatus }}</div>
+                  <div class="font-mono font-bold text-forest">
+                    {{ formatRupiah(tx.grossAmount) }}
+                  </div>
+                  <div class="text-[10px] uppercase font-bold text-slate-500">
+                    {{ tx.paymentStatus }}
+                  </div>
                 </div>
               </div>
             </div>
@@ -585,7 +661,9 @@ function formatDate(dateStr?: string | null): string {
         </div>
 
         <!-- Footer -->
-        <div class="px-5 py-3 border-t border-jetblack/10 bg-slate-50/70 shrink-0 flex items-center justify-between">
+        <div
+          class="px-5 py-3 border-t border-jetblack/10 bg-slate-50/70 shrink-0 flex items-center justify-between"
+        >
           <button
             v-if="selectedSub.status === 'ACTIVE'"
             type="button"
@@ -594,7 +672,7 @@ function formatDate(dateStr?: string | null): string {
             class="px-3 h-8 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-xs font-bold text-red-600 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
           >
             <Ban class="w-3.5 h-3.5" />
-            <span>{{ isRevoking ? 'Mencabut...' : 'Cabut Lisensi' }}</span>
+            <span>{{ isRevoking ? "Mencabut..." : "Cabut Lisensi" }}</span>
           </button>
           <div v-else></div>
 

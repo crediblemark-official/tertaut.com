@@ -1,9 +1,5 @@
 import { db } from "../db";
-import {
-  apps,
-  licenses,
-  coupons,
-} from "../db/schema";
+import { apps, licenses, coupons } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { config } from "../config";
@@ -13,6 +9,7 @@ export interface ConvertToLiveParams {
   discountPercent?: number;
   couponCode?: string;
   builderId?: string;
+  isAdmin?: boolean;
 }
 
 export interface ConvertToLiveResult {
@@ -49,6 +46,11 @@ export class LaunchService {
 
     if (!app) {
       throw new Error(`Aplikasi dengan ID / slug '${campaignId}' tidak ditemukan.`);
+    }
+
+    // IDOR-6: Validasi kepemilikan builder
+    if (params.builderId && !params.isAdmin && app.builderId !== params.builderId) {
+      throw new Error("Forbidden: Anda bukan pemilik aplikasi ini.");
     }
 
     // 2. Ubah mode aplikasi ke 'live'

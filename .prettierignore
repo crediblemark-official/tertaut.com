@@ -1,0 +1,14 @@
+dist/
+dist
+coverage/
+coverage
+node_modules/
+node_modules
+bun.lock
+*.pem
+.env*
+.system_generated
+.drizzle
+src/server/db/migrations/
+docs/.vitepress/cache/
+docs/.vitepress/dist/

@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { LaunchService } from "../services/launchService";
 import { authenticate } from "../middleware/auth";
+import { resolveCurrentBuilder } from "./apps/builder";
 
 export const launchRoutes = new Elysia({ prefix: "/launch" })
   .onBeforeHandle(async ({ request: { headers }, status }) => {
@@ -12,12 +13,20 @@ export const launchRoutes = new Elysia({ prefix: "/launch" })
    */
   .post(
     "/convert-to-live",
-    async ({ body, set }) => {
+    async ({ body, request: { headers }, set }) => {
+      const { builder, isAdmin } = await resolveCurrentBuilder(headers);
+      if (!isAdmin && !builder) {
+        set.status = 401;
+        return { success: false, error: "Unauthorized" };
+      }
+
       try {
         const result = await LaunchService.convertToLiveLaunch({
           campaignId: body.campaignId,
           discountPercent: body.discountPercent ?? 50,
           couponCode: body.couponCode,
+          builderId: builder?.id,
+          isAdmin,
         });
 
         return {

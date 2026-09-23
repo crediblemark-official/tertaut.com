@@ -11,6 +11,7 @@ import { resolveCurrentBuilder } from "../apps/builder";
 import { handleDisburse } from "../apps/disburse";
 import { enforceRateLimit } from "../../services/rateLimiter";
 import { createPollTicket, verifyPollTicket } from "../../utils/pollTicket";
+import { parsePagination, paginationEnvelope } from "../../lib/pagination";
 
 /**
  * Endpoint Redirect pembeli setelah menyelesaikan pembayaran DANA (Finish Redirect URL)
@@ -48,7 +49,12 @@ export async function handleDanaFinish({ query, request, set }: any) {
   // BUG-1: fulfillment mock HANYA boleh untuk transaksi yang benar-benar mock (mockOrder=true)
   // PADA aplikasi mode sandbox. Transaksi aplikasi Live TIDAK boleh di-fulfill lewat ?mock=true,
   // bahkan bila kolom mockOrder sempat terisi true oleh versi sebelumnya (guard ganda).
-  if (mock === "true" && tx.paymentStatus === "PENDING" && tx.mockOrder === true && app?.mode === "sandbox") {
+  if (
+    mock === "true" &&
+    tx.paymentStatus === "PENDING" &&
+    tx.mockOrder === true &&
+    app?.mode === "sandbox"
+  ) {
     const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
     await fulfillPaymentTransaction(tx, tx.paymentChannel || "DANA");
     const updated = await db.query.transactions.findFirst({
@@ -62,13 +68,18 @@ export async function handleDanaFinish({ query, request, set }: any) {
     where: eq(licenses.transactionId, tx.id),
   });
 
+  const ticket = createPollTicket(tx.id);
   const requestOrigin = resolveRequestOrigin(request);
   const targetSlug = app?.slug || tx.appId;
   const targetRedirect = app?.redirectUrl
-    ? (app.redirectUrl.includes("?")
-        ? `${app.redirectUrl}&status=success&externalId=${externalId}&licenseKey=${lic?.licenseKey || ""}`
-        : `${app.redirectUrl}?status=success&externalId=${externalId}&licenseKey=${lic?.licenseKey || ""}`)
-    : `${requestOrigin}/pay/${targetSlug}?paid=1&externalId=${externalId}&ticket=${createPollTicket(tx.id)}`;
+    ? app.redirectUrl.includes("?")
+      ? `${app.redirectUrl}&status=success&externalId=${externalId}&ticket=${ticket}`
+      : `${app.redirectUrl}?status=success&externalId=${externalId}&ticket=${ticket}`
+    : `${requestOrigin}/pay/${targetSlug}?paid=1&externalId=${externalId}&ticket=${ticket}`;
+
+  if (set?.headers) {
+    set.headers["referrer-policy"] = "no-referrer";
+  }
 
   // Jika diakses langsung via browser (Accept: text/html), arahkan pembeli ke UI
   const acceptHeader = request?.headers?.get?.("accept") || "";
@@ -79,12 +90,17 @@ export async function handleDanaFinish({ query, request, set }: any) {
     return;
   }
 
+  // BUG-5 & P0.3: licenseKey hanya diungkapkan bila pemanggil memiliki poll ticket yang sah
+  const reqTicket = (query as any)?.ticket;
+  const isTicketValid = reqTicket && verifyPollTicket(tx.id, reqTicket);
+
   return {
     success: true,
     message: "Pembayaran DANA berhasil diverifikasi",
     transactionId: tx.id,
     paymentStatus: tx.paymentStatus,
-    licenseKey: lic?.licenseKey || null,
+    ticket,
+    licenseKey: isTicketValid ? lic?.licenseKey || null : null,
     redirectUrl: targetRedirect,
   };
 }
@@ -139,13 +155,30 @@ export async function handleGetPaymentStatus({ params, query, request, set }: an
 
         // 00 = Success / Paid di DANA SNAP BI
         if (queryRes.latestTransactionStatus === "00") {
-          const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
-          await fulfillPaymentTransaction(tx, tx.paymentChannel || "VA");
-          const refreshed = await db.query.transactions.findFirst({
-            where: eq(transactions.id, tx.id),
-          });
-          if (refreshed) {
-            tx = refreshed;
+          const rawAmountValue =
+            (queryRes as any)?.amount?.value ??
+            (queryRes as any)?.transAmount?.value ??
+            (queryRes as any)?.orderAmount?.value ??
+            (queryRes as any)?.totalAmount?.value ??
+            (queryRes as any)?.amount;
+          const paidAmount = Number.isFinite(Number(rawAmountValue))
+            ? Math.round(Number(rawAmountValue))
+            : NaN;
+
+          // P0.5: Verifikasi nominal pembayaran sebelum fulfillment
+          if (Number.isFinite(paidAmount) && paidAmount !== tx.grossAmount) {
+            console.warn(
+              `[Checkout Polling] Amount mismatch: paid=${paidAmount} vs expected=${tx.grossAmount} (TX ${tx.id}) — tidak mem-fulfill.`
+            );
+          } else {
+            const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
+            await fulfillPaymentTransaction(tx, tx.paymentChannel || "VA");
+            const refreshed = await db.query.transactions.findFirst({
+              where: eq(transactions.id, tx.id),
+            });
+            if (refreshed) {
+              tx = refreshed;
+            }
           }
         } else if (queryRes.latestTransactionStatus === "05") {
           await db
@@ -176,7 +209,9 @@ export async function handleGetPaymentStatus({ params, query, request, set }: an
 
   if (tx.paymentStatus === "PENDING") {
     if (channel.includes("QRIS")) {
-      paymentCode = paymentCode || `00020101021226540014ID.DANA.WWW011893600911000000000002152026092100000000303UMI51440014ID.DANA.WWW0215202609210000000520457325303360540${Number(tx.grossAmount).toFixed(2)}5802ID5911Tertaut MoR6007Jakarta61051234062330114${tx.xenditExternalId}6304ABCD`;
+      paymentCode =
+        paymentCode ||
+        `00020101021226540014ID.DANA.WWW011893600911000000000002152026092100000000303UMI51440014ID.DANA.WWW0215202609210000000520457325303360540${Number(tx.grossAmount).toFixed(2)}5802ID5911Tertaut MoR6007Jakarta61051234062330114${tx.xenditExternalId}6304ABCD`;
       try {
         qrDataUrl = await QRCode.toDataURL(paymentCode, { width: 320, margin: 2 });
       } catch {}
@@ -233,7 +268,6 @@ export async function handleConsultPay({ query, request, set }: any) {
   };
 }
 
-
 /**
  * Preview kupon tanpa membuat transaksi (dipakai halaman /pay/:slug)
  */
@@ -284,18 +318,19 @@ export async function handleListTransactions({ query, request }: any) {
   if (appId) {
     conditions.push(eq(transactions.appId, appId));
   } else if (mode) {
-    const appRows = await db
-      .select({ id: apps.id })
-      .from(apps)
-      .where(eq(apps.mode, mode));
+    const appRows = await db.select({ id: apps.id }).from(apps).where(eq(apps.mode, mode));
     if (appRows.length === 0) {
       return { success: true, transactions: [], total: 0, hasMore: false };
     }
-    conditions.push(inArray(transactions.appId, appRows.map((a) => a.id)));
+    conditions.push(
+      inArray(
+        transactions.appId,
+        appRows.map((a) => a.id)
+      )
+    );
   }
 
-  const parsedLimit = Math.max(1, Math.min(Number(limit) || 200, 500));
-  const parsedOffset = page ? (Math.max(1, Number(page)) - 1) * parsedLimit : Math.max(0, Number(offset) || 0);
+  const pagination = parsePagination({ limit, offset, page });
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -309,17 +344,14 @@ export async function handleListTransactions({ query, request }: any) {
   const txs = await db.query.transactions.findMany({
     where: whereClause,
     orderBy: (tx, { desc }) => [desc(tx.createdAt)],
-    limit: parsedLimit,
-    offset: parsedOffset,
+    limit: pagination.limit,
+    offset: pagination.offset,
   });
 
   return {
     success: true,
     transactions: txs,
-    total,
-    limit: parsedLimit,
-    offset: parsedOffset,
-    hasMore: parsedOffset + txs.length < total,
+    ...paginationEnvelope(txs, total, pagination),
   };
 }
 
@@ -384,82 +416,21 @@ export async function handleSimulatePaid({ params: { txId }, request, set }: any
     };
   }
 
-  // Fix: simulator kini mengikuti jalur fulfillment webhook yang sesungguhnya
-  // (config produk, offline token, apiAccess, grantCredits) supaya pengujian
-  // sandbox merepresentasikan perilaku production — sebelumnya lisensi yang
-  // diterbitkan tidak punya offline token dan tidak pernah meng-grant kredit.
-  const app = txApp;
-  const now = new Date();
-  const productGrantDays = app?.deliveryConfig?.licenseKey?.expiresInDays;
-  const grantDays =
-    typeof productGrantDays === "number" && productGrantDays > 0
-      ? productGrantDays
-      : (tx.grantDays || 365);
-  const expiresAt = new Date(now.getTime() + grantDays * 24 * 60 * 60 * 1000);
-  const maxSeats = app?.deliveryConfig?.licenseKey?.maxSeats ?? 3;
-  const features = app?.deliveryConfig?.licenseKey?.defaultFeatures || {};
+  // Simulator kini menggunakan jalur fulfillPaymentTransaction terpadu (atomik, row-locked, idempotensi tinggi).
+  const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
+  await fulfillPaymentTransaction(tx, "SIMULATOR_QRIS");
 
-  const licenseKey = LicenseService.generateLicenseKey();
-  const offlineToken = LicenseService.createOfflineGraceToken(
-    licenseKey,
-    tx.appId,
-    null,
-    tx.customerEmail,
-    maxSeats,
-    features
-  );
-  const generatedApiKey = app?.deliveryConfig?.apiAccess?.enabled
-    ? `tt_cust_${randomBytes(16).toString("hex")}`
-    : undefined;
-
-  const licId = `lic_${randomBytes(8).toString("hex")}`;
-  const [newLic] = await db
-    .insert(licenses)
-    .values({
-      id: licId,
-      appId: tx.appId,
-      transactionId: tx.id,
-      licenseKey,
-      customerEmail: tx.customerEmail,
-      status: "ACTIVE",
-      licenseVersion: 1,
-      features,
-      maxSeats,
-      platform: "general",
-      expiresAt,
-      offlineJwtGraceToken: offlineToken,
-      apiKey: generatedApiKey,
-    })
-    .returning();
-
+  const newLic = await db.query.licenses.findFirst({
+    where: eq(licenses.transactionId, tx.id),
+  });
   const grantedCredits = tx.grantCredits || 0;
-  let creditBalance = 0;
-  if (grantedCredits > 0) {
-    creditBalance = await CreditService.grant(
-      { licenseId: licId, appId: tx.appId, customerEmail: tx.customerEmail },
-      grantedCredits,
-      {
-        reference: tx.id,
-        description: `Simulasi pembayaran (${tx.id})`,
-      }
-    );
-  }
-
-  await db
-    .update(transactions)
-    .set({
-      paymentStatus: "PAID",
-      paymentChannel: "SIMULATOR_QRIS",
-      paidAt: now,
-      updatedAt: now,
-    })
-    .where(eq(transactions.id, tx.id));
+  const creditBalance = newLic ? await CreditService.getBalance(newLic.id) : 0;
 
   return {
     success: true,
     message: "Simulasi pembayaran sukses! Lisensi diterbitkan.",
     transactionId: tx.id,
-    licenseKey: newLic.licenseKey,
+    licenseKey: newLic?.licenseKey || null,
     grantedCredits,
     creditBalance,
   };

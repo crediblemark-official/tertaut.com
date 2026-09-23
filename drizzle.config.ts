@@ -13,5 +13,5 @@ export default defineConfig({
     url: databaseUrl,
   },
   verbose: true,
-  strict: false,
+  strict: true,
 });

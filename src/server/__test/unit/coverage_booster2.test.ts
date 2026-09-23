@@ -17,11 +17,24 @@ import { DanaService } from "../../services/dana";
 import { LaunchService } from "../../services/launchService";
 import { handleDisburse } from "../../routes/apps/disburse";
 import { handleVerifyOfflineToken } from "../../routes/licensing/token";
-import { authorizeLicense, handleConsumeCredits, handleCreditBalance, handleCreditHistory } from "../../routes/licensing/credits";
-import { handleDanaFinishPaymentWebhook, handleDanaDisburseNotifyWebhook } from "../../routes/webhook/dana";
+import {
+  authorizeLicense,
+  handleConsumeCredits,
+  handleCreditBalance,
+  handleCreditHistory,
+} from "../../routes/licensing/credits";
+import {
+  handleDanaFinishPaymentWebhook,
+  handleDanaDisburseNotifyWebhook,
+} from "../../routes/webhook/dana";
 import { fulfillPaymentTransaction } from "../../routes/webhook/fulfill";
-import { handleHeartbeat, handleVerifyLicense, handleValidateLicense, handleUnbindHardware } from "../../routes/licensing/device";
-import { handleListWebhooks, handleCreateWebhook } from "../../routes/licensing/admin";
+import {
+  handleHeartbeat,
+  handleVerifyLicense,
+  handleValidateLicense,
+  handleUnbindHardware,
+} from "../../routes/licensing/device";
+import { handleListWebhooks, handleCreateWebhook } from "../../routes/licensing/adminWebhooks";
 import { authenticate, authenticateSecretApiKey } from "../../middleware/auth";
 import { LicenseTokenService } from "../../services/licenseToken";
 import { eq } from "drizzle-orm";
@@ -34,40 +47,49 @@ const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 // ─── Helper: Create a minimal transaction ────────────────────────────────────
 async function createTx(builderId: string, appId: string, extras: Record<string, any> = {}) {
   const txId = `tx_cov2_${suffix()}`;
-  const [tx] = await db.insert(transactions).values({
-    id: txId,
-    builderId,
-    appId,
-    xenditExternalId: `ext_${suffix()}`,
-    customerEmail: `cust_${suffix()}@example.com`,
-    grossAmount: 100000,
-    netAmount: 95000,
-    platformFee: 5000,
-    paymentStatus: "PAID",
-    disbursementStatus: "PENDING",
-    ...extras,
-  }).returning();
+  const [tx] = await db
+    .insert(transactions)
+    .values({
+      id: txId,
+      builderId,
+      appId,
+      xenditExternalId: `ext_${suffix()}`,
+      customerEmail: `cust_${suffix()}@example.com`,
+      grossAmount: 100000,
+      netAmount: 95000,
+      platformFee: 5000,
+      paymentStatus: "PAID",
+      disbursementStatus: "PENDING",
+      ...extras,
+    })
+    .returning();
   return tx;
 }
 
 // ─── Helper: Seed builder + app ───────────────────────────────────────────────
 async function seedBuilderApp(mode: "live" | "sandbox" = "live") {
   const email = `cov2_b_${suffix()}@test.com`;
-  const [b] = await db.insert(builders).values({
-    name: "Cov2Builder",
-    email,
-    apiKey: generateAppApiKey("live"),
-    secretApiKey: generateBuilderSecretApiKey(),
-  }).returning();
+  const [b] = await db
+    .insert(builders)
+    .values({
+      name: "Cov2Builder",
+      email,
+      apiKey: generateAppApiKey("live"),
+      secretApiKey: generateBuilderSecretApiKey(),
+    })
+    .returning();
 
-  const [a] = await db.insert(apps).values({
-    id: `app_c2_${suffix()}`,
-    name: "Cov2App",
-    slug: `cov2-${suffix()}`,
-    builderId: b.id,
-    targetPrice: 50000,
-    mode,
-  }).returning();
+  const [a] = await db
+    .insert(apps)
+    .values({
+      id: `app_c2_${suffix()}`,
+      name: "Cov2App",
+      slug: `cov2-${suffix()}`,
+      builderId: b.id,
+      targetPrice: 50000,
+      mode,
+    })
+    .returning();
 
   return { builder: b, app: a };
 }
@@ -115,7 +137,9 @@ describe("Coverage Booster2: middleware/auth edge cases", () => {
   });
 
   it("authenticateSecretApiKey: wrong secret key returns 401", async () => {
-    const res = await authenticateSecretApiKey(new Headers({ authorization: "Bearer tt_secret_wrongkey" }));
+    const res = await authenticateSecretApiKey(
+      new Headers({ authorization: "Bearer tt_secret_wrongkey" })
+    );
     expect((res as any).status).toBe(401);
   });
 
@@ -145,7 +169,10 @@ describe("Coverage Booster2: apps/disburse.ts", () => {
 
   it("handleDisburse: 400 when transaction is not PAID", async () => {
     const { builder, app: a } = await seedBuilderApp();
-    const tx = await createTx(builder.id, a.id, { paymentStatus: "PENDING", disbursementStatus: "PENDING" });
+    const tx = await createTx(builder.id, a.id, {
+      paymentStatus: "PENDING",
+      disbursementStatus: "PENDING",
+    });
     const set: any = {};
     await handleDisburse({
       params: { transactionId: tx.id },
@@ -157,7 +184,10 @@ describe("Coverage Booster2: apps/disburse.ts", () => {
 
   it("handleDisburse: 400 when disbursementStatus is already COMPLETED", async () => {
     const { builder, app: a } = await seedBuilderApp();
-    const tx = await createTx(builder.id, a.id, { paymentStatus: "PAID", disbursementStatus: "COMPLETED" });
+    const tx = await createTx(builder.id, a.id, {
+      paymentStatus: "PAID",
+      disbursementStatus: "COMPLETED",
+    });
     const set: any = {};
     await handleDisburse({
       params: { transactionId: tx.id },
@@ -230,7 +260,10 @@ describe("Coverage Booster2: licensing/token.ts", () => {
     const { builder, app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
     // Revoke the license
-    await db.update(licenses).set({ status: "REVOKED" }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ status: "REVOKED" })
+      .where(eq(licenses.id, issueRes.license.id));
 
     const token = issueRes.license.offlineJwtGraceToken;
     const set: any = {};
@@ -257,7 +290,10 @@ describe("Coverage Booster2: licensing/credits.ts authorizeLicense", () => {
   it("returns LICENSE_REVOKED for revoked license", async () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
-    await db.update(licenses).set({ status: "REVOKED" }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ status: "REVOKED" })
+      .where(eq(licenses.id, issueRes.license.id));
     const res = await authorizeLicense(issueRes.license.licenseKey, undefined, false);
     expect(res.ok).toBe(false);
     expect((res as any).reason).toContain("LICENSE_");
@@ -266,7 +302,10 @@ describe("Coverage Booster2: licensing/credits.ts authorizeLicense", () => {
   it("returns LICENSE_EXPIRED when license is past expiry", async () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
-    await db.update(licenses).set({ expiresAt: new Date(Date.now() - 10000) }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ expiresAt: new Date(Date.now() - 10000) })
+      .where(eq(licenses.id, issueRes.license.id));
     const res = await authorizeLicense(issueRes.license.licenseKey, undefined, false);
     expect(res.ok).toBe(false);
     expect((res as any).reason).toBe("LICENSE_EXPIRED");
@@ -283,7 +322,11 @@ describe("Coverage Booster2: licensing/credits.ts authorizeLicense", () => {
   it("returns DEVICE_NOT_ACTIVATED when hwid not in activations", async () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
-    const res = await authorizeLicense(issueRes.license.licenseKey, "HWID_NOT_REGISTERED_XYZ", false);
+    const res = await authorizeLicense(
+      issueRes.license.licenseKey,
+      "HWID_NOT_REGISTERED_XYZ",
+      false
+    );
     expect(res.ok).toBe(false);
     expect((res as any).reason).toBe("DEVICE_NOT_ACTIVATED");
   });
@@ -480,8 +523,9 @@ describe("Coverage Booster2: webhook/fulfill.ts", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster2: services/launchService.ts", () => {
   it("convertToLiveLaunch: throws when app not found", async () => {
-    await expect(LaunchService.convertToLiveLaunch({ campaignId: "nonexistent_app_xyz" }))
-      .rejects.toThrow("tidak ditemukan");
+    await expect(
+      LaunchService.convertToLiveLaunch({ campaignId: "nonexistent_app_xyz" })
+    ).rejects.toThrow("tidak ditemukan");
   });
 
   it("convertToLiveLaunch: updates existing coupon if already exists", async () => {
@@ -597,12 +641,14 @@ describe("Coverage Booster2: services/dana.ts verifyWebhook", () => {
     config.dana.clientId = "";
     config.dana.privateKey = "";
 
-    await expect(DanaService.createOrder({
-      payerEmail: "t@t.com",
-      externalId: "ext_err_test",
-      amount: 10000,
-      description: "test",
-    })).rejects.toThrow("DANA_CLIENT_ID");
+    await expect(
+      DanaService.createOrder({
+        payerEmail: "t@t.com",
+        externalId: "ext_err_test",
+        amount: 10000,
+        description: "test",
+      })
+    ).rejects.toThrow("DANA_CLIENT_ID");
 
     (config as any).isSandbox = origSandbox;
     config.dana.clientId = origId;
@@ -618,14 +664,16 @@ describe("Coverage Booster2: services/dana.ts verifyWebhook", () => {
     config.dana.clientId = "";
     config.dana.clientSecret = "";
 
-    await expect(DanaService.createDisbursement({
-      externalId: "ext_disb_err",
-      amount: 10000,
-      bankCode: "BCA",
-      accountHolderName: "Test",
-      accountNumber: "123",
-      description: "test",
-    })).rejects.toThrow("Kredensial DANA");
+    await expect(
+      DanaService.createDisbursement({
+        externalId: "ext_disb_err",
+        amount: 10000,
+        bankCode: "BCA",
+        accountHolderName: "Test",
+        accountNumber: "123",
+        description: "test",
+      })
+    ).rejects.toThrow("Kredensial DANA");
 
     (config as any).isSandbox = origSandbox;
     config.dana.clientId = origId;
@@ -662,7 +710,10 @@ describe("Coverage Booster2: licensing/device.ts", () => {
   it("handleHeartbeat: 403 when license is not ACTIVE", async () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
-    await db.update(licenses).set({ status: "REVOKED" }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ status: "REVOKED" })
+      .where(eq(licenses.id, issueRes.license.id));
     const set: any = {};
     await handleHeartbeat({
       body: { licenseKey: issueRes.license.licenseKey },
@@ -675,7 +726,10 @@ describe("Coverage Booster2: licensing/device.ts", () => {
   it("handleHeartbeat: 403 when license is expired", async () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
-    await db.update(licenses).set({ expiresAt: new Date(Date.now() - 10000) }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ expiresAt: new Date(Date.now() - 10000) })
+      .where(eq(licenses.id, issueRes.license.id));
     const set: any = {};
     await handleHeartbeat({
       body: { licenseKey: issueRes.license.licenseKey },
@@ -699,7 +753,10 @@ describe("Coverage Booster2: licensing/device.ts", () => {
   it("handleVerifyLicense: returns invalid for non-ACTIVE license", async () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
-    await db.update(licenses).set({ status: "REVOKED" }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ status: "REVOKED" })
+      .where(eq(licenses.id, issueRes.license.id));
     const res = await handleVerifyLicense({
       body: { licenseKey: issueRes.license.licenseKey },
       set: {},
@@ -723,7 +780,7 @@ describe("Coverage Booster2: licensing/device.ts", () => {
     await handleUnbindHardware({
       body: { licenseKey: "TT-FAKE-UNBIND" },
       set,
-      request: new Request("http://localhost"),
+      request: new Request("http://localhost", { headers: { cookie: authCookie } }),
     });
     expect(set.status).toBe(404);
   });
@@ -733,16 +790,23 @@ describe("Coverage Booster2: licensing/device.ts", () => {
     const issueRes = await issueLicense(a.id);
     const licKey = issueRes.license.licenseKey;
     // Activate first
-    await app.handle(new Request("http://localhost:3001/api/v1/licensing/activate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ licenseKey: licKey, appId: a.id, hwid: "HWID_UNBIND_TEST", deviceName: "PC" }),
-    }));
+    await app.handle(
+      new Request("http://localhost:3001/api/v1/licensing/activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          licenseKey: licKey,
+          appId: a.id,
+          hwid: "HWID_UNBIND_TEST",
+          deviceName: "PC",
+        }),
+      })
+    );
     const set: any = {};
     const res = await handleUnbindHardware({
       body: { licenseKey: licKey },
       set,
-      request: new Request("http://localhost"),
+      request: new Request("http://localhost", { headers: { cookie: authCookie } }),
     });
     expect(res.success).toBe(true);
   });
@@ -766,33 +830,39 @@ describe("Coverage Booster2: licensing/device.ts", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster2: payouts/router.ts via HTTP", () => {
   it("POST /payouts/trigger: sandbox mode returns 400", async () => {
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/payouts/trigger", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", cookie: authCookie },
-      body: JSON.stringify({ mode: "sandbox" }),
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/payouts/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", cookie: authCookie },
+        body: JSON.stringify({ mode: "sandbox" }),
+      })
+    );
     expect(res.status).toBe(400);
   });
 
   it("GET /payouts/account: returns builder account or 404", async () => {
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/payouts/account", {
-      method: "GET",
-      headers: { cookie: authCookie },
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/payouts/account", {
+        method: "GET",
+        headers: { cookie: authCookie },
+      })
+    );
     // Could be 200 if admin has a builder profile, or 404 if not
     expect([200, 404]).toContain(res.status);
   });
 
   it("POST /payouts/account: saves disbursement account", async () => {
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/payouts/account", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", cookie: authCookie },
-      body: JSON.stringify({
-        bankCode: "BCA",
-        accountNumber: "1234567890",
-        accountHolderName: "Test Builder",
-      }),
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/payouts/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", cookie: authCookie },
+        body: JSON.stringify({
+          bankCode: "BCA",
+          accountNumber: "1234567890",
+          accountHolderName: "Test Builder",
+        }),
+      })
+    );
     // Admin builder might not exist, so either 200 or 404
     expect([200, 404]).toContain(res.status);
   });
@@ -869,15 +939,17 @@ describe("Coverage Booster2: metering/router.ts", () => {
     // Delete the app
     await db.delete(apps).where(eq(apps.id, a.id));
 
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        licenseKey: issueRes.license.licenseKey,
-        eventName: "test.event",
-        units: 1,
-      }),
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/metering/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          licenseKey: issueRes.license.licenseKey,
+          eventName: "test.event",
+          units: 1,
+        }),
+      })
+    );
     expect(res.status).toBe(404);
   });
 
@@ -885,33 +957,40 @@ describe("Coverage Booster2: metering/router.ts", () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
     // App has no meteringConfig by default
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        licenseKey: issueRes.license.licenseKey,
-        eventName: "test.event",
-        units: 1,
-      }),
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/metering/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          licenseKey: issueRes.license.licenseKey,
+          eventName: "test.event",
+          units: 1,
+        }),
+      })
+    );
     expect(res.status).toBe(400);
   });
 
   it("POST /metering/events: 402 when insufficient credits", async () => {
     const { app: a } = await seedBuilderApp();
     // Enable metering on the app
-    await db.update(apps).set({ meteringConfig: { enabled: true, unitPrice: 10, unitLabel: "unit" } as any }).where(eq(apps.id, a.id));
+    await db
+      .update(apps)
+      .set({ meteringConfig: { enabled: true, unitPrice: 10, unitLabel: "unit" } as any })
+      .where(eq(apps.id, a.id));
     const issueRes = await issueLicense(a.id);
 
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        licenseKey: issueRes.license.licenseKey,
-        eventName: "test.event",
-        units: 100,
-      }),
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/metering/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          licenseKey: issueRes.license.licenseKey,
+          eventName: "test.event",
+          units: 100,
+        }),
+      })
+    );
     expect(res.status).toBe(402);
   });
 
@@ -921,9 +1000,11 @@ describe("Coverage Booster2: metering/router.ts", () => {
   });
 
   it("GET /metering/stats: authenticated returns stats", async () => {
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/stats", {
-      headers: { cookie: authCookie },
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/metering/stats", {
+        headers: { cookie: authCookie },
+      })
+    );
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body.success).toBe(true);
@@ -937,12 +1018,15 @@ describe("Coverage Booster2: metering/router.ts", () => {
 describe("Coverage Booster2: apps/builder.ts seedSandboxBuilderIfNeeded", () => {
   it("seedSandboxBuilderIfNeeded: no-ops when builder exists (second call)", async () => {
     const { seedSandboxBuilderIfNeeded } = await import("../../routes/apps/builder");
-    // First call
+    // First call — seeds or finds sandbox builder
     await seedSandboxBuilderIfNeeded();
-    // Second call should find existing builder and not insert again
+    // Snapshot builder count before second call
+    const { count } = await import("drizzle-orm");
+    const [{ value: countBefore }] = await db.select({ value: count() }).from(builders);
+    // Second call should be idempotent — no duplicate builder inserted
     await seedSandboxBuilderIfNeeded();
-    // Simply verify no error thrown
-    expect(true).toBe(true);
+    const [{ value: countAfter }] = await db.select({ value: count() }).from(builders);
+    expect(countAfter).toBe(countBefore);
   });
 });
 
@@ -954,28 +1038,34 @@ describe("Coverage Booster2: apps/mutations.ts", () => {
     const { app: a1 } = await seedBuilderApp();
     const { app: a2 } = await seedBuilderApp();
 
-    const res = await app.handle(new Request(`http://localhost:3001/api/v1/apps/${a1.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", cookie: authCookie },
-      body: JSON.stringify({ slug: a2.slug }),
-    }));
+    const res = await app.handle(
+      new Request(`http://localhost:3001/api/v1/apps/${a1.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", cookie: authCookie },
+        body: JSON.stringify({ slug: a2.slug }),
+      })
+    );
     expect(res.status).toBe(409);
   });
 
   it("PATCH /apps/:appId: 404 when app not found", async () => {
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/apps/app_nonexistent_xyz", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", cookie: authCookie },
-      body: JSON.stringify({ name: "Updated Name" }),
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/apps/app_nonexistent_xyz", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", cookie: authCookie },
+        body: JSON.stringify({ name: "Updated Name" }),
+      })
+    );
     expect(res.status).toBe(404);
   });
 
   it("DELETE /apps/:appId: 404 when app not found", async () => {
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/apps/app_del_nonexistent", {
-      method: "DELETE",
-      headers: { cookie: authCookie },
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/apps/app_del_nonexistent", {
+        method: "DELETE",
+        headers: { cookie: authCookie },
+      })
+    );
     expect(res.status).toBe(404);
   });
 });
@@ -989,25 +1079,31 @@ describe("Coverage Booster2: coupons/router.ts additional edges", () => {
     const code = `DUP_${suffix()}`.toUpperCase();
 
     // Create first
-    await app.handle(new Request("http://localhost:3001/api/v1/coupons", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", cookie: authCookie },
-      body: JSON.stringify({ code, appId: a.id, discountType: "percentage", discountValue: 10 }),
-    }));
+    await app.handle(
+      new Request("http://localhost:3001/api/v1/coupons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", cookie: authCookie },
+        body: JSON.stringify({ code, appId: a.id, discountType: "percentage", discountValue: 10 }),
+      })
+    );
 
     // Second creation of same code should return conflict or error
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/coupons", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", cookie: authCookie },
-      body: JSON.stringify({ code, appId: a.id, discountType: "percentage", discountValue: 10 }),
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/coupons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", cookie: authCookie },
+        body: JSON.stringify({ code, appId: a.id, discountType: "percentage", discountValue: 10 }),
+      })
+    );
     expect([400, 409, 422]).toContain(res.status);
   });
 
   it("GET /coupons: returns list with 200", async () => {
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/coupons", {
-      headers: { cookie: authCookie },
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/coupons", {
+        headers: { cookie: authCookie },
+      })
+    );
     // Could be 200 (list) or other status depending on auth setup
     expect(res.status).toBeDefined();
     expect([200, 401, 403]).toContain(res.status);

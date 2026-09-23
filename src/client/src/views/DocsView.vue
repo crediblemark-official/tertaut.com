@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useClipboard } from '../composables/useClipboard'
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { useClipboard } from "../composables/useClipboard";
 import {
   Terminal,
   Copy,
@@ -19,173 +19,204 @@ import {
   EyeOff,
   RefreshCw,
   KeyRound,
-} from 'lucide-vue-next'
+} from "lucide-vue-next";
 
-import { api } from '../lib/api'
-import type { AppItem } from '../types/app'
-import { dashboardEnv } from '../lib/environment'
+import { api } from "../lib/api";
+import type { AppItem } from "../types/app";
+import { dashboardEnv } from "../lib/environment";
+import { useConfirm } from "../composables/useConfirm";
 
-const copiedIndex = ref<number | null>(null)
-const appsList = ref<AppItem[]>([])
-const selectedAppSlug = ref('')
-const selectedWidgetType = ref<'verified' | 'sales_counter' | 'status'>('verified')
-const widgetCustomers = ref<number | null>(null)
-const { copy: writeClipboard } = useClipboard()
-let copyTimer: ReturnType<typeof setTimeout> | null = null
+const copiedIndex = ref<number | null>(null);
+const appsList = ref<AppItem[]>([]);
+const selectedAppSlug = ref("");
+const selectedWidgetType = ref<"verified" | "sales_counter" | "status">("verified");
+const widgetCustomers = ref<number | null>(null);
+const { copy: writeClipboard } = useClipboard();
+let copyTimer: ReturnType<typeof setTimeout> | null = null;
 
 const currentApp = computed(() => {
-  return appsList.value.find((a) => a.slug === selectedAppSlug.value) || appsList.value[0] || null
-})
+  return appsList.value.find((a) => a.slug === selectedAppSlug.value) || appsList.value[0] || null;
+});
 
-const currentAppId = computed(() => currentApp.value?.id || 'app_sample_id')
-const currentAppPrice = computed(() => currentApp.value?.targetPrice || 0)
-const currentAppApiKey = computed(() => currentApp.value?.apiKey?.trim() || '')
-const sampleApiKey = computed(() => currentAppApiKey.value || 'tt_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
+const currentAppId = computed(() => currentApp.value?.id || "app_sample_id");
+const currentAppPrice = computed(() => currentApp.value?.targetPrice || 0);
+const currentAppApiKey = computed(() => currentApp.value?.apiKey?.trim() || "");
+const sampleApiKey = computed(
+  () => currentAppApiKey.value || "tt_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+);
 
-const revealKey = ref(false)
-const rotatingKey = ref(false)
+const revealKey = ref(false);
+const rotatingKey = ref(false);
 
-const builderSecret = ref('')
-const revealSecret = ref(false)
-const rotatingSecret = ref(false)
+const builderSecret = ref("");
+const revealSecret = ref(false);
+const rotatingSecret = ref(false);
 
 const displayedAppKey = computed(() => {
-  const key = sampleApiKey.value
-  if (revealKey.value) return key
-  if (key.length <= 14) return '•'.repeat(16)
-  return key.slice(0, 10) + '•'.repeat(key.length - 14) + key.slice(-4)
-})
+  const key = sampleApiKey.value;
+  if (revealKey.value) return key;
+  if (key.length <= 14) return "•".repeat(16);
+  return key.slice(0, 10) + "•".repeat(key.length - 14) + key.slice(-4);
+});
+
+const { confirm: confirmDialog } = useConfirm();
+const feedbackMessage = ref<{ type: "success" | "error"; text: string } | null>(null);
+function setFeedback(type: "success" | "error", text: string) {
+  feedbackMessage.value = { type, text };
+  setTimeout(() => {
+    feedbackMessage.value = null;
+  }, 4000);
+}
 
 async function rotateApiKey() {
-  const app = currentApp.value
-  if (!app?.id || rotatingKey.value) return
-  if (!window.confirm('Rotasi API key akan membuat key lama tidak berlaku untuk inisialisasi SDK baru. Lanjutkan?')) return
-  rotatingKey.value = true
+  const app = currentApp.value;
+  if (!app?.id || rotatingKey.value) return;
+  const confirmed = await confirmDialog({
+    title: "Rotasi API Key",
+    message:
+      "Rotasi API key akan membuat key lama tidak berlaku untuk inisialisasi SDK baru. Lanjutkan?",
+    confirmText: "Ya, Rotasi Key",
+    variant: "warning",
+  });
+  if (!confirmed) return;
+  rotatingKey.value = true;
   try {
-    const res = await api.rotateApiKey(app.id)
+    const res = await api.rotateApiKey(app.id);
     if (res.success && res.app) {
-      const idx = appsList.value.findIndex((a) => a.id === res.app.id)
-      if (idx >= 0) appsList.value[idx] = res.app
-      revealKey.value = true
+      const idx = appsList.value.findIndex((a) => a.id === res.app.id);
+      if (idx >= 0) appsList.value[idx] = res.app;
+      revealKey.value = true;
+      setFeedback("success", "API key berhasil dirotasi!");
     } else {
-      window.alert(res.error || 'Gagal merotasi API key.')
+      setFeedback("error", res.error || "Gagal merotasi API key.");
     }
   } catch {
-    window.alert('Terjadi kesalahan saat merotasi API key.')
+    setFeedback("error", "Terjadi kesalahan saat merotasi API key.");
   } finally {
-    rotatingKey.value = false
+    rotatingKey.value = false;
   }
 }
 
 const displayedSecretKey = computed(() => {
-  const key = builderSecret.value || 'tt_secret_........................'
-  if (revealSecret.value) return key
-  if (key.length <= 14) return '•'.repeat(16)
-  return key.slice(0, 10) + '•'.repeat(key.length - 14) + key.slice(-4)
-})
+  const key = builderSecret.value || "tt_secret_........................";
+  if (revealSecret.value) return key;
+  if (key.length <= 14) return "•".repeat(16);
+  return key.slice(0, 10) + "•".repeat(key.length - 14) + key.slice(-4);
+});
 
-const s2sCurlText = computed(() => `curl -X POST https://tertaut.com/api/v1/s2s/licenses/issue \\
-  -H "Authorization: Bearer ${builderSecret.value || 'tt_secret_...'}" \\
+const s2sCurlText = computed(
+  () => `curl -X POST https://tertaut.com/api/v1/s2s/licenses/issue \\
+  -H "Authorization: Bearer ${builderSecret.value || "tt_secret_..."}" \\
   -H "Content-Type: application/json" \\
-  -d '{"appId":"${currentAppId.value}","customerEmail":"buyer@site.com","grantDays":30}'`)
+  -d '{"appId":"${currentAppId.value}","customerEmail":"buyer@site.com","grantDays":30}'`
+);
 
 async function loadBuilderSecret() {
   try {
-    const res = await api.getBuilderMyself()
-    if (res.success && res.builder?.secretApiKey) builderSecret.value = res.builder.secretApiKey
+    const res = await api.getBuilderMyself();
+    if (res.success && res.builder?.secretApiKey) builderSecret.value = res.builder.secretApiKey;
   } catch {
     // fallback: sembunyikan key bila sesi tak memberi akses
   }
 }
 
 async function rotateBuilderSecret() {
-  if (rotatingSecret.value) return
-  if (!window.confirm('Rotasi Secret API Key akan membuat semua request server-to-server dengan key lama gagal (401). Lanjutkan?')) return
-  rotatingSecret.value = true
+  if (rotatingSecret.value) return;
+  const confirmed = await confirmDialog({
+    title: "Rotasi Secret API Key",
+    message:
+      "Rotasi Secret API Key akan membuat semua request server-to-server dengan key lama gagal (401). Lanjutkan?",
+    confirmText: "Ya, Rotasi Secret",
+    variant: "danger",
+  });
+  if (!confirmed) return;
+  rotatingSecret.value = true;
   try {
-    const res = await api.rotateBuilderSecret()
+    const res = await api.rotateBuilderSecret();
     if (res.success && res.secretApiKey) {
-      builderSecret.value = res.secretApiKey
-      revealSecret.value = true
+      builderSecret.value = res.secretApiKey;
+      revealSecret.value = true;
+      setFeedback("success", "Secret API Key berhasil dirotasi!");
     } else {
-      window.alert(res.error || 'Gagal merotasi Secret API Key.')
+      setFeedback("error", res.error || "Gagal merotasi Secret API Key.");
     }
   } catch {
-    window.alert('Terjadi kesalahan saat merotasi Secret API Key.')
+    setFeedback("error", "Terjadi kesalahan saat merotasi Secret API Key.");
   } finally {
-    rotatingSecret.value = false
+    rotatingSecret.value = false;
   }
 }
 
 async function loadWidgetSales() {
-  if (!selectedAppSlug.value) return
+  if (!selectedAppSlug.value) return;
   try {
-    const res = await fetch(`/api/v1/widgets/badge/${selectedAppSlug.value}`)
+    const res = await fetch(`/api/v1/widgets/badge/${selectedAppSlug.value}`);
     if (!res.ok) {
-      widgetCustomers.value = null
-      return
+      widgetCustomers.value = null;
+      return;
     }
-    const json = await res.json()
-    widgetCustomers.value = typeof json?.data?.totalCustomers === 'number' ? json.data.totalCustomers : null
+    const json = await res.json();
+    widgetCustomers.value =
+      typeof json?.data?.totalCustomers === "number" ? json.data.totalCustomers : null;
   } catch {
-    widgetCustomers.value = null
+    widgetCustomers.value = null;
   }
 }
 
 async function loadApps() {
   try {
-    const res = await api.getApps()
-    appsList.value = res.apps || []
+    const res = await api.getApps();
+    appsList.value = res.apps || [];
     if (res.apps && res.apps.length > 0 && !selectedAppSlug.value) {
-      selectedAppSlug.value = res.apps[0].slug
+      selectedAppSlug.value = res.apps[0].slug;
     }
   } catch {
     // fallback
   }
-  await loadWidgetSales()
+  await loadWidgetSales();
 }
 
 onMounted(() => {
-  loadApps()
-  loadBuilderSecret()
-})
-watch(selectedAppSlug, loadWidgetSales)
+  loadApps();
+  loadBuilderSecret();
+});
+watch(selectedAppSlug, loadWidgetSales);
 watch(dashboardEnv, () => {
-  selectedAppSlug.value = ''
-  loadApps()
-})
+  selectedAppSlug.value = "";
+  loadApps();
+});
 
 onUnmounted(() => {
   if (copyTimer) {
-    clearTimeout(copyTimer)
-    copyTimer = null
+    clearTimeout(copyTimer);
+    copyTimer = null;
   }
-})
+});
 
 async function copyCode(text: string, index: number) {
-  const ok = await writeClipboard(text)
-  if (!ok) return
-  copiedIndex.value = index
-  if (copyTimer) clearTimeout(copyTimer)
+  const ok = await writeClipboard(text);
+  if (!ok) return;
+  copiedIndex.value = index;
+  if (copyTimer) clearTimeout(copyTimer);
   copyTimer = setTimeout(() => {
-    if (copiedIndex.value === index) copiedIndex.value = null
-    copyTimer = null
-  }, 2000)
+    if (copiedIndex.value === index) copiedIndex.value = null;
+    copyTimer = null;
+  }, 2000);
 }
 
 const aiPromptCursor = computed(() => {
-  const activeSlug = selectedAppSlug.value || 'my-app'
+  const activeSlug = selectedAppSlug.value || "my-app";
   return `Kamu adalah Senior Fullstack Engineer. Tugasmu adalah mengintegrasikan infrastruktur tertaut.com ke dalam aplikasi ini menggunakan @tertaut/sdk.
 
 Informasi Proyek:
 - App ID: ${currentAppId.value}
-- API Endpoint: ${typeof window !== 'undefined' ? window.location.origin : 'https://tertaut.com'}
+- API Endpoint: ${typeof window !== "undefined" ? window.location.origin : "https://tertaut.com"}
 - Target Model AI: fast-summary-model
 
 Langkah Integrasi:
 1. Pasang SDK: npm install @tertaut/sdk
 2. Inisialisasi SDK:
-   ${'import { Tertaut } from \'@tertaut/sdk\';'}
+   ${"import { Tertaut } from '@tertaut/sdk';"}
    const tertaut = new Tertaut({ apiKey: '${sampleApiKey.value}', appId: '${currentAppId.value}', baseUrl: 'https://tertaut.com' });
 3. Modul 1 (Checkout): Di tombol upgrade/beli, panggil tertaut.checkout({ amount: ${currentAppPrice.value}, grantDays: 30, redirectUrl: window.location.origin + '/dashboard' });
 4. Modul 2 (Lisensi): Di startup aplikasi, validasi lisensi:
@@ -193,17 +224,18 @@ Langkah Integrasi:
 5. Modul 3 (Streaming AI Gateway): Panggil LLM tanpa ekspos API key:
    const stream = await tertaut.aiProxy.chatStream({ licenseToken: userSavedKey, modelAlias: 'fast-summary-model', messages: [{ role: 'user', content: prompt }] });
    for await (const chunk of stream) { process.stdout.write(chunk.text); }
-`
-})
+`;
+});
 
 const widgetEmbedScript = computed(() => {
-  const host = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001'
+  const host = typeof window !== "undefined" ? window.location.origin : "http://localhost:3001";
   return `<!-- Tertaut.com Embeddable Trust & Sales Badge -->
 <script src="${host}/api/v1/widgets/embed.js" async><\/script>
-<tertaut-badge app="${selectedAppSlug.value || 'my-app'}" type="${selectedWidgetType.value}"></tertaut-badge>`
-})
+<tertaut-badge app="${selectedAppSlug.value || "my-app"}" type="${selectedWidgetType.value}"></tertaut-badge>`;
+});
 
-const sdkFullSnippet = computed(() => `${'import { Tertaut } from \'@tertaut/sdk\';'}
+const sdkFullSnippet = computed(
+  () => `${"import { Tertaut } from '@tertaut/sdk';"}
 
 // Inisialisasi client library (< 15KB)
 export const tertaut = new Tertaut({
@@ -239,7 +271,8 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
     console.log(chunk.text);
   }
 }
-`)
+`
+);
 </script>
 
 <template>
@@ -247,13 +280,18 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
-        <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gold/15 border border-gold/35 text-jetblack text-[10px] font-bold mb-1">
+        <div
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gold/15 border border-gold/35 text-jetblack text-[10px] font-bold mb-1"
+        >
           <BookOpen class="w-3 h-3 text-gold" />
           <span>Modul 5: Launch Kit &amp; Developer SDK</span>
         </div>
-        <h1 class="text-xl md:text-2xl font-extrabold text-jetblack tracking-tight">Developer Center &amp; AI Launch Kit</h1>
+        <h1 class="text-xl md:text-2xl font-extrabold text-jetblack tracking-tight">
+          Developer Center &amp; AI Launch Kit
+        </h1>
         <p class="text-xs text-jetblack/60">
-          SDK ultra-ringan (&lt; 15 KB), Web Component Embeddable Badges, dan Prompt-Ready Docs untuk Cursor &amp; v0.
+          SDK ultra-ringan (&lt; 15 KB), Web Component Embeddable Badges, dan Prompt-Ready Docs
+          untuk Cursor &amp; v0.
         </p>
       </div>
 
@@ -274,7 +312,9 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <Terminal class="w-4 h-4 text-gold" />
-          <span class="text-xs font-bold text-jetblack">Pemasangan Pustaka (@tertaut/sdk &lt; 15 KB)</span>
+          <span class="text-xs font-bold text-jetblack"
+            >Pemasangan Pustaka (@tertaut/sdk &lt; 15 KB)</span
+          >
         </div>
         <button
           @click="copyCode('npm install @tertaut/sdk', 1)"
@@ -282,11 +322,13 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
         >
           <Check v-if="copiedIndex === 1" class="w-3.5 h-3.5 text-forest" />
           <Copy v-else class="w-3.5 h-3.5" />
-          <span>{{ copiedIndex === 1 ? 'Tersalin' : 'Salin Perintah' }}</span>
+          <span>{{ copiedIndex === 1 ? "Tersalin" : "Salin Perintah" }}</span>
         </button>
       </div>
 
-      <div class="p-2.5 rounded-lg bg-jetblack font-mono text-xs text-gold border border-jetblack/20 flex items-center justify-between">
+      <div
+        class="p-2.5 rounded-lg bg-jetblack font-mono text-xs text-gold border border-jetblack/20 flex items-center justify-between"
+      >
         <span>npm install @tertaut/sdk</span>
         <span class="text-white/40 text-[10px]"># Zero heavy dependencies • Cross-platform</span>
       </div>
@@ -301,8 +343,9 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
             <h2 class="text-sm font-bold text-jetblack">Publishable API Key</h2>
             <p class="text-[11px] text-jetblack/60">
               Key inisialisasi <span class="font-mono">@tertaut/sdk</span> —
-              <span class="font-mono">tt_live_...</span> produksi / <span class="font-mono">tt_test_...</span> sandbox.
-              Sifatnya publik, aman dipasang di frontend. Rotasi membuat key lama tidak berlaku lagi.
+              <span class="font-mono">tt_live_...</span> produksi /
+              <span class="font-mono">tt_test_...</span> sandbox. Sifatnya publik, aman dipasang di
+              frontend. Rotasi membuat key lama tidak berlaku lagi.
             </p>
           </div>
         </div>
@@ -315,7 +358,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
             title="Regenerasi publishable API key aplikasi ini"
           >
             <RefreshCw class="w-3 h-3" :class="rotatingKey ? 'animate-spin' : ''" />
-            <span>{{ rotatingKey ? 'Rotasi...' : 'Rotasi Key' }}</span>
+            <span>{{ rotatingKey ? "Rotasi..." : "Rotasi Key" }}</span>
           </button>
           <button
             @click="revealKey = !revealKey"
@@ -323,7 +366,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
           >
             <EyeOff v-if="revealKey" class="w-3 h-3" />
             <Eye v-else class="w-3 h-3" />
-            <span>{{ revealKey ? 'Sembunyikan' : 'Lihat' }}</span>
+            <span>{{ revealKey ? "Sembunyikan" : "Lihat" }}</span>
           </button>
           <button
             @click="copyCode(sampleApiKey, 10)"
@@ -331,14 +374,18 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
           >
             <Check v-if="copiedIndex === 10" class="w-3 h-3 text-forest" />
             <Copy v-else class="w-3 h-3" />
-            <span>{{ copiedIndex === 10 ? 'Tersalin' : 'Salin Key' }}</span>
+            <span>{{ copiedIndex === 10 ? "Tersalin" : "Salin Key" }}</span>
           </button>
         </div>
       </div>
 
-      <div class="p-2.5 rounded-lg bg-jetblack font-mono text-base sm:text-sm text-gold border border-jetblack/20 flex items-center justify-between gap-3">
+      <div
+        class="p-2.5 rounded-lg bg-jetblack font-mono text-base sm:text-sm text-gold border border-jetblack/20 flex items-center justify-between gap-3"
+      >
         <span class="truncate tracking-wide">{{ displayedAppKey }}</span>
-        <span class="text-white/40 text-[10px] font-sans whitespace-nowrap"># publik — aman di frontend</span>
+        <span class="text-white/40 text-[10px] font-sans whitespace-nowrap"
+          ># publik — aman di frontend</span
+        >
       </div>
     </div>
 
@@ -365,7 +412,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
             title="Regenerasi Secret API Key (key lama langsung nonaktif)"
           >
             <RefreshCw class="w-3 h-3" :class="rotatingSecret ? 'animate-spin' : ''" />
-            <span>{{ rotatingSecret ? 'Rotasi...' : 'Rotasi Secret' }}</span>
+            <span>{{ rotatingSecret ? "Rotasi..." : "Rotasi Secret" }}</span>
           </button>
           <button
             @click="revealSecret = !revealSecret"
@@ -373,7 +420,7 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
           >
             <EyeOff v-if="revealSecret" class="w-3 h-3" />
             <Eye v-else class="w-3 h-3" />
-            <span>{{ revealSecret ? 'Sembunyikan' : 'Lihat' }}</span>
+            <span>{{ revealSecret ? "Sembunyikan" : "Lihat" }}</span>
           </button>
           <button
             @click="copyCode(builderSecret, 11)"
@@ -381,29 +428,37 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
           >
             <Check v-if="copiedIndex === 11" class="w-3 h-3 text-forest" />
             <Copy v-else class="w-3 h-3" />
-            <span>{{ copiedIndex === 11 ? 'Tersalin' : 'Salin Key' }}</span>
+            <span>{{ copiedIndex === 11 ? "Tersalin" : "Salin Key" }}</span>
           </button>
         </div>
       </div>
 
-      <div class="p-2.5 rounded-lg bg-jetblack font-mono text-base sm:text-sm text-[#B91C1C] border border-jetblack/20 flex items-center justify-between gap-3">
+      <div
+        class="p-2.5 rounded-lg bg-jetblack font-mono text-base sm:text-sm text-[#B91C1C] border border-jetblack/20 flex items-center justify-between gap-3"
+      >
         <span class="truncate tracking-wide">{{ displayedSecretKey }}</span>
-        <span class="text-white/40 text-[10px] font-sans whitespace-nowrap"># rahasia — hanya untuk backend</span>
+        <span class="text-white/40 text-[10px] font-sans whitespace-nowrap"
+          ># rahasia — hanya untuk backend</span
+        >
       </div>
 
       <div class="space-y-1.5">
         <div class="flex items-center justify-between">
-          <span class="font-bold text-jetblack/70 text-[11px]">Contoh panggilan server-to-server (issue lisensi otomatis):</span>
+          <span class="font-bold text-jetblack/70 text-[11px]"
+            >Contoh panggilan server-to-server (issue lisensi otomatis):</span
+          >
           <button
             @click="copyCode(s2sCurlText, 12)"
             class="text-[11px] font-bold text-gold hover:underline flex items-center gap-1 cursor-pointer"
           >
             <Check v-if="copiedIndex === 12" class="w-3 h-3 text-forest" />
             <Copy v-else class="w-3 h-3" />
-            <span>{{ copiedIndex === 12 ? 'Tersalin' : 'Salin cURL' }}</span>
+            <span>{{ copiedIndex === 12 ? "Tersalin" : "Salin cURL" }}</span>
           </button>
         </div>
-        <pre class="p-2.5 rounded-lg bg-jetblack font-mono text-[11px] text-gold overflow-x-auto whitespace-pre-wrap leading-relaxed">{{ s2sCurlText }}</pre>
+        <pre
+          class="p-2.5 rounded-lg bg-jetblack font-mono text-[11px] text-gold overflow-x-auto whitespace-pre-wrap leading-relaxed"
+          >{{ s2sCurlText }}</pre>
         <p class="text-[10px] text-jetblack/50">
           Endpoint lain: <span class="font-mono">GET /s2s/apps</span> ·
           <span class="font-mono">GET /s2s/licenses</span> ·
@@ -420,8 +475,12 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
         <div class="flex items-center gap-2">
           <Sparkles class="w-4 h-4 text-gold" />
           <div>
-            <h2 class="text-sm font-bold text-jetblack">Prompt-Ready Integration Snippet (Cursor / Windsurf / v0)</h2>
-            <p class="text-[11px] text-jetblack/60">Copy dan paste langsung ke editor berbasis AI untuk integrasi otomatis.</p>
+            <h2 class="text-sm font-bold text-jetblack">
+              Prompt-Ready Integration Snippet (Cursor / Windsurf / v0)
+            </h2>
+            <p class="text-[11px] text-jetblack/60">
+              Copy dan paste langsung ke editor berbasis AI untuk integrasi otomatis.
+            </p>
           </div>
         </div>
 
@@ -431,22 +490,27 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
         >
           <Check v-if="copiedIndex === 2" class="w-3.5 h-3.5 text-forest" />
           <Copy v-else class="w-3.5 h-3.5" />
-          <span>{{ copiedIndex === 2 ? 'Tersalin!' : 'Salin Prompt untuk AI' }}</span>
+          <span>{{ copiedIndex === 2 ? "Tersalin!" : "Salin Prompt untuk AI" }}</span>
         </button>
       </div>
 
-      <pre class="p-3.5 rounded-xl bg-jetblack font-mono text-xs text-white/90 overflow-x-auto border border-jetblack/20 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">{{ aiPromptCursor }}</pre>
+      <pre
+        class="p-3.5 rounded-xl bg-jetblack font-mono text-xs text-white/90 overflow-x-auto border border-jetblack/20 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto"
+        >{{ aiPromptCursor }}</pre>
     </div>
 
     <!-- Embeddable Badges & Social Proof Widgets Generator (FR-2.1 & FR-2.2) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-jetblack/10 border-b border-jetblack/10 pb-6 pt-1">
+    <div
+      class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-jetblack/10 border-b border-jetblack/10 pb-6 pt-1"
+    >
       <div class="pb-6 lg:pb-0 pr-0 lg:pr-6 space-y-3">
         <div class="flex items-center gap-2">
           <ShieldCheck class="w-4 h-4 text-forest" />
           <h2 class="text-sm font-bold text-jetblack">Generator Embeddable Widget &amp; Badges</h2>
         </div>
         <p class="text-xs text-jetblack/60">
-          Pasang Social Proof &amp; Trust Badge langsung di landing page Anda tanpa merusak styling (Shadow DOM Encapsulation).
+          Pasang Social Proof &amp; Trust Badge langsung di landing page Anda tanpa merusak styling
+          (Shadow DOM Encapsulation).
         </p>
 
         <div class="space-y-3 text-xs">
@@ -456,21 +520,33 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
               <button
                 @click="selectedWidgetType = 'verified'"
                 class="p-2 rounded-lg border font-bold text-center transition cursor-pointer"
-                :class="selectedWidgetType === 'verified' ? 'bg-jetblack text-gold border-jetblack' : 'border-jetblack/15 text-jetblack/70 hover:bg-jetblack/5'"
+                :class="
+                  selectedWidgetType === 'verified'
+                    ? 'bg-jetblack text-gold border-jetblack'
+                    : 'border-jetblack/15 text-jetblack/70 hover:bg-jetblack/5'
+                "
               >
                 Verified Trust
               </button>
               <button
                 @click="selectedWidgetType = 'sales_counter'"
                 class="p-2 rounded-lg border font-bold text-center transition cursor-pointer"
-                :class="selectedWidgetType === 'sales_counter' ? 'bg-jetblack text-gold border-jetblack' : 'border-jetblack/15 text-jetblack/70 hover:bg-jetblack/5'"
+                :class="
+                  selectedWidgetType === 'sales_counter'
+                    ? 'bg-jetblack text-gold border-jetblack'
+                    : 'border-jetblack/15 text-jetblack/70 hover:bg-jetblack/5'
+                "
               >
                 Sales Counter
               </button>
               <button
                 @click="selectedWidgetType = 'status'"
                 class="p-2 rounded-lg border font-bold text-center transition cursor-pointer"
-                :class="selectedWidgetType === 'status' ? 'bg-jetblack text-gold border-jetblack' : 'border-jetblack/15 text-jetblack/70 hover:bg-jetblack/5'"
+                :class="
+                  selectedWidgetType === 'status'
+                    ? 'bg-jetblack text-gold border-jetblack'
+                    : 'border-jetblack/15 text-jetblack/70 hover:bg-jetblack/5'
+                "
               >
                 Live Status
               </button>
@@ -496,10 +572,12 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
               >
                 <Check v-if="copiedIndex === 4" class="w-3 h-3 text-forest" />
                 <Copy v-else class="w-3 h-3" />
-                <span>{{ copiedIndex === 4 ? 'Tersalin' : 'Salin Snippet' }}</span>
+                <span>{{ copiedIndex === 4 ? "Tersalin" : "Salin Snippet" }}</span>
               </button>
             </div>
-            <pre class="p-2.5 rounded-lg bg-jetblack font-mono text-[11px] text-gold overflow-x-auto whitespace-pre-wrap leading-relaxed">{{ widgetEmbedScript }}</pre>
+            <pre
+              class="p-2.5 rounded-lg bg-jetblack font-mono text-[11px] text-gold overflow-x-auto whitespace-pre-wrap leading-relaxed"
+              >{{ widgetEmbedScript }}</pre>
           </div>
         </div>
       </div>
@@ -511,7 +589,9 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
           <p class="text-xs text-jetblack/60">Tampilan render di situs web pembeli:</p>
         </div>
 
-        <div class="h-40 flex flex-col items-center justify-center p-6 border border-dashed border-jetblack/20 rounded-xl bg-[#FAFAFA] space-y-3">
+        <div
+          class="h-40 flex flex-col items-center justify-center p-6 border border-dashed border-jetblack/20 rounded-xl bg-[#FAFAFA] space-y-3"
+        >
           <!-- Verified Trust Preview -->
           <div
             v-if="selectedWidgetType === 'verified'"
@@ -527,7 +607,11 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
             class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-jetblack text-white border border-gold/50 shadow-md text-xs font-bold cursor-pointer transition hover:scale-105"
           >
             <span class="w-2 h-2 rounded-full bg-forest animate-ping"></span>
-            <span>{{ widgetCustomers === null ? '—' : `${widgetCustomers.toLocaleString('id-ID')} Lisensi Terjual` }}</span>
+            <span>{{
+              widgetCustomers === null
+                ? "—"
+                : `${widgetCustomers.toLocaleString("id-ID")} Lisensi Terjual`
+            }}</span>
             <span class="opacity-30">•</span>
             <span class="text-gold">tertaut</span>
           </div>
@@ -544,11 +628,14 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
           </div>
 
           <p class="text-[10px] text-jetblack/50 text-center">
-            Terisolasi di dalam Web Component Shadow DOM sehingga tidak mengganggu CSS landing page utama.
+            Terisolasi di dalam Web Component Shadow DOM sehingga tidak mengganggu CSS landing page
+            utama.
           </p>
         </div>
 
-        <div class="text-[11px] text-jetblack/60 flex items-center justify-between border-t border-jetblack/10 pt-3">
+        <div
+          class="text-[11px] text-jetblack/60 flex items-center justify-between border-t border-jetblack/10 pt-3"
+        >
           <span>Tersedia juga format SVG statis:</span>
           <a
             :href="`/api/v1/badge/${selectedAppSlug}`"
@@ -567,7 +654,9 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <Code2 class="w-4 h-4 text-gold" />
-          <h2 class="text-sm font-bold text-jetblack">Referensi Kode Lengkap (@tertaut/sdk Multi-Module Interface)</h2>
+          <h2 class="text-sm font-bold text-jetblack">
+            Referensi Kode Lengkap (@tertaut/sdk Multi-Module Interface)
+          </h2>
         </div>
         <button
           @click="copyCode(sdkFullSnippet, 3)"
@@ -575,11 +664,13 @@ export async function streamAiResponse(prompt: string, licenseToken: string) {
         >
           <Check v-if="copiedIndex === 3" class="w-3.5 h-3.5 text-forest" />
           <Copy v-else class="w-3.5 h-3.5" />
-          <span>{{ copiedIndex === 3 ? 'Tersalin' : 'Salin Kode' }}</span>
+          <span>{{ copiedIndex === 3 ? "Tersalin" : "Salin Kode" }}</span>
         </button>
       </div>
 
-      <pre class="p-4 rounded-xl bg-jetblack font-mono text-xs text-white/90 overflow-x-auto border border-jetblack/20 leading-relaxed">{{ sdkFullSnippet }}</pre>
+      <pre
+        class="p-4 rounded-xl bg-jetblack font-mono text-xs text-white/90 overflow-x-auto border border-jetblack/20 leading-relaxed"
+        >{{ sdkFullSnippet }}</pre>
     </div>
   </div>
 </template>

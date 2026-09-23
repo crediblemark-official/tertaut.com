@@ -5,7 +5,7 @@ import { builders, apps, licenses, licenseLeases } from "../../db/schema";
 import { generateBuilderSecretApiKey, generateAppApiKey } from "../../routes/apps/api-key";
 import { LicenseService } from "../../services/license";
 import { eq } from "drizzle-orm";
-import { isVersionOlder } from "../../routes/licensing/device";
+import { isVersionOlder } from "../../lib/semver";
 
 setupTestAuth();
 
@@ -38,12 +38,15 @@ describe("Coverage: device.ts min_version check", () => {
 
   beforeAll(async () => {
     const email = `ver_${suffix()}@test.com`;
-    const [b] = await db.insert(builders).values({
-      name: "Version Builder",
-      email,
-      apiKey: generateAppApiKey("live"),
-      secretApiKey: generateBuilderSecretApiKey(),
-    }).returning();
+    const [b] = await db
+      .insert(builders)
+      .values({
+        name: "Version Builder",
+        email,
+        apiKey: generateAppApiKey("live"),
+        secretApiKey: generateBuilderSecretApiKey(),
+      })
+      .returning();
 
     appId = `app_ver_${suffix()}`;
     await db.insert(apps).values({
@@ -76,7 +79,12 @@ describe("Coverage: device.ts min_version check", () => {
     const res = await fetch(BASE + "/validate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ licenseKey: licKey, appId, appVersion: "0.1.0", hardwareId: "hwid_test_old" }),
+      body: JSON.stringify({
+        licenseKey: licKey,
+        appId,
+        appVersion: "0.1.0",
+        hardwareId: "hwid_test_old",
+      }),
     });
     const data = await res.json();
     expect(data.valid).toBe(false);
@@ -87,7 +95,12 @@ describe("Coverage: device.ts min_version check", () => {
     const res = await fetch(BASE + "/validate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ licenseKey: licKey, appId, appVersion: "2.0.0", hardwareId: "hwid_test_ok" }),
+      body: JSON.stringify({
+        licenseKey: licKey,
+        appId,
+        appVersion: "2.0.0",
+        hardwareId: "hwid_test_ok",
+      }),
     });
     const data = await res.json();
     expect(data.valid).toBe(true);
@@ -100,4 +113,3 @@ describe("Coverage: admin.ts builderApps.length === 0 branch", () => {
     expect([200, 401, 403]).toContain(res.status);
   });
 });
-

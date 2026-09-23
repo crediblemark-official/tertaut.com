@@ -1,121 +1,149 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { api } from './lib/api'
-import { authClient } from './lib/auth'
-import { dashboardEnv, envPath, SANDBOX_PREFIX, type DashboardEnv } from './lib/environment'
-import DashboardSidebar from './components/common/DashboardSidebar.vue'
-import DashboardTopHeader from './components/common/DashboardTopHeader.vue'
-import MobileNav from './components/common/MobileNav.vue'
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { api } from "./lib/api";
+import { authClient } from "./lib/auth";
+import { dashboardEnv, envPath, SANDBOX_PREFIX, type DashboardEnv } from "./lib/environment";
+import DashboardSidebar from "./components/common/DashboardSidebar.vue";
+import DashboardTopHeader from "./components/common/DashboardTopHeader.vue";
+import MobileNav from "./components/common/MobileNav.vue";
+import ConfirmModal from "./components/common/ConfirmModal.vue";
 
-const route = useRoute()
-const router = useRouter()
-const env = dashboardEnv
+const route = useRoute();
+const router = useRouter();
+const env = dashboardEnv;
 
-const authSession = authClient.useSession()
-const fallbackUser = ref<{ name?: string; email?: string } | null>(null)
-const authUser = computed(() => authSession.value?.data?.user || fallbackUser.value)
-const authInitial = computed(() => (authUser.value?.name || authUser.value?.email || 'B').charAt(0).toUpperCase())
+const authSession = authClient.useSession();
+const fallbackUser = ref<{ name?: string; email?: string } | null>(null);
+const authUser = computed(() => authSession.value?.data?.user || fallbackUser.value);
+const authInitial = computed(() =>
+  (authUser.value?.name || authUser.value?.email || "B").charAt(0).toUpperCase()
+);
 
 async function ensureAuthUser() {
-  if (authSession.value?.data?.user) return
+  if (authSession.value?.data?.user) return;
   try {
-    const res = await api.getBuilderMyself()
+    const res = await api.getBuilderMyself();
     if (res?.builder) {
       fallbackUser.value = {
         name: res.builder.name,
         email: res.builder.email,
-      }
+      };
     }
   } catch {}
 }
 
 async function handleLogout() {
-  try { await authClient.signOut() } catch {}
-  fallbackUser.value = null
-  window.location.href = '/login'
+  try {
+    await authClient.signOut();
+  } catch {}
+  fallbackUser.value = null;
+  window.location.href = "/login";
 }
 
-const isStandaloneLayout = computed(() => !!route.meta.public || !!route.meta.standalone || route.path.startsWith('/panel'))
+const isStandaloneLayout = computed(
+  () => !!route.meta.public || !!route.meta.standalone || route.path.startsWith("/panel")
+);
 
 function pageKey(path: string): string {
   const stripped = path.startsWith(SANDBOX_PREFIX)
     ? path.slice(SANDBOX_PREFIX.length)
-    : path.startsWith('/dashboard') ? path.slice('/dashboard'.length) : path
-  return stripped || '/'
+    : path.startsWith("/dashboard")
+      ? path.slice("/dashboard".length)
+      : path;
+  return stripped || "/";
 }
-const navKey = computed(() => pageKey(route.path))
+const navKey = computed(() => pageKey(route.path));
 
 const currentPage = computed(() => {
   switch (navKey.value) {
-    case '/': return { title: 'Ringkasan Ekosistem', category: 'Overview' }
-    case '/apps': return { title: 'Katalog Aplikasi Builder', category: 'Apps' }
-    case '/payments': return { title: 'Pembayaran & Transaksi', category: 'Payments' }
-    case '/subscriptions': return { title: 'Langganan & Nilai Siklus Hidup', category: 'Subscriptions' }
-    case '/balances': return { title: 'Saldo & Permintaan Pencairan', category: 'Balances' }
-    case '/checkout': return { title: 'Dynamic Checkout & MoR', category: 'Checkout' }
-    case '/coupons': return { title: 'Kupon Diskon', category: 'Checkout' }
-    case '/licensing': return { title: 'Lisensi & Anti-Piracy', category: 'Lisensi' }
-    case '/ai-proxy': return { title: 'AI API Proxy Shield', category: 'AI Shield' }
-    case '/docs': return { title: 'Dokumentasi & SDK', category: 'Docs' }
-    case '/panel': return { title: 'Super Admin Panel', category: 'Admin Panel' }
-    default: return { title: 'Workspace', category: 'Dashboard' }
+    case "/":
+      return { title: "Ringkasan Ekosistem", category: "Overview" };
+    case "/apps":
+      return { title: "Katalog Aplikasi Builder", category: "Apps" };
+    case "/payments":
+      return { title: "Pembayaran & Transaksi", category: "Payments" };
+    case "/subscriptions":
+      return { title: "Langganan & Nilai Siklus Hidup", category: "Subscriptions" };
+    case "/balances":
+      return { title: "Saldo & Permintaan Pencairan", category: "Balances" };
+    case "/checkout":
+      return { title: "Dynamic Checkout & MoR", category: "Checkout" };
+    case "/coupons":
+      return { title: "Kupon Diskon", category: "Checkout" };
+    case "/licensing":
+      return { title: "Lisensi & Anti-Piracy", category: "Lisensi" };
+    case "/ai-proxy":
+      return { title: "AI API Proxy Shield", category: "AI Shield" };
+    case "/docs":
+      return { title: "Dokumentasi & SDK", category: "Docs" };
+    case "/panel":
+      return { title: "Super Admin Panel", category: "Admin Panel" };
+    default:
+      return { title: "Workspace", category: "Dashboard" };
   }
-})
+});
 
 function switchEnv(target: DashboardEnv) {
-  if (target === env.value) return
-  const key = navKey.value
-  router.push(envPath(target, key === '/' ? '' : key))
+  if (target === env.value) return;
+  const key = navKey.value;
+  router.push(envPath(target, key === "/" ? "" : key));
 }
 
-const activeCouponCount = ref(0)
-const activeLicenseCount = ref(0)
-const isMobileMoreOpen = ref(false)
+const activeCouponCount = ref(0);
+const activeLicenseCount = ref(0);
+const isMobileMoreOpen = ref(false);
 
 async function loadActiveCouponCount() {
   try {
-    const res = await api.getCoupons()
-    activeCouponCount.value = (res.coupons || []).filter((c) => c.isActive).length
+    const res = await api.getCoupons();
+    activeCouponCount.value = (res.coupons || []).filter((c) => c.isActive).length;
   } catch {}
 }
 
 async function loadActiveLicenseCount() {
   try {
-    const res = await api.getLicenses()
-    activeLicenseCount.value = (res.licenses || []).filter((l) => l.status === 'ACTIVE').length
+    const res = await api.getLicenses();
+    activeLicenseCount.value = (res.licenses || []).filter((l) => l.status === "ACTIVE").length;
   } catch {}
 }
 
 function loadSidebarBadges() {
-  loadActiveCouponCount()
-  loadActiveLicenseCount()
+  loadActiveCouponCount();
+  loadActiveLicenseCount();
 }
 
-watch(() => route.path, (path) => {
-  isMobileMoreOpen.value = false
-  if (path.startsWith('/dashboard')) {
-    loadSidebarBadges()
-    ensureAuthUser()
+watch(
+  () => route.path,
+  (path) => {
+    isMobileMoreOpen.value = false;
+    if (path.startsWith("/dashboard")) {
+      loadSidebarBadges();
+      ensureAuthUser();
+    }
   }
-})
+);
 
-function onCouponsChanged() { loadActiveCouponCount() }
-function onLicensesChanged() { loadActiveLicenseCount() }
+function onCouponsChanged() {
+  loadActiveCouponCount();
+}
+function onLicensesChanged() {
+  loadActiveLicenseCount();
+}
 
 onMounted(() => {
-  if (route.path.startsWith('/dashboard')) {
-    loadSidebarBadges()
-    ensureAuthUser()
+  if (route.path.startsWith("/dashboard")) {
+    loadSidebarBadges();
+    ensureAuthUser();
   }
-  window.addEventListener('tertaut:coupons-changed', onCouponsChanged)
-  window.addEventListener('tertaut:licenses-changed', onLicensesChanged)
-})
+  window.addEventListener("tertaut:coupons-changed", onCouponsChanged);
+  window.addEventListener("tertaut:licenses-changed", onLicensesChanged);
+});
 
 onUnmounted(() => {
-  window.removeEventListener('tertaut:coupons-changed', onCouponsChanged)
-  window.removeEventListener('tertaut:licenses-changed', onLicensesChanged)
-})
+  window.removeEventListener("tertaut:coupons-changed", onCouponsChanged);
+  window.removeEventListener("tertaut:licenses-changed", onLicensesChanged);
+});
 </script>
 
 <template>
@@ -156,5 +184,7 @@ onUnmounted(() => {
         <router-view />
       </main>
     </div>
+
+    <ConfirmModal />
   </div>
 </template>

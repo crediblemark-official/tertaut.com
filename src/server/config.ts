@@ -15,7 +15,9 @@ function getEnv(key: string, fallback = ""): string {
         return match[1].trim().replace(/^["']|["']$/g, "");
       }
     }
-  } catch {}
+  } catch (err: any) {
+    // Abaikan jika .env tidak ada atau permission ditolak saat runtime
+  }
   return fallback;
 }
 
@@ -90,7 +92,9 @@ export function cleanPemKey(raw: string): string {
       if (decoded.includes("-----BEGIN")) {
         val = decoded.trim().replace(/\\n/g, "\n").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
       }
-    } catch {}
+    } catch {
+      // Nilai bukan base64, gunakan string aslinya
+    }
   }
 
   // Re-format PEM jika memiliki header BEGIN dan footer END
@@ -124,7 +128,10 @@ export function resolveKeyOrFile(envName: string, defaultFilePath?: string): str
       if (decoded) {
         return cleanPemKey(decoded);
       }
-    } catch {}
+    } catch (err: any) {
+      if (!isTest)
+        console.warn(`[config] Gagal decode base64 ${envName}_BASE64:`, err?.message || err);
+    }
   }
 
   // 2. Cek envName standar
@@ -134,7 +141,13 @@ export function resolveKeyOrFile(envName: string, defaultFilePath?: string): str
       if (existsSync(value)) {
         try {
           return cleanPemKey(readFileSync(value, "utf8"));
-        } catch {}
+        } catch (err: any) {
+          if (!isTest)
+            console.warn(
+              `[config] Gagal membaca isi file kunci ${value} (${envName}):`,
+              err?.message || err
+            );
+        }
       } else {
         // PERINGATAN: Path file dikonfigurasi di env tapi tidak ada di filesystem (misal di Docker container)
         // Jangan kembalikan nama file sebagai isi kunci!
@@ -155,7 +168,13 @@ export function resolveKeyOrFile(envName: string, defaultFilePath?: string): str
   if (defaultFilePath && existsSync(defaultFilePath)) {
     try {
       return cleanPemKey(readFileSync(defaultFilePath, "utf8"));
-    } catch {}
+    } catch (err: any) {
+      if (!isTest)
+        console.warn(
+          `[config] Gagal membaca defaultFilePath ${defaultFilePath}:`,
+          err?.message || err
+        );
+    }
   }
 
   return "";
@@ -203,7 +222,9 @@ export function resolveRequestOrigin(request?: Request | { headers?: any; url?: 
       setDetectedAppUrl(origin);
       return origin;
     }
-  } catch {}
+  } catch {
+    // Abaikan kegagalan parsing URL/header origin yang tidak valid
+  }
   return config.publicAppUrl;
 }
 
@@ -251,11 +272,14 @@ export const config = {
       /** Secret untuk Better Auth (sesi & token); otomatis mewarisi JWT_SECRET jika tidak disetel terpisah */
       betterAuthSecret: getEnv("BETTER_AUTH_SECRET") || jwtSecret,
       /** Private key Ed25519 (base64/PEM atau path ke keys/license_signing_private.pem). */
-      licensePrivateKey: resolveKeyOrFile("LICENSE_SIGNING_PRIVATE_KEY", "keys/license_signing_private.pem"),
+      licensePrivateKey: resolveKeyOrFile(
+        "LICENSE_SIGNING_PRIVATE_KEY",
+        "keys/license_signing_private.pem"
+      ),
       /** Salt untuk hashing hardware ID (HMAC); otomatis mewarisi JWT_SECRET jika tidak disetel terpisah */
       hwidSalt: isProd
-        ? (getEnv("HWID_SALT") || jwtSecret)
-        : (getEnv("HWID_SALT") || "dev-hwid-salt-unique-seed-67890"),
+        ? getEnv("HWID_SALT") || jwtSecret
+        : getEnv("HWID_SALT") || "dev-hwid-salt-unique-seed-67890",
     };
   })(),
 
@@ -270,7 +294,8 @@ export const config = {
   paymentGateway: "dana" as const,
 
   dana: (() => {
-    const env = (getEnv("DANA_ENV") as "production" | "sandbox") || (isProd ? "production" : "sandbox");
+    const env =
+      (getEnv("DANA_ENV") as "production" | "sandbox") || (isProd ? "production" : "sandbox");
     const isSandbox = env === "sandbox";
 
     return {
@@ -282,25 +307,26 @@ export const config = {
         if (val) dynamicAppUrl = val.replace(/\/+$/, "");
       },
       clientId: isSandbox
-        ? (getEnv("DANA_SANDBOX_CLIENT_ID") || getEnv("DANA_CLIENT_ID"))
+        ? getEnv("DANA_SANDBOX_CLIENT_ID") || getEnv("DANA_CLIENT_ID")
         : getEnv("DANA_CLIENT_ID"),
       clientSecret: isSandbox
-        ? (getEnv("DANA_SANDBOX_CLIENT_SECRET") || getEnv("DANA_CLIENT_SECRET"))
+        ? getEnv("DANA_SANDBOX_CLIENT_SECRET") || getEnv("DANA_CLIENT_SECRET")
         : getEnv("DANA_CLIENT_SECRET"),
       merchantId: isSandbox
-        ? (getEnv("DANA_SANDBOX_MERCHANT_ID") || getEnv("DANA_MERCHANT_ID"))
+        ? getEnv("DANA_SANDBOX_MERCHANT_ID") || getEnv("DANA_MERCHANT_ID")
         : getEnv("DANA_MERCHANT_ID"),
       baseUrl: isSandbox
-        ? (getEnv("DANA_SANDBOX_BASE_URL") || getEnv("DANA_BASE_URL", "https://api.sandbox.dana.id"))
+        ? getEnv("DANA_SANDBOX_BASE_URL") || getEnv("DANA_BASE_URL", "https://api.sandbox.dana.id")
         : getEnv("DANA_BASE_URL", "https://api.saas.dana.id"),
       publicKey: isSandbox
-        ? (resolveKeyOrFile("DANA_SANDBOX_PUBLIC_KEY", "keys/dana_sandbox_public.pem") || resolveKeyOrFile("DANA_PUBLIC_KEY", "keys/dana_production_public.pem"))
+        ? resolveKeyOrFile("DANA_SANDBOX_PUBLIC_KEY", "keys/dana_sandbox_public.pem") ||
+          resolveKeyOrFile("DANA_PUBLIC_KEY", "keys/dana_production_public.pem")
         : resolveKeyOrFile("DANA_PUBLIC_KEY", "keys/dana_production_public.pem"),
       privateKey: isSandbox
-        ? (resolveKeyOrFile("DANA_SANDBOX_PRIVATE_KEY", "keys/dana_sandbox_private.pem") || resolveKeyOrFile("DANA_PRIVATE_KEY", "keys/dana_production_private.pem"))
+        ? resolveKeyOrFile("DANA_SANDBOX_PRIVATE_KEY", "keys/dana_sandbox_private.pem") ||
+          resolveKeyOrFile("DANA_PRIVATE_KEY", "keys/dana_production_private.pem")
         : resolveKeyOrFile("DANA_PRIVATE_KEY", "keys/dana_production_private.pem"),
       platformFeePercent: 5, // 5% Merchant of Record platform fee
     };
   })(),
 };
-

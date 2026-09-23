@@ -29,11 +29,7 @@ function serveFromDir(dir: string, pathname: string, set: any): any | { error: s
   const safePath = decodeURIComponent(pathname).replace(/\.\.+[/\\]/g, "");
   let targetFile = resolve(dir, "." + safePath);
 
-  if (
-    targetFile.startsWith(dir) &&
-    existsSync(targetFile) &&
-    !statSync(targetFile).isDirectory()
-  ) {
+  if (targetFile.startsWith(dir) && existsSync(targetFile) && !statSync(targetFile).isDirectory()) {
     return Bun.file(targetFile);
   }
 
@@ -76,13 +72,17 @@ export const app = new Elysia()
           ) {
             return true;
           }
-        } catch {}
+        } catch {
+          // URL request tidak dapat diparse, lanjut ke pemeriksaan origin berikutnya
+        }
 
         const detected = resolveRequestOrigin(request);
         if (detected) {
           try {
             if (origin === new URL(detected).origin) return true;
-          } catch {}
+          } catch {
+            // URL origin terdeteksi tidak valid
+          }
         }
 
         const allowedPatterns = [
@@ -94,12 +94,16 @@ export const app = new Elysia()
         if (config.publicAppUrl) {
           try {
             if (origin === new URL(config.publicAppUrl).origin) return true;
-          } catch {}
+          } catch {
+            // config.publicAppUrl bukan URL origin valid
+          }
         }
         if (config.publicStoreUrl) {
           try {
             if (origin === new URL(config.publicStoreUrl).origin) return true;
-          } catch {}
+          } catch {
+            // config.publicStoreUrl bukan URL origin valid
+          }
         }
         return allowedPatterns.some((pattern) => pattern.test(origin));
       },
@@ -180,9 +184,15 @@ export const app = new Elysia()
             "Headless Developer Infrastructure Engine (Monetization, Universal Licensing, AI Protection, Fake Door Validation)",
         },
         tags: [
-          { name: "Launch Kit", description: "One-click live launch, badges and developer SDK tooling" },
+          {
+            name: "Launch Kit",
+            description: "One-click live launch, badges and developer SDK tooling",
+          },
           { name: "MoR Checkout", description: "Dynamic hosted checkout" },
-          { name: "Universal Licensing", description: "Multi-platform key validation & hardware binding" },
+          {
+            name: "Universal Licensing",
+            description: "Multi-platform key validation & hardware binding",
+          },
           { name: "AI API Proxy Shield", description: "Zero-leak AI API gateway" },
           { name: "Credits", description: "License metered credit ledger & consumption" },
           { name: "S2S API", description: "Server-to-Server programatic automation" },
@@ -209,6 +219,38 @@ export const app = new Elysia()
     })
   )
 
+  .onError(({ code, error, set, path }) => {
+    if (path.startsWith("/api/auth/")) return;
+
+    if (code === "NOT_FOUND") {
+      set.status = 404;
+      return { error: { code: "NOT_FOUND", message: `Endpoint ${path} tidak ditemukan` } };
+    }
+    if (code === "VALIDATION") {
+      set.status = 400;
+      return {
+        error: { code: "VALIDATION_ERROR", message: error.message, details: (error as any).all },
+      };
+    }
+
+    const resolvedStatus = (error as any).status || set.status;
+    const finalStatus =
+      typeof resolvedStatus === "number" && resolvedStatus >= 400 ? resolvedStatus : 500;
+    set.status = finalStatus;
+
+    const errorMessage =
+      (error as any)?.message || String(error) || "Terjadi kesalahan internal server.";
+    if (finalStatus >= 500) {
+      console.error(`[Server Error ${finalStatus}] ${path}:`, errorMessage);
+    }
+    return {
+      error: {
+        code: typeof code === "string" ? code : "INTERNAL_ERROR",
+        message: errorMessage,
+      },
+    };
+  })
+
   // Better Auth handler (sign-in/up, session) di /api/auth/*
   .get("/api/auth/*", async ({ request }) => {
     try {
@@ -227,7 +269,12 @@ export const app = new Elysia()
           const clone = res.clone();
           const body = await clone.text();
           console.error(`[Auth Response Body]`, body);
-        } catch {}
+        } catch (bodyErr: any) {
+          console.error(
+            `[Auth Response Body] Gagal membaca clone body:`,
+            bodyErr?.message || bodyErr
+          );
+        }
       }
       return res;
     } catch (err: any) {
@@ -278,7 +325,9 @@ if (hasBuiltClient) {
       return {};
     })
     .get("/docs/", serveDocsIndex)
-    .get("/docs/*", ({ request, set }) => serveFromDir(docsDistPath, new URL(request.url).pathname.slice("/docs".length), set))
+    .get("/docs/*", ({ request, set }) =>
+      serveFromDir(docsDistPath, new URL(request.url).pathname.slice("/docs".length), set)
+    )
     // SPA fallback
     .get("*", ({ request, set }) => {
       const url = new URL(request.url);
@@ -341,7 +390,13 @@ async function expireLicenses(): Promise<void> {
       .update(licenses)
       .set({ status: "EXPIRED", updatedAt: now })
       .where(and(eq(licenses.status, "ACTIVE"), lt(licenses.expiresAt, now)))
-      .returning({ id: licenses.id, licenseKey: licenses.licenseKey, appId: licenses.appId, customerEmail: licenses.customerEmail, status: licenses.status });
+      .returning({
+        id: licenses.id,
+        licenseKey: licenses.licenseKey,
+        appId: licenses.appId,
+        customerEmail: licenses.customerEmail,
+        status: licenses.status,
+      });
     if (expired.length > 0) {
       console.log(`[Expiry] ${expired.length} license(s) marked EXPIRED.`);
     }
@@ -398,6 +453,11 @@ async function runAutoMigrations(): Promise<void> {
     }
   } catch (error: any) {
     console.error("[DB] Migrasi database gagal:", error?.message || error);
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        `[DB] Startup halted: Migrasi skema database gagal: ${error?.message || error}`
+      );
+    }
   }
 }
 

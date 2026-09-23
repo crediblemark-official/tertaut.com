@@ -7,13 +7,15 @@ import {
   handleVerifyApiKey,
   handleListEvents,
   handleRenewLicense,
+} from "../../routes/licensing/admin";
+import {
   handleListWebhooks,
   handleCreateWebhook,
   handleUpdateWebhook,
   handleDeleteWebhook,
   handleRotateWebhookSecret,
   handleTestWebhook,
-} from "../../routes/licensing/admin";
+} from "../../routes/licensing/adminWebhooks";
 import { db } from "../../db";
 import { apps, builders, licenses, webhookEndpoints } from "../../db/schema";
 import { eq } from "drizzle-orm";
@@ -31,22 +33,30 @@ describe("Licensing Admin Routes & Operations", () => {
     adminHeaders = new Headers({ cookie: authCookie });
     testApp = await db.query.apps.findFirst();
     if (!testApp) {
-      const [b] = await db.insert(builders).values({
-        name: "Admin Test Builder",
-        email: `adm_${Date.now()}@test.com`,
-        apiKey: generateAppApiKey("live"),
-      }).returning();
-      const [a] = await db.insert(apps).values({
-        id: `app_adm_${Date.now()}`,
-        name: "Admin Test App",
-        slug: `adm-${Date.now()}`,
-        builderId: b.id,
-        targetPrice: 50000,
-      }).returning();
+      const [b] = await db
+        .insert(builders)
+        .values({
+          name: "Admin Test Builder",
+          email: `adm_${Date.now()}@test.com`,
+          apiKey: generateAppApiKey("live"),
+        })
+        .returning();
+      const [a] = await db
+        .insert(apps)
+        .values({
+          id: `app_adm_${Date.now()}`,
+          name: "Admin Test App",
+          slug: `adm-${Date.now()}`,
+          builderId: b.id,
+          targetPrice: 50000,
+        })
+        .returning();
       testApp = a;
       testBuilder = b;
     } else {
-      testBuilder = await db.query.builders.findFirst({ where: eq(builders.id, testApp.builderId) });
+      testBuilder = await db.query.builders.findFirst({
+        where: eq(builders.id, testApp.builderId),
+      });
     }
   });
 
@@ -84,13 +94,19 @@ describe("Licensing Admin Routes & Operations", () => {
     // 3. Verify API Key
     const set: any = {};
     const testApiKey = `tt_cust_${Date.now()}`;
-    await db.update(licenses).set({ apiKey: testApiKey }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ apiKey: testApiKey })
+      .where(eq(licenses.id, issueRes.license!.id));
 
     const verifyMissing = await handleVerifyApiKey({ body: {}, set });
     expect(set.status).toBe(400);
     expect(verifyMissing.valid).toBe(false);
 
-    const verifyNotFound = await handleVerifyApiKey({ body: { apiKey: "invalid_key_xyz" }, set: {} });
+    const verifyNotFound = await handleVerifyApiKey({
+      body: { apiKey: "invalid_key_xyz" },
+      set: {},
+    });
     expect(verifyNotFound.valid).toBe(false);
 
     const verifySuccess = await handleVerifyApiKey({ body: { apiKey: testApiKey }, set: {} });
@@ -102,7 +118,10 @@ describe("Licensing Admin Routes & Operations", () => {
     const renewMissing = await handleRenewLicense({ body: {}, set: {} });
     expect(renewMissing.success).toBe(false);
 
-    const renewNotFound = await handleRenewLicense({ body: { licenseKey: "TT-NONEXISTENT-9999" }, set: {} });
+    const renewNotFound = await handleRenewLicense({
+      body: { licenseKey: "TT-NONEXISTENT-9999" },
+      set: {},
+    });
     expect(renewNotFound.success).toBe(false);
 
     const renewSuccess = await handleRenewLicense({
@@ -131,10 +150,16 @@ describe("Licensing Admin Routes & Operations", () => {
     expect(Array.isArray(eventsRes.events)).toBe(true);
 
     // 6. Revoke License
-    const revokeNotFound = await handleRevokeLicense({ body: { licenseKey: "TT-NOT-FOUND-0000" }, set });
+    const revokeNotFound = await handleRevokeLicense({
+      body: { licenseKey: "TT-NOT-FOUND-0000" },
+      set,
+    });
     expect(set.status).toBe(404);
 
-    const revokeSuccess: any = await handleRevokeLicense({ body: { licenseKey: issuedKey }, set: {} });
+    const revokeSuccess: any = await handleRevokeLicense({
+      body: { licenseKey: issuedKey },
+      set: {},
+    });
     expect(revokeSuccess.success).toBe(true);
     expect(revokeSuccess.license?.status).toBe("REVOKED");
   });
@@ -153,7 +178,11 @@ describe("Licensing Admin Routes & Operations", () => {
     expect(set.status).toBe(400);
 
     const invalidEvents = await handleCreateWebhook({
-      body: { builderId: testBuilder?.id, url: "https://hook.example.com/webhook", events: ["invalid.event"] },
+      body: {
+        builderId: testBuilder?.id,
+        url: "https://hook.example.com/webhook",
+        events: ["invalid.event"],
+      },
       request: { headers: adminHeaders },
       set,
     });
@@ -181,7 +210,12 @@ describe("Licensing Admin Routes & Operations", () => {
     expect(foundHook).toBeDefined();
 
     // 3. Update Webhook
-    const updateNotFound = await handleUpdateWebhook({ params: { id: "non_existent_hook" }, body: {}, request: { headers: adminHeaders }, set });
+    const updateNotFound = await handleUpdateWebhook({
+      params: { id: "non_existent_hook" },
+      body: {},
+      request: { headers: adminHeaders },
+      set,
+    });
     expect(set.status).toBe(404);
 
     const updateInvalidEvents = await handleUpdateWebhook({
@@ -203,26 +237,50 @@ describe("Licensing Admin Routes & Operations", () => {
     expect(updateRes.webhook?.isActive).toBe(false);
 
     // 4. Rotate Secret
-    const rotateNotFound = await handleRotateWebhookSecret({ params: { id: "non_existent_hook" }, request: { headers: adminHeaders }, set });
+    const rotateNotFound = await handleRotateWebhookSecret({
+      params: { id: "non_existent_hook" },
+      request: { headers: adminHeaders },
+      set,
+    });
     expect(set.status).toBe(404);
 
-    const rotateRes: any = await handleRotateWebhookSecret({ params: { id: hookId }, request: { headers: adminHeaders }, set: {} });
+    const rotateRes: any = await handleRotateWebhookSecret({
+      params: { id: hookId },
+      request: { headers: adminHeaders },
+      set: {},
+    });
     expect(rotateRes.success).toBe(true);
     expect(rotateRes.webhook?.secret).not.toBe(createRes.webhook?.secret);
 
     // 5. Test Webhook Delivery
-    const testNotFound = await handleTestWebhook({ params: { id: "non_existent_hook" }, request: { headers: adminHeaders }, set });
+    const testNotFound = await handleTestWebhook({
+      params: { id: "non_existent_hook" },
+      request: { headers: adminHeaders },
+      set,
+    });
     expect(set.status).toBe(404);
 
-    const testRes = await handleTestWebhook({ params: { id: hookId }, request: { headers: adminHeaders }, set: {} });
+    const testRes = await handleTestWebhook({
+      params: { id: hookId },
+      request: { headers: adminHeaders },
+      set: {},
+    });
     expect(testRes.success).toBe(true);
     expect(testRes.deliveryId).toBeDefined();
 
     // 6. Delete Webhook
-    const deleteNotFound = await handleDeleteWebhook({ params: { id: "non_existent_hook" }, request: { headers: adminHeaders }, set });
+    const deleteNotFound = await handleDeleteWebhook({
+      params: { id: "non_existent_hook" },
+      request: { headers: adminHeaders },
+      set,
+    });
     expect(set.status).toBe(404);
 
-    const deleteRes = await handleDeleteWebhook({ params: { id: hookId }, request: { headers: adminHeaders }, set: {} });
+    const deleteRes = await handleDeleteWebhook({
+      params: { id: hookId },
+      request: { headers: adminHeaders },
+      set: {},
+    });
     expect(deleteRes.success).toBe(true);
   });
 });

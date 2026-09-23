@@ -1,161 +1,171 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { api } from '../lib/api'
-import type { AppItem } from '../types/app'
-import type { LicenseItem, LicensePlatform } from '../types/licensing'
-import { dashboardEnv } from '../lib/environment'
-import { CheckCircle2, KeyRound, Webhook } from 'lucide-vue-next'
-import { useClipboard } from '../composables/useClipboard'
-import LicenseTable from '../components/licensing/LicenseTable.vue'
-import IssueLicenseModal from '../components/licensing/IssueLicenseModal.vue'
-import WebhookManager from '../components/licensing/WebhookManager.vue'
-import LicenseActivityPanel from '../components/licensing/LicenseActivityPanel.vue'
+import { ref, onMounted, onUnmounted, watch } from "vue";
+import { api } from "../lib/api";
+import type { AppItem } from "../types/app";
+import type { LicenseItem, LicensePlatform } from "../types/licensing";
+import { dashboardEnv } from "../lib/environment";
+import { CheckCircle2, KeyRound, Webhook } from "lucide-vue-next";
+import { useClipboard } from "../composables/useClipboard";
+import { useConfirm } from "../composables/useConfirm";
+import LicenseTable from "../components/licensing/LicenseTable.vue";
 
-const activeTab = ref<'licenses' | 'webhooks'>('licenses')
-const appsList = ref<AppItem[]>([])
-const licensesList = ref<LicenseItem[]>([])
-const loadingLicenses = ref(false)
-const actionFeedback = ref<string | null>(null)
-let feedbackTimer: ReturnType<typeof setTimeout> | null = null
-const { copy: writeClipboard } = useClipboard()
+import IssueLicenseModal from "../components/licensing/IssueLicenseModal.vue";
+import WebhookManager from "../components/licensing/WebhookManager.vue";
+import LicenseActivityPanel from "../components/licensing/LicenseActivityPanel.vue";
+
+const activeTab = ref<"licenses" | "webhooks">("licenses");
+const appsList = ref<AppItem[]>([]);
+const licensesList = ref<LicenseItem[]>([]);
+const loadingLicenses = ref(false);
+const actionFeedback = ref<string | null>(null);
+let feedbackTimer: ReturnType<typeof setTimeout> | null = null;
+const { copy: writeClipboard } = useClipboard();
 
 // Activity Panel State
-const activeLicense = ref<LicenseItem | null>(null)
+const activeLicense = ref<LicenseItem | null>(null);
 
 // Issue Modal State
-const isIssueModalOpen = ref(false)
-const isIssuing = ref(false)
+const isIssueModalOpen = ref(false);
+const isIssuing = ref(false);
 
 function setFeedback(msg: string, timeoutMs = 4000) {
-  if (feedbackTimer) clearTimeout(feedbackTimer)
-  actionFeedback.value = msg
+  if (feedbackTimer) clearTimeout(feedbackTimer);
+  actionFeedback.value = msg;
   feedbackTimer = setTimeout(() => {
-    actionFeedback.value = null
-    feedbackTimer = null
-  }, timeoutMs)
+    actionFeedback.value = null;
+    feedbackTimer = null;
+  }, timeoutMs);
 }
 
 onUnmounted(() => {
   if (feedbackTimer) {
-    clearTimeout(feedbackTimer)
-    feedbackTimer = null
+    clearTimeout(feedbackTimer);
+    feedbackTimer = null;
   }
-})
+});
 
 async function loadData() {
-  loadingLicenses.value = true
+  loadingLicenses.value = true;
   try {
-    const [appsRes, licRes] = await Promise.all([
-      api.getApps(),
-      api.getLicenses()
-    ])
-    appsList.value = appsRes.apps || []
-    licensesList.value = licRes.licenses || []
+    const [appsRes, licRes] = await Promise.all([api.getApps(), api.getLicenses()]);
+    appsList.value = appsRes.apps || [];
+    licensesList.value = licRes.licenses || [];
   } catch (err) {
-    console.error('Failed to load licenses data:', err)
+    console.error("Failed to load licenses data:", err);
   } finally {
-    loadingLicenses.value = false
+    loadingLicenses.value = false;
   }
 }
 
 async function handleIssueLicense(payload: {
-  appId: string
-  customerEmail: string
-  grantDays: number
-  maxSeats: number
-  platform: LicensePlatform
+  appId: string;
+  customerEmail: string;
+  grantDays: number;
+  maxSeats: number;
+  platform: LicensePlatform;
 }) {
-  isIssuing.value = true
+  isIssuing.value = true;
   try {
-    const res = await api.issueLicense(payload)
+    const res = await api.issueLicense(payload);
     if (res.success && res.license) {
-      isIssueModalOpen.value = false
-      setFeedback(`Lisensi baru ${res.license.licenseKey || ''} berhasil diterbitkan!`, 5000)
-      await loadData()
-      notifyLicensesChanged()
+      isIssueModalOpen.value = false;
+      setFeedback(`Lisensi baru ${res.license.licenseKey || ""} berhasil diterbitkan!`, 5000);
+      await loadData();
+      notifyLicensesChanged();
     }
   } finally {
-    isIssuing.value = false
+    isIssuing.value = false;
   }
 }
 
+const { confirm: confirmDialog } = useConfirm();
+
 async function revokeLicense(lic: LicenseItem) {
-  if (!confirm(`Cabut akses lisensi ${lic.licenseKey}?`)) return
+  const confirmed = await confirmDialog({
+    title: "Cabut Akses Lisensi",
+    message: `Apakah Anda yakin ingin mencabut lisensi ${lic.licenseKey}? Tindakan ini akan membatalkan token offline dan memutuskan seluruh seat perangkat.`,
+    confirmText: "Ya, Cabut Lisensi",
+    variant: "danger",
+  });
+  if (!confirmed) return;
   try {
-    const res = await api.revokeLicense(lic.licenseKey)
+    const res = await api.revokeLicense(lic.licenseKey);
     if (res.success) {
-      setFeedback(`Lisensi ${lic.licenseKey} berhasil dicabut.`, 4000)
-      await loadData()
-      notifyLicensesChanged()
+      setFeedback(`Lisensi ${lic.licenseKey} berhasil dicabut.`, 4000);
+      await loadData();
+      notifyLicensesChanged();
     }
   } catch (e) {
-    console.error(e)
+    console.error(e);
   }
 }
 
 async function unbindHardware(lic: LicenseItem) {
   try {
-    const res = await api.unbindHardware(lic.licenseKey)
+    const res = await api.unbindHardware(lic.licenseKey);
     if (res.success) {
-      setFeedback(`Hardware binding untuk ${lic.licenseKey} berhasil di-reset. Pengguna dapat aktivasi di device baru.`, 4000)
-      await loadData()
+      setFeedback(
+        `Hardware binding untuk ${lic.licenseKey} berhasil di-reset. Pengguna dapat aktivasi di device baru.`,
+        4000
+      );
+      await loadData();
     }
   } catch (e) {
-    console.error(e)
+    console.error(e);
   }
 }
 
 async function handleDeactivateSeat(licenseKey: string, hwid: string) {
   try {
-    const res = await api.deactivateLicense({ licenseKey, hwid })
+    const res = await api.deactivateLicense({ licenseKey, hwid });
     if (res.success) {
-      setFeedback('Device seat berhasil dilepas!', 4000)
-      await loadData()
+      setFeedback("Device seat berhasil dilepas!", 4000);
+      await loadData();
     } else {
-      setFeedback(`Gagal: ${res.error || 'Seat tidak bisa dilepas'}`, 4000)
+      setFeedback(`Gagal: ${res.error || "Seat tidak bisa dilepas"}`, 4000);
     }
   } catch (e: any) {
-    setFeedback(`Error: ${e?.message || 'Terjadi kesalahan'}`, 4000)
+    setFeedback(`Error: ${e?.message || "Terjadi kesalahan"}`, 4000);
   }
 }
 
 function openDetail(lic: LicenseItem) {
-  activeLicense.value = lic
+  activeLicense.value = lic;
 }
 
 function closeDetail() {
-  activeLicense.value = null
+  activeLicense.value = null;
 }
 
-function switchTab(tab: 'licenses' | 'webhooks') {
-  activeTab.value = tab
-  if (tab === 'licenses') {
-    loadData()
+function switchTab(tab: "licenses" | "webhooks") {
+  activeTab.value = tab;
+  if (tab === "licenses") {
+    loadData();
   }
 }
 
 /** Beri tahu sidebar (App.vue) bahwa daftar lisensi berubah agar badge ter-update. */
 function notifyLicensesChanged() {
-  window.dispatchEvent(new Event('tertaut:licenses-changed'))
+  window.dispatchEvent(new Event("tertaut:licenses-changed"));
 }
 
 async function copyToClipboard(text: string) {
-  const ok = await writeClipboard(text)
+  const ok = await writeClipboard(text);
   if (!ok) {
-    setFeedback('Gagal menyalin ke clipboard. Salin manual dari tabel.', 3000)
-    return
+    setFeedback("Gagal menyalin ke clipboard. Salin manual dari tabel.", 3000);
+    return;
   }
-  setFeedback(`Kunci lisensi ${text} disalin ke clipboard!`, 3000)
+  setFeedback(`Kunci lisensi ${text} disalin ke clipboard!`, 3000);
 }
 
 onMounted(() => {
-  loadData()
-})
+  loadData();
+});
 
 // Muat ulang saat environment Live/Sandbox berganti
 watch(dashboardEnv, () => {
-  loadData()
-})
+  loadData();
+});
 </script>
 
 <template>
@@ -181,7 +191,9 @@ watch(dashboardEnv, () => {
             >
               <KeyRound class="w-3.5 h-3.5 text-gold" />
               <span>Lisensi</span>
-              <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 font-mono text-white font-bold ml-0.5">
+              <span
+                class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 font-mono text-white font-bold ml-0.5"
+              >
                 {{ licensesList.length }}
               </span>
             </button>
@@ -207,7 +219,9 @@ watch(dashboardEnv, () => {
           >
             <KeyRound class="w-3.5 h-3.5" />
             <span>Lisensi</span>
-            <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 font-mono text-white font-bold ml-0.5">
+            <span
+              class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 font-mono text-white font-bold ml-0.5"
+            >
               {{ licensesList.length }}
             </span>
           </button>
@@ -249,4 +263,3 @@ watch(dashboardEnv, () => {
     />
   </div>
 </template>
-

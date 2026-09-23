@@ -1,0 +1,1 @@
+bun test --parallel=1

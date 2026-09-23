@@ -1,9 +1,9 @@
 # tertaut.com — Headless Developer Infrastructure Engine
 
 > **Versi 2.3** • Single Container Architecture Blueprint
-> **Status**: Semua fase F0–F6 **SELESAI** (101/101 test passing, 26 files, build client & server bersih)
+> **Status**: Semua fase F0–F6 **SELESAI** (387/387 test passing, 42 files, build client & server bersih)
 > **Peran Sistem**: Headless Developer Infrastructure Engine (Monetization, Universal Licensing, AI API Protection, Fake Door Validation & Launch Kit)
-> **Model Bisnis**: Merchant of Record (MoR) dengan Platform Fee 5% per transaksi via Xendit Infrastructure  
+> **Model Bisnis**: Merchant of Record (MoR) dengan Platform Fee 5% per transaksi via Xendit Infrastructure
 
 ---
 
@@ -15,7 +15,7 @@
 - **Payment & MoR Partner**: Xendit Payment Request / Invoice, DANA Enterprise Gateway & Disbursement API (95% net payout to builders)
 - **Security & Enkripsi**: AES-256-GCM Vault untuk API Key AI, Ed25519 (Asymmetric) & HMAC JWT untuk lisensi offline
 - **Client SDK**: `@tertaut/sdk` (Ultra lightweight, **6.2 KB** minified, zero dependency, target < 15 KB)
-- **Verifikasi**: `bun test --parallel=1` = 101 pass / 0 fail; `bun run build:client` + `bun run build:server` bersih
+- **Verifikasi**: `bun test --parallel=1` = 387 pass / 0 fail (1501 assertions across 42 files); `bun run build:client` + `bun run build:server` bersih
 
 ---
 
@@ -27,12 +27,12 @@ Sistem lisensi tertaut.com dilengkapi kapabilitas kelas enterprise:
    - Dukungan `licenseVersion` dan metadata `features` (JSONB) terintegrasi pada skema PostgreSQL.
 2. **F1 — Entitlements, Feature Flags & Version Floor**:
    - Penetapan fitur kustom per lisensi (`{ "ai-4k": true, "max_users": 50, "min_version": "2.4.0" }`).
-   - Penegakan *Version Floor* pada aktivasi/validasi (`APP_VERSION_TOO_OLD` HTTP 403 jika versi client usang).
+   - Penegakan _Version Floor_ pada aktivasi/validasi (`APP_VERSION_TOO_OLD` HTTP 403 jika versi client usang).
    - Claims Ed25519 `feat` & `vfl` untuk validasi offline tanpa server.
 3. **F2 — Floating License & Rolling Lease / Heartbeat**:
-   - Model lisensi dinamis berbasis sewa (*lease* dengan TTL, default 5 menit).
+   - Model lisensi dinamis berbasis sewa (_lease_ dengan TTL, default 5 menit).
    - Endpoint `POST /licensing/heartbeat` berkala dari client untuk memperpanjang masa sewa aktif.
-   - Otomatis melepas seat yang ditinggalkan (*seat rolling*) sehingga dapat dipakai perangkat lain tanpa lockout.
+   - Otomatis melepas seat yang ditinggalkan (_seat rolling_) sehingga dapat dipakai perangkat lain tanpa lockout.
 4. **F3 — Webhooks Lifecycle & Reliable Delivery**:
    - Notifikasi realtime untuk 10 siklus lisensi (`issued`, `activated`, `deactivated`, `seat_full`, `revoked`, `expired`, `renewed`, `transferred`, `unbound`, `credits.insufficient`).
    - Pengiriman berbasis tabel outbox, retry backoff eksponensial (maks 6 kali), dan verifikasi integritas HMAC-SHA256 (`x-tertaut-signature`).
@@ -46,7 +46,7 @@ Sistem lisensi tertaut.com dilengkapi kapabilitas kelas enterprise:
    - Kustomisasi `offlineGraceDays` per aplikasi (default 30 hari).
 7. **F6 — S2S Batch Operations & Seat Operations**:
    - Penerbitan dan pencabutan lisensi massal hingga 200 item per request (`/issue-batch`, `/revoke-batch`).
-   - Force-release seat per perangkat, transfer kepemilikan lisensi, dan pemulihan darurat (*recovery* reset seluruh seat).
+   - Force-release seat per perangkat, transfer kepemilikan lisensi, dan pemulihan darurat (_recovery_ reset seluruh seat).
 
 ---
 
@@ -114,27 +114,35 @@ tertautv2/
 ## 🚀 Panduan Memulai Cepat (Local Development)
 
 ### 1. Prasyarat
+
 - [Bun](https://bun.sh/) 1.3+
 - [Docker](https://www.docker.com/) & Docker Compose
 
 ### 2. Database PostgreSQL
+
 Pastikan PostgreSQL sudah berjalan dan `DATABASE_URL` sudah disiapkan pada `.env`:
+
 ```bash
 # Contoh di .env
 DATABASE_URL="postgresql://postgres:password@localhost:5432/tertautv2"
 ```
 
 ### 3. Migrasi Database
+
 Jalankan migrasi Drizzle untuk membuat seluruh tabel (termasuk `license_events`, `license_leases`, `webhook_endpoints`, `webhook_deliveries`):
+
 ```bash
 bun run db:migrate
 ```
+
 > **Catatan**: Jika database dibuat via `drizzle-kit push` (tanpa journal migrasi), `db:migrate` akan gagal. Dalam kasus ini, jalankan script SQL `0004_polite_sinister_six.sql` secara manual.
 
 ### 4. Jalankan Mode Development (Server & Frontend bersamaan)
+
 ```bash
 bun run dev
 ```
+
 - **Dashboard UI**: `http://localhost:5173`
 - **Backend API**: `http://localhost:3001`
 - **Swagger / OpenAPI**: `http://localhost:3001/swagger`
@@ -144,8 +152,10 @@ bun run dev
 ## 📦 Single Container Production Build
 
 Untuk memverifikasi arsitektur Single Container (Elysia menyajikan API sekaligus static SPA):
+
 ```bash
 bun run build
 bun run start
 ```
+
 Akses `http://localhost:3001` — Dashboard Vue 3 dan API `/api/v1/*` berjalan di satu port tanpa masalah CORS!

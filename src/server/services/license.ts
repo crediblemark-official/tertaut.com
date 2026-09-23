@@ -123,7 +123,10 @@ export class LicenseService {
     offlineGraceDays: number = DEFAULT_OFFLINE_GRACE_DAYS
   ): string {
     const vfl = typeof features?.min_version === "string" ? features.min_version : null;
-    const graceDays = Math.min(Math.max(Number(offlineGraceDays) || DEFAULT_OFFLINE_GRACE_DAYS, 1), 90);
+    const graceDays = Math.min(
+      Math.max(Number(offlineGraceDays) || DEFAULT_OFFLINE_GRACE_DAYS, 1),
+      90
+    );
     return LicenseTokenService.sign({
       lic: licenseKey,
       app: appId,
@@ -254,8 +257,12 @@ export class LicenseService {
       expiresAt,
       deliveryDetails: app?.deliveryConfig
         ? {
-            fileDownload: app.deliveryConfig.fileDownload?.enabled ? app.deliveryConfig.fileDownload : undefined,
-            privateNote: app.deliveryConfig.privateNote?.enabled ? app.deliveryConfig.privateNote : undefined,
+            fileDownload: app.deliveryConfig.fileDownload?.enabled
+              ? app.deliveryConfig.fileDownload
+              : undefined,
+            privateNote: app.deliveryConfig.privateNote?.enabled
+              ? app.deliveryConfig.privateNote
+              : undefined,
             apiAccess: app.deliveryConfig.apiAccess?.enabled
               ? { ...app.deliveryConfig.apiAccess, apiKey: issuedApiKey }
               : undefined,
@@ -306,8 +313,8 @@ export class LicenseService {
     const whereClause = params.licenseId
       ? eq(licenses.id, params.licenseId)
       : params.licenseKey
-      ? eq(licenses.licenseKey, params.licenseKey.trim())
-      : undefined;
+        ? eq(licenses.licenseKey, params.licenseKey.trim())
+        : undefined;
 
     if (!whereClause) {
       return {
@@ -379,5 +386,24 @@ export class LicenseService {
       tokenDenylisted: denylisted,
       license: updated,
     };
+  }
+
+  /**
+   * Cek apakah lisensi sudah kedaluwarsa. Jika ya, perbarui status ke "EXPIRED" di database secara konsisten.
+   */
+  static async checkAndMarkExpired(
+    lic: { id: string; status: string; expiresAt: Date | null },
+    dbOrTrx: any = db
+  ): Promise<boolean> {
+    const now = new Date();
+    if (lic.status === "ACTIVE" && lic.expiresAt && lic.expiresAt < now) {
+      await dbOrTrx
+        .update(licenses)
+        .set({ status: "EXPIRED", updatedAt: now })
+        .where(eq(licenses.id, lic.id));
+      lic.status = "EXPIRED";
+      return true;
+    }
+    return lic.status === "EXPIRED";
   }
 }

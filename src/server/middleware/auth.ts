@@ -2,8 +2,7 @@ import { Elysia } from "elysia";
 import { auth } from "../auth";
 import { db } from "../db";
 import { builders } from "../db/schema";
-import { user as userTable } from "../db/schema/auth";
-import { count, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { Builder } from "../db/schema/builders";
 
 export interface AuthUser {
@@ -13,9 +12,7 @@ export interface AuthUser {
   role?: string | null;
 }
 
-export type SecretApiKeyResult =
-  | { builder: Builder }
-  | { status: 401; error: string };
+export type SecretApiKeyResult = { builder: Builder } | { status: 401; error: string };
 
 async function resolveSession(headers: Headers) {
   try {
@@ -26,8 +23,7 @@ async function resolveSession(headers: Headers) {
 }
 
 export type AuthResult =
-  | { user: AuthUser; session: unknown | null }
-  | { status: 401 | 403; error: string };
+  { user: AuthUser; session: unknown | null } | { status: 401 | 403; error: string };
 
 /**
  * Helper guard untuk dipakai di `onBeforeHandle` router yang seluruh endpoint-nya privat.
@@ -43,20 +39,14 @@ export async function authenticate(headers: Headers, admin = false): Promise<Aut
     const adminEmail = process.env.ADMIN_EMAIL;
     if (adminEmail && user.email.toLowerCase() === adminEmail.toLowerCase()) {
       isUserAdmin = true;
-    } else {
-      try {
-        const [userCount] = await db.select({ totalUsers: count() }).from(userTable);
-        // Jika baru ada 1 user di platform (founder yang baru sign up), otomatis promosikan ke admin
-        if (userCount?.totalUsers === 1) {
-          isUserAdmin = true;
-          await db.update(userTable).set({ role: "admin" }).where(eq(userTable.id, user.id));
-        }
-      } catch {}
     }
   }
 
   if (admin && !isUserAdmin) return { status: 403, error: "Forbidden" };
-  return { user: { ...user, role: isUserAdmin ? "admin" : (user.role || "user") }, session: session?.session ?? null };
+  return {
+    user: { ...user, role: isUserAdmin ? "admin" : user.role || "user" },
+    session: session?.session ?? null,
+  };
 }
 
 /**

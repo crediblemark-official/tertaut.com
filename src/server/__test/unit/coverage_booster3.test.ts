@@ -12,10 +12,18 @@ import {
 } from "../../db/schema";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
 import { LicenseService } from "../../services/license";
-import { handleDanaFinishPaymentWebhook, handleDanaDisburseNotifyWebhook } from "../../routes/webhook/dana";
+import {
+  handleDanaFinishPaymentWebhook,
+  handleDanaDisburseNotifyWebhook,
+} from "../../routes/webhook/dana";
 import { fulfillPaymentTransaction } from "../../routes/webhook/fulfill";
 import { handleBatchPayout } from "../../routes/panel/payouts";
-import { handleActivateLicense, handleDeactivateLicense, handleValidateLicense, handleVerifyLicense } from "../../routes/licensing/device";
+import {
+  handleActivateLicense,
+  handleDeactivateLicense,
+  handleValidateLicense,
+  handleVerifyLicense,
+} from "../../routes/licensing/device";
 import { enforceRateLimit, resetRateLimits } from "../../services/rateLimiter";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
@@ -27,20 +35,26 @@ const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 async function seedBuilderApp(mode: "live" | "sandbox" = "live") {
   const email = `cov3_b_${suffix()}@test.com`;
-  const [b] = await db.insert(builders).values({
-    name: "Cov3Builder",
-    email,
-    apiKey: generateAppApiKey("live"),
-    secretApiKey: generateBuilderSecretApiKey(),
-  }).returning();
-  const [a] = await db.insert(apps).values({
-    id: `app_c3_${suffix()}`,
-    name: "Cov3App",
-    slug: `cov3-${suffix()}`,
-    builderId: b.id,
-    targetPrice: 50000,
-    mode,
-  }).returning();
+  const [b] = await db
+    .insert(builders)
+    .values({
+      name: "Cov3Builder",
+      email,
+      apiKey: generateAppApiKey("live"),
+      secretApiKey: generateBuilderSecretApiKey(),
+    })
+    .returning();
+  const [a] = await db
+    .insert(apps)
+    .values({
+      id: `app_c3_${suffix()}`,
+      name: "Cov3App",
+      slug: `cov3-${suffix()}`,
+      builderId: b.id,
+      targetPrice: 50000,
+      mode,
+    })
+    .returning();
   return { builder: b, app: a };
 }
 
@@ -56,19 +70,22 @@ async function issueLicense(appId: string, extras: Record<string, any> = {}) {
 }
 
 async function createTx(builderId: string, appId: string, extras: Record<string, any> = {}) {
-  const [tx] = await db.insert(transactions).values({
-    id: `tx_c3_${suffix()}`,
-    builderId,
-    appId,
-    xenditExternalId: `ext_${suffix()}`,
-    customerEmail: `c_${suffix()}@t.com`,
-    grossAmount: 100000,
-    netAmount: 95000,
-    platformFee: 5000,
-    paymentStatus: "PENDING",
-    disbursementStatus: "PENDING",
-    ...extras,
-  }).returning();
+  const [tx] = await db
+    .insert(transactions)
+    .values({
+      id: `tx_c3_${suffix()}`,
+      builderId,
+      appId,
+      xenditExternalId: `ext_${suffix()}`,
+      customerEmail: `c_${suffix()}@t.com`,
+      grossAmount: 100000,
+      netAmount: 95000,
+      platformFee: 5000,
+      paymentStatus: "PENDING",
+      disbursementStatus: "PENDING",
+      ...extras,
+    })
+    .returning();
   return tx;
 }
 
@@ -79,12 +96,15 @@ describe("Coverage Booster3: webhook/fulfill.ts", () => {
   it("fulfillPaymentTransaction: sends email and handles delivery config with apiAccess", async () => {
     const { builder, app: a } = await seedBuilderApp();
     // Enable apiAccess in deliveryConfig
-    await db.update(apps).set({
-      deliveryConfig: {
-        licenseKey: { enabled: true, expiresInDays: 30, maxSeats: 1 },
-        apiAccess: { enabled: true, endpointUrl: "https://api.example.com" },
-      } as any,
-    }).where(eq(apps.id, a.id));
+    await db
+      .update(apps)
+      .set({
+        deliveryConfig: {
+          licenseKey: { enabled: true, expiresInDays: 30, maxSeats: 1 },
+          apiAccess: { enabled: true, endpointUrl: "https://api.example.com" },
+        } as any,
+      })
+      .where(eq(apps.id, a.id));
     const tx = await createTx(builder.id, a.id);
     const res = await fulfillPaymentTransaction(tx, "QRIS");
     // Should succeed and generate an API key
@@ -226,7 +246,11 @@ describe("Coverage Booster3: panel/payouts.ts handleBatchPayout", () => {
   it("handleBatchPayout: skips builders below minimum threshold", async () => {
     // Insert a live app + transaction with netAmount < 50000
     const { builder, app: a } = await seedBuilderApp("live");
-    await createTx(builder.id, a.id, { paymentStatus: "PAID", netAmount: 10000, grossAmount: 10000 });
+    await createTx(builder.id, a.id, {
+      paymentStatus: "PAID",
+      netAmount: 10000,
+      grossAmount: 10000,
+    });
 
     const res = await handleBatchPayout();
     expect(res.success).toBe(true);
@@ -252,7 +276,9 @@ describe("Coverage Booster3: panel/payouts.ts handleBatchPayout", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster3: metering/router.ts edge cases", () => {
   it("GET /metering/usage/:licenseKey: 404 for unknown license", async () => {
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/usage/TT-FAKE-METERING"));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/metering/usage/TT-FAKE-METERING")
+    );
     expect(res.status).toBe(404);
   });
 
@@ -270,14 +296,30 @@ describe("Coverage Booster3: metering/router.ts edge cases", () => {
 
   it("POST /metering/events: 403 when license not ACTIVE", async () => {
     const { app: a } = await seedBuilderApp();
-    await db.update(apps).set({ meteringConfig: { enabled: true, unitPrice: 1, template: "test", name: "Test", aggregation: "sum" } as any }).where(eq(apps.id, a.id));
+    await db
+      .update(apps)
+      .set({
+        meteringConfig: {
+          enabled: true,
+          unitPrice: 1,
+          template: "test",
+          name: "Test",
+          aggregation: "sum",
+        } as any,
+      })
+      .where(eq(apps.id, a.id));
     const issueRes = await issueLicense(a.id);
-    await db.update(licenses).set({ status: "REVOKED" }).where(eq(licenses.id, issueRes.license.id));
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ licenseKey: issueRes.license.licenseKey, eventName: "test" }),
-    }));
+    await db
+      .update(licenses)
+      .set({ status: "REVOKED" })
+      .where(eq(licenses.id, issueRes.license.id));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/metering/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licenseKey: issueRes.license.licenseKey, eventName: "test" }),
+      })
+    );
     expect(res.status).toBe(403);
   });
 
@@ -291,16 +333,21 @@ describe("Coverage Booster3: metering/router.ts edge cases", () => {
     });
     const cookie = signRes.headers.get("set-cookie")?.split(";")[0] || "";
     // Create a builder with this user's email but no apps
-    const [b] = await db.insert(builders).values({
-      name: "NoAppBuilder",
-      email,
-      apiKey: generateAppApiKey("live"),
-      secretApiKey: generateBuilderSecretApiKey(),
-    }).returning();
+    const [b] = await db
+      .insert(builders)
+      .values({
+        name: "NoAppBuilder",
+        email,
+        apiKey: generateAppApiKey("live"),
+        secretApiKey: generateBuilderSecretApiKey(),
+      })
+      .returning();
 
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/stats", {
-      headers: { cookie },
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/metering/stats", {
+        headers: { cookie },
+      })
+    );
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body.success).toBe(true);
@@ -347,7 +394,12 @@ describe("Coverage Booster3: licensing/device.ts handleActivateLicense", () => {
     const issueRes = await issueLicense(a.id);
     const set: any = {};
     const res = await handleActivateLicense({
-      body: { licenseKey: issueRes.license.licenseKey, appId: "wrong_app_id", hwid: "hw1", deviceName: "PC" },
+      body: {
+        licenseKey: issueRes.license.licenseKey,
+        appId: "wrong_app_id",
+        hwid: "hw1",
+        deviceName: "PC",
+      },
       set,
       request: new Request("http://localhost"),
     });
@@ -358,7 +410,10 @@ describe("Coverage Booster3: licensing/device.ts handleActivateLicense", () => {
   it("403 when license status is not ACTIVE", async () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
-    await db.update(licenses).set({ status: "REVOKED" }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ status: "REVOKED" })
+      .where(eq(licenses.id, issueRes.license.id));
     const set: any = {};
     const res = await handleActivateLicense({
       body: { licenseKey: issueRes.license.licenseKey, appId: a.id, hwid: "hw1", deviceName: "PC" },
@@ -371,10 +426,18 @@ describe("Coverage Booster3: licensing/device.ts handleActivateLicense", () => {
   it("403 when license is expired", async () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
-    await db.update(licenses).set({ expiresAt: new Date(Date.now() - 10000) }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ expiresAt: new Date(Date.now() - 10000) })
+      .where(eq(licenses.id, issueRes.license.id));
     const set: any = {};
     const res = await handleActivateLicense({
-      body: { licenseKey: issueRes.license.licenseKey, appId: a.id, hwid: "hw_exp_test", deviceName: "PC" },
+      body: {
+        licenseKey: issueRes.license.licenseKey,
+        appId: a.id,
+        hwid: "hw_exp_test",
+        deviceName: "PC",
+      },
       set,
       request: new Request("http://localhost"),
     });
@@ -387,7 +450,12 @@ describe("Coverage Booster3: licensing/device.ts handleActivateLicense", () => {
     const issueRes = await issueLicense(a.id);
     const set: any = {};
     const res = await handleActivateLicense({
-      body: { licenseKey: issueRes.license.licenseKey, appId: a.id, hwid: "HWID_ACTIVATE_NEW_01", deviceName: "My PC" },
+      body: {
+        licenseKey: issueRes.license.licenseKey,
+        appId: a.id,
+        hwid: "HWID_ACTIVATE_NEW_01",
+        deviceName: "My PC",
+      },
       set,
       request: new Request("http://localhost"),
     });
@@ -408,7 +476,12 @@ describe("Coverage Booster3: licensing/device.ts handleActivateLicense", () => {
     // Second activation (same hwid → existingActivation branch)
     const set: any = {};
     const res = await handleActivateLicense({
-      body: { licenseKey: issueRes.license.licenseKey, appId: a.id, hwid, deviceName: "PC Updated" },
+      body: {
+        licenseKey: issueRes.license.licenseKey,
+        appId: a.id,
+        hwid,
+        deviceName: "PC Updated",
+      },
       set,
       request: new Request("http://localhost"),
     });
@@ -530,7 +603,11 @@ describe("Coverage Booster3: licensing/device.ts handleValidateLicense", () => {
     const issueRes = await issueLicense(a.id);
     const set: any = {};
     const res = await handleValidateLicense({
-      body: { licenseKey: issueRes.license.licenseKey, appId: a.id, hardwareId: "HWID_UNREGISTERED_123" },
+      body: {
+        licenseKey: issueRes.license.licenseKey,
+        appId: a.id,
+        hardwareId: "HWID_UNREGISTERED_123",
+      },
       set,
       request: new Request("http://localhost"),
     });
@@ -551,7 +628,11 @@ describe("Coverage Booster3: licensing/device.ts handleValidateLicense", () => {
     // Validate with different hwid — should get HARDWARE_MISMATCH
     const set: any = {};
     const res = await handleValidateLicense({
-      body: { licenseKey: issueRes.license.licenseKey, appId: a.id, hardwareId: "TOTALLY_DIFFERENT_HWID" },
+      body: {
+        licenseKey: issueRes.license.licenseKey,
+        appId: a.id,
+        hardwareId: "TOTALLY_DIFFERENT_HWID",
+      },
       set,
       request: new Request("http://localhost"),
     });
@@ -562,7 +643,10 @@ describe("Coverage Booster3: licensing/device.ts handleValidateLicense", () => {
   it("LICENSE_EXPIRED when expiresAt is in the past", async () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
-    await db.update(licenses).set({ expiresAt: new Date(Date.now() - 10000) }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ expiresAt: new Date(Date.now() - 10000) })
+      .where(eq(licenses.id, issueRes.license.id));
     const set: any = {};
     const res = await handleValidateLicense({
       body: { licenseKey: issueRes.license.licenseKey, appId: a.id },
@@ -577,7 +661,10 @@ describe("Coverage Booster3: licensing/device.ts handleValidateLicense", () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
     // Set min_version feature
-    await db.update(licenses).set({ features: { min_version: "2.0.0" } }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ features: { min_version: "2.0.0" } })
+      .where(eq(licenses.id, issueRes.license.id));
     const set: any = {};
     const res = await handleValidateLicense({
       body: { licenseKey: issueRes.license.licenseKey, appId: a.id, appVersion: "1.0.0" },
@@ -607,7 +694,10 @@ describe("Coverage Booster3: licensing/device.ts handleVerifyLicense additional"
   it("verifyLicense: returns EXPIRED when expired and updates DB", async () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
-    await db.update(licenses).set({ expiresAt: new Date(Date.now() - 10000) }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ expiresAt: new Date(Date.now() - 10000) })
+      .where(eq(licenses.id, issueRes.license.id));
     const set: any = {};
     const res = await handleVerifyLicense({
       body: { licenseKey: issueRes.license.licenseKey },
@@ -621,7 +711,10 @@ describe("Coverage Booster3: licensing/device.ts handleVerifyLicense additional"
   it("verifyLicense: APP_VERSION_TOO_OLD for old app version", async () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
-    await db.update(licenses).set({ features: { min_version: "3.0.0" } }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ features: { min_version: "3.0.0" } })
+      .where(eq(licenses.id, issueRes.license.id));
     const set: any = {};
     const res = await handleVerifyLicense({
       body: { licenseKey: issueRes.license.licenseKey, appVersion: "1.5.0" },
@@ -663,9 +756,11 @@ describe("Coverage Booster3: middleware/auth.ts requireAdmin macro", () => {
       asResponse: true,
     });
     const cookie = signRes.headers.get("set-cookie")?.split(";")[0] || "";
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/panel/builders", {
-      headers: { cookie },
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/panel/builders", {
+        headers: { cookie },
+      })
+    );
     expect([401, 403]).toContain(res.status);
   });
 });
@@ -675,9 +770,11 @@ describe("Coverage Booster3: middleware/auth.ts requireAdmin macro", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster3: apps/disburse.ts additional via HTTP", () => {
   it("POST /apps/:transactionId/disburse: 401 without auth", async () => {
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/apps/tx_fake_id/disburse", {
-      method: "POST",
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/apps/tx_fake_id/disburse", {
+        method: "POST",
+      })
+    );
     expect([401, 404]).toContain(res.status);
   });
 });
@@ -690,8 +787,11 @@ describe("Coverage Booster3: services/license.ts", () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
     // Clear the offline token to test null branch
-    await db.update(licenses).set({ offlineJwtGraceToken: null }).where(eq(licenses.id, issueRes.license.id));
-    // Now call rotateOfflineToken with null token - should not throw
+    await db
+      .update(licenses)
+      .set({ offlineJwtGraceToken: null })
+      .where(eq(licenses.id, issueRes.license.id));
+    // Now call rotateOfflineToken with null token — verify a new token is written to DB
     const lic = await db.query.licenses.findFirst({ where: eq(licenses.id, issueRes.license.id) });
     if (lic) {
       await LicenseService.rotateOfflineToken({
@@ -704,7 +804,12 @@ describe("Coverage Booster3: services/license.ts", () => {
         offlineJwtGraceToken: null,
       });
     }
-    expect(true).toBe(true); // No error = test passes
+    // After rotation, the license should have a new non-null offlineJwtGraceToken
+    const updated = await db.query.licenses.findFirst({
+      where: eq(licenses.id, issueRes.license.id),
+    });
+    expect(updated?.offlineJwtGraceToken).not.toBeNull();
+    expect(typeof updated?.offlineJwtGraceToken).toBe("string");
   });
 });
 
@@ -746,14 +851,20 @@ describe("Coverage Booster3: services/crypto.ts", () => {
 describe("Coverage Booster3: services/webhooks.ts", () => {
   it("WebhookService.emit: no endpoints registered, completes without error", async () => {
     const { WebhookService } = await import("../../services/webhooks");
-    // Emit event for an app with no webhooks registered
+    // Emit event for an app with no webhooks registered — verify no delivery rows are created
+    const { db } = await import("../../db");
+    const { webhookDeliveries } = await import("../../db/schema");
+    const { eq } = await import("drizzle-orm");
+    const countBefore = (await db.select().from(webhookDeliveries)).length;
     await WebhookService.emit("license.issued", {
       license: { id: "fake_id", licenseKey: "TT-FAKE" } as any,
       actorType: "SYSTEM",
       ipAddress: null,
       payload: {},
     });
-    expect(true).toBe(true);
+    const countAfter = (await db.select().from(webhookDeliveries)).length;
+    // No new deliveries should be inserted since the app has no endpoints
+    expect(countAfter).toBe(countBefore);
   });
 });
 
@@ -822,21 +933,25 @@ describe("Coverage Booster3: apps/builder.ts live mode branch", () => {
 describe("Coverage Booster3: routes/launch.ts", () => {
   it("POST /launch/convert-to-live: triggers convertToLiveLaunch for existing app", async () => {
     const { app: a } = await seedBuilderApp("sandbox");
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/launch/convert-to-live", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", cookie: authCookie },
-      body: JSON.stringify({ campaignId: a.id, discountPercent: 25 }),
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/launch/convert-to-live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", cookie: authCookie },
+        body: JSON.stringify({ campaignId: a.id, discountPercent: 25 }),
+      })
+    );
     // Should succeed with 200 or similar
     expect([200, 201, 400]).toContain(res.status);
   });
 
   it("POST /launch/convert-to-live: 404 for nonexistent campaign", async () => {
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/launch/convert-to-live", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", cookie: authCookie },
-      body: JSON.stringify({ campaignId: "nonexistent_app_xyz" }),
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/launch/convert-to-live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", cookie: authCookie },
+        body: JSON.stringify({ campaignId: "nonexistent_app_xyz" }),
+      })
+    );
     expect([400, 404, 500]).toContain(res.status);
   });
 });

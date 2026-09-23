@@ -2,12 +2,33 @@ import { db } from "../../db";
 import { aiVaultCredentials, apps } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { CryptoService } from "../../services/crypto";
+import { resolveCurrentBuilder } from "../apps/builder";
+import { verifyOwnedApp } from "../../lib/ownership";
 
 /**
  * Helper untuk menyimpan kredensial ke Vault dengan AES-256-GCM
  */
-export async function saveVaultCredential(body: any, set: any) {
+export async function saveVaultCredential(body: any, set: any, request?: any) {
   const { appId, provider, rawApiKey, monthlyBudgetLimit = 500000 } = body;
+
+  const { builder, isAdmin } = request?.headers
+    ? await resolveCurrentBuilder(request.headers)
+    : !request
+      ? { builder: null, isAdmin: true }
+      : { builder: null, isAdmin: false };
+
+  if (!isAdmin && !builder) {
+    set.status = 401;
+    return { error: "Unauthorized" };
+  }
+
+  if (!isAdmin && builder) {
+    const owned = await verifyOwnedApp(builder.id, appId, isAdmin);
+    if ("error" in owned) {
+      set.status = owned.status;
+      return { error: owned.error };
+    }
+  }
 
   const app = await db.query.apps.findFirst({
     where: eq(apps.id, appId),
@@ -22,10 +43,7 @@ export async function saveVaultCredential(body: any, set: any) {
   const { cipherText, iv, authTag } = CryptoService.encrypt(rawApiKey);
 
   const existing = await db.query.aiVaultCredentials.findFirst({
-    where: and(
-      eq(aiVaultCredentials.appId, appId),
-      eq(aiVaultCredentials.provider, provider)
-    ),
+    where: and(eq(aiVaultCredentials.appId, appId), eq(aiVaultCredentials.provider, provider)),
   });
 
   if (existing) {
@@ -59,7 +77,26 @@ export async function saveVaultCredential(body: any, set: any) {
 /**
  * Cek status Vault Kredensial AI untuk suatu App
  */
-export async function handleGetVaultCredentials({ params: { appId } }: any) {
+export async function handleGetVaultCredentials({ params: { appId }, request, set }: any) {
+  const { builder, isAdmin } = request?.headers
+    ? await resolveCurrentBuilder(request.headers)
+    : !request
+      ? { builder: null, isAdmin: true }
+      : { builder: null, isAdmin: false };
+
+  if (!isAdmin && !builder) {
+    set.status = 401;
+    return { error: "Unauthorized" };
+  }
+
+  if (!isAdmin && builder) {
+    const owned = await verifyOwnedApp(builder.id, appId, isAdmin);
+    if ("error" in owned) {
+      set.status = owned.status;
+      return { error: owned.error };
+    }
+  }
+
   const creds = await db.query.aiVaultCredentials.findMany({
     where: eq(aiVaultCredentials.appId, appId),
   });
@@ -83,14 +120,30 @@ export async function handleGetVaultCredentials({ params: { appId } }: any) {
 /**
  * Toggle Kill-Switch
  */
-export async function handleToggleKillSwitch({ body, set }: any) {
+export async function handleToggleKillSwitch({ body, request, set }: any) {
   const { appId, provider } = body as any;
 
+  const { builder, isAdmin } = request?.headers
+    ? await resolveCurrentBuilder(request.headers)
+    : !request
+      ? { builder: null, isAdmin: true }
+      : { builder: null, isAdmin: false };
+
+  if (!isAdmin && !builder) {
+    set.status = 401;
+    return { error: "Unauthorized" };
+  }
+
+  if (!isAdmin && builder) {
+    const owned = await verifyOwnedApp(builder.id, appId, isAdmin);
+    if ("error" in owned) {
+      set.status = owned.status;
+      return { error: owned.error };
+    }
+  }
+
   const cred = await db.query.aiVaultCredentials.findFirst({
-    where: and(
-      eq(aiVaultCredentials.appId, appId),
-      eq(aiVaultCredentials.provider, provider)
-    ),
+    where: and(eq(aiVaultCredentials.appId, appId), eq(aiVaultCredentials.provider, provider)),
   });
 
   if (!cred) {

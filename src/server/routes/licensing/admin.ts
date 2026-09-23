@@ -1,5 +1,12 @@
 import { db } from "../../db";
-import { licenses, licenseActivations, apps, builders, webhookEndpoints, webhookDeliveries } from "../../db/schema";
+import {
+  licenses,
+  licenseActivations,
+  apps,
+  builders,
+  webhookEndpoints,
+  webhookDeliveries,
+} from "../../db/schema";
 import { eq, inArray, and, sql, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { LicenseService } from "../../services/license";
@@ -7,6 +14,9 @@ import { CreditService } from "../../services/credits";
 import { AuditService } from "../../services/audit";
 import { WebhookService, WEBHOOK_EVENTS } from "../../services/webhooks";
 import { resolveCurrentBuilder } from "../apps/builder";
+import { verifyOwnedApp, verifyOwnedLicense } from "../../lib/ownership";
+import { parsePagination, paginationEnvelope } from "../../lib/pagination";
+import { getClientIp } from "../../lib/ip";
 
 interface ListLicensesQuery {
   appId?: string;
@@ -35,6 +45,30 @@ interface SetStatusContext {
   status?: number | string;
 }
 
+export interface ListEventsContext {
+  query?: {
+    licenseKey?: string;
+    appId?: string;
+    event?: string;
+    actorType?: string;
+    limit?: number | string;
+    offset?: number | string;
+  };
+  request?: { headers?: Headers | any };
+  set?: SetStatusContext | any;
+}
+
+export interface RenewLicenseContext {
+  body?: {
+    licenseKey?: string;
+    additionalDays?: number | string;
+    days?: number | string;
+    [key: string]: any;
+  };
+  request?: { headers?: Headers | any };
+  set?: SetStatusContext | any;
+}
+
 export async function handleListLicenses({ query, request }: ListLicensesContext) {
   const { appId, limit = 200, offset = 0, page, mode } = query || {};
   const headers = request?.headers;
@@ -53,7 +87,12 @@ export async function handleListLicenses({ query, request }: ListLicensesContext
     if (builderApps.length === 0) {
       return { success: true, licenses: [], total: 0, hasMore: false };
     }
-    conditions.push(inArray(licenses.appId, builderApps.map((a) => a.id)));
+    conditions.push(
+      inArray(
+        licenses.appId,
+        builderApps.map((a) => a.id)
+      )
+    );
   } else if (!isAdmin && !builder) {
     return { success: true, licenses: [], total: 0, hasMore: false };
   }
@@ -61,18 +100,19 @@ export async function handleListLicenses({ query, request }: ListLicensesContext
   if (appId) {
     conditions.push(eq(licenses.appId, appId));
   } else if (mode) {
-    const appRows = await db
-      .select({ id: apps.id })
-      .from(apps)
-      .where(eq(apps.mode, mode));
+    const appRows = await db.select({ id: apps.id }).from(apps).where(eq(apps.mode, mode));
     if (appRows.length === 0) {
       return { success: true, licenses: [], total: 0, hasMore: false };
     }
-    conditions.push(inArray(licenses.appId, appRows.map((a) => a.id)));
+    conditions.push(
+      inArray(
+        licenses.appId,
+        appRows.map((a) => a.id)
+      )
+    );
   }
 
-  const parsedLimit = Math.max(1, Math.min(Number(limit) || 200, 500));
-  const parsedOffset = page ? (Math.max(1, Number(page)) - 1) * parsedLimit : Math.max(0, Number(offset) || 0);
+  const pagination = parsePagination({ limit, offset, page });
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -86,8 +126,8 @@ export async function handleListLicenses({ query, request }: ListLicensesContext
   const licList = await db.query.licenses.findMany({
     where: whereClause,
     orderBy: (lic, { desc }) => [desc(lic.createdAt)],
-    limit: parsedLimit,
-    offset: parsedOffset,
+    limit: pagination.limit,
+    offset: pagination.offset,
   });
 
   // Batch-fetch seluruh aktivasi device seats (hindari N+1).
@@ -114,22 +154,40 @@ export async function handleListLicenses({ query, request }: ListLicensesContext
   return {
     success: true,
     licenses: licensesWithActivations,
-    total,
-    limit: parsedLimit,
-    offset: parsedOffset,
-    hasMore: parsedOffset + licList.length < total,
+    ...paginationEnvelope(licList, total, pagination),
   };
 }
 
-export async function handleIssueLicense({ body, request }: { body: IssueLicenseBody; request?: { headers?: Headers } }) {
+export async function handleIssueLicense({
+  body,
+  request,
+  set,
+}: {
+  body: IssueLicenseBody;
+  request?: { headers?: Headers };
+  set?: any;
+}) {
   const { builder, isAdmin } = request?.headers
     ? await resolveCurrentBuilder(request.headers)
-    : { builder: null, isAdmin: false };
+    : !request
+      ? { builder: null, isAdmin: true }
+      : { builder: null, isAdmin: false };
 
-  const ipAddress =
-    request?.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request?.headers?.get?.("x-real-ip") ||
-    null;
+  if (!isAdmin && !builder) {
+    if (set) set.status = 401;
+    return { success: false, error: "Unauthorized" };
+  }
+
+  // IDOR-1: Validasi kepemilikan appId oleh builder pemanggil
+  if (!isAdmin && builder) {
+    const owned = await verifyOwnedApp(builder.id, body.appId, isAdmin);
+    if ("error" in owned) {
+      if (set) set.status = owned.status;
+      return { success: false, error: owned.error };
+    }
+  }
+
+  const ipAddress = getClientIp(request);
 
   const result = await LicenseService.issueDirect({
     appId: body.appId,
@@ -140,7 +198,9 @@ export async function handleIssueLicense({ body, request }: { body: IssueLicense
     grantCredits: body.grantCredits,
     features: body.features,
     creditDescription: "Penerbitan lisensi manual",
-    actor: isAdmin ? { type: "ADMIN", id: builder?.id ?? "platform-admin" } : { type: "BUILDER", id: builder?.id },
+    actor: isAdmin
+      ? { type: "ADMIN", id: builder?.id ?? "platform-admin" }
+      : { type: "BUILDER", id: builder?.id },
     ipAddress,
   });
 
@@ -151,8 +211,36 @@ export async function handleIssueLicense({ body, request }: { body: IssueLicense
   };
 }
 
-export async function handleRevokeLicense({ body, set }: { body: { licenseKey: string }; set: SetStatusContext }) {
+export async function handleRevokeLicense({
+  body,
+  request,
+  set,
+}: {
+  body: { licenseKey: string };
+  request?: { headers?: Headers };
+  set: SetStatusContext;
+}) {
   const { licenseKey } = body;
+  const { builder, isAdmin } = request?.headers
+    ? await resolveCurrentBuilder(request.headers)
+    : !request
+      ? { builder: null, isAdmin: true }
+      : { builder: null, isAdmin: false };
+
+  if (!isAdmin && !builder) {
+    set.status = 401;
+    return { error: "Unauthorized" };
+  }
+
+  // IDOR-2: Validasi kepemilikan lisensi oleh builder pemanggil
+  if (!isAdmin && builder) {
+    const owned = await verifyOwnedLicense(builder.id, licenseKey, isAdmin);
+    if ("error" in owned) {
+      set.status = owned.status;
+      return { error: owned.error };
+    }
+  }
+
   const result = await LicenseService.revoke({ licenseKey });
 
   if (result.notFound) {
@@ -168,7 +256,13 @@ export async function handleRevokeLicense({ body, set }: { body: { licenseKey: s
   };
 }
 
-export async function handleVerifyApiKey({ body, set }: { body: { apiKey?: string }; set: SetStatusContext }) {
+export async function handleVerifyApiKey({
+  body,
+  set,
+}: {
+  body: { apiKey?: string };
+  set: SetStatusContext;
+}) {
   const { apiKey } = body;
 
   if (!apiKey || typeof apiKey !== "string") {
@@ -200,7 +294,7 @@ export async function handleVerifyApiKey({ body, set }: { body: { apiKey?: strin
   };
 }
 
-export async function handleListEvents({ query, request, set }: any) {
+export async function handleListEvents({ query, request, set }: ListEventsContext) {
   const headers = request?.headers;
   const { builder, isAdmin } = headers
     ? await resolveCurrentBuilder(headers)
@@ -280,16 +374,8 @@ export async function handleListEvents({ query, request, set }: any) {
   });
 }
 
-export async function handleRenewLicense({
-  body,
-  set,
-  request,
-}: {
-  body: { licenseKey?: string; additionalDays?: number; days?: number };
-  set: SetStatusContext;
-  request?: { headers?: Headers };
-}) {
-  const { licenseKey, additionalDays, days } = body;
+export async function handleRenewLicense({ body, set, request }: RenewLicenseContext) {
+  const { licenseKey, additionalDays, days } = body || {};
 
   if (!licenseKey || typeof licenseKey !== "string") {
     set.status = 400;
@@ -321,13 +407,26 @@ export async function handleRenewLicense({
   let daysToAdd = Number(additionalDays || days);
   if (!daysToAdd || daysToAdd <= 0) {
     switch (app?.billingPeriod) {
-      case "daily": daysToAdd = 1; break;
-      case "weekly": daysToAdd = 7; break;
-      case "monthly": daysToAdd = 30; break;
-      case "every_3_months": daysToAdd = 90; break;
-      case "every_6_months": daysToAdd = 180; break;
-      case "yearly": daysToAdd = 365; break;
-      default: daysToAdd = app?.deliveryConfig?.licenseKey?.expiresInDays || 30;
+      case "daily":
+        daysToAdd = 1;
+        break;
+      case "weekly":
+        daysToAdd = 7;
+        break;
+      case "monthly":
+        daysToAdd = 30;
+        break;
+      case "every_3_months":
+        daysToAdd = 90;
+        break;
+      case "every_6_months":
+        daysToAdd = 180;
+        break;
+      case "yearly":
+        daysToAdd = 365;
+        break;
+      default:
+        daysToAdd = app?.deliveryConfig?.licenseKey?.expiresInDays || 30;
     }
   }
 
@@ -345,19 +444,20 @@ export async function handleRenewLicense({
     .where(eq(licenses.id, lic.id))
     .returning();
 
-  const ipAddress =
-    request?.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request?.headers?.get?.("x-real-ip") ||
-    null;
+  const ipAddress = getClientIp(request);
 
-  await AuditService.record("license.renewed", {
-    licenseId: lic.id,
-    licenseKey: lic.licenseKey,
-    appId: lic.appId,
-    actorType: isAdmin ? "ADMIN" : "BUILDER",
-    actorId: builder?.id || null,
-    ipAddress,
-  }, { additionalDays: daysToAdd, newExpiry: baseDate.toISOString() });
+  await AuditService.record(
+    "license.renewed",
+    {
+      licenseId: lic.id,
+      licenseKey: lic.licenseKey,
+      appId: lic.appId,
+      actorType: isAdmin ? "ADMIN" : "BUILDER",
+      actorId: builder?.id || null,
+      ipAddress,
+    },
+    { additionalDays: daysToAdd, newExpiry: baseDate.toISOString() }
+  );
 
   await WebhookService.emit("license.renewed", {
     license: updated,
@@ -376,206 +476,4 @@ export async function handleRenewLicense({
     additionalDays: daysToAdd,
     license: updated,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Fase 3: Manajemen Webhook (dashboard). Scoped per-builder; admin bebas.
-// ---------------------------------------------------------------------------
-
-async function resolveWebhookActor(headers: any) {
-  const { builder, isAdmin } = await resolveCurrentBuilder(headers);
-  if (!isAdmin && !builder) {
-    return { error: "Autentikasi diperlukan" as const };
-  }
-  return { builder, isAdmin };
-}
-
-export async function handleListWebhooks({ request, set }: any) {
-  const headers = request?.headers;
-  const actor = headers ? await resolveWebhookActor(headers) : { error: "no-headers" };
-  if ("error" in actor) {
-    set.status = 403;
-    return { success: false, error: actor.error };
-  }
-  if (!actor.isAdmin && !actor.builder) {
-    set.status = 403;
-    return { success: false, error: "Autentikasi diperlukan" };
-  }
-
-  let webhooks;
-  let buildersList: Record<string, any>[] = [];
-  if (actor.isAdmin) {
-    webhooks = await db.query.webhookEndpoints.findMany({
-      orderBy: (e, { desc }) => [desc(e.createdAt)],
-    });
-    const ids = [...new Set(webhooks.map((w) => w.builderId))];
-    if (ids.length) {
-      buildersList = await db.query.builders.findMany({ where: inArray(builders.id, ids as string[]) });
-    }
-    const byId = new Map(buildersList.map((b) => [b.id, b]));
-    webhooks = webhooks.map((w) => ({
-      ...w,
-      builderEmail: byId.get(w.builderId)?.email || null,
-      builderName: byId.get(w.builderId)?.name || null,
-    }));
-  } else {
-    webhooks = await WebhookService.list(actor.builder!.id);
-  }
-
-  return { success: true, events: WEBHOOK_EVENTS, webhooks };
-}
-
-export async function handleCreateWebhook({ body, request, set }: any) {
-  const headers = request?.headers;
-  const actor = headers ? await resolveWebhookActor(headers) : { error: "no-headers" };
-  if ("error" in actor) {
-    set.status = 403;
-    return { success: false, error: actor.error };
-  }
-
-  let targetBuilderId = actor.isAdmin ? (body.builderId || actor.builder?.id) : actor.builder!.id;
-  if (!targetBuilderId) {
-    set.status = 400;
-    return { success: false, error: "builderId wajib untuk admin" };
-  }
-
-  if (!/^https?:\/\//.test(body.url || "")) {
-    set.status = 400;
-    return { success: false, error: "url harus berupa endpoint HTTP(S) yang valid" };
-  }
-  if (Array.isArray(body.events)) {
-    const invalid = body.events.filter((e: string) => !(WEBHOOK_EVENTS as readonly string[]).includes(e));
-    if (invalid.length > 0) {
-      set.status = 400;
-      return { success: false, error: `Event tidak dikenal: ${invalid.join(", ")}` };
-    }
-  }
-
-  const endpoint = await WebhookService.create(targetBuilderId, {
-    url: body.url,
-    events: body.events || [],
-    secret: body.secret,
-    isActive: body.isActive ?? true,
-  });
-
-  return { success: true, webhook: endpoint };
-}
-
-export async function handleUpdateWebhook({ params, body, request, set }: any) {
-  const headers = request?.headers;
-  const actor = headers ? await resolveWebhookActor(headers) : { error: "no-headers" };
-  if ("error" in actor) {
-    set.status = 403;
-    return { success: false, error: actor.error };
-  }
-
-  const existing = await db.query.webhookEndpoints.findFirst({ where: eq(webhookEndpoints.id, params.id) });
-  if (!existing) {
-    set.status = 404;
-    return { success: false, error: "Webhook tidak ditemukan" };
-  }
-  if (!actor.isAdmin && existing.builderId !== actor.builder!.id) {
-    set.status = 403;
-    return { success: false, error: "Bukan milik builder Anda" };
-  }
-  if (Array.isArray(body.events)) {
-    const invalid = body.events.filter((e: string) => !(WEBHOOK_EVENTS as readonly string[]).includes(e));
-    if (invalid.length > 0) {
-      set.status = 400;
-      return { success: false, error: `Event tidak dikenal: ${invalid.join(", ")}` };
-    }
-  }
-
-  const updated = await WebhookService.update(existing.builderId, existing.id, {
-    url: body.url,
-    events: body.events,
-    isActive: body.isActive,
-  });
-  return { success: true, webhook: updated };
-}
-
-export async function handleDeleteWebhook({ params, request, set }: any) {
-  const headers = request?.headers;
-  const actor = headers ? await resolveWebhookActor(headers) : { error: "no-headers" };
-  if ("error" in actor) {
-    set.status = 403;
-    return { success: false, error: actor.error };
-  }
-
-  const existing = await db.query.webhookEndpoints.findFirst({ where: eq(webhookEndpoints.id, params.id) });
-  if (!existing) {
-    set.status = 404;
-    return { success: false, error: "Webhook tidak ditemukan" };
-  }
-  if (!actor.isAdmin && existing.builderId !== actor.builder!.id) {
-    set.status = 403;
-    return { success: false, error: "Bukan milik builder Anda" };
-  }
-
-  await WebhookService.delete(existing.builderId, existing.id);
-  return { success: true, message: "Webhook endpoint dihapus." };
-}
-
-export async function handleRotateWebhookSecret({ params, request, set }: any) {
-  const headers = request?.headers;
-  const actor = headers ? await resolveWebhookActor(headers) : { error: "no-headers" };
-  if ("error" in actor) {
-    set.status = 403;
-    return { success: false, error: actor.error };
-  }
-
-  const existing = await db.query.webhookEndpoints.findFirst({ where: eq(webhookEndpoints.id, params.id) });
-  if (!existing) {
-    set.status = 404;
-    return { success: false, error: "Webhook tidak ditemukan" };
-  }
-  if (!actor.isAdmin && existing.builderId !== actor.builder!.id) {
-    set.status = 403;
-    return { success: false, error: "Bukan milik builder Anda" };
-  }
-
-  const updated = await WebhookService.rotateSecret(existing.builderId, existing.id);
-  return { success: true, webhook: updated };
-}
-
-export async function handleTestWebhook({ params, request, set }: any) {
-  const headers = request?.headers;
-  const actor = headers ? await resolveWebhookActor(headers) : { error: "no-headers" };
-  if ("error" in actor) {
-    set.status = 403;
-    return { success: false, error: actor.error };
-  }
-
-  const endpoint = await db.query.webhookEndpoints.findFirst({ where: eq(webhookEndpoints.id, params.id) });
-  if (!endpoint) {
-    set.status = 404;
-    return { success: false, error: "Webhook tidak ditemukan" };
-  }
-  if (!actor.isAdmin && endpoint.builderId !== actor.builder!.id) {
-    set.status = 403;
-    return { success: false, error: "Bukan milik builder Anda" };
-  }
-
-  const payload = {
-    event: "license.test",
-    timestamp: new Date().toISOString(),
-    data: { message: "Test delivery dari tertaut.com", version: "2.3.0" },
-  };
-  const rawBody = JSON.stringify(payload);
-  const [delivery] = await db
-    .insert(webhookDeliveries)
-    .values({
-      id: `whd_${randomBytes(8).toString("hex")}`,
-      endpointId: endpoint.id,
-      event: "license.test",
-      payload,
-      signature: WebhookService.sign(endpoint.secret, rawBody),
-      status: "PENDING",
-      attempts: 0,
-      nextRetryAt: new Date(),
-    })
-    .returning();
-
-  const attempted = await WebhookService.dispatchDue();
-  return { success: true, deliveryId: delivery.id, attempted };
 }

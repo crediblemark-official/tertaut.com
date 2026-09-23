@@ -1,3 +1,5 @@
+import { getClientIp } from "../lib/ip";
+
 /**
  * Rate limiter sederhana berbasis in-memory sliding window.
  * Cukup untuk single-container (arsitektur tertaut.com) tanpa dependensi Redis.
@@ -31,29 +33,7 @@ function cleanup(now: number) {
 }
 
 function clientIp(request: Request | undefined): string {
-  const headers = request?.headers;
-  if (!headers) return "unknown";
-
-  // Prioritaskan header proxy tepercaya jika tersedia (Cloudflare / Nginx / Reverse Proxy)
-  const cfIp = headers.get?.("cf-connecting-ip")?.trim();
-  if (cfIp && (/^[\d.]+$/.test(cfIp) || cfIp.includes(":"))) {
-    return cfIp;
-  }
-
-  const realIp = headers.get?.("x-real-ip")?.trim();
-  if (realIp && (/^[\d.]+$/.test(realIp) || realIp.includes(":"))) {
-    return realIp;
-  }
-
-  const xff = headers.get?.("x-forwarded-for");
-  if (xff) {
-    const candidate = xff.split(",")[0]?.trim();
-    if (candidate && (/^[\d.]+$/.test(candidate) || candidate.includes(":"))) {
-      return candidate;
-    }
-  }
-
-  return "unknown";
+  return getClientIp(request) || "unknown";
 }
 
 export interface RateLimitResult {
