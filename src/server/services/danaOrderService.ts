@@ -121,7 +121,10 @@ export class DanaOrderService {
    * Buat Order / Checkout Payment DANA (E-Wallet, QRIS, Direct Debit, Virtual Account)
    * Mendukung Gapura Custom Checkout (scenario: "API") dan Gapura Hosted Checkout (scenario: "REDIRECT")
    */
-  static async createOrder(params: CreateDanaOrderParams): Promise<DanaOrderResponse> {
+  static async createOrder(
+    params: CreateDanaOrderParams,
+    gateway?: { createOrder: (payload: any) => Promise<any> }
+  ): Promise<DanaOrderResponse> {
     // Kebijakan mock (BUG-1 + opsional demo non-prod):
     //  - Aplikasi sandbox (allowMock=true): mock penuh, bisa di-fulfill.
     //  - Aplikasi Live di deployment PRODUKSI: 100% gateway asli — forceMock
@@ -268,10 +271,11 @@ export class DanaOrderService {
       }
 
       let response: any;
+      const activeGateway = gateway || getDanaPaymentGateway();
       try {
         response = await withDanaTimeout(
           "createOrder",
-          getDanaPaymentGateway().createOrder(createOrderPayload as any)
+          activeGateway.createOrder(createOrderPayload as any)
         );
       } catch (gatewayErr: unknown) {
         const gatewayMessage =
@@ -344,7 +348,7 @@ export class DanaOrderService {
             "[DanaOrderService] Falling back to mock order due to DANA SDK key/signature error in sandbox:",
             message
           );
-          return DanaOrderService.createOrder({ ...params, forceMock: true });
+          return DanaOrderService.createOrder({ ...params, forceMock: true }, gateway);
         }
         throw new Error(
           "Format DANA_PRIVATE_KEY di server tidak valid (harus berupa kunci RSA PEM yang diawali -----BEGIN PRIVATE KEY----- atau -----BEGIN RSA PRIVATE KEY-----). " +
@@ -358,7 +362,10 @@ export class DanaOrderService {
   /**
    * Cek status pembayaran ke gateway DANA (Inquiry / Status Sync)
    */
-  static async queryOrderStatus(params: { externalId: string; referenceNo?: string }): Promise<{
+  static async queryOrderStatus(
+    params: { externalId: string; referenceNo?: string },
+    gateway?: { queryPayment: (payload: any) => Promise<any> }
+  ): Promise<{
     latestTransactionStatus: string;
     transactionStatusDesc?: string;
     paidTime?: string;
@@ -374,9 +381,10 @@ export class DanaOrderService {
 
     try {
       const partnerReferenceNo = (params.externalId || "").slice(0, 25);
+      const activeGateway = gateway || getDanaPaymentGateway();
       const res = await withDanaTimeout(
         "queryPayment",
-        getDanaPaymentGateway().queryPayment({
+        activeGateway.queryPayment({
           merchantId: config.dana.merchantId || config.dana.clientId,
           originalPartnerReferenceNo: partnerReferenceNo,
           originalReferenceNo: params.referenceNo,

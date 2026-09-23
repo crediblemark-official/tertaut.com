@@ -63,6 +63,12 @@ describe("Payouts, Disbursements, and Checkout Handlers", () => {
       })
       .returning();
     sandboxApp = sApp;
+
+    // Reset pending transactions from earlier test files to isolate batch payout baseline
+    await db
+      .update(transactions)
+      .set({ disbursementStatus: "COMPLETED" })
+      .where(eq(transactions.disbursementStatus, "PENDING"));
   });
 
   it("should test handleBatchPayout in panel", async () => {
