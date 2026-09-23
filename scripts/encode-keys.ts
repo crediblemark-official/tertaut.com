@@ -11,11 +11,31 @@ import { resolve } from "path";
  */
 
 const keyMappings = [
-  { env: "DANA_PRIVATE_KEY_BASE64", file: "keys/dana_production_private.pem", desc: "DANA Production RSA Private Key" },
-  { env: "DANA_PUBLIC_KEY_BASE64", file: "keys/dana_production_public.pem", desc: "DANA Production RSA Public Key" },
-  { env: "DANA_SANDBOX_PRIVATE_KEY_BASE64", file: "keys/dana_sandbox_private.pem", desc: "DANA Sandbox RSA Private Key" },
-  { env: "DANA_SANDBOX_PUBLIC_KEY_BASE64", file: "keys/dana_sandbox_public.pem", desc: "DANA Sandbox RSA Public Key" },
-  { env: "LICENSE_SIGNING_PRIVATE_KEY_BASE64", file: "keys/license_signing_private.pem", desc: "Ed25519 License Token Private Key" },
+  {
+    env: "DANA_PRIVATE_KEY_BASE64",
+    file: "keys/dana_production_private.pem",
+    desc: "DANA Production RSA Private Key",
+  },
+  {
+    env: "DANA_PUBLIC_KEY_BASE64",
+    file: "keys/dana_production_public.pem",
+    desc: "DANA Production RSA Public Key",
+  },
+  {
+    env: "DANA_SANDBOX_PRIVATE_KEY_BASE64",
+    file: "keys/dana_sandbox_private.pem",
+    desc: "DANA Sandbox RSA Private Key",
+  },
+  {
+    env: "DANA_SANDBOX_PUBLIC_KEY_BASE64",
+    file: "keys/dana_sandbox_public.pem",
+    desc: "DANA Sandbox RSA Public Key",
+  },
+  {
+    env: "LICENSE_SIGNING_PRIVATE_KEY_BASE64",
+    file: "keys/license_signing_private.pem",
+    desc: "Ed25519 License Token Private Key",
+  },
 ];
 
 console.log("==============================================================================");

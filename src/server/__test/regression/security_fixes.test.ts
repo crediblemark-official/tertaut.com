@@ -202,7 +202,11 @@ describe("Regression BUG-1 lanjutan: aplikasi Live tidak pernah menghasilkan moc
       "404: Invalid Merchant. ... make sure externalStoreId / subMerchant exists. ... https://dashboard.dana.id/sandbox/submerchants"
     );
     Object.defineProperty(DanaService, "paymentGateway", {
-      get: () => ({ createOrder: async () => { throw gatewayErr; } }),
+      get: () => ({
+        createOrder: async () => {
+          throw gatewayErr;
+        },
+      }),
       configurable: true,
     });
     const restore = () => Object.defineProperty(DanaService, "paymentGateway", origGet);
@@ -270,7 +274,9 @@ describe("Regression BUG-1 lanjutan: aplikasi Live tidak pernah menghasilkan moc
       });
       expect(res.success).toBe(true);
 
-      const tx = await db.query.transactions.findFirst({ where: eq(transactions.id, res.transactionId) });
+      const tx = await db.query.transactions.findFirst({
+        where: eq(transactions.id, res.transactionId),
+      });
       expect(tx?.mockOrder).toBe(false);
       expect(tx?.paymentStatus).toBe("PENDING");
 
@@ -370,7 +376,11 @@ describe("Regression BUG-3: signature wajib saat public key terpasang", () => {
     const res: any = await handleDanaFinishPaymentWebhook({
       request: new Request(`${BASE}/webhook/dana/finish-payment`),
       headers: {},
-      body: { partnerReferenceNo: "ext_should_be_rejected", status: "PAID", amount: { value: "100000" } },
+      body: {
+        partnerReferenceNo: "ext_should_be_rejected",
+        status: "PAID",
+        amount: { value: "100000" },
+      },
       set,
     });
 
@@ -420,16 +430,16 @@ describe("Regression BUG-5: status butuh poll ticket untuk licenseKey", () => {
     expect(lic).toBeDefined();
 
     // Tanpa ticket → status PAID tapi licenseKey disembunyikan
-    const resNoTicket = await app.handle(
-      new Request(`${BASE}/api/v1/checkout/status/${tx.id}`)
-    );
+    const resNoTicket = await app.handle(new Request(`${BASE}/api/v1/checkout/status/${tx.id}`));
     const bodyNoTicket: any = await resNoTicket.json();
     expect(bodyNoTicket.paymentStatus).toBe("PAID");
     expect(bodyNoTicket.licenseKey).toBeNull();
 
     // Ticket salah (di-tamper) → tetap disembunyikan
     const resBadTicket = await app.handle(
-      new Request(`${BASE}/api/v1/checkout/status/${tx.id}?ticket=${tx.id}.9999999999999.${"ab".repeat(32)}`)
+      new Request(
+        `${BASE}/api/v1/checkout/status/${tx.id}?ticket=${tx.id}.9999999999999.${"ab".repeat(32)}`
+      )
     );
     const bodyBadTicket: any = await resBadTicket.json();
     expect(bodyBadTicket.licenseKey).toBeNull();

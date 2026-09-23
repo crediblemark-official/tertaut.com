@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { AppItem, CatalogKPIStats } from '../../types/app'
-import { dashboardEnv, envPath } from '../../lib/environment'
-import { formatRupiah } from '../../lib/utils'
+import { computed } from "vue";
+import type { AppItem, CatalogKPIStats } from "../../types/app";
+import { dashboardEnv, envPath } from "../../lib/environment";
+import { formatRupiah } from "../../lib/utils";
 import {
   Plus,
   ExternalLink,
@@ -14,68 +14,78 @@ import {
   Zap,
   Sparkles,
   Wifi,
-} from 'lucide-vue-next'
+} from "lucide-vue-next";
 
 const props = defineProps<{
-  apps: AppItem[]
-  loading: boolean
-  searchQuery: string
-  stats?: CatalogKPIStats | null
-}>()
+  apps: AppItem[];
+  loading: boolean;
+  searchQuery: string;
+  stats?: CatalogKPIStats | null;
+}>();
 
-const activeProductsCount = computed(() => props.stats?.activeProducts ?? props.apps.length)
-const archivedProductsCount = computed(() => props.stats?.archivedProducts ?? 0)
-const salesCount = computed(() => props.stats?.sales30d ?? 0)
-const activeSubscriptionsCount = computed(() => props.stats?.activeSubscriptions ?? 0)
-const acrossProductsCount = computed(() => props.stats?.acrossProducts ?? (props.apps.length > 0 ? 1 : 0))
-const customersCount = computed(() => props.stats?.customers30d ?? 0)
+const activeProductsCount = computed(() => props.stats?.activeProducts ?? props.apps.length);
+const archivedProductsCount = computed(() => props.stats?.archivedProducts ?? 0);
+const salesCount = computed(() => props.stats?.sales30d ?? 0);
+const activeSubscriptionsCount = computed(() => props.stats?.activeSubscriptions ?? 0);
+const acrossProductsCount = computed(
+  () => props.stats?.acrossProducts ?? (props.apps.length > 0 ? 1 : 0)
+);
+const customersCount = computed(() => props.stats?.customers30d ?? 0);
 
 const emit = defineEmits<{
-  'update:searchQuery': [value: string]
-  'open-create': []
-}>()
+  "update:searchQuery": [value: string];
+  "open-create": [];
+}>();
 
 const filteredApps = computed(() => {
-  return props.apps.filter(app => {
+  return props.apps.filter((app) => {
     if (props.searchQuery.trim()) {
-      const q = props.searchQuery.toLowerCase().trim()
-      const matchName = app.name.toLowerCase().includes(q)
-      const matchSlug = app.slug.toLowerCase().includes(q)
-      if (!matchName && !matchSlug) return false
+      const q = props.searchQuery.toLowerCase().trim();
+      const matchName = app.name.toLowerCase().includes(q);
+      const matchSlug = app.slug.toLowerCase().includes(q);
+      if (!matchName && !matchSlug) return false;
     }
-    return true
-  })
-})
+    return true;
+  });
+});
 
 function getPricingBadge(app: AppItem): string {
-  if (app.pricingType === 'free') return 'Gratis'
-  if (app.pricingType === 'one_time') return 'Sekali'
-  const period = app.billingPeriod
-  if (period === 'daily') return 'Harian'
-  if (period === 'weekly') return 'Mingguan'
-  if (period === 'monthly') return 'Bulanan'
-  if (period === 'every_3_months') return '3 Bulan'
-  if (period === 'every_6_months') return '6 Bulan'
-  if (period === 'yearly') return 'Tahunan'
-  if (period === 'custom') return 'Kustom'
-  return 'Berulang'
+  if (app.pricingType === "free") return "Gratis";
+  if (app.pricingType === "one_time") return "Sekali";
+  const period = app.billingPeriod;
+  if (period === "daily") return "Harian";
+  if (period === "weekly") return "Mingguan";
+  if (period === "monthly") return "Bulanan";
+  if (period === "every_3_months") return "3 Bulan";
+  if (period === "every_6_months") return "6 Bulan";
+  if (period === "yearly") return "Tahunan";
+  if (period === "custom") return "Kustom";
+  return "Berulang";
 }
 </script>
 
 <template>
   <div>
     <!-- Unified Header & Toolbar -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
+    <div
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3"
+    >
       <div class="flex items-center gap-2">
-        <h1 class="text-xs font-bold uppercase tracking-wider text-white">Katalog Produk &amp; Monetisasi</h1>
-        <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold">
+        <h1 class="text-xs font-bold uppercase tracking-wider text-white">
+          Katalog Produk &amp; Monetisasi
+        </h1>
+        <span
+          class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
+        >
           {{ apps.length }} produk
         </span>
       </div>
 
       <div class="flex items-center gap-2">
         <div class="relative w-full sm:w-60">
-          <Search class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+          <Search
+            class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"
+          />
           <input
             :value="searchQuery"
             @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
@@ -96,37 +106,53 @@ function getPricingBadge(app: AppItem): string {
     </div>
 
     <!-- Product Catalog Stats KPI Bar (Flush Canvas, Creem/Polar style) -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 py-2.5 sm:py-3 border-b border-jetblack/15 mb-0">
+    <div
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 py-2.5 sm:py-3 border-b border-jetblack/15 mb-0"
+    >
       <div class="space-y-0.5">
         <div class="text-xs font-semibold text-jetblack/60">Active products</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">{{ activeProductsCount }}</div>
+        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
+          {{ activeProductsCount }}
+        </div>
         <div class="text-[11px] text-jetblack/50 font-medium">
-          {{ archivedProductsCount > 0 ? `${archivedProductsCount} diarsipkan` : 'Semua Produk Aktif' }}
+          {{
+            archivedProductsCount > 0 ? `${archivedProductsCount} diarsipkan` : "Semua Produk Aktif"
+          }}
         </div>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Sales</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">{{ salesCount }}</div>
+        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
+          {{ salesCount }}
+        </div>
         <div class="text-[11px] text-jetblack/50 font-medium">30 hari terakhir</div>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Active subscriptions</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">{{ activeSubscriptionsCount }}</div>
-        <div class="text-[11px] text-jetblack/50 font-medium">across {{ acrossProductsCount }} {{ acrossProductsCount === 1 ? 'product' : 'products' }}</div>
+        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
+          {{ activeSubscriptionsCount }}
+        </div>
+        <div class="text-[11px] text-jetblack/50 font-medium">
+          across {{ acrossProductsCount }} {{ acrossProductsCount === 1 ? "product" : "products" }}
+        </div>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Customers</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">{{ customersCount }}</div>
+        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
+          {{ customersCount }}
+        </div>
         <div class="text-[11px] text-jetblack/50 font-medium">30 hari terakhir</div>
       </div>
     </div>
 
     <!-- Table View -->
     <div class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
-      <table class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15">
+      <table
+        class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15"
+      >
         <thead class="border-b border-jetblack/20 text-xs font-semibold text-jetblack/70 bg-white">
           <tr>
             <th class="py-2 pr-3 pl-3.5 sm:pl-4 md:pl-6">Nama Produk</th>
@@ -150,9 +176,13 @@ function getPricingBadge(app: AppItem): string {
           <tr v-for="app in filteredApps" :key="app.id" class="hover:bg-jetblack/[0.02] transition">
             <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-bold text-jetblack">
               <div class="flex items-center gap-2">
-                <div class="w-7 h-7 rounded-md bg-jetblack/5 border border-jetblack/10 flex items-center justify-center shrink-0 overflow-hidden">
+                <div
+                  class="w-7 h-7 rounded-md bg-jetblack/5 border border-jetblack/10 flex items-center justify-center shrink-0 overflow-hidden"
+                >
                   <img v-if="app.mediaUrl" :src="app.mediaUrl" class="w-full h-full object-cover" />
-                  <span v-else class="text-[11px] font-mono font-bold text-jetblack/60">{{ app.name.charAt(0) }}</span>
+                  <span v-else class="text-[11px] font-mono font-bold text-jetblack/60">{{
+                    app.name.charAt(0)
+                  }}</span>
                 </div>
                 <div>
                   <div class="font-bold text-jetblack leading-tight">{{ app.name }}</div>
@@ -163,11 +193,17 @@ function getPricingBadge(app: AppItem): string {
             <td class="py-2.5 px-3">
               <div class="flex items-center gap-1.5">
                 <span class="font-mono font-bold text-jetblack">
-                  {{ app.pricingType === 'free' ? 'Gratis' : formatRupiah(app.targetPrice) }}
+                  {{ app.pricingType === "free" ? "Gratis" : formatRupiah(app.targetPrice) }}
                 </span>
                 <span
                   class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase"
-                  :class="app.pricingType === 'subscription' ? 'bg-forest/10 text-forest' : app.pricingType === 'free' ? 'bg-neutral-100 text-neutral-600' : 'bg-gold/15 text-[#8a6d1f]'"
+                  :class="
+                    app.pricingType === 'subscription'
+                      ? 'bg-forest/10 text-forest'
+                      : app.pricingType === 'free'
+                        ? 'bg-neutral-100 text-neutral-600'
+                        : 'bg-gold/15 text-[#8a6d1f]'
+                  "
                 >
                   {{ getPricingBadge(app) }}
                 </span>
@@ -215,7 +251,15 @@ function getPricingBadge(app: AppItem): string {
                   <Lock class="w-2.5 h-2.5" />
                   <span>Note</span>
                 </span>
-                <span v-if="!app.deliveryConfig?.licenseKey?.enabled && !app.deliveryConfig?.fileDownload?.enabled && !app.deliveryConfig?.apiAccess?.enabled && !app.deliveryConfig?.privateNote?.enabled" class="text-jetblack/40 text-[10px]">
+                <span
+                  v-if="
+                    !app.deliveryConfig?.licenseKey?.enabled &&
+                    !app.deliveryConfig?.fileDownload?.enabled &&
+                    !app.deliveryConfig?.apiAccess?.enabled &&
+                    !app.deliveryConfig?.privateNote?.enabled
+                  "
+                  class="text-jetblack/40 text-[10px]"
+                >
                   Standard
                 </span>
               </div>
@@ -233,10 +277,17 @@ function getPricingBadge(app: AppItem): string {
             <td class="py-2.5 px-3">
               <span
                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
-                :class="app.mode === 'sandbox' ? 'bg-gold/15 text-[#8a6d1f] border border-gold/25' : 'bg-forest/10 text-forest border border-forest/20'"
+                :class="
+                  app.mode === 'sandbox'
+                    ? 'bg-gold/15 text-[#8a6d1f] border border-gold/25'
+                    : 'bg-forest/10 text-forest border border-forest/20'
+                "
               >
-                <span class="w-1.5 h-1.5 rounded-full" :class="app.mode === 'sandbox' ? 'bg-gold' : 'bg-forest'"></span>
-                <span>{{ app.mode === 'sandbox' ? 'Sandbox' : 'Live' }}</span>
+                <span
+                  class="w-1.5 h-1.5 rounded-full"
+                  :class="app.mode === 'sandbox' ? 'bg-gold' : 'bg-forest'"
+                ></span>
+                <span>{{ app.mode === "sandbox" ? "Sandbox" : "Live" }}</span>
               </span>
             </td>
             <td class="py-2.5 px-3 font-mono text-[11px]">
@@ -246,7 +297,11 @@ function getPricingBadge(app: AppItem): string {
                 class="text-gold hover:underline inline-flex items-center gap-1.5"
               >
                 <span>/pay/{{ app.slug }}</span>
-                <span v-if="app.mode === 'sandbox'" class="text-[9px] font-sans font-semibold px-1 rounded bg-amber-500/10 text-amber-700 border border-amber-500/20">Test</span>
+                <span
+                  v-if="app.mode === 'sandbox'"
+                  class="text-[9px] font-sans font-semibold px-1 rounded bg-amber-500/10 text-amber-700 border border-amber-500/20"
+                  >Test</span
+                >
                 <ExternalLink class="w-2.5 h-2.5" />
               </a>
             </td>

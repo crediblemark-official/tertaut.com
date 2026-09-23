@@ -35,7 +35,10 @@ function craftToken(claims: Record<string, any>): string {
 
 async function makeApp(offlineGraceDays?: number) {
   const email = `th_${suffix()}@test.tertaut.com`;
-  const [b] = await db.insert(builders).values({ name: "Token Builder", email, apiKey: generateAppApiKey("live") }).returning();
+  const [b] = await db
+    .insert(builders)
+    .values({ name: "Token Builder", email, apiKey: generateAppApiKey("live") })
+    .returning();
   const appId = `app_th_${suffix()}`;
   await db.insert(apps).values({
     id: appId,
@@ -58,7 +61,12 @@ async function makeApp(offlineGraceDays?: number) {
 describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)", () => {
   it("token offline berisi klaim nbf=iat-LEEWAY dan jti; leeway diterapkan", async () => {
     const { appId } = await makeApp(5);
-    const issued = await LicenseService.issueDirect({ appId, customerEmail: `th_cust_${suffix()}@test.com`, grantDays: 30, maxSeats: 2 });
+    const issued = await LicenseService.issueDirect({
+      appId,
+      customerEmail: `th_cust_${suffix()}@test.com`,
+      grantDays: 30,
+      maxSeats: 2,
+    });
 
     const decoded = LicenseTokenService.verify(issued.license.offlineJwtGraceToken!);
     expect(decoded.valid).toBe(true);
@@ -72,7 +80,13 @@ describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)
 
   it("rotasi via /validate: jti lama di-denylist, token lama ditolak (TOKEN_REVOKED)", async () => {
     const { appId } = await makeApp();
-    const issued = await LicenseService.issueDirect({ appId, customerEmail: `th2_cust_${suffix()}@test.com`, grantDays: 30, maxSeats: 2, features: { tier: "pro" } });
+    const issued = await LicenseService.issueDirect({
+      appId,
+      customerEmail: `th2_cust_${suffix()}@test.com`,
+      grantDays: 30,
+      maxSeats: 2,
+      features: { tier: "pro" },
+    });
 
     const oldToken = issued.license.offlineJwtGraceToken!;
     const oldDecoded = LicenseTokenService.verify(oldToken);
@@ -122,10 +136,18 @@ describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)
 
     // iat di masa depan melebihi leeway → ditolak
     const forward = craftToken({
-      typ: "license", lic: "TT-FORWARD", app: "app-x", hw: null, eml: null,
-      seats: 1, feat: null, vfl: null,
-      jti: "jti-forward", iat: now + CLOCK_SKEW_LEEWAY_SECONDS + 60,
-      nbf: now - CLOCK_SKEW_LEEWAY_SECONDS, exp: now + 86_400,
+      typ: "license",
+      lic: "TT-FORWARD",
+      app: "app-x",
+      hw: null,
+      eml: null,
+      seats: 1,
+      feat: null,
+      vfl: null,
+      jti: "jti-forward",
+      iat: now + CLOCK_SKEW_LEEWAY_SECONDS + 60,
+      nbf: now - CLOCK_SKEW_LEEWAY_SECONDS,
+      exp: now + 86_400,
     });
     const fwd = LicenseTokenService.verify(forward);
     expect(fwd.valid).toBe(false);
@@ -133,9 +155,16 @@ describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)
 
     // nbf di masa depan melebihi leeway → ditolak (belum saatnya berlaku)
     const tooEarly = craftToken({
-      typ: "license", lic: "TT-EARLY", app: "app-x", hw: null, eml: null,
-      seats: 1, feat: null, vfl: null,
-      jti: "jti-early", iat: now + CLOCK_SKEW_LEEWAY_SECONDS + 60,
+      typ: "license",
+      lic: "TT-EARLY",
+      app: "app-x",
+      hw: null,
+      eml: null,
+      seats: 1,
+      feat: null,
+      vfl: null,
+      jti: "jti-early",
+      iat: now + CLOCK_SKEW_LEEWAY_SECONDS + 60,
       nbf: now + CLOCK_SKEW_LEEWAY_SECONDS + 360,
       exp: now + 86_400,
     });
@@ -145,10 +174,18 @@ describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)
 
     // nbf di masa depan namun masih dalam leeway (±5 menit) → diterima
     const withinLeeway = craftToken({
-      typ: "license", lic: "TT-OK", app: "app-x", hw: null, eml: null,
-      seats: 1, feat: null, vfl: null,
-      jti: "jti-leeway", iat: now + CLOCK_SKEW_LEEWAY_SECONDS - 10,
-      nbf: now + 100, exp: now + 86_400,
+      typ: "license",
+      lic: "TT-OK",
+      app: "app-x",
+      hw: null,
+      eml: null,
+      seats: 1,
+      feat: null,
+      vfl: null,
+      jti: "jti-leeway",
+      iat: now + CLOCK_SKEW_LEEWAY_SECONDS - 10,
+      nbf: now + 100,
+      exp: now + 86_400,
     });
     const ok = LicenseTokenService.verify(withinLeeway);
     expect(ok.valid).toBe(true);
@@ -156,7 +193,12 @@ describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)
 
   it("token dengan signature rusak dan ttl negatif ditolak", async () => {
     const { appId } = await makeApp();
-    const issued = await LicenseService.issueDirect({ appId, customerEmail: `th4_cust_${suffix()}@test.com`, grantDays: 30, maxSeats: 1 });
+    const issued = await LicenseService.issueDirect({
+      appId,
+      customerEmail: `th4_cust_${suffix()}@test.com`,
+      grantDays: 30,
+      maxSeats: 1,
+    });
 
     const token = issued.license.offlineJwtGraceToken!;
     const [h, b] = token.split(".");
@@ -165,7 +207,12 @@ describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)
     expect(bad.valid).toBe(false);
     expect(bad.reason).toBe("INVALID_SIGNATURE");
 
-    const swapped = await LicenseService.issueDirect({ appId, customerEmail: `th5_cust_${suffix()}@test.com`, grantDays: 30, maxSeats: 1 });
+    const swapped = await LicenseService.issueDirect({
+      appId,
+      customerEmail: `th5_cust_${suffix()}@test.com`,
+      grantDays: 30,
+      maxSeats: 1,
+    });
     void swapped;
   });
 });

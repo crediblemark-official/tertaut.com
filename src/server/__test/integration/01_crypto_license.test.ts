@@ -13,11 +13,7 @@ describe("CryptoService (AES-256-GCM & JWT Tokens)", () => {
     expect(encrypted.iv).toBeDefined();
     expect(encrypted.authTag).toBeDefined();
 
-    const decrypted = CryptoService.decrypt(
-      encrypted.cipherText,
-      encrypted.iv,
-      encrypted.authTag
-    );
+    const decrypted = CryptoService.decrypt(encrypted.cipherText, encrypted.iv, encrypted.authTag);
     expect(decrypted).toBe(originalText);
   });
 

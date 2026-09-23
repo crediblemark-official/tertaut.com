@@ -96,7 +96,9 @@ export class Tertaut {
   /**
    * Modul Checkout: MoR Engine Dynamic Checkout Session & Redirect.
    */
-  public async checkout(options: CheckoutOptions): Promise<{ checkoutUrl: string; transactionId: string }> {
+  public async checkout(
+    options: CheckoutOptions
+  ): Promise<{ checkoutUrl: string; transactionId: string }> {
     return executeCheckout(
       {
         request: this.request.bind(this),

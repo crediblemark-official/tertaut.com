@@ -1,43 +1,58 @@
-import { pgTable, text, timestamp, integer, unique, index, jsonb, uuid, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  integer,
+  unique,
+  index,
+  jsonb,
+  uuid,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { apps } from "./apps";
 import { transactions } from "./transactions";
 import { builders } from "./builders";
 
-export const licenses = pgTable("licenses", {
-  id: text("id").primaryKey(), // e.g. "lic_xyz123"
-  appId: text("app_id")
-    .notNull()
-    .references(() => apps.id, { onDelete: "cascade" }),
-  transactionId: text("transaction_id")
-    .references(() => transactions.id, { onDelete: "set null" }),
-  licenseKey: text("license_key").notNull().unique(), // e.g. "TT-A1B2-C3D4-E5F6"
-  customerEmail: text("customer_email").notNull(),
-  hardwareId: text("hardware_id"), // Primary/first hardware binding
-  platform: text("platform", {
-    enum: ["web", "desktop", "chrome_extension", "android", "general"],
-  }).default("general"),
-  status: text("status", {
-    enum: ["ACTIVE", "REVOKED", "EXPIRED"],
-  })
-    .default("ACTIVE")
-    .notNull(),
-  licenseVersion: integer("license_version").default(1).notNull(),
-  features: jsonb("features").$type<Record<string, any>>().default({}),
-  maxSeats: integer("max_seats").default(3).notNull(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }),
-  lastValidatedAt: timestamp("last_validated_at", { withTimezone: true }),
-  offlineJwtGraceToken: text("offline_jwt_grace_token"), // Offline 30 days fallback token
-  apiKey: text("api_key"), // Kunci API pelanggan (auto-provisioning apiAccess)
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [
-  index("idx_licenses_app_id").on(table.appId),
-  // Satu transaksi hanya boleh melahirkan satu lisensi (cegah double-issue).
-  unique("unique_licenses_transaction_id").on(table.transactionId),
-  unique("unique_licenses_api_key").on(table.apiKey),
-  index("idx_licenses_customer_email").on(table.customerEmail),
-  index("idx_licenses_status").on(table.status),
-]);
+export const licenses = pgTable(
+  "licenses",
+  {
+    id: text("id").primaryKey(), // e.g. "lic_xyz123"
+    appId: text("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+    transactionId: text("transaction_id").references(() => transactions.id, {
+      onDelete: "set null",
+    }),
+    licenseKey: text("license_key").notNull().unique(), // e.g. "TT-A1B2-C3D4-E5F6"
+    customerEmail: text("customer_email").notNull(),
+    hardwareId: text("hardware_id"), // Primary/first hardware binding
+    platform: text("platform", {
+      enum: ["web", "desktop", "chrome_extension", "android", "general"],
+    }).default("general"),
+    status: text("status", {
+      enum: ["ACTIVE", "REVOKED", "EXPIRED"],
+    })
+      .default("ACTIVE")
+      .notNull(),
+    licenseVersion: integer("license_version").default(1).notNull(),
+    features: jsonb("features").$type<Record<string, any>>().default({}),
+    maxSeats: integer("max_seats").default(3).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    lastValidatedAt: timestamp("last_validated_at", { withTimezone: true }),
+    offlineJwtGraceToken: text("offline_jwt_grace_token"), // Offline 30 days fallback token
+    apiKey: text("api_key"), // Kunci API pelanggan (auto-provisioning apiAccess)
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_licenses_app_id").on(table.appId),
+    // Satu transaksi hanya boleh melahirkan satu lisensi (cegah double-issue).
+    unique("unique_licenses_transaction_id").on(table.transactionId),
+    unique("unique_licenses_api_key").on(table.apiKey),
+    index("idx_licenses_customer_email").on(table.customerEmail),
+    index("idx_licenses_status").on(table.status),
+  ]
+);
 
 export const licenseActivations = pgTable(
   "license_activations",
@@ -124,9 +139,7 @@ export const webhookEndpoints = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [
-    index("idx_webhook_endpoints_builder").on(table.builderId),
-  ]
+  (table) => [index("idx_webhook_endpoints_builder").on(table.builderId)]
 );
 
 /**
@@ -137,8 +150,7 @@ export const webhookDeliveries = pgTable(
   "webhook_deliveries",
   {
     id: text("id").primaryKey(),
-    endpointId: text("endpoint_id")
-      .references(() => webhookEndpoints.id, { onDelete: "cascade" }),
+    endpointId: text("endpoint_id").references(() => webhookEndpoints.id, { onDelete: "cascade" }),
     /** Nama event, mis. license.issued / license.expired / credits.insufficient */
     event: text("event").notNull(),
     /** Payload JSON mentah yang dikirim (sebelum ditandatangani). */

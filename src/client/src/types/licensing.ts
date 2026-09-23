@@ -1,9 +1,4 @@
-export type LicensePlatform =
-  | "web"
-  | "desktop"
-  | "chrome_extension"
-  | "android"
-  | "general";
+export type LicensePlatform = "web" | "desktop" | "chrome_extension" | "android" | "general";
 
 export type LicenseStatus = "ACTIVE" | "REVOKED" | "EXPIRED";
 

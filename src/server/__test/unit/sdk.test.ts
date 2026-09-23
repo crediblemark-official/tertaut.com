@@ -4,25 +4,37 @@ import { Tertaut } from "../../../../packages/sdk/src/index";
 describe("Unit Tests - Tertaut SDK", () => {
   it("should enforce constructor validations and derive environment from apiKey", () => {
     expect(() => new Tertaut({} as any)).toThrow("[Tertaut SDK] apiKey wajib diisi");
-    expect(() => new Tertaut({ apiKey: "junk", appId: "app_x", baseUrl: "http://x.test" } as any)).toThrow(
-      "[Tertaut SDK] apiKey wajib diisi"
-    );
+    expect(
+      () => new Tertaut({ apiKey: "junk", appId: "app_x", baseUrl: "http://x.test" } as any)
+    ).toThrow("[Tertaut SDK] apiKey wajib diisi");
     expect(() => new Tertaut({ apiKey: "tt_test_abc", appId: "app_x" } as any)).toThrow(
       "baseUrl wajib diisi"
     );
-    expect(() => new Tertaut({ apiKey: "tt_live_abc", baseUrl: "https://x.com", appId: "" } as any)).toThrow(
-      "[Tertaut SDK] appId is required."
-    );
+    expect(
+      () => new Tertaut({ apiKey: "tt_live_abc", baseUrl: "https://x.com", appId: "" } as any)
+    ).toThrow("[Tertaut SDK] appId is required.");
 
-    const sdkSandbox = new Tertaut({ apiKey: "tt_test_sandbox", appId: "app_test_sandbox", baseUrl: "http://localhost:3001" });
+    const sdkSandbox = new Tertaut({
+      apiKey: "tt_test_sandbox",
+      appId: "app_test_sandbox",
+      baseUrl: "http://localhost:3001",
+    });
     expect(sdkSandbox.baseUrl).toBe("http://localhost:3001");
     expect(sdkSandbox.environment).toBe("sandbox");
 
-    const sdkProd = new Tertaut({ apiKey: "tt_live_prod", appId: "app_test_prod", baseUrl: "https://tertaut.com" });
+    const sdkProd = new Tertaut({
+      apiKey: "tt_live_prod",
+      appId: "app_test_prod",
+      baseUrl: "https://tertaut.com",
+    });
     expect(sdkProd.baseUrl).toBe("https://tertaut.com");
     expect(sdkProd.environment).toBe("production");
 
-    const sdkCustom = new Tertaut({ apiKey: "tt_test_custom", appId: "app_test_custom", baseUrl: "https://custom.api.com/" });
+    const sdkCustom = new Tertaut({
+      apiKey: "tt_test_custom",
+      appId: "app_test_custom",
+      baseUrl: "https://custom.api.com/",
+    });
     expect(sdkCustom.baseUrl).toBe("https://custom.api.com");
 
     const TertautDefault = require("../../../../packages/sdk/src/index").default;
@@ -30,7 +42,11 @@ describe("Unit Tests - Tertaut SDK", () => {
   });
 
   it("should validate checkout params and execute checkout session request", async () => {
-    const sdk = new Tertaut({ apiKey: "tt_test_sdk", appId: "app_sdk_test", baseUrl: "http://localhost:3001" });
+    const sdk = new Tertaut({
+      apiKey: "tt_test_sdk",
+      appId: "app_sdk_test",
+      baseUrl: "http://localhost:3001",
+    });
 
     // Missing customerEmail throws
     expect(sdk.checkout({ amount: 100_000 } as any)).rejects.toThrow("customerEmail is required");
@@ -64,12 +80,19 @@ describe("Unit Tests - Tertaut SDK", () => {
   });
 
   it("should invoke licensing methods: validate, verify, activate, deactivate, and getJwks", async () => {
-    const sdk = new Tertaut({ apiKey: "tt_test_lic", appId: "app_lic_sdk", baseUrl: "http://localhost:3001" });
+    const sdk = new Tertaut({
+      apiKey: "tt_test_lic",
+      appId: "app_lic_sdk",
+      baseUrl: "http://localhost:3001",
+    });
     const originalFetch = globalThis.fetch;
 
     globalThis.fetch = (async (url: string) => {
       if (url.endsWith("/licensing/verify") || url.endsWith("/licensing/validate")) {
-        return new Response(JSON.stringify({ valid: true, status: "ACTIVE", entitlements: { pro: true } }), { status: 200 });
+        return new Response(
+          JSON.stringify({ valid: true, status: "ACTIVE", entitlements: { pro: true } }),
+          { status: 200 }
+        );
       }
       if (url.endsWith("/licensing/activate")) {
         return new Response(JSON.stringify({ activated: true }), { status: 200 });
@@ -106,7 +129,11 @@ describe("Unit Tests - Tertaut SDK", () => {
   });
 
   it("should verify offline token errors: malformed, missing keys, invalid signature", async () => {
-    const sdk = new Tertaut({ apiKey: "tt_live_offline", appId: "app_offline_sdk", baseUrl: "https://tertaut.com" });
+    const sdk = new Tertaut({
+      apiKey: "tt_live_offline",
+      appId: "app_offline_sdk",
+      baseUrl: "https://tertaut.com",
+    });
 
     // Mock fetch SEBELUM semua panggilan agar tidak ada network request nyata
     const originalFetch = globalThis.fetch;
@@ -144,7 +171,11 @@ describe("Unit Tests - Tertaut SDK", () => {
   });
 
   it("should wrap credits API: balance, consume, and history", async () => {
-    const sdk = new Tertaut({ apiKey: "tt_test_credits", appId: "app_credits_sdk", baseUrl: "http://localhost:3001" });
+    const sdk = new Tertaut({
+      apiKey: "tt_test_credits",
+      appId: "app_credits_sdk",
+      baseUrl: "http://localhost:3001",
+    });
     const originalFetch = globalThis.fetch;
 
     globalThis.fetch = (async (url: string) => {
@@ -173,7 +204,11 @@ describe("Unit Tests - Tertaut SDK", () => {
   });
 
   it("should support aiProxy chat and chatStream SSE streaming parser", async () => {
-    const sdk = new Tertaut({ apiKey: "tt_live_ai", appId: "app_ai_sdk", baseUrl: "http://localhost:3001" });
+    const sdk = new Tertaut({
+      apiKey: "tt_live_ai",
+      appId: "app_ai_sdk",
+      baseUrl: "http://localhost:3001",
+    });
     const originalFetch = globalThis.fetch;
 
     // 1. Non-streaming chat
@@ -248,13 +283,19 @@ describe("Unit Tests - Tertaut SDK", () => {
   });
 
   it("should manage automatic heartbeat sessions for floating licenses", async () => {
-    const sdk = new Tertaut({ apiKey: "tt_test_session", appId: "app_session", baseUrl: "http://localhost:3001" });
+    const sdk = new Tertaut({
+      apiKey: "tt_test_session",
+      appId: "app_session",
+      baseUrl: "http://localhost:3001",
+    });
     const originalFetch = globalThis.fetch;
 
     let heartbeatCount = 0;
     globalThis.fetch = (async () => {
       heartbeatCount++;
-      return new Response(JSON.stringify({ success: true, expiresAt: "2026-10-01T00:00:00Z" }), { status: 200 });
+      return new Response(JSON.stringify({ success: true, expiresAt: "2026-10-01T00:00:00Z" }), {
+        status: 200,
+      });
     }) as any;
 
     const session = sdk.licensing.startHeartbeatSession({
@@ -278,7 +319,11 @@ describe("Unit Tests - Tertaut SDK", () => {
   });
 
   it("should perform smart license check with offline fallback and feature helpers", async () => {
-    const sdk = new Tertaut({ apiKey: "tt_test_smart", appId: "app_smart", baseUrl: "http://localhost:3001" });
+    const sdk = new Tertaut({
+      apiKey: "tt_test_smart",
+      appId: "app_smart",
+      baseUrl: "http://localhost:3001",
+    });
     const originalFetch = globalThis.fetch;
 
     // 1. Online check
@@ -333,14 +378,20 @@ describe("Unit Tests - Tertaut SDK", () => {
     const isValid = await Tertaut.verifyWebhookSignature(body, validSig, secret);
     expect(isValid).toBe(true);
 
-    const isInvalid = await Tertaut.verifyWebhookSignature(body, "hmac-sha256=invalid_hash", secret);
+    const isInvalid = await Tertaut.verifyWebhookSignature(
+      body,
+      "hmac-sha256=invalid_hash",
+      secret
+    );
     expect(isInvalid).toBe(false);
 
     const isMismatchedSecret = await Tertaut.verifyWebhookSignature(body, validSig, "wrong_secret");
     expect(isMismatchedSecret).toBe(false);
 
     // Trigger catch block in verifyWebhookSignature
-    const { verifyWebhookSignature: directVerify } = require("../../../../packages/sdk/src/utils/crypto");
+    const {
+      verifyWebhookSignature: directVerify,
+    } = require("../../../../packages/sdk/src/utils/crypto");
     const throwsHandled1 = await directVerify(body, validSig, null as any);
     expect(throwsHandled1).toBe(false);
 
@@ -362,13 +413,19 @@ describe("Unit Tests - Tertaut SDK", () => {
       expect(auth).toBe("Bearer tt_secret_my_super_secret_key");
 
       if (url.endsWith("/api/v1/s2s")) {
-        return new Response(JSON.stringify({ service: "tertaut.com S2S API", builder: { id: "bld_1" } }), { status: 200 });
+        return new Response(
+          JSON.stringify({ service: "tertaut.com S2S API", builder: { id: "bld_1" } }),
+          { status: 200 }
+        );
       }
       if (url.includes("/api/v1/s2s/apps")) {
         return new Response(JSON.stringify([{ id: "app_1", name: "Pro App" }]), { status: 200 });
       }
       if (url.endsWith("/api/v1/s2s/licenses/issue")) {
-        return new Response(JSON.stringify({ success: true, license: { licenseKey: "TT-S2S-NEW" } }), { status: 200 });
+        return new Response(
+          JSON.stringify({ success: true, license: { licenseKey: "TT-S2S-NEW" } }),
+          { status: 200 }
+        );
       }
       if (url.endsWith("/api/v1/s2s/webhooks")) {
         return new Response(JSON.stringify({ success: true, webhooks: [] }), { status: 200 });
@@ -402,7 +459,11 @@ describe("Unit Tests - Tertaut SDK", () => {
       VersionFloorError,
     } = require("../../../../packages/sdk/src/errors");
 
-    const base = new TertautError("General error", { code: "ERR_BASE", status: 500, details: { foo: "bar" } });
+    const base = new TertautError("General error", {
+      code: "ERR_BASE",
+      status: 500,
+      details: { foo: "bar" },
+    });
     expect(base.name).toBe("TertautError");
     expect(base.message).toBe("General error");
     expect(base.code).toBe("ERR_BASE");
@@ -462,19 +523,25 @@ describe("Unit Tests - Tertaut SDK", () => {
 
     // 1. Missing customerEmail
     await expect(
-      executeCheckout({ request: async () => new Response("{}"), appId: "app_1" }, { amount: 100 } as any)
+      executeCheckout({ request: async () => new Response("{}"), appId: "app_1" }, {
+        amount: 100,
+      } as any)
     ).rejects.toThrow("customerEmail is required");
 
     // 2. Missing appId
     await expect(
-      executeCheckout({ request: async () => new Response("{}"), appId: "" }, { amount: 100, customerEmail: "test@x.com" })
+      executeCheckout(
+        { request: async () => new Response("{}"), appId: "" },
+        { amount: 100, customerEmail: "test@x.com" }
+      )
     ).rejects.toThrow("appId is required");
 
     // 3. Failed HTTP response
     await expect(
       executeCheckout(
         {
-          request: async () => new Response("Bad Request", { status: 400, statusText: "Bad Request" }),
+          request: async () =>
+            new Response("Bad Request", { status: 400, statusText: "Bad Request" }),
           appId: "app_1",
         },
         { amount: 100, customerEmail: "test@x.com" }
@@ -488,7 +555,9 @@ describe("Unit Tests - Tertaut SDK", () => {
     const res = await executeCheckout(
       {
         request: async () =>
-          new Response(JSON.stringify({ checkoutUrl: "https://pay.example.com", transactionId: "tx_1" })),
+          new Response(
+            JSON.stringify({ checkoutUrl: "https://pay.example.com", transactionId: "tx_1" })
+          ),
         appId: "app_1",
       },
       { amount: 100, customerEmail: "test@x.com" }
@@ -504,7 +573,11 @@ describe("Unit Tests - Tertaut SDK", () => {
     const defaultHelpers = createFeatureHelpers();
     expect(defaultHelpers.hasFeature("any")).toBe(false);
 
-    const sdk = new Tertaut({ apiKey: "tt_test_lic_cov", appId: "app_cov", baseUrl: "http://localhost:3001" });
+    const sdk = new Tertaut({
+      apiKey: "tt_test_lic_cov",
+      appId: "app_cov",
+      baseUrl: "http://localhost:3001",
+    });
 
     // 1. hasFeature and getFeature helper methods on licensing module
     expect(sdk.licensing.hasFeature({ "pro-plan": true }, "pro-plan")).toBe(true);
@@ -642,7 +715,10 @@ describe("Unit Tests - Tertaut SDK", () => {
 
     // licenses.recover & transfer
     await s2sClient.s2s.licenses.recover("TT-REC");
-    await s2sClient.s2s.licenses.transfer({ licenseKey: "TT-TRF", newCustomerEmail: "new@test.com" });
+    await s2sClient.s2s.licenses.transfer({
+      licenseKey: "TT-TRF",
+      newCustomerEmail: "new@test.com",
+    });
 
     // licenses.events
     await s2sClient.s2s.licenses.events({
@@ -655,7 +731,11 @@ describe("Unit Tests - Tertaut SDK", () => {
 
     // credits.balance & credits.consume
     await s2sClient.s2s.credits.balance("TT-CRED-S2S");
-    await s2sClient.s2s.credits.consume({ licenseKey: "TT-CRED-S2S", amount: 50, reason: "Bulk generation" });
+    await s2sClient.s2s.credits.consume({
+      licenseKey: "TT-CRED-S2S",
+      amount: 50,
+      reason: "Bulk generation",
+    });
 
     // webhooks: create, update, delete, rotateSecret, test, verifySignature
     await s2sClient.s2s.webhooks.create({ url: "https://myhook.com" });
@@ -675,11 +755,10 @@ describe("Unit Tests - Tertaut SDK", () => {
     const { verifyEd25519OfflineToken } = require("../../../../packages/sdk/src/utils/crypto");
 
     // 1. Buat keypair Ed25519 dan JWK publik
-    const keyPair = await crypto.subtle.generateKey(
-      { name: "Ed25519" } as any,
-      true,
-      ["sign", "verify"]
-    );
+    const keyPair = await crypto.subtle.generateKey({ name: "Ed25519" } as any, true, [
+      "sign",
+      "verify",
+    ]);
     const publicKeyJwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
 
     // 2. Buat token JWT Ed25519 valid
@@ -697,7 +776,11 @@ describe("Unit Tests - Tertaut SDK", () => {
     const body = Buffer.from(JSON.stringify(validClaims)).toString("base64url");
 
     const dataToSign = new TextEncoder().encode(`${header}.${body}`);
-    const signatureBuffer = await crypto.subtle.sign("Ed25519" as any, keyPair.privateKey, dataToSign);
+    const signatureBuffer = await crypto.subtle.sign(
+      "Ed25519" as any,
+      keyPair.privateKey,
+      dataToSign
+    );
     const signature = Buffer.from(signatureBuffer).toString("base64url");
     const validToken = `${header}.${body}.${signature}`;
 
@@ -729,9 +812,12 @@ describe("Unit Tests - Tertaut SDK", () => {
       )
     ).toString("base64url");
 
-    const resType = await verifyEd25519OfflineToken(`${header}.${invalidTypeBody}.${invalidTypeSig}`, {
-      publicKeyJwk,
-    });
+    const resType = await verifyEd25519OfflineToken(
+      `${header}.${invalidTypeBody}.${invalidTypeSig}`,
+      {
+        publicKeyJwk,
+      }
+    );
     expect(resType.valid).toBe(false);
     expect(resType.reason).toBe("INVALID_TOKEN_TYPE");
 
@@ -764,4 +850,3 @@ describe("Unit Tests - Tertaut SDK", () => {
     expect(resThrow.reason).toBeDefined();
   });
 });
-

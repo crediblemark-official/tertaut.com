@@ -54,9 +54,11 @@ export class AuditService {
 
   static async query(options: AuditQueryOptions) {
     const conditions: any[] = [];
-    if (options.licenseKey) conditions.push(eq(licenseEvents.licenseKey, options.licenseKey.trim()));
+    if (options.licenseKey)
+      conditions.push(eq(licenseEvents.licenseKey, options.licenseKey.trim()));
     if (options.appId) conditions.push(eq(licenseEvents.appId, options.appId));
-    if (options.appIds && options.appIds.length > 0) conditions.push(inArray(licenseEvents.appId, options.appIds));
+    if (options.appIds && options.appIds.length > 0)
+      conditions.push(inArray(licenseEvents.appId, options.appIds));
     if (options.event) conditions.push(eq(licenseEvents.event, options.event));
     if (options.actorType) conditions.push(eq(licenseEvents.actorType as any, options.actorType));
 

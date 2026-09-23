@@ -1,30 +1,34 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Search, Building2 } from 'lucide-vue-next'
-import type { PanelBuilderItem } from '../../types/panel'
+import { ref, computed } from "vue";
+import { Search, Building2 } from "lucide-vue-next";
+import type { PanelBuilderItem } from "../../types/panel";
 
 const props = defineProps<{
-  builders: PanelBuilderItem[]
-}>()
+  builders: PanelBuilderItem[];
+}>();
 
-const searchQuery = ref('')
+const searchQuery = ref("");
 
 const filteredBuilders = computed(() => {
-  if (!searchQuery.value.trim()) return props.builders
-  const q = searchQuery.value.toLowerCase().trim()
-  return props.builders.filter(b => {
-    const matchName = (b.name || '').toLowerCase().includes(q)
-    const matchEmail = (b.email || '').toLowerCase().includes(q)
-    const matchBank = (b.bankAccount?.bankName || b.disbursementAccount?.bankCode || '').toLowerCase().includes(q)
-    return matchName || matchEmail || matchBank
-  })
-})
+  if (!searchQuery.value.trim()) return props.builders;
+  const q = searchQuery.value.toLowerCase().trim();
+  return props.builders.filter((b) => {
+    const matchName = (b.name || "").toLowerCase().includes(q);
+    const matchEmail = (b.email || "").toLowerCase().includes(q);
+    const matchBank = (b.bankAccount?.bankName || b.disbursementAccount?.bankCode || "")
+      .toLowerCase()
+      .includes(q);
+    return matchName || matchEmail || matchBank;
+  });
+});
 </script>
 
 <template>
   <section class="space-y-4">
     <!-- Search & Info Bar -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-jetblack/10">
+    <div
+      class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-jetblack/10"
+    >
       <div class="relative flex-1 max-w-sm">
         <Search class="w-3.5 h-3.5 text-jetblack/40 absolute left-3 top-1/2 -translate-y-1/2" />
         <input
@@ -35,13 +39,16 @@ const filteredBuilders = computed(() => {
         />
       </div>
       <div class="text-xs text-jetblack/60 font-medium">
-        Total <strong>{{ filteredBuilders.length }}</strong> dari <strong>{{ builders.length }}</strong> builder
+        Total <strong>{{ filteredBuilders.length }}</strong> dari
+        <strong>{{ builders.length }}</strong> builder
       </div>
     </div>
 
     <!-- Table View (Responsive Table with Horizontal Scroll on Mobile) -->
     <div class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
-      <table class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15">
+      <table
+        class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15"
+      >
         <thead class="border-b border-jetblack/20 text-xs font-semibold text-jetblack/70 bg-white">
           <tr>
             <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Builder</th>
@@ -59,13 +66,9 @@ const filteredBuilders = computed(() => {
               Tidak ada data builder ditemukan.
             </td>
           </tr>
-          <tr
-            v-for="b in filteredBuilders"
-            :key="b.id"
-            class="hover:bg-jetblack/[0.02] transition"
-          >
+          <tr v-for="b in filteredBuilders" :key="b.id" class="hover:bg-jetblack/[0.02] transition">
             <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-bold text-jetblack">
-              {{ b.name || 'Builder' }}
+              {{ b.name || "Builder" }}
             </td>
             <td class="py-2.5 px-3 text-[11px] text-jetblack/70 font-mono">
               {{ b.email }}
@@ -73,10 +76,16 @@ const filteredBuilders = computed(() => {
             <td class="py-2.5 px-3 text-jetblack/80">
               <div v-if="b.bankAccount || b.disbursementAccount" class="space-y-0.5">
                 <div class="font-semibold text-jetblack">
-                  {{ b.bankAccount?.bankName || b.disbursementAccount?.bankCode || 'BCA' }} • {{ b.bankAccount?.accountNumber || b.disbursementAccount?.accountNumber }}
+                  {{ b.bankAccount?.bankName || b.disbursementAccount?.bankCode || "BCA" }} •
+                  {{ b.bankAccount?.accountNumber || b.disbursementAccount?.accountNumber }}
                 </div>
                 <div class="text-[10px] text-jetblack/50">
-                  a.n. {{ b.bankAccount?.accountHolder || b.disbursementAccount?.accountHolderName || b.name }}
+                  a.n.
+                  {{
+                    b.bankAccount?.accountHolder ||
+                    b.disbursementAccount?.accountHolderName ||
+                    b.name
+                  }}
                 </div>
               </div>
               <span v-else class="text-jetblack/40 italic">Belum dikonfigurasi</span>
@@ -96,13 +105,13 @@ const filteredBuilders = computed(() => {
               </div>
             </td>
             <td class="py-2.5 px-3 font-mono font-bold text-jetblack">
-              Rp {{ (b.totalSales ?? b.totalGMV ?? 0).toLocaleString('id-ID') }}
+              Rp {{ (b.totalSales ?? b.totalGMV ?? 0).toLocaleString("id-ID") }}
             </td>
             <td class="py-2.5 px-3 font-mono font-bold text-forest">
-              Rp {{ (b.builderNetRevenue ?? b.totalNetEarnings ?? 0).toLocaleString('id-ID') }}
+              Rp {{ (b.builderNetRevenue ?? b.totalNetEarnings ?? 0).toLocaleString("id-ID") }}
             </td>
             <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right text-jetblack/50 text-[11px]">
-              {{ b.createdAt ? new Date(b.createdAt).toLocaleDateString('id-ID') : '-' }}
+              {{ b.createdAt ? new Date(b.createdAt).toLocaleDateString("id-ID") : "-" }}
             </td>
           </tr>
         </tbody>

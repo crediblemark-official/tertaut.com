@@ -66,31 +66,39 @@ describe("All Green: routes/coupons/router.ts Empty App & Mode Branches", () => 
     const userCookie = signUpRes.headers.get("set-cookie")?.split(";")[0] || "";
 
     // 1. List coupons as builder with 0 apps -> returns empty array
-    const resList = await app.handle(new Request("http://localhost:3001/api/v1/coupons", {
-      headers: { cookie: userCookie },
-    }));
+    const resList = await app.handle(
+      new Request("http://localhost:3001/api/v1/coupons", {
+        headers: { cookie: userCookie },
+      })
+    );
     expect(resList.status).toBe(200);
     const dataList = (await resList.json()) as any;
     expect(dataList.coupons).toEqual([]);
 
     // 2. Stats as builder with 0 apps -> returns 0 stats
-    const resStats = await app.handle(new Request("http://localhost:3001/api/v1/coupons/stats", {
-      headers: { cookie: userCookie },
-    }));
+    const resStats = await app.handle(
+      new Request("http://localhost:3001/api/v1/coupons/stats", {
+        headers: { cookie: userCookie },
+      })
+    );
     expect(resStats.status).toBe(200);
     const dataStats = (await resStats.json()) as any;
     expect(dataStats.totalRedemptions).toBe(0);
 
     // 3. Admin list coupons with non-matching mode
-    const resMode = await app.handle(new Request("http://localhost:3001/api/v1/coupons?mode=sandbox", {
-      headers: { cookie: authCookie },
-    }));
+    const resMode = await app.handle(
+      new Request("http://localhost:3001/api/v1/coupons?mode=sandbox", {
+        headers: { cookie: authCookie },
+      })
+    );
     expect(resMode.status).toBe(200);
 
     // 4. Admin stats with non-matching mode
-    const resStatsMode = await app.handle(new Request("http://localhost:3001/api/v1/coupons/stats?mode=sandbox", {
-      headers: { cookie: authCookie },
-    }));
+    const resStatsMode = await app.handle(
+      new Request("http://localhost:3001/api/v1/coupons/stats?mode=sandbox", {
+        headers: { cookie: authCookie },
+      })
+    );
     expect(resStatsMode.status).toBe(200);
   });
 });
@@ -108,31 +116,37 @@ describe("All Green: routes/payouts/router.ts Unauthorized & Not Found Cases", (
 
     // 1. POST /payouts/trigger without matching builder -> 403 (trying to disburse another builder)
     const fakeOtherBuilderId = `bld_${suffix()}`;
-    const resTrigger403 = await app.handle(new Request("http://localhost:3001/api/v1/payouts/trigger", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        cookie: userCookie,
-      },
-      body: JSON.stringify({ builderId: fakeOtherBuilderId }),
-    }));
+    const resTrigger403 = await app.handle(
+      new Request("http://localhost:3001/api/v1/payouts/trigger", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: userCookie,
+        },
+        body: JSON.stringify({ builderId: fakeOtherBuilderId }),
+      })
+    );
     expect([400, 403, 404, 422]).toContain(resTrigger403.status);
 
     // 2. GET /payouts/account for user without builder -> 404
-    const resAcc404 = await app.handle(new Request("http://localhost:3001/api/v1/payouts/account", {
-      headers: { cookie: userCookie },
-    }));
+    const resAcc404 = await app.handle(
+      new Request("http://localhost:3001/api/v1/payouts/account", {
+        headers: { cookie: userCookie },
+      })
+    );
     expect(resAcc404.status).toBe(404);
 
     // 3. POST /payouts/account for user without builder -> 404
-    const resAccPost404 = await app.handle(new Request("http://localhost:3001/api/v1/payouts/account", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        cookie: userCookie,
-      },
-      body: JSON.stringify({ bankCode: "BCA", accountNumber: "123456" }),
-    }));
+    const resAccPost404 = await app.handle(
+      new Request("http://localhost:3001/api/v1/payouts/account", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: userCookie,
+        },
+        body: JSON.stringify({ bankCode: "BCA", accountNumber: "123456" }),
+      })
+    );
     expect(resAccPost404.status).toBe(404);
   });
 });
@@ -140,22 +154,28 @@ describe("All Green: routes/payouts/router.ts Unauthorized & Not Found Cases", (
 describe("All Green: routes/panel/payouts.ts Skipped Unconfigured Account", () => {
   it("handleBatchPayout: skips builders without configured disbursement account", async () => {
     const email = `no_acc_b_${suffix()}@test.com`;
-    const [b] = await db.insert(builders).values({
-      name: "No Account Builder",
-      email,
-      apiKey: generateAppApiKey("live"),
-      secretApiKey: generateBuilderSecretApiKey(),
-      disbursementAccount: null,
-    }).returning();
+    const [b] = await db
+      .insert(builders)
+      .values({
+        name: "No Account Builder",
+        email,
+        apiKey: generateAppApiKey("live"),
+        secretApiKey: generateBuilderSecretApiKey(),
+        disbursementAccount: null,
+      })
+      .returning();
 
-    const [a] = await db.insert(apps).values({
-      id: `app_po_${suffix()}`,
-      name: "Payout Live App",
-      slug: `po-live-${suffix()}`,
-      builderId: b.id,
-      mode: "live",
-      targetPrice: 100000,
-    }).returning();
+    const [a] = await db
+      .insert(apps)
+      .values({
+        id: `app_po_${suffix()}`,
+        name: "Payout Live App",
+        slug: `po-live-${suffix()}`,
+        builderId: b.id,
+        mode: "live",
+        targetPrice: 100000,
+      })
+      .returning();
 
     const txId = `tx_po_skip_${suffix()}`;
     await db.insert(transactions).values({

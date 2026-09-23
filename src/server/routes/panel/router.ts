@@ -28,7 +28,8 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
     detail: {
       tags: ["Admin Panel"],
       summary: "List Builders & Bank Accounts",
-      description: "Returns all registered builders, their apps count, bank disbursement accounts, and earnings",
+      description:
+        "Returns all registered builders, their apps count, bank disbursement accounts, and earnings",
     },
   })
 

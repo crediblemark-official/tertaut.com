@@ -219,7 +219,7 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
         body: JSON.stringify({ licenseKey, hwid }),
       });
       expect(balanceRes.status).toBe(200);
-      expect((await balanceRes.json() as any).balance).toBe(50);
+      expect(((await balanceRes.json()) as any).balance).toBe(50);
 
       // Perangkat lain tidak boleh memakai kredit lisensi ini.
       const foreignRes = await fetch("http://localhost:3001/api/v1/licensing/credits/consume", {
@@ -245,7 +245,7 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
         body: JSON.stringify({ licenseKey, hwid, amount: 999 }),
       });
       expect(overRes.status).toBe(402);
-      expect((await overRes.json() as any).balance).toBe(30);
+      expect(((await overRes.json()) as any).balance).toBe(30);
 
       const historyRes = await fetch("http://localhost:3001/api/v1/licensing/credits/history", {
         method: "POST",
@@ -340,17 +340,20 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
     if (!app) return;
 
     // Konfigurasi metering pada aplikasi
-    await db.update(apps).set({
-      meteringConfig: {
-        enabled: true,
-        template: "api_calls",
-        name: "API Call Metering",
-        aggregation: "count",
-        unitLabel: "API Call",
-        unitPrice: 2, // 2 kredit per unit
-        freeAllowance: 0,
-      },
-    }).where(eq(apps.id, app.id));
+    await db
+      .update(apps)
+      .set({
+        meteringConfig: {
+          enabled: true,
+          template: "api_calls",
+          name: "API Call Metering",
+          aggregation: "count",
+          unitLabel: "API Call",
+          unitPrice: 2, // 2 kredit per unit
+          freeAllowance: 0,
+        },
+      })
+      .where(eq(apps.id, app.id));
 
     const licId = `lic_meter_${Date.now()}`;
     const licenseKey = LicenseService.generateLicenseKey();

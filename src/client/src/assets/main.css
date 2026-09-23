@@ -11,7 +11,7 @@
   code,
   pre,
   .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: "JetBrains Mono", monospace;
   }
 
   a {
@@ -20,7 +20,7 @@
 
   /* Accessible keyboard navigation focus ring */
   :focus-visible {
-    outline: 2px solid #D4AF37;
+    outline: 2px solid #d4af37;
     outline-offset: 2px;
   }
 

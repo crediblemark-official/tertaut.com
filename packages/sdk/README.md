@@ -18,7 +18,7 @@ npm install @tertaut/sdk
 import { Tertaut } from "@tertaut/sdk";
 
 const tertaut = new Tertaut({
-  apiKey: "tt_live_xxxx",      // tt_live_... = produksi, tt_test_... = sandbox
+  apiKey: "tt_live_xxxx", // tt_live_... = produksi, tt_test_... = sandbox
   baseUrl: "https://tertaut.com", // ganti ke http://localhost:3001 saat dev lokal
   appId: "app_xxx",
 });
@@ -82,25 +82,26 @@ for await (const chunk of await tertaut.aiProxy.chatStream({ licenseKey, prompt:
 
 ## API
 
-| Anggota | Deskripsi |
-| --- | --- |
-| `new Tertaut({ apiKey, baseUrl, appId })` | Inisialisasi klien (mendukung publishable `tt_live_`/`tt_test_` atau secret `tt_secret_`) |
-| `checkout(options)` | Buat sesi checkout MoR (auto redirect di browser) |
-| `licensing.check(options)` | Smart dual-mode check (online validate dengan graceful offline token fallback) |
-| `licensing.startHeartbeatSession(options)` | Background session manager untuk floating rolling seat lease |
-| `licensing.activate / validate / verify / deactivate` | Siklus hidup lisensi & seat binding |
-| `licensing.entitlements({ licenseKey, hwid?, appVersion? })` | Ambil feature flags, entitlements & helper methods |
-| `licensing.heartbeat({ licenseKey, hwid, leaseKey })` | Perpanjang lease floating (rolling seat) manual |
-| `licensing.getJwks()` | Ambil public key Ed25519 JWKS |
-| `licensing.verifyOfflineToken(token, options?)` | Verifikasi token offline Ed25519 secara lokal |
-| `credits.balance / consume / history` | Saldo & pemakaian kredit lisensi (idempoten) |
-| `aiProxy.chat / chatStream` | AI gateway (non-streaming & SSE streaming relay) |
-| `s2s.*` | Server-to-Server Admin API (apps, licenses, seats, webhooks, credits) |
-| `Tertaut.verifyWebhookSignature(rawBody, sig, secret)` | Verifikasi HMAC-SHA256 webhook berbasis Web Crypto |
+| Anggota                                                      | Deskripsi                                                                                 |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `new Tertaut({ apiKey, baseUrl, appId })`                    | Inisialisasi klien (mendukung publishable `tt_live_`/`tt_test_` atau secret `tt_secret_`) |
+| `checkout(options)`                                          | Buat sesi checkout MoR (auto redirect di browser)                                         |
+| `licensing.check(options)`                                   | Smart dual-mode check (online validate dengan graceful offline token fallback)            |
+| `licensing.startHeartbeatSession(options)`                   | Background session manager untuk floating rolling seat lease                              |
+| `licensing.activate / validate / verify / deactivate`        | Siklus hidup lisensi & seat binding                                                       |
+| `licensing.entitlements({ licenseKey, hwid?, appVersion? })` | Ambil feature flags, entitlements & helper methods                                        |
+| `licensing.heartbeat({ licenseKey, hwid, leaseKey })`        | Perpanjang lease floating (rolling seat) manual                                           |
+| `licensing.getJwks()`                                        | Ambil public key Ed25519 JWKS                                                             |
+| `licensing.verifyOfflineToken(token, options?)`              | Verifikasi token offline Ed25519 secara lokal                                             |
+| `credits.balance / consume / history`                        | Saldo & pemakaian kredit lisensi (idempoten)                                              |
+| `aiProxy.chat / chatStream`                                  | AI gateway (non-streaming & SSE streaming relay)                                          |
+| `s2s.*`                                                      | Server-to-Server Admin API (apps, licenses, seats, webhooks, credits)                     |
+| `Tertaut.verifyWebhookSignature(rawBody, sig, secret)`       | Verifikasi HMAC-SHA256 webhook berbasis Web Crypto                                        |
 
 ### Contoh Penggunaan Fitur Komprehensif
 
 #### 1. Smart License Check (Dual Mode)
+
 ```ts
 const result = await tertaut.licensing.check({
   licenseKey: "TT-XXXX-XXXX-XXXX",
@@ -119,6 +120,7 @@ if (result.valid) {
 ```
 
 #### 2. Automatic Floating Heartbeat Session
+
 ```ts
 const session = tertaut.licensing.startHeartbeatSession({
   licenseKey: "TT-XXXX-XXXX-XXXX",
@@ -135,6 +137,7 @@ session.stop();
 ```
 
 #### 3. S2S Admin API (Backend Secret Key)
+
 ```ts
 const admin = new Tertaut({
   apiKey: "tt_secret_xxxx",
@@ -159,6 +162,7 @@ const isValid = await Tertaut.verifyWebhookSignature(
 ## Arsitektur Modular
 
 SDK diorganisir secara modular di bawah `src/` dengan standar Web Crypto zero-dependency (< 15KB bundle):
+
 - `types.ts`: Definisi antarmuka TypeScript lengkap.
 - `errors.ts`: Typed custom error classes (`TertautError`, `LicenseExpiredError`, `HeartbeatLeaseError`, dll).
 - `modules/checkout.ts`: MoR checkout engine.

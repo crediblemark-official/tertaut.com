@@ -30,7 +30,8 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
         set.status = 400;
         return {
           success: false,
-          error: "Pencairan tidak tersedia di environment Sandbox. Transaksi sandbox bersifat simulasi.",
+          error:
+            "Pencairan tidak tersedia di environment Sandbox. Transaksi sandbox bersifat simulasi.",
         };
       }
 
@@ -49,7 +50,10 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
 
       if (builder && !isAdmin && builder.userId !== authResult.user.id) {
         set.status = 403;
-        return { success: false, error: "Anda hanya dapat mencairkan saldo builder milik sendiri." };
+        return {
+          success: false,
+          error: "Anda hanya dapat mencairkan saldo builder milik sendiri.",
+        };
       }
 
       if (!builder) {
@@ -64,10 +68,7 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
 
       // Hanya transaksi dari aplikasi mode LIVE yang boleh dicairkan.
       // Transaksi sandbox adalah simulasi dan tidak pernah dikirim ke Xendit.
-      const liveAppRows = await db
-        .select({ id: apps.id })
-        .from(apps)
-        .where(eq(apps.mode, "live"));
+      const liveAppRows = await db.select({ id: apps.id }).from(apps).where(eq(apps.mode, "live"));
       const liveAppIds = liveAppRows.map((a) => a.id);
 
       // Ambil HANYA transaksi milik builder ini yang sudah lunas (PAID)
@@ -281,11 +282,13 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
         return { success: false, error: authResult.error };
       }
 
-      const builder = await db.query.builders.findFirst({
-        where: eq(builders.userId, authResult.user.id),
-      }) || await db.query.builders.findFirst({
-        where: eq(builders.email, authResult.user.email),
-      });
+      const builder =
+        (await db.query.builders.findFirst({
+          where: eq(builders.userId, authResult.user.id),
+        })) ||
+        (await db.query.builders.findFirst({
+          where: eq(builders.email, authResult.user.email),
+        }));
 
       if (!builder) {
         set.status = 404;
@@ -317,11 +320,13 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
         return { success: false, error: authResult.error };
       }
 
-      let builder = await db.query.builders.findFirst({
-        where: eq(builders.userId, authResult.user.id),
-      }) || await db.query.builders.findFirst({
-        where: eq(builders.email, authResult.user.email),
-      });
+      let builder =
+        (await db.query.builders.findFirst({
+          where: eq(builders.userId, authResult.user.id),
+        })) ||
+        (await db.query.builders.findFirst({
+          where: eq(builders.email, authResult.user.email),
+        }));
 
       if (!builder) {
         set.status = 404;

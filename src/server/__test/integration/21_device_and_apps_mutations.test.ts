@@ -34,22 +34,28 @@ describe("Device Seat Ops, App Mutations, and AI Chat Guardrails", () => {
     if (bList.length > 0) {
       testBuilder = bList[0];
     } else {
-      const [b] = await db.insert(builders).values({
-        name: "Mut Builder",
-        email: `mut_${Date.now()}@test.com`,
-        apiKey: generateAppApiKey("live"),
-      }).returning();
+      const [b] = await db
+        .insert(builders)
+        .values({
+          name: "Mut Builder",
+          email: `mut_${Date.now()}@test.com`,
+          apiKey: generateAppApiKey("live"),
+        })
+        .returning();
       testBuilder = b;
     }
 
-    const [a] = await db.insert(apps).values({
-      id: `app_mut_${Date.now()}`,
-      name: "Mutations Test App",
-      slug: `mut-app-${Date.now()}`,
-      builderId: testBuilder.id,
-      mode: "sandbox",
-      targetPrice: 75000,
-    }).returning();
+    const [a] = await db
+      .insert(apps)
+      .values({
+        id: `app_mut_${Date.now()}`,
+        name: "Mutations Test App",
+        slug: `mut-app-${Date.now()}`,
+        builderId: testBuilder.id,
+        mode: "sandbox",
+        targetPrice: 75000,
+      })
+      .returning();
     testApp = a;
   });
 
@@ -76,7 +82,12 @@ describe("Device Seat Ops, App Mutations, and AI Chat Guardrails", () => {
     const createdAppId = createRes.app!.id;
 
     // 2. handleUpdateApp
-    const updateNotFound = await handleUpdateApp({ params: { appId: "fake_id" }, body: {}, set, request: { headers: adminHeaders } });
+    const updateNotFound = await handleUpdateApp({
+      params: { appId: "fake_id" },
+      body: {},
+      set,
+      request: { headers: adminHeaders },
+    });
     expect(set.status).toBe(404);
 
     const updateRes = await handleUpdateApp({
@@ -89,7 +100,12 @@ describe("Device Seat Ops, App Mutations, and AI Chat Guardrails", () => {
     expect(updateRes.app!.name).toBe("Updated Name");
 
     // 3. handleUpdateMode
-    const modeNotFound = await handleUpdateMode({ params: { appId: "fake_id" }, body: { mode: "live" }, set, request: { headers: adminHeaders } });
+    const modeNotFound = await handleUpdateMode({
+      params: { appId: "fake_id" },
+      body: { mode: "live" },
+      set,
+      request: { headers: adminHeaders },
+    });
     expect(set.status).toBe(404);
 
     const modeRes = await handleUpdateMode({
@@ -102,7 +118,11 @@ describe("Device Seat Ops, App Mutations, and AI Chat Guardrails", () => {
     expect(modeRes.app!.mode).toBe("live");
 
     // 4. handleRotateApiKey
-    const rotateNotFound = await handleRotateApiKey({ params: { appId: "fake_id" }, set, request: { headers: adminHeaders } });
+    const rotateNotFound = await handleRotateApiKey({
+      params: { appId: "fake_id" },
+      set,
+      request: { headers: adminHeaders },
+    });
     expect(set.status).toBe(404);
 
     const rotateRes = await handleRotateApiKey({
@@ -114,12 +134,19 @@ describe("Device Seat Ops, App Mutations, and AI Chat Guardrails", () => {
     expect(rotateRes.app!.apiKey).toBeDefined();
 
     // 5. handleRotateBuilderSecret
-    const rotateSecretRes = await handleRotateBuilderSecret({ request: { headers: adminHeaders }, set: {} });
+    const rotateSecretRes = await handleRotateBuilderSecret({
+      request: { headers: adminHeaders },
+      set: {},
+    });
     expect(rotateSecretRes.success).toBe(true);
     expect(rotateSecretRes.secretApiKey).toBeDefined();
 
     // 6. handleDeleteApp
-    const deleteNotFound = await handleDeleteApp({ params: { appId: "fake_id" }, set, request: { headers: adminHeaders } });
+    const deleteNotFound = await handleDeleteApp({
+      params: { appId: "fake_id" },
+      set,
+      request: { headers: adminHeaders },
+    });
     expect(set.status).toBe(404);
 
     const deleteRes = await handleDeleteApp({
@@ -172,7 +199,10 @@ describe("Device Seat Ops, App Mutations, and AI Chat Guardrails", () => {
     const deactMissing = await handleDeactivateLicense({ body: {}, set });
     expect(set.status).toBe(400);
 
-    const deactNotFound = await handleDeactivateLicense({ body: { licenseKey: "TT-FAKE-KEY-0000" }, set });
+    const deactNotFound = await handleDeactivateLicense({
+      body: { licenseKey: "TT-FAKE-KEY-0000" },
+      set,
+    });
     expect(set.status).toBe(404);
 
     const deactWrongHwid = await handleDeactivateLicense({
@@ -255,8 +285,14 @@ describe("Device Seat Ops, App Mutations, and AI Chat Guardrails", () => {
     // 3. Deactivate kill switch and test successful chat in sandbox
     const { CryptoService } = await import("../../services/crypto");
     const enc = CryptoService.encrypt("mock-openai-key");
-    await db.update(aiVaultCredentials)
-      .set({ isKillSwitchActive: false, encryptedApiKey: enc.cipherText, iv: enc.iv, authTag: enc.authTag })
+    await db
+      .update(aiVaultCredentials)
+      .set({
+        isKillSwitchActive: false,
+        encryptedApiKey: enc.cipherText,
+        iv: enc.iv,
+        authTag: enc.authTag,
+      })
       .where(eq(aiVaultCredentials.appId, testApp.id));
 
     const chatSuccess: any = await handleAiChat({

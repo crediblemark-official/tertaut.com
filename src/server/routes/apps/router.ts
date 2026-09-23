@@ -1,7 +1,21 @@
 import { Elysia, t } from "elysia";
 import { authenticate } from "../../middleware/auth";
-import { handleListApps, handleStatsOverview, handleStatsCatalog, handleCheckSlug, handleGetBySlug, handleGetBuilderMyself } from "./queries";
-import { handleCreateApp, handleUpdateApp, handleDeleteApp, handleUpdateMode, handleRotateApiKey, handleRotateBuilderSecret } from "./mutations";
+import {
+  handleListApps,
+  handleStatsOverview,
+  handleStatsCatalog,
+  handleCheckSlug,
+  handleGetBySlug,
+  handleGetBuilderMyself,
+} from "./queries";
+import {
+  handleCreateApp,
+  handleUpdateApp,
+  handleDeleteApp,
+  handleUpdateMode,
+  handleRotateApiKey,
+  handleRotateBuilderSecret,
+} from "./mutations";
 import { handleDisburse } from "./disburse";
 
 const modeQuery = t.Object({
@@ -13,18 +27,22 @@ const appBodySchema = t.Object({
   slug: t.String(),
   targetPrice: t.Number(),
   mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
-  pricingType: t.Optional(t.Union([t.Literal("one_time"), t.Literal("subscription"), t.Literal("free"), t.Null()])),
-  billingPeriod: t.Optional(t.Union([
-    t.Literal("daily"),
-    t.Literal("weekly"),
-    t.Literal("monthly"),
-    t.Literal("every_3_months"),
-    t.Literal("every_6_months"),
-    t.Literal("yearly"),
-    t.Literal("custom"),
-    t.String(),
-    t.Null()
-  ])),
+  pricingType: t.Optional(
+    t.Union([t.Literal("one_time"), t.Literal("subscription"), t.Literal("free"), t.Null()])
+  ),
+  billingPeriod: t.Optional(
+    t.Union([
+      t.Literal("daily"),
+      t.Literal("weekly"),
+      t.Literal("monthly"),
+      t.Literal("every_3_months"),
+      t.Literal("every_6_months"),
+      t.Literal("yearly"),
+      t.Literal("custom"),
+      t.String(),
+      t.Null(),
+    ])
+  ),
   trialPeriodDays: t.Optional(t.Union([t.Number(), t.Null()])),
   deliveryConfig: t.Optional(t.Any()),
   meteringConfig: t.Optional(t.Any()),
@@ -56,7 +74,8 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
     detail: {
       tags: ["Apps"],
       summary: "List all apps",
-      description: "Retrieves list of apps managed by the current builder, optionally filtered by environment mode",
+      description:
+        "Retrieves list of apps managed by the current builder, optionally filtered by environment mode",
     },
   })
   /**
@@ -67,7 +86,8 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
     detail: {
       tags: ["Apps"],
       summary: "Dashboard KPI Overview",
-      description: "Aggregates GMV, Net Payouts, Active Licenses, and Validation Rates, optionally filtered by environment mode",
+      description:
+        "Aggregates GMV, Net Payouts, Active Licenses, and Validation Rates, optionally filtered by environment mode",
     },
   })
   /**
@@ -78,7 +98,8 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
     detail: {
       tags: ["Apps"],
       summary: "Product Catalog KPI Stats",
-      description: "Aggregates real-time active products, sales (30d), active subscriptions, and unique customers (30d)",
+      description:
+        "Aggregates real-time active products, sales (30d), active subscriptions, and unique customers (30d)",
     },
   })
   .get("/check-slug/:slug", handleCheckSlug, {
@@ -89,7 +110,9 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
       200: t.Object(
         {
           slug: t.String({ description: "Slug yang diperiksa" }),
-          available: t.Boolean({ description: "True jika slug masih tersedia, false jika sudah digunakan" }),
+          available: t.Boolean({
+            description: "True jika slug masih tersedia, false jika sudah digunakan",
+          }),
         },
         { description: "Hasil pemeriksaan ketersediaan slug unik" }
       ),
@@ -150,7 +173,8 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
     detail: {
       tags: ["Apps"],
       summary: "Builder profile (self)",
-      description: "Returns the current builder's profile including the server-to-server secret API key",
+      description:
+        "Returns the current builder's profile including the server-to-server secret API key",
     },
   })
   /**

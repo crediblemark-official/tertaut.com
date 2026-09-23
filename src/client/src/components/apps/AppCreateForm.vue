@@ -1,174 +1,185 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import type { DeliveryConfig, MeteringConfig, BillingPeriodType } from '../../types/app'
-import { dashboardEnv } from '../../lib/environment'
-import { ArrowLeft, X } from 'lucide-vue-next'
+import { ref, computed, watch } from "vue";
+import type { DeliveryConfig, MeteringConfig, BillingPeriodType } from "../../types/app";
+import { dashboardEnv } from "../../lib/environment";
+import { ArrowLeft, X } from "lucide-vue-next";
 
-import AppBenefitsForm from './AppBenefitsForm.vue'
-import AppPricingSection from './AppPricingSection.vue'
-import AppDeliverySection from './AppDeliverySection.vue'
-import AppLivePreviewCard from './AppLivePreviewCard.vue'
-import AppMeteringModal, { type MeteringModalResult } from './AppMeteringModal.vue'
+import AppBenefitsForm from "./AppBenefitsForm.vue";
+import AppPricingSection from "./AppPricingSection.vue";
+import AppDeliverySection from "./AppDeliverySection.vue";
+import AppLivePreviewCard from "./AppLivePreviewCard.vue";
+import AppMeteringModal, { type MeteringModalResult } from "./AppMeteringModal.vue";
 
 const emit = defineEmits<{
-  cancel: []
-  created: []
-  error: [msg: string]
-}>()
+  cancel: [];
+  created: [];
+  error: [msg: string];
+}>();
 
 const props = defineProps<{
-  createFn: (payload: Record<string, any>) => Promise<any>
-}>()
+  createFn: (payload: Record<string, any>) => Promise<any>;
+}>();
 
 // Form state
-const isCreating = ref(false)
-const createError = ref<string | null>(null)
+const isCreating = ref(false);
+const createError = ref<string | null>(null);
 
 // General Info
-const newAppName = ref('')
-const newAppSlug = ref('')
-const slugManuallyEdited = ref(false)
-const newAppDesc = ref('')
-const newAppMediaUrl = ref('')
+const newAppName = ref("");
+const newAppSlug = ref("");
+const slugManuallyEdited = ref(false);
+const newAppDesc = ref("");
+const newAppMediaUrl = ref("");
 
 // Pricing
-const pricingType = ref<'one_time' | 'subscription' | 'free'>('subscription')
-const newAppPrice = ref(49000)
-const billingPeriod = ref<BillingPeriodType>('monthly')
-const customBillingDays = ref(14)
-const hasTrialPeriod = ref(false)
-const trialPeriodDays = ref(7)
+const pricingType = ref<"one_time" | "subscription" | "free">("subscription");
+const newAppPrice = ref(49000);
+const billingPeriod = ref<BillingPeriodType>("monthly");
+const customBillingDays = ref(14);
+const hasTrialPeriod = ref(false);
+const trialPeriodDays = ref(7);
 
 const billingPeriodDisplay = computed(() => {
   switch (billingPeriod.value) {
-    case 'weekly': return '/ Minggu (Weekly)'
-    case 'daily': return '/ Hari (Daily)'
-    case 'monthly': return '/ Bulan (Monthly)'
-    case 'every_3_months': return '/ 3 Bulan (Quarterly)'
-    case 'every_6_months': return '/ 6 Bulan (Semi-annual)'
-    case 'yearly': return '/ Tahun (Yearly)'
-    case 'custom': return `/ ${customBillingDays.value} Hari`
-    default: return '/ Bulan'
+    case "weekly":
+      return "/ Minggu (Weekly)";
+    case "daily":
+      return "/ Hari (Daily)";
+    case "monthly":
+      return "/ Bulan (Monthly)";
+    case "every_3_months":
+      return "/ 3 Bulan (Quarterly)";
+    case "every_6_months":
+      return "/ 6 Bulan (Semi-annual)";
+    case "yearly":
+      return "/ Tahun (Yearly)";
+    case "custom":
+      return `/ ${customBillingDays.value} Hari`;
+    default:
+      return "/ Bulan";
   }
-})
+});
 
 // Benefits
 const benefits = ref<string[]>([
-  'Akses source code lengkap & dokumentasi',
-  'Lisensi komersial software',
-  'Update berkala & perbaikan bug',
-])
+  "Akses source code lengkap & dokumentasi",
+  "Lisensi komersial software",
+  "Update berkala & perbaikan bug",
+]);
 
 // Checkout & Follow-up
-const returnUrl = ref('')
-const abandonedCartRecovery = ref(false)
-const autoAffiliateRegistration = ref(false)
+const returnUrl = ref("");
+const abandonedCartRecovery = ref(false);
+const autoAffiliateRegistration = ref(false);
 
 // Metering (Usage-based pricing)
-const meteringEnabled = ref(false)
-const isMeteringModalOpen = ref(false)
+const meteringEnabled = ref(false);
+const isMeteringModalOpen = ref(false);
 
-const meterTemplateId = ref('llm_tokens')
-const meterName = ref('Token LLM')
-const meterEventName = ref('ai_usage')
-const meterCalcType = ref<'count' | 'sum' | 'max' | 'unique'>('count')
-const meterUnitLabel = ref('tokens')
-const meterFilters = ref<Array<{ property: string; value: string }>>([])
-const meteringAggregation = ref('count on ai_usage')
-const meteringUnitPrice = ref<string | number>('20.00')
-const meteringMetricUnit = ref('per tokens')
-const meteringFreeAllowance = ref<number>(0)
+const meterTemplateId = ref("llm_tokens");
+const meterName = ref("Token LLM");
+const meterEventName = ref("ai_usage");
+const meterCalcType = ref<"count" | "sum" | "max" | "unique">("count");
+const meterUnitLabel = ref("tokens");
+const meterFilters = ref<Array<{ property: string; value: string }>>([]);
+const meteringAggregation = ref("count on ai_usage");
+const meteringUnitPrice = ref<string | number>("20.00");
+const meteringMetricUnit = ref("per tokens");
+const meteringFreeAllowance = ref<number>(0);
 
 watch(newAppName, (val) => {
   if (!slugManuallyEdited.value) {
-    newAppSlug.value = val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    newAppSlug.value = val
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
   }
-})
+});
 
 function handleMeteringApply(result: MeteringModalResult) {
-  meteringEnabled.value = true
-  meterTemplateId.value = result.template
-  meterName.value = result.name
-  meterEventName.value = result.eventName
-  meterCalcType.value = result.calculationType
-  meterUnitLabel.value = result.unitLabel
-  meterFilters.value = result.filters
-  meteringAggregation.value = result.aggregation
-  meteringUnitPrice.value = result.unitPrice
-  meteringMetricUnit.value = result.metricUnit
-  meteringFreeAllowance.value = result.freeAllowance
+  meteringEnabled.value = true;
+  meterTemplateId.value = result.template;
+  meterName.value = result.name;
+  meterEventName.value = result.eventName;
+  meterCalcType.value = result.calculationType;
+  meterUnitLabel.value = result.unitLabel;
+  meterFilters.value = result.filters;
+  meteringAggregation.value = result.aggregation;
+  meteringUnitPrice.value = result.unitPrice;
+  meteringMetricUnit.value = result.metricUnit;
+  meteringFreeAllowance.value = result.freeAllowance;
 }
 
 function removeMetering() {
-  meteringEnabled.value = false
+  meteringEnabled.value = false;
 }
 
 function resetForm() {
-  newAppName.value = ''
-  newAppSlug.value = ''
-  slugManuallyEdited.value = false
-  newAppDesc.value = ''
-  newAppMediaUrl.value = ''
-  pricingType.value = 'subscription'
-  newAppPrice.value = 49000
-  billingPeriod.value = 'monthly'
-  hasTrialPeriod.value = false
-  trialPeriodDays.value = 7
+  newAppName.value = "";
+  newAppSlug.value = "";
+  slugManuallyEdited.value = false;
+  newAppDesc.value = "";
+  newAppMediaUrl.value = "";
+  pricingType.value = "subscription";
+  newAppPrice.value = 49000;
+  billingPeriod.value = "monthly";
+  hasTrialPeriod.value = false;
+  trialPeriodDays.value = 7;
   benefits.value = [
-    'Akses source code lengkap & dokumentasi',
-    'Lisensi komersial software',
-    'Update berkala & perbaikan bug',
-  ]
-  meteringEnabled.value = false
-  meterTemplateId.value = 'llm_tokens'
-  meterName.value = 'Token LLM'
-  meterEventName.value = 'ai_usage'
-  meterCalcType.value = 'count'
-  meterUnitLabel.value = 'tokens'
-  meterFilters.value = []
-  meteringAggregation.value = 'count on ai_usage'
-  meteringUnitPrice.value = '20.00'
-  meteringMetricUnit.value = 'per tokens'
-  meteringFreeAllowance.value = 0
-  returnUrl.value = ''
-  abandonedCartRecovery.value = false
-  autoAffiliateRegistration.value = false
+    "Akses source code lengkap & dokumentasi",
+    "Lisensi komersial software",
+    "Update berkala & perbaikan bug",
+  ];
+  meteringEnabled.value = false;
+  meterTemplateId.value = "llm_tokens";
+  meterName.value = "Token LLM";
+  meterEventName.value = "ai_usage";
+  meterCalcType.value = "count";
+  meterUnitLabel.value = "tokens";
+  meterFilters.value = [];
+  meteringAggregation.value = "count on ai_usage";
+  meteringUnitPrice.value = "20.00";
+  meteringMetricUnit.value = "per tokens";
+  meteringFreeAllowance.value = 0;
+  returnUrl.value = "";
+  abandonedCartRecovery.value = false;
+  autoAffiliateRegistration.value = false;
   deliveryConfigState.value = {
     licenseKey: {
       enabled: true,
-      description: 'Lisensi Universal Tertaut',
+      description: "Lisensi Universal Tertaut",
       expiresInDays: 365,
       maxSeats: 3,
     },
-  }
-  createError.value = null
+  };
+  createError.value = null;
 }
 
 const deliveryConfigState = ref<DeliveryConfig>({
   licenseKey: {
     enabled: true,
-    description: 'Lisensi Universal Tertaut',
+    description: "Lisensi Universal Tertaut",
     expiresInDays: 365,
     maxSeats: 3,
   },
-})
+});
 
 // Jika Akses API & Auto-Provisioning dinonaktifkan, reset juga konfigurasi Metered Billing
 watch(
   () => deliveryConfigState.value.apiAccess?.enabled,
   (enabled) => {
     if (!enabled && meteringEnabled.value) {
-      removeMetering()
+      removeMetering();
     }
   }
-)
+);
 
 async function handleCreateProduct() {
-  if (!newAppName.value || !newAppSlug.value) return
-  isCreating.value = true
-  createError.value = null
+  if (!newAppName.value || !newAppSlug.value) return;
+  isCreating.value = true;
+  createError.value = null;
 
-  const deliveryConfig: DeliveryConfig = deliveryConfigState.value
+  const deliveryConfig: DeliveryConfig = deliveryConfigState.value;
 
   const meteringConfig: MeteringConfig | undefined = meteringEnabled.value
     ? {
@@ -179,40 +190,45 @@ async function handleCreateProduct() {
         eventName: meterEventName.value,
         calculationType: meterCalcType.value,
         unitLabel: meterUnitLabel.value,
-        filters: meterFilters.value.filter(f => f.property.trim().length > 0 && f.value.trim().length > 0),
+        filters: meterFilters.value.filter(
+          (f) => f.property.trim().length > 0 && f.value.trim().length > 0
+        ),
         unitPrice: Number(meteringUnitPrice.value) || 0,
         metricUnit: meteringMetricUnit.value,
         freeAllowance: Number(meteringFreeAllowance.value) || 0,
       }
-    : undefined
+    : undefined;
 
   try {
     const data = await props.createFn({
       name: newAppName.value,
-      slug: newAppSlug.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-      targetPrice: pricingType.value === 'free' ? 0 : (newAppPrice.value || 0),
+      slug: newAppSlug.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
+      targetPrice: pricingType.value === "free" ? 0 : newAppPrice.value || 0,
       pricingType: pricingType.value,
-      billingPeriod: pricingType.value === 'subscription' ? billingPeriod.value : null,
-      trialPeriodDays: (pricingType.value === 'subscription' && hasTrialPeriod.value) ? (trialPeriodDays.value || 7) : 0,
+      billingPeriod: pricingType.value === "subscription" ? billingPeriod.value : null,
+      trialPeriodDays:
+        pricingType.value === "subscription" && hasTrialPeriod.value
+          ? trialPeriodDays.value || 7
+          : 0,
       mode: dashboardEnv.value,
       description: newAppDesc.value,
       mediaUrl: newAppMediaUrl.value || null,
-      valueProps: benefits.value.filter(b => b.trim().length > 0),
+      valueProps: benefits.value.filter((b) => b.trim().length > 0),
       redirectUrl: returnUrl.value || null,
       deliveryConfig,
       meteringConfig,
-    })
+    });
 
     if (data && (data.success || data.app)) {
-      resetForm()
-      emit('created')
+      resetForm();
+      emit("created");
     } else {
-      createError.value = data?.error || 'Gagal membuat produk'
+      createError.value = data?.error || "Gagal membuat produk";
     }
   } catch (e: any) {
-    createError.value = e?.message || 'Terjadi kesalahan sistem'
+    createError.value = e?.message || "Terjadi kesalahan sistem";
   } finally {
-    isCreating.value = false
+    isCreating.value = false;
   }
 }
 </script>
@@ -235,12 +251,18 @@ async function handleCreateProduct() {
             <h1 class="text-base font-bold text-jetblack">Produk &amp; Akses Baru</h1>
             <span
               class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full"
-              :class="dashboardEnv === 'sandbox' ? 'bg-amber-500/15 text-amber-700 border border-amber-500/30' : 'bg-forest/10 text-forest border border-forest/20'"
+              :class="
+                dashboardEnv === 'sandbox'
+                  ? 'bg-amber-500/15 text-amber-700 border border-amber-500/30'
+                  : 'bg-forest/10 text-forest border border-forest/20'
+              "
             >
-              Mode {{ dashboardEnv === 'sandbox' ? 'Sandbox' : 'Live' }}
+              Mode {{ dashboardEnv === "sandbox" ? "Sandbox" : "Live" }}
             </span>
           </div>
-          <p class="text-xs text-jetblack/60">Konfigurasi produk digital, SaaS, atau paywall API dengan Merchant of Record Tertaut.</p>
+          <p class="text-xs text-jetblack/60">
+            Konfigurasi produk digital, SaaS, atau paywall API dengan Merchant of Record Tertaut.
+          </p>
         </div>
       </div>
 
@@ -258,15 +280,20 @@ async function handleCreateProduct() {
           :disabled="isCreating || !newAppName || !newAppSlug"
           class="px-4 py-1.5 rounded-lg btn-gold text-xs font-bold transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 active:scale-95"
         >
-          <span>{{ isCreating ? 'Menerbitkan...' : 'Terbitkan Produk' }}</span>
+          <span>{{ isCreating ? "Menerbitkan..." : "Terbitkan Produk" }}</span>
         </button>
       </div>
     </div>
 
     <!-- Error Banner -->
-    <div v-if="createError" class="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-700 text-xs flex items-center justify-between">
+    <div
+      v-if="createError"
+      class="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-700 text-xs flex items-center justify-between"
+    >
       <span>{{ createError }}</span>
-      <button @click="createError = null" class="text-red-700/60 hover:text-red-700"><X class="w-3.5 h-3.5" /></button>
+      <button @click="createError = null" class="text-red-700/60 hover:text-red-700">
+        <X class="w-3.5 h-3.5" />
+      </button>
     </div>
 
     <!-- Two-column Layout: Form & Live Preview -->
@@ -278,14 +305,20 @@ async function handleCreateProduct() {
           <div class="border-b border-jetblack/10 pb-3">
             <div class="flex items-center gap-2">
               <div class="w-2 h-2 rounded-full bg-gold"></div>
-              <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">Detail Produk</h2>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">
+                Detail Produk
+              </h2>
             </div>
-            <p class="text-[11px] text-jetblack/60 mt-0.5">Identitas utama aplikasi atau resource digital yang dijual.</p>
+            <p class="text-[11px] text-jetblack/60 mt-0.5">
+              Identitas utama aplikasi atau resource digital yang dijual.
+            </p>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="block text-[11px] font-bold text-jetblack/70 mb-1">Nama Produk <span class="text-red-500">*</span></label>
+              <label class="block text-[11px] font-bold text-jetblack/70 mb-1"
+                >Nama Produk <span class="text-red-500">*</span></label
+              >
               <input
                 v-model="newAppName"
                 type="text"
@@ -294,7 +327,9 @@ async function handleCreateProduct() {
               />
             </div>
             <div>
-              <label class="block text-[11px] font-bold text-jetblack/70 mb-1">Slug URL <span class="text-red-500">*</span></label>
+              <label class="block text-[11px] font-bold text-jetblack/70 mb-1"
+                >Slug URL <span class="text-red-500">*</span></label
+              >
               <div class="relative">
                 <input
                   v-model="newAppSlug"
@@ -308,7 +343,9 @@ async function handleCreateProduct() {
           </div>
 
           <div>
-            <label class="block text-[11px] font-bold text-jetblack/70 mb-1">Deskripsi Singkat</label>
+            <label class="block text-[11px] font-bold text-jetblack/70 mb-1"
+              >Deskripsi Singkat</label
+            >
             <textarea
               v-model="newAppDesc"
               rows="2"
@@ -318,7 +355,9 @@ async function handleCreateProduct() {
           </div>
 
           <div>
-            <label class="block text-[11px] font-bold text-jetblack/70 mb-1">URL Ikon / Sampul (Opsional)</label>
+            <label class="block text-[11px] font-bold text-jetblack/70 mb-1"
+              >URL Ikon / Sampul (Opsional)</label
+            >
             <input
               v-model="newAppMediaUrl"
               type="url"
@@ -359,37 +398,66 @@ async function handleCreateProduct() {
           <div class="border-b border-jetblack/10 pb-3">
             <div class="flex items-center gap-2">
               <div class="w-2 h-2 rounded-full bg-gold"></div>
-              <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">Alur Checkout &amp; Retensi</h2>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">
+                Alur Checkout &amp; Retensi
+              </h2>
             </div>
-            <p class="text-[11px] text-jetblack/60 mt-0.5">Tautan pengalihan paska bayar dan otomatisasi tindak lanjut calon pembeli.</p>
+            <p class="text-[11px] text-jetblack/60 mt-0.5">
+              Tautan pengalihan paska bayar dan otomatisasi tindak lanjut calon pembeli.
+            </p>
           </div>
 
           <div>
-            <label class="block text-[11px] font-bold text-jetblack/70 mb-1">Return / Success URL (Opsional)</label>
+            <label class="block text-[11px] font-bold text-jetblack/70 mb-1"
+              >Return / Success URL (Opsional)</label
+            >
             <input
               v-model="returnUrl"
               type="url"
               placeholder="https://aplikasianda.com/welcome?success=true"
               class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/15 text-xs text-jetblack placeholder:text-jetblack/35 focus:outline-none focus:border-gold"
             />
-            <span class="text-[10px] text-jetblack/50 mt-1 block">Tautan ke situs Anda tempat pembeli diarahkan setelah transaksi selesai.</span>
+            <span class="text-[10px] text-jetblack/50 mt-1 block"
+              >Tautan ke situs Anda tempat pembeli diarahkan setelah transaksi selesai.</span
+            >
           </div>
 
           <div class="space-y-2 pt-1">
-            <div class="flex items-center justify-between p-3 rounded-lg bg-jetblack/[0.02] border border-jetblack/10">
+            <div
+              class="flex items-center justify-between p-3 rounded-lg bg-jetblack/[0.02] border border-jetblack/10"
+            >
               <div>
-                <div class="text-xs font-bold text-jetblack">Pemulihan Keranjang (Cart Recovery)</div>
-                <div class="text-[10px] text-jetblack/60">Kirim email pengingat otomatis jika pembeli membatalkan checkout QRIS/e-wallet.</div>
+                <div class="text-xs font-bold text-jetblack">
+                  Pemulihan Keranjang (Cart Recovery)
+                </div>
+                <div class="text-[10px] text-jetblack/60">
+                  Kirim email pengingat otomatis jika pembeli membatalkan checkout QRIS/e-wallet.
+                </div>
               </div>
-              <input v-model="abandonedCartRecovery" type="checkbox" class="accent-forest cursor-pointer" />
+              <input
+                v-model="abandonedCartRecovery"
+                type="checkbox"
+                class="accent-forest cursor-pointer"
+              />
             </div>
 
-            <div class="flex items-center justify-between p-3 rounded-lg bg-jetblack/[0.02] border border-jetblack/10">
+            <div
+              class="flex items-center justify-between p-3 rounded-lg bg-jetblack/[0.02] border border-jetblack/10"
+            >
               <div>
-                <div class="text-xs font-bold text-jetblack">Otomatis Undang ke Program Afiliasi</div>
-                <div class="text-[10px] text-jetblack/60">Berikan pembeli tautan referral unik untuk mempromosikan produk Anda dengan komisi.</div>
+                <div class="text-xs font-bold text-jetblack">
+                  Otomatis Undang ke Program Afiliasi
+                </div>
+                <div class="text-[10px] text-jetblack/60">
+                  Berikan pembeli tautan referral unik untuk mempromosikan produk Anda dengan
+                  komisi.
+                </div>
               </div>
-              <input v-model="autoAffiliateRegistration" type="checkbox" class="accent-forest cursor-pointer" />
+              <input
+                v-model="autoAffiliateRegistration"
+                type="checkbox"
+                class="accent-forest cursor-pointer"
+              />
             </div>
           </div>
         </div>

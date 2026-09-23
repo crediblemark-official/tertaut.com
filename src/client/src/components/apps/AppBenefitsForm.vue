@@ -1,52 +1,52 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Plus, Check, Trash2 } from 'lucide-vue-next'
+import { ref } from "vue";
+import { Plus, Check, Trash2 } from "lucide-vue-next";
 
 const props = defineProps<{
-  modelValue: string[]
-}>()
+  modelValue: string[];
+}>();
 
 const emit = defineEmits<{
-  'update:modelValue': [val: string[]]
-}>()
+  "update:modelValue": [val: string[]];
+}>();
 
-const newBenefitInput = ref('')
+const newBenefitInput = ref("");
 
 const suggestedBenefits = [
-  'Akses source code lengkap',
-  'Lisensi komersial software',
-  'Update berkala & perbaikan bug',
-  'Dukungan teknis prioritas',
-  'Kunci lisensi terverifikasi',
-  'Akses channel komunitas privat',
-]
+  "Akses source code lengkap",
+  "Lisensi komersial software",
+  "Update berkala & perbaikan bug",
+  "Dukungan teknis prioritas",
+  "Kunci lisensi terverifikasi",
+  "Akses channel komunitas privat",
+];
 
 function addBenefit() {
-  const text = newBenefitInput.value.trim()
-  if (!text) return
+  const text = newBenefitInput.value.trim();
+  if (!text) return;
   if (!props.modelValue.includes(text)) {
-    emit('update:modelValue', [...props.modelValue, text])
+    emit("update:modelValue", [...props.modelValue, text]);
   }
-  newBenefitInput.value = ''
+  newBenefitInput.value = "";
 }
 
 function addSuggestedBenefit(sug: string) {
-  const text = sug.trim()
+  const text = sug.trim();
   if (!props.modelValue.includes(text)) {
-    emit('update:modelValue', [...props.modelValue, text])
+    emit("update:modelValue", [...props.modelValue, text]);
   }
 }
 
 function updateBenefit(index: number, val: string) {
-  const updated = [...props.modelValue]
-  updated[index] = val
-  emit('update:modelValue', updated)
+  const updated = [...props.modelValue];
+  updated[index] = val;
+  emit("update:modelValue", updated);
 }
 
 function removeBenefit(index: number) {
-  const updated = [...props.modelValue]
-  updated.splice(index, 1)
-  emit('update:modelValue', updated)
+  const updated = [...props.modelValue];
+  updated.splice(index, 1);
+  emit("update:modelValue", updated);
 }
 </script>
 
@@ -56,11 +56,17 @@ function removeBenefit(index: number) {
       <div>
         <div class="flex items-center gap-2">
           <div class="w-2 h-2 rounded-full bg-gold"></div>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">Manfaat Produk (Benefits)</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">
+            Manfaat Produk (Benefits)
+          </h2>
         </div>
-        <p class="text-[11px] text-jetblack/60 mt-0.5">Daftar poin keuntungan dan fasilitas yang didapatkan pelanggan paska bayar.</p>
+        <p class="text-[11px] text-jetblack/60 mt-0.5">
+          Daftar poin keuntungan dan fasilitas yang didapatkan pelanggan paska bayar.
+        </p>
       </div>
-      <span class="text-[10px] font-bold text-jetblack/50 font-mono">{{ modelValue.length }} poin</span>
+      <span class="text-[10px] font-bold text-jetblack/50 font-mono"
+        >{{ modelValue.length }} poin</span
+      >
     </div>
 
     <!-- Input to add new benefit -->
@@ -109,7 +115,9 @@ function removeBenefit(index: number) {
         class="group flex items-center justify-between gap-3 p-2.5 rounded-lg bg-white border border-jetblack/10 hover:border-jetblack/25 transition shadow-2xs"
       >
         <div class="flex items-center gap-2.5 flex-1 min-w-0">
-          <div class="w-5 h-5 rounded-full bg-forest/10 text-forest flex items-center justify-center shrink-0">
+          <div
+            class="w-5 h-5 rounded-full bg-forest/10 text-forest flex items-center justify-center shrink-0"
+          >
             <Check class="w-3 h-3 stroke-[3]" />
           </div>
           <input
@@ -130,8 +138,12 @@ function removeBenefit(index: number) {
       </div>
     </div>
 
-    <div v-else class="p-5 rounded-xl bg-jetblack/[0.02] border border-jetblack/10 text-center text-xs text-jetblack/50">
-      Belum ada manfaat yang ditambahkan. Masukkan poin manfaat di atas untuk meyakinkan calon pembeli di halaman checkout.
+    <div
+      v-else
+      class="p-5 rounded-xl bg-jetblack/[0.02] border border-jetblack/10 text-center text-xs text-jetblack/50"
+    >
+      Belum ada manfaat yang ditambahkan. Masukkan poin manfaat di atas untuk meyakinkan calon
+      pembeli di halaman checkout.
     </div>
   </div>
 </template>

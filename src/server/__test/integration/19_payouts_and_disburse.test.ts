@@ -2,7 +2,12 @@ import { describe, it, expect, beforeAll } from "bun:test";
 import { setupTestAuth, authCookie } from "../setup";
 import { handleBatchPayout } from "../../routes/panel/payouts";
 import { handleDisburse } from "../../routes/apps/disburse";
-import { handleDanaFinish, handlePreviewCoupon, handleListTransactions, handleSimulatePaid } from "../../routes/checkout/handlers";
+import {
+  handleDanaFinish,
+  handlePreviewCoupon,
+  handleListTransactions,
+  handleSimulatePaid,
+} from "../../routes/checkout/handlers";
 import { db } from "../../db";
 import { apps, builders, transactions, coupons } from "../../db/schema";
 import { eq } from "drizzle-orm";
@@ -22,32 +27,41 @@ describe("Payouts, Disbursements, and Checkout Handlers", () => {
     if (existingBuilder) {
       testBuilder = existingBuilder;
     } else {
-      const [b] = await db.insert(builders).values({
-        name: "Payout Builder",
-        email: `payout_${Date.now()}@test.com`,
-        apiKey: generateAppApiKey("live"),
-      }).returning();
+      const [b] = await db
+        .insert(builders)
+        .values({
+          name: "Payout Builder",
+          email: `payout_${Date.now()}@test.com`,
+          apiKey: generateAppApiKey("live"),
+        })
+        .returning();
       testBuilder = b;
     }
 
-    const [lApp] = await db.insert(apps).values({
-      id: `app_live_${Date.now()}`,
-      name: "Live Payout App",
-      slug: `live-pay-${Date.now()}`,
-      builderId: testBuilder.id,
-      mode: "live",
-      targetPrice: 100000,
-    }).returning();
+    const [lApp] = await db
+      .insert(apps)
+      .values({
+        id: `app_live_${Date.now()}`,
+        name: "Live Payout App",
+        slug: `live-pay-${Date.now()}`,
+        builderId: testBuilder.id,
+        mode: "live",
+        targetPrice: 100000,
+      })
+      .returning();
     liveApp = lApp;
 
-    const [sApp] = await db.insert(apps).values({
-      id: `app_sand_${Date.now()}`,
-      name: "Sandbox Payout App",
-      slug: `sand-pay-${Date.now()}`,
-      builderId: testBuilder.id,
-      mode: "sandbox",
-      targetPrice: 100000,
-    }).returning();
+    const [sApp] = await db
+      .insert(apps)
+      .values({
+        id: `app_sand_${Date.now()}`,
+        name: "Sandbox Payout App",
+        slug: `sand-pay-${Date.now()}`,
+        builderId: testBuilder.id,
+        mode: "sandbox",
+        targetPrice: 100000,
+      })
+      .returning();
     sandboxApp = sApp;
   });
 
@@ -73,13 +87,16 @@ describe("Payouts, Disbursements, and Checkout Handlers", () => {
     });
 
     // Ensure builder has disbursement account
-    await db.update(builders).set({
-      disbursementAccount: {
-        bankCode: "BCA",
-        accountNumber: "1234567890",
-        accountHolderName: "Test Builder",
-      },
-    }).where(eq(builders.id, testBuilder.id));
+    await db
+      .update(builders)
+      .set({
+        disbursementAccount: {
+          bankCode: "BCA",
+          accountNumber: "1234567890",
+          accountHolderName: "Test Builder",
+        },
+      })
+      .where(eq(builders.id, testBuilder.id));
 
     const batchRes = await handleBatchPayout();
     expect(batchRes.success).toBe(true);
@@ -247,7 +264,10 @@ describe("Payouts, Disbursements, and Checkout Handlers", () => {
     expect(finishSuccess?.paymentStatus).toBe("PAID");
 
     // 2. handlePreviewCoupon
-    const previewNoApp = await handlePreviewCoupon({ body: { appId: "fake_app", couponCode: "DISC10" }, set });
+    const previewNoApp = await handlePreviewCoupon({
+      body: { appId: "fake_app", couponCode: "DISC10" },
+      set,
+    });
     expect(set.status).toBe(404);
 
     // Create a coupon

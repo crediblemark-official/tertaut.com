@@ -31,7 +31,6 @@ jobs:
       - name: Build Docs
         run: bun run build:docs
 
-
   test:
     name: Integration & Unit Tests
     runs-on: ubuntu-latest
@@ -82,4 +81,3 @@ jobs:
 
       - name: Run Test Suite with Coverage
         run: bun run test:coverage
-

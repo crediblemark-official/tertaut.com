@@ -1,22 +1,24 @@
 <script setup lang="ts">
-import { Cpu, Activity } from 'lucide-vue-next'
-import type { PanelStats } from '../../types/panel'
+import { Cpu, Activity } from "lucide-vue-next";
+import type { PanelStats } from "../../types/panel";
 
 defineProps<{
-  stats: PanelStats | null
-}>()
+  stats: PanelStats | null;
+}>();
 
 function formatUptime(seconds: number) {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = Math.floor(seconds % 60)
-  return `${h}j ${m}m ${s}d`
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  return `${h}j ${m}m ${s}d`;
 }
 </script>
 
 <template>
   <section class="pt-2">
-    <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-jetblack/10 border-b border-jetblack/10 pb-6">
+    <div
+      class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-jetblack/10 border-b border-jetblack/10 pb-6"
+    >
       <!-- Runtime Details -->
       <div class="md:pr-8 space-y-3 pb-6 md:pb-0">
         <div class="flex items-center gap-2 text-xs font-bold text-jetblack">
@@ -60,7 +62,9 @@ function formatUptime(seconds: number) {
           </div>
           <div class="flex items-center justify-between pt-2">
             <span class="text-jetblack/60">Heap Terpakai (Heap Used)</span>
-            <span class="font-mono text-forest font-bold">{{ stats?.system.memoryUsageMB.heapUsed }} MB</span>
+            <span class="font-mono text-forest font-bold"
+              >{{ stats?.system.memoryUsageMB.heapUsed }} MB</span
+            >
           </div>
           <div class="flex items-center justify-between pt-2">
             <span class="text-jetblack/60">Status Database PostgreSQL</span>

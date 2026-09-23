@@ -1,41 +1,41 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
-import { Plus, X } from 'lucide-vue-next'
-import type { AppItem } from '../../types/app'
-import SearchPicker from '../common/SearchPicker.vue'
+import { onMounted, onUnmounted } from "vue";
+import { Plus, X } from "lucide-vue-next";
+import type { AppItem } from "../../types/app";
+import SearchPicker from "../common/SearchPicker.vue";
 
 const props = defineProps<{
-  show: boolean
-  appsList: AppItem[]
-  isCreating: boolean
-}>()
+  show: boolean;
+  appsList: AppItem[];
+  isCreating: boolean;
+}>();
 
 const emit = defineEmits<{
-  (e: 'close'): void
-  (e: 'submit'): void
-}>()
+  (e: "close"): void;
+  (e: "submit"): void;
+}>();
 
 const form = defineModel<{
-  appId: string
-  code: string
-  discountPercent: number
-  maxRedemptions: number
-  expiresAt: string
-}>('form', { required: true })
+  appId: string;
+  code: string;
+  discountPercent: number;
+  maxRedemptions: number;
+  expiresAt: string;
+}>("form", { required: true });
 
 function handleKeyDown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && props.show) {
-    emit('close')
+  if (e.key === "Escape" && props.show) {
+    emit("close");
   }
 }
 
 onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown)
-})
+  window.addEventListener("keydown", handleKeyDown);
+});
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown)
-})
+  window.removeEventListener("keydown", handleKeyDown);
+});
 </script>
 
 <template>
@@ -45,7 +45,9 @@ onUnmounted(() => {
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
       @click.self="emit('close')"
     >
-      <div class="bg-white border border-jetblack/20 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 relative animate-scaleIn">
+      <div
+        class="bg-white border border-jetblack/20 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 relative animate-scaleIn"
+      >
         <!-- Modal Header -->
         <div class="flex items-center justify-between pb-3 border-b border-jetblack/10">
           <div class="flex items-center gap-2.5">
@@ -54,7 +56,9 @@ onUnmounted(() => {
             </div>
             <div>
               <h3 class="text-sm font-bold text-jetblack">Buat Kupon Baru</h3>
-              <p class="text-[11px] text-jetblack/60">Terbitkan kupon diskon untuk software Anda.</p>
+              <p class="text-[11px] text-jetblack/60">
+                Terbitkan kupon diskon untuk software Anda.
+              </p>
             </div>
           </div>
           <button
@@ -139,7 +143,7 @@ onUnmounted(() => {
               class="px-5 h-9 btn-gold rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95 transition shadow-2xs"
             >
               <Plus class="w-3.5 h-3.5 stroke-[3]" />
-              <span>{{ isCreating ? 'Menyimpan...' : 'Terbitkan Kupon' }}</span>
+              <span>{{ isCreating ? "Menyimpan..." : "Terbitkan Kupon" }}</span>
             </button>
           </div>
         </form>

@@ -16,7 +16,12 @@ async function setupBuilderWithApp() {
   const email = `aud_${suffix()}@test.tertaut.com`;
   const [b] = await db
     .insert(builders)
-    .values({ name: "Audit Builder", email, apiKey: generateAppApiKey("live"), secretApiKey: secret })
+    .values({
+      name: "Audit Builder",
+      email,
+      apiKey: generateAppApiKey("live"),
+      secretApiKey: secret,
+    })
     .returning();
   const appId = `app_aud_${suffix()}`;
   await db.insert(apps).values({
@@ -66,7 +71,11 @@ describe("Fase 4: Audit trail license lifecycle (append-only event log)", () => 
       body: JSON.stringify({ licenseKey: licKey, hwid: "aud-hw-1" }),
     });
     expect(deact.status).toBe(200);
-    await LicenseService.revoke({ licenseId: issued.license.id, actor: { type: "S2S", id: b.id }, ipAddress: "s2s-gw" });
+    await LicenseService.revoke({
+      licenseId: issued.license.id,
+      actor: { type: "S2S", id: b.id },
+      ipAddress: "s2s-gw",
+    });
 
     events = await AuditService.query({ licenseKey: licKey, limit: 100 });
     const kinds = events.events.map((e: any) => e.event);
@@ -106,9 +115,12 @@ describe("Fase 4: Audit trail license lifecycle (append-only event log)", () => 
       actor: { type: "ADMIN" },
     });
 
-    const res = await fetch(`${BASE}/licenses/events?licenseKey=${encodeURIComponent(issued.license.licenseKey)}`, {
-      headers: { Authorization: `Bearer ${otherSecret}` },
-    });
+    const res = await fetch(
+      `${BASE}/licenses/events?licenseKey=${encodeURIComponent(issued.license.licenseKey)}`,
+      {
+        headers: { Authorization: `Bearer ${otherSecret}` },
+      }
+    );
     expect(res.status).toBe(404);
 
     void b;

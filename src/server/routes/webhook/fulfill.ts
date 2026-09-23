@@ -81,7 +81,7 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
       const grantDays =
         typeof productGrantDays === "number" && productGrantDays > 0
           ? productGrantDays
-          : (tx.grantDays || 365);
+          : tx.grantDays || 365;
       const expiresAt = new Date(now.getTime() + grantDays * 24 * 60 * 60 * 1000);
       const maxSeats = app?.deliveryConfig?.licenseKey?.maxSeats ?? 3;
 

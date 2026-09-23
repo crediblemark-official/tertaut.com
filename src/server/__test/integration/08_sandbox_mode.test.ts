@@ -192,9 +192,12 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
 
       // 5. Simulate-paid untuk app yang sudah LIVE harus selalu ditolak (403) demi keamanan (B5)
       await db.update(apps).set({ mode: "live" }).where(eq(apps.id, testApp.id));
-      const simLiveRes = await fetch(`http://localhost:3001/api/v1/checkout/simulate-paid/${txId}`, {
-        method: "POST",
-      });
+      const simLiveRes = await fetch(
+        `http://localhost:3001/api/v1/checkout/simulate-paid/${txId}`,
+        {
+          method: "POST",
+        }
+      );
       expect(simLiveRes.status).toBe(403);
     } finally {
       await db.delete(licenses).where(eq(licenses.appId, testApp.id));

@@ -1,24 +1,26 @@
 <script setup lang="ts">
 interface AdminNavItem {
-  key: string
-  name: string
-  icon: any
-  badge?: number
-  category: string
+  key: string;
+  name: string;
+  icon: any;
+  badge?: number;
+  category: string;
 }
 
 defineProps<{
-  activeTab: string
-  adminNavItems: AdminNavItem[]
-}>()
+  activeTab: string;
+  adminNavItems: AdminNavItem[];
+}>();
 
 const emit = defineEmits<{
-  'update:activeTab': [tab: string]
-}>()
+  "update:activeTab": [tab: string];
+}>();
 </script>
 
 <template>
-  <nav class="md:hidden fixed bottom-0 left-0 right-0 min-h-[4rem] h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-white/95 backdrop-blur-md border-t border-jetblack/10 flex items-center justify-around px-2 z-50 shadow-[0_-4px_20px_rgba(17,17,17,0.08)]">
+  <nav
+    class="md:hidden fixed bottom-0 left-0 right-0 min-h-[4rem] h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-white/95 backdrop-blur-md border-t border-jetblack/10 flex items-center justify-around px-2 z-50 shadow-[0_-4px_20px_rgba(17,17,17,0.08)]"
+  >
     <button
       v-for="item in adminNavItems"
       :key="item.key"
@@ -26,7 +28,7 @@ const emit = defineEmits<{
       type="button"
       :class="[
         'flex flex-col items-center justify-center flex-1 h-14 py-1 text-[10px] font-semibold transition relative cursor-pointer active:scale-95',
-        activeTab === item.key ? 'text-jetblack font-bold' : 'text-jetblack/50 hover:text-jetblack'
+        activeTab === item.key ? 'text-jetblack font-bold' : 'text-jetblack/50 hover:text-jetblack',
       ]"
     >
       <component
@@ -41,8 +43,13 @@ const emit = defineEmits<{
       >
         {{ item.badge }}
       </span>
-      <span class="truncate max-w-[65px] text-[9.5px] leading-tight">{{ item.name.replace('Platform', '').replace('Builder', '').trim() }}</span>
-      <span v-if="activeTab === item.key" class="absolute top-0.5 w-6 h-0.5 bg-gold rounded-full shadow-[0_0_4px_#D4AF37]"></span>
+      <span class="truncate max-w-[65px] text-[9.5px] leading-tight">{{
+        item.name.replace("Platform", "").replace("Builder", "").trim()
+      }}</span>
+      <span
+        v-if="activeTab === item.key"
+        class="absolute top-0.5 w-6 h-0.5 bg-gold rounded-full shadow-[0_0_4px_#D4AF37]"
+      ></span>
     </button>
   </nav>
 </template>

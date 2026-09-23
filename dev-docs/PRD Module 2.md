@@ -3,20 +3,20 @@
 **Versi**: 3.0 (Standalone MoR Engine with Xendit Multi-Payment & Auto-Disbursement)  
 **Status**: Approved for Engineering  
 **Modul Parent**: tertaut.com (Engine Infrastructure)  
-**Tech Stack Alignment**: ElysiaJS (Bun) + Vue 3 (Tailwind CSS / shadcn-vue) + Xendit API + PostgreSQL / SQLite  
+**Tech Stack Alignment**: ElysiaJS (Bun) + Vue 3 (Tailwind CSS / shadcn-vue) + Xendit API + PostgreSQL / SQLite
 
 ---
 
 ## 1. Metadata Dokumen
 
-| Parameter | Detail |
-|---|---|
-| **Nama Modul** | Dynamic Checkout Engine & Merchant of Record (MoR) Payments |
-| **Kode Modul** | MOD-02 |
-| **Target User** | Vibe Coders, Solo Builders, Indie Hackers, Cross-Platform Developers |
-| **Tujuan Utama** | Memungkinkan builder menerima pembayaran QRIS, Virtual Account, dan E-Wallet secara instan tanpa perlu registrasi Payment Gateway (PG) atau mendirikan entitas hukum (PT/CV). |
-| **Model Finansial** | Merchant of Record (MoR) — Platform Fee $5\%$ per transaksi sukses, $95\%$ diteruskan ke builder. |
-| **Integrasi Utama** | Xendit Invoice API & Xendit Disbursement/Payout API |
+| Parameter           | Detail                                                                                                                                                                        |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Nama Modul**      | Dynamic Checkout Engine & Merchant of Record (MoR) Payments                                                                                                                   |
+| **Kode Modul**      | MOD-02                                                                                                                                                                        |
+| **Target User**     | Vibe Coders, Solo Builders, Indie Hackers, Cross-Platform Developers                                                                                                          |
+| **Tujuan Utama**    | Memungkinkan builder menerima pembayaran QRIS, Virtual Account, dan E-Wallet secara instan tanpa perlu registrasi Payment Gateway (PG) atau mendirikan entitas hukum (PT/CV). |
+| **Model Finansial** | Merchant of Record (MoR) — Platform Fee $5\%$ per transaksi sukses, $95\%$ diteruskan ke builder.                                                                             |
+| **Integrasi Utama** | Xendit Invoice API & Xendit Disbursement/Payout API                                                                                                                           |
 
 ---
 
@@ -25,9 +25,10 @@
 Modul 2 adalah inti monetisasi finansial dari **tertaut.com**. Menggunakan pendekatan **Merchant of Record (MoR)**, tertaut.com bertindak sebagai penjual resmi secara hukum dan teknis terhadap pembeli akhir.
 
 Hal ini membebaskan builder dari kerumitan:
+
 - Pendaftaran Payment Gateway yang membutuhkan verifikasi entitas hukum (PT/CV).
 - Penanganan rekonsiliasi, pajak transaksi, dan integrasi API pembayaran yang rumit.
-- Pembuatan alur pencairan dana (*disbursement*) manual.
+- Pembuatan alur pencairan dana (_disbursement_) manual.
 
 ---
 
@@ -64,6 +65,7 @@ Hal ini membebaskan builder dari kerumitan:
 ## 4. Persyaratan Fungsional (Functional Requirements)
 
 ### 4.1 Dynamic & Headless Checkout Links
+
 - **FR-1.1 (Hosted Checkout Page)**: Sistem menyediakan halaman checkout publik di `tertaut.com/pay/:checkout_slug` atau via parameter URL dinamis (`tertaut.com/pay?app_id=...&amount=...`).
 - **FR-1.2 (Dynamic Payload Ingestion)**: Checkout dapat menerima parameter transaksi langsung dari SDK/API, mencakup:
   - `amount` (Nominal transaksi dalam IDR)
@@ -72,6 +74,7 @@ Hal ini membebaskan builder dari kerumitan:
   - `redirect_url` (URL tujuan setelah pembayaran sukses)
 
 ### 4.2 Xendit Multi-Payment Integration
+
 - **FR-2.1 (Multi-Rail Payment Support)**: Mendukung metode pembayaran lokal Indonesia via Xendit:
   - **QRIS**: GoPay, OVO, DANA, LinkAja, ShopeePay, BCA QRIS, dll.
   - **Virtual Account (VA)**: BCA, Mandiri, BRI, BNI, Permata, BSI.
@@ -79,19 +82,22 @@ Hal ini membebaskan builder dari kerumitan:
 - **FR-2.2 (Invoice Expiration & Auto-Cancel)**: Invoice pembayaran secara otomatis kadaluwarsa dalam waktu $15\text{ menit}$ (untuk QRIS) atau $24\text{ jam}$ (untuk Virtual Account) jika tidak dibayar.
 
 ### 4.3 Split Ledger & Fee Calculation Engine
+
 - **FR-3.1 (Automated Platform Fee Calculation)**: Untuk setiap transaksi status `COMPLETED` / `PAID`, sistem menghitung pembagian dana:
   $$\text{Platform Fee} = \text{Gross Amount} \times 0.05$$
   $$\text{Builder Net Amount} = \text{Gross Amount} - \text{Platform Fee} \quad (95\%)$$
-- **FR-3.2 (Ledger Record)**: Setiap transaksi mencatatkan riwayat keuangan yang tidak dapat diubah (*immutable transaction log*) ke tabel `transactions` dan memperbarui saldo builder.
+- **FR-3.2 (Ledger Record)**: Setiap transaksi mencatatkan riwayat keuangan yang tidak dapat diubah (_immutable transaction log_) ke tabel `transactions` dan memperbarui saldo builder.
 
 ### 4.4 Automated Builder Disbursement (Payouts)
+
 - **FR-4.1 (Bank Account Configuration)**: Builder dapat mendaftarkan rekening bank lokal atau e-wallet (BCA, Mandiri, BRI, GoPay, OVO, dll.) pada dashboard tertaut.com.
-- **FR-4.2 (Disbursement Trigger)**: Pencairan dana bersih (*Net Balance*) dapat dipicu secara:
+- **FR-4.2 (Disbursement Trigger)**: Pencairan dana bersih (_Net Balance_) dapat dipicu secara:
   - **Otomatis (Scheduled/Threshold)**: Setiap kali saldo mencapai minimum $\ge \text{Rp } 50.000$ atau jadwal mingguan.
-  - **Manual Request**: Dipicu langsung oleh builder via dashboard (*One-Click Disburse*).
+  - **Manual Request**: Dipicu langsung oleh builder via dashboard (_One-Click Disburse_).
 - **FR-4.3 (Xendit Payout Execution)**: Sistem memanggil Xendit Disbursement API untuk mentransfer dana secara real-time ke rekening builder.
 
 ### 4.5 Live Transition from Smoke Test / Fake Door (Modul 1 Handoff)
+
 - **FR-5.1 (Status Switch Handoff)**: Saat kampanye di Modul 1 dialihkan dari `smoke_test` / `ACTIVE_FAKEDOOR` ke `live` / `LIVE_CHECKOUT`, URL `/v/:slug` secara otomatis mengarahkan pengunjung ke alur checkout pembayaran aktif Modul 2.
 
 ---
@@ -99,6 +105,7 @@ Hal ini membebaskan builder dari kerumitan:
 ## 5. End-to-End Workflows
 
 ### 5.1 Buyer Payment Workflow
+
 1. Pembeli membuka `tertaut.com/pay/:slug` atau mengklik tombol "Beli" pada SDK.
 2. Backend ElysiaJS memanggil Xendit Invoice API untuk menerbitkan sesi pembayaran unik.
 3. Pembeli memilih metode pembayaran (misal: QRIS).
@@ -108,6 +115,7 @@ Hal ini membebaskan builder dari kerumitan:
 7. Pembeli di-redirect ke halaman sukses dan menerima kunci lisensi via email & layar.
 
 ### 5.2 Builder Payout Workflow
+
 1. Builder memiliki Saldo Terkumpul (Net Balance) $\ge \text{Rp } 50.000$.
 2. Builder menekan tombol "Withdraw Funds / Cairkan" di Dashboard tertaut.com.
 3. Backend memvalidasi rekening tujuan dan memanggil Xendit Disbursement API (`POST /disbursements`).
@@ -189,8 +197,10 @@ CREATE TABLE disbursements (
 ### 7.1 Public API Endpoints (ElysiaJS Backend)
 
 #### A. Create Checkout Invoice Session
+
 - **Endpoint**: `POST /api/v1/checkout/session`
 - **Payload**:
+
 ```json
 {
   "appSlug": "fastmail-ai",
@@ -200,7 +210,9 @@ CREATE TABLE disbursements (
   "redirectUrl": "https://situsbisnis.com/success"
 }
 ```
+
 - **Response (201 Created)**:
+
 ```json
 {
   "success": true,
@@ -213,9 +225,11 @@ CREATE TABLE disbursements (
 ```
 
 #### B. Xendit Webhook Handler (Invoice Paid)
+
 - **Endpoint**: `POST /api/v1/checkout/webhook/xendit` (dan `/api/v1/webhooks/xendit/invoice`)
 - **Headers**: `x-callback-token: {XENDIT_CALLBACK_TOKEN}`
 - **Payload Contoh (Xendit Standard Payload)**:
+
 ```json
 {
   "id": "65123abc...",
@@ -227,7 +241,9 @@ CREATE TABLE disbursements (
   "paid_at": "2026-09-10T11:05:00.000Z"
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "status": "success",
@@ -236,14 +252,18 @@ CREATE TABLE disbursements (
 ```
 
 #### C. Trigger Builder Payout (Disbursement)
+
 - **Endpoint**: `POST /api/v1/checkout/disburse/:transactionId` (dan `POST /api/v1/payouts/trigger`)
 - **Payload**:
+
 ```json
 {
   "amount": 250000
 }
 ```
+
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -258,7 +278,8 @@ CREATE TABLE disbursements (
 ---
 
 ## 8. Persyaratan Non-Fungsional (NFR)
+
 - **Idempotensi Webhook**: Endpoint `POST /webhooks/xendit/invoice` wajib menangani sifat idempotent. Jika Xendit mengirim callback berulang untuk invoice ID yang sama, sistem hanya memproses penambahan saldo & lisensi tepat 1 kali.
 - **Webhook Security**: Wajib memvalidasi token rahasia `x-callback-token` pada setiap Webhook yang masuk dari Xendit untuk mencegah transaksi palsu.
-- **Presisi Finansial**: Seluruh perhitungan nominal mata uang wajib menggunakan kalkulasi bulat (*integer* atau pembulatan presisi) untuk mencegah akumulasi *floating-point error*.
+- **Presisi Finansial**: Seluruh perhitungan nominal mata uang wajib menggunakan kalkulasi bulat (_integer_ atau pembulatan presisi) untuk mencegah akumulasi _floating-point error_.
 - **Auditability**: Setiap perubahan saldo wajib tercatat pada riwayat `transactions` atau `disbursements` untuk memudahkan rekonsiliasi audit keuangan.

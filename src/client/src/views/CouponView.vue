@@ -1,150 +1,160 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
-import { api } from '../lib/api'
-import { dashboardEnv } from '../lib/environment'
-import { CheckCircle2, RefreshCw, Ticket, Plus, BarChart3 } from 'lucide-vue-next'
-import type { AppItem } from '../types/app'
-import type { CouponItem } from '../types/coupon'
-import CouponManager from '../components/checkout/CouponManager.vue'
+import { ref, onMounted, watch } from "vue";
+import { api } from "../lib/api";
+import { dashboardEnv } from "../lib/environment";
+import { CheckCircle2, RefreshCw, Ticket, Plus, BarChart3 } from "lucide-vue-next";
+import type { AppItem } from "../types/app";
+import type { CouponItem } from "../types/coupon";
+import CouponManager from "../components/checkout/CouponManager.vue";
 
-const isCreateModalOpen = ref(false)
-const showStats = ref(false)
-const appsList = ref<AppItem[]>([])
-const couponsList = ref<CouponItem[]>([])
-const loadingCoupons = ref(false)
-const isCreatingCoupon = ref(false)
-const actionFeedback = ref<string | null>(null)
-const couponSearch = ref('')
-const couponAppFilter = ref('')
+const isCreateModalOpen = ref(false);
+const showStats = ref(false);
+const appsList = ref<AppItem[]>([]);
+const couponsList = ref<CouponItem[]>([]);
+const loadingCoupons = ref(false);
+const isCreatingCoupon = ref(false);
+const actionFeedback = ref<string | null>(null);
+const couponSearch = ref("");
+const couponAppFilter = ref("");
 
 const couponForm = ref({
-  appId: '',
-  code: '',
+  appId: "",
+  code: "",
   discountPercent: 50,
   maxRedemptions: 0,
-  expiresAt: ''
-})
+  expiresAt: "",
+});
 
 function showFeedback(message: string) {
-  actionFeedback.value = message
-  setTimeout(() => { actionFeedback.value = null }, 5000)
+  actionFeedback.value = message;
+  setTimeout(() => {
+    actionFeedback.value = null;
+  }, 5000);
 }
 
 /** Beri tahu sidebar (App.vue) bahwa daftar kupon berubah agar badge ter-update. */
 function notifyCouponsChanged() {
-  window.dispatchEvent(new Event('tertaut:coupons-changed'))
+  window.dispatchEvent(new Event("tertaut:coupons-changed"));
 }
 
 async function loadApps() {
   try {
-    const appsRes = await api.getApps()
-    appsList.value = appsRes.apps || []
+    const appsRes = await api.getApps();
+    appsList.value = appsRes.apps || [];
     if (appsList.value.length > 0 && !couponForm.value.appId) {
-      couponForm.value.appId = appsList.value[0].id
+      couponForm.value.appId = appsList.value[0].id;
     }
   } catch (e) {
-    console.error('Failed to load apps:', e)
+    console.error("Failed to load apps:", e);
   }
 }
 
 async function loadCoupons() {
-  loadingCoupons.value = true
+  loadingCoupons.value = true;
   try {
-    const res = await api.getCoupons()
-    couponsList.value = res.coupons || []
+    const res = await api.getCoupons();
+    couponsList.value = res.coupons || [];
   } catch (e) {
-    console.error('Failed to load coupons:', e)
+    console.error("Failed to load coupons:", e);
   } finally {
-    loadingCoupons.value = false
+    loadingCoupons.value = false;
   }
 }
 
 async function handleCreateCoupon(payload: {
-  appId: string
-  code: string
-  discountPercent: number
-  maxRedemptions: number
-  expiresAt?: string
+  appId: string;
+  code: string;
+  discountPercent: number;
+  maxRedemptions: number;
+  expiresAt?: string;
 }) {
-  isCreatingCoupon.value = true
+  isCreatingCoupon.value = true;
   try {
-    const res = await api.createCoupon(payload)
+    const res = await api.createCoupon(payload);
     if (res.success && res.coupon) {
-      showFeedback(`Kupon ${res.coupon.code} (${res.coupon.discountPercent}% diskon) berhasil dibuat dan siap ditebus.`)
+      showFeedback(
+        `Kupon ${res.coupon.code} (${res.coupon.discountPercent}% diskon) berhasil dibuat dan siap ditebus.`
+      );
       couponForm.value = {
         appId: couponForm.value.appId,
-        code: '',
+        code: "",
         discountPercent: 50,
         maxRedemptions: 0,
-        expiresAt: ''
-      }
-      isCreateModalOpen.value = false
-      await loadCoupons()
-      notifyCouponsChanged()
+        expiresAt: "",
+      };
+      isCreateModalOpen.value = false;
+      await loadCoupons();
+      notifyCouponsChanged();
     } else {
-      showFeedback(`Gagal: ${res.error || 'Kupon tidak bisa dibuat.'}`)
+      showFeedback(`Gagal: ${res.error || "Kupon tidak bisa dibuat."}`);
     }
   } catch (err: any) {
-    showFeedback(`Error: ${err.message || 'Gagal membuat kupon.'}`)
+    showFeedback(`Error: ${err.message || "Gagal membuat kupon."}`);
   } finally {
-    isCreatingCoupon.value = false
+    isCreatingCoupon.value = false;
   }
 }
 
 async function handleToggleCoupon(coupon: CouponItem) {
   try {
-    const res = await api.updateCoupon(coupon.id, { isActive: !coupon.isActive })
+    const res = await api.updateCoupon(coupon.id, { isActive: !coupon.isActive });
     if (res.success) {
-      showFeedback(`Kupon ${coupon.code} ${!coupon.isActive ? 'diaktifkan' : 'dinonaktifkan'}.`)
-      await loadCoupons()
-      notifyCouponsChanged()
+      showFeedback(`Kupon ${coupon.code} ${!coupon.isActive ? "diaktifkan" : "dinonaktifkan"}.`);
+      await loadCoupons();
+      notifyCouponsChanged();
     } else {
-      showFeedback(`Gagal: ${res.error || 'Status kupon tidak bisa diubah.'}`)
+      showFeedback(`Gagal: ${res.error || "Status kupon tidak bisa diubah."}`);
     }
   } catch (err: any) {
-    showFeedback(`Error: ${err.message || 'Gagal mengubah status kupon.'}`)
+    showFeedback(`Error: ${err.message || "Gagal mengubah status kupon."}`);
   }
 }
 
 async function handleDeleteCoupon(coupon: CouponItem) {
-  if (!confirm(`Hapus kupon ${coupon.code}? Tindakan ini tidak bisa dibatalkan.`)) return
+  if (!confirm(`Hapus kupon ${coupon.code}? Tindakan ini tidak bisa dibatalkan.`)) return;
   try {
-    const res = await api.deleteCoupon(coupon.id)
+    const res = await api.deleteCoupon(coupon.id);
     if (res.success) {
-      showFeedback(`Kupon ${coupon.code} dihapus.`)
-      await loadCoupons()
-      notifyCouponsChanged()
+      showFeedback(`Kupon ${coupon.code} dihapus.`);
+      await loadCoupons();
+      notifyCouponsChanged();
     } else {
-      showFeedback(`Gagal: ${res.error || 'Kupon tidak bisa dihapus.'}`)
+      showFeedback(`Gagal: ${res.error || "Kupon tidak bisa dihapus."}`);
     }
   } catch (err: any) {
-    showFeedback(`Error: ${err.message || 'Gagal menghapus kupon.'}`)
+    showFeedback(`Error: ${err.message || "Gagal menghapus kupon."}`);
   }
 }
 
 onMounted(() => {
-  loadApps()
-  loadCoupons()
-})
+  loadApps();
+  loadCoupons();
+});
 
 // Muat ulang saat environment Live/Sandbox berganti
 watch(dashboardEnv, () => {
-  couponForm.value.appId = ''
-  loadApps()
-  loadCoupons()
-})
+  couponForm.value.appId = "";
+  loadApps();
+  loadCoupons();
+});
 </script>
 
 <template>
   <div class="animate-fadeIn pb-8">
     <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3">
+    <div
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3"
+    >
       <!-- Sisi Kiri: Label Kupon & Toggle Statistik -->
       <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
-        <div class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-white/20 text-white shadow-2xs">
+        <div
+          class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-white/20 text-white shadow-2xs"
+        >
           <Ticket class="w-3.5 h-3.5 text-gold" />
           <span>Kupon Diskon</span>
-          <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-white text-jetblack">
+          <span
+            class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-white text-jetblack"
+          >
             {{ couponsList.length }}
           </span>
         </div>
@@ -156,15 +166,12 @@ watch(dashboardEnv, () => {
             'flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap',
             showStats
               ? 'bg-white/20 text-white shadow-2xs'
-              : 'text-white/60 hover:text-white hover:bg-white/10'
+              : 'text-white/60 hover:text-white hover:bg-white/10',
           ]"
         >
           <BarChart3 class="w-3.5 h-3.5" :class="showStats ? 'text-gold' : ''" />
           <span>Statistik</span>
-          <span
-            v-if="showStats"
-            class="w-1.5 h-1.5 rounded-full bg-gold"
-          ></span>
+          <span v-if="showStats" class="w-1.5 h-1.5 rounded-full bg-gold"></span>
         </button>
       </div>
 
@@ -216,4 +223,3 @@ watch(dashboardEnv, () => {
     />
   </div>
 </template>
-

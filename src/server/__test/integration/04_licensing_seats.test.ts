@@ -246,7 +246,12 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       const res = await fetch("http://localhost:3001/api/v1/licensing/activate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ licenseKey: testKey, appId: app.id, hwid: rawHwid, deviceName: "Legacy Device" }),
+        body: JSON.stringify({
+          licenseKey: testKey,
+          appId: app.id,
+          hwid: rawHwid,
+          deviceName: "Legacy Device",
+        }),
       });
       const data: any = await res.json();
       expect(res.status).toBe(200);
@@ -259,7 +264,9 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       expect(activations.length).toBe(1);
       expect(LicenseService.isSecureHwidHash(activations[0].hwidHash)).toBe(true);
 
-      const migratedLicense = await db.query.licenses.findFirst({ where: eq(licenses.id, testLicId) });
+      const migratedLicense = await db.query.licenses.findFirst({
+        where: eq(licenses.id, testLicId),
+      });
       expect(LicenseService.isSecureHwidHash(migratedLicense!.hardwareId)).toBe(true);
 
       // Verifikasi dengan HWID mentah (legacy hash) tetap valid.
@@ -320,7 +327,11 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       expect(jwks.keys[0].crv).toBe("Ed25519");
 
       // 3. Verifikasi lokal SDK (Web Crypto Ed25519) tanpa server
-      const localVerify = await new Tertaut({ apiKey: "tt_test_int04", appId: app.id, baseUrl: "http://localhost:3001" }).licensing.verifyOfflineToken(token);
+      const localVerify = await new Tertaut({
+        apiKey: "tt_test_int04",
+        appId: app.id,
+        baseUrl: "http://localhost:3001",
+      }).licensing.verifyOfflineToken(token);
       expect(localVerify.valid).toBe(true);
       expect(localVerify.claims?.lic).toBe(testKey);
 

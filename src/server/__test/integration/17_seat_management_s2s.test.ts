@@ -13,17 +13,30 @@ const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
 let secret = "";
 let appId = "";
-const authHeaders = () => ({ Authorization: `Bearer ${secret}`, "Content-Type": "application/json" });
+const authHeaders = () => ({
+  Authorization: `Bearer ${secret}`,
+  "Content-Type": "application/json",
+});
 const postJson = async (path: string, body?: any) =>
-  fetch(BASE + path, { method: "POST", headers: authHeaders(), body: body ? JSON.stringify(body) : undefined });
-const getJson = async (path: string) => fetch(BASE + path, { headers: { Authorization: `Bearer ${secret}` } });
+  fetch(BASE + path, {
+    method: "POST",
+    headers: authHeaders(),
+    body: body ? JSON.stringify(body) : undefined,
+  });
+const getJson = async (path: string) =>
+  fetch(BASE + path, { headers: { Authorization: `Bearer ${secret}` } });
 
 async function setup() {
   secret = generateBuilderSecretApiKey();
   const email = `seat_${suffix()}@test.tertaut.com`;
   const [b] = await db
     .insert(builders)
-    .values({ name: "Seat Builder", email, apiKey: generateAppApiKey("live"), secretApiKey: secret })
+    .values({
+      name: "Seat Builder",
+      email,
+      apiKey: generateAppApiKey("live"),
+      secretApiKey: secret,
+    })
     .returning();
   appId = `app_seat_${suffix()}`;
   await db.insert(apps).values({
@@ -47,8 +60,18 @@ describe("Fase 6: Seat management & S2S batch ops", () => {
     const batchRes = await postJson("/licenses/issue-batch", {
       appId,
       items: [
-        { customerEmail: "seat_a@test.com", grantDays: 30, maxSeats: 3, features: { "ai-4k": true } },
-        { customerEmail: "seat_b@test.com", grantDays: 30, maxSeats: 3, features: { "ai-4k": true } },
+        {
+          customerEmail: "seat_a@test.com",
+          grantDays: 30,
+          maxSeats: 3,
+          features: { "ai-4k": true },
+        },
+        {
+          customerEmail: "seat_b@test.com",
+          grantDays: 30,
+          maxSeats: 3,
+          features: { "ai-4k": true },
+        },
       ],
     });
     const batch = await batchRes.json();
@@ -78,14 +101,22 @@ describe("Fase 6: Seat management & S2S batch ops", () => {
     const hwidHash = seats.seats[0].hwidHash;
 
     // Force-release satu seat
-    const releaseRes = await postJson("/licenses/seat/release", { licenseKey: licA, hwid: "seat-hw-01" });
+    const releaseRes = await postJson("/licenses/seat/release", {
+      licenseKey: licA,
+      hwid: "seat-hw-01",
+    });
     expect((await releaseRes.json()).success).toBe(true);
-    const seatsAfter = await (await getJson(`/licenses/seats?licenseKey=${encodeURIComponent(licA)}`)).json();
+    const seatsAfter = await (
+      await getJson(`/licenses/seats?licenseKey=${encodeURIComponent(licA)}`)
+    ).json();
     expect(seatsAfter.seatsUsed).toBe(0);
     expect(seatsAfter.seats.length).toBe(0);
 
     // Transfer kepemilikan
-    const transferRes = await postJson("/licenses/transfer", { licenseKey: licA, newCustomerEmail: "new_owner@test.com" });
+    const transferRes = await postJson("/licenses/transfer", {
+      licenseKey: licA,
+      newCustomerEmail: "new_owner@test.com",
+    });
     expect((await transferRes.json()).success).toBe(true);
     const licRow = await db.query.licenses.findFirst({ where: eq(licenses.licenseKey, licA) });
     expect(licRow?.customerEmail).toBe("new_owner@test.com");
@@ -94,7 +125,9 @@ describe("Fase 6: Seat management & S2S batch ops", () => {
     await postJson("/licenses/seat/release", { licenseKey: licA, hwid: "seat-hw-99" }); // no-op
     const recoverRes = await postJson("/licenses/recover", { licenseKey: licA });
     expect((await recoverRes.json()).success).toBe(true);
-    const seatsFinal = await (await getJson(`/licenses/seats?licenseKey=${encodeURIComponent(licA)}`)).json();
+    const seatsFinal = await (
+      await getJson(`/licenses/seats?licenseKey=${encodeURIComponent(licA)}`)
+    ).json();
     expect(seatsFinal.seats.length).toBe(0);
 
     // Revoke batch → kedua lisensi REVOKED
@@ -102,11 +135,15 @@ describe("Fase 6: Seat management & S2S batch ops", () => {
     const rv = await revokeBatch.json();
     expect(rv.success).toBe(true);
     expect(rv.revoked).toBe(2);
-    const rows = await db.query.licenses.findMany({ where: inArray(licenses.licenseKey, [licA, licB]) });
+    const rows = await db.query.licenses.findMany({
+      where: inArray(licenses.licenseKey, [licA, licB]),
+    });
     expect(rows.every((r) => r.status === "REVOKED")).toBe(true);
 
     // Audit events berisi jejak seat_released & transferred
-    const events = await (await getJson(`/licenses/events?licenseKey=${encodeURIComponent(licA)}&limit=50`)).json();
+    const events = await (
+      await getJson(`/licenses/events?licenseKey=${encodeURIComponent(licA)}&limit=50`)
+    ).json();
     expect(events.success).toBe(true);
     const kinds = events.events.map((e: any) => e.event);
     expect(kinds).toContain("license.transferred");
@@ -120,7 +157,11 @@ describe("Fase 6: Seat management & S2S batch ops", () => {
   it("webhook endpoint CRUD + rotate secret + test delivery via S2S", async () => {
     await setup();
 
-    const w1 = await postJson("/webhooks", { url: "http://127.0.0.1:9/hook", events: ["license.issued"], secret: "s2s-secret" });
+    const w1 = await postJson("/webhooks", {
+      url: "http://127.0.0.1:9/hook",
+      events: ["license.issued"],
+      secret: "s2s-secret",
+    });
     const w1Data = await w1.json();
     expect(w1Data.success).toBe(true);
     const whId = w1Data.webhook.id;
@@ -149,13 +190,19 @@ describe("Fase 6: Seat management & S2S batch ops", () => {
     expect(rotData.webhook.secret).not.toBe("s2s-secret");
 
     // Test delivery (endpoint unreachable → tetap terantre, dispatch menandai PENDING + retry)
-    const testRes = await fetch(`${BASE}/webhooks/${whId}/test`, { method: "POST", headers: authHeaders() });
+    const testRes = await fetch(`${BASE}/webhooks/${whId}/test`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
     const testData = await testRes.json();
     expect(testData.success).toBe(true);
     expect(testData.deliveryId).toBeTruthy();
 
     // Delete
-    const del = await fetch(`${BASE}/webhooks/${whId}`, { method: "DELETE", headers: authHeaders() });
+    const del = await fetch(`${BASE}/webhooks/${whId}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
     expect((await del.json()).success).toBe(true);
     const listAfter = await (await getJson("/webhooks")).json();
     expect(listAfter.webhooks.some((w: any) => w.id === whId)).toBe(false);

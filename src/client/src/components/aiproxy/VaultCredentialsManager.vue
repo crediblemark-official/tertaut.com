@@ -1,30 +1,32 @@
 <script setup lang="ts">
-import { Lock, KeyRound, Power } from 'lucide-vue-next'
-import type { VaultCredentialItem, AiProvider } from '../../types/aiproxy'
-import type { AppItem } from '../../types/app'
-import { formatRupiah } from '../../lib/utils'
-import SearchPicker from '../common/SearchPicker.vue'
+import { Lock, KeyRound, Power } from "lucide-vue-next";
+import type { VaultCredentialItem, AiProvider } from "../../types/aiproxy";
+import type { AppItem } from "../../types/app";
+import { formatRupiah } from "../../lib/utils";
+import SearchPicker from "../common/SearchPicker.vue";
 
 defineProps<{
-  vaultCreds: VaultCredentialItem[]
-  isSavingKey: boolean
-  appsList?: AppItem[]
-}>()
+  vaultCreds: VaultCredentialItem[];
+  isSavingKey: boolean;
+  appsList?: AppItem[];
+}>();
 
-const selectedAppId = defineModel<string>('selectedAppId', { default: '' })
-const newProvider = defineModel<AiProvider>('provider', { default: 'gemini' })
-const newRawKey = defineModel<string>('rawKey', { default: '' })
-const newBudget = defineModel<number>('budget', { default: 500000 })
+const selectedAppId = defineModel<string>("selectedAppId", { default: "" });
+const newProvider = defineModel<AiProvider>("provider", { default: "gemini" });
+const newRawKey = defineModel<string>("rawKey", { default: "" });
+const newBudget = defineModel<number>("budget", { default: 500000 });
 
 const emit = defineEmits<{
-  (e: 'save'): void
-  (e: 'toggleKillSwitch', cred: VaultCredentialItem): void
-  (e: 'appChange'): void
-}>()
+  (e: "save"): void;
+  (e: "toggleKillSwitch", cred: VaultCredentialItem): void;
+  (e: "appChange"): void;
+}>();
 </script>
 
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-jetblack/10 border-t border-b border-jetblack/10 py-6">
+  <div
+    class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-jetblack/10 border-t border-b border-jetblack/10 py-6"
+  >
     <!-- Form Input Vault Key -->
     <div class="pb-6 lg:pb-0 pr-0 lg:pr-6 space-y-3.5">
       <h2 class="text-sm font-bold text-jetblack">Simpan / Perbarui Kredensial AI di Vault</h2>
@@ -81,7 +83,9 @@ const emit = defineEmits<{
           class="w-full h-9 rounded-lg btn-gold text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
         >
           <Lock class="w-3.5 h-3.5" />
-          <span>{{ isSavingKey ? 'Mengenkripsi & Menyimpan...' : 'Enkripsi & Simpan ke Vault' }}</span>
+          <span>{{
+            isSavingKey ? "Mengenkripsi & Menyimpan..." : "Enkripsi & Simpan ke Vault"
+          }}</span>
         </button>
       </div>
     </div>
@@ -109,24 +113,38 @@ const emit = defineEmits<{
               <span class="font-extrabold uppercase text-jetblack">{{ cred.provider }}</span>
               <span
                 class="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                :class="cred.isKillSwitchActive ? 'bg-crimson/10 text-crimson' : 'bg-forest/10 text-forest'"
+                :class="
+                  cred.isKillSwitchActive
+                    ? 'bg-crimson/10 text-crimson'
+                    : 'bg-forest/10 text-forest'
+                "
               >
-                {{ cred.isKillSwitchActive ? 'SHIELD BLOCKED' : 'AKTIF & AMAN' }}
+                {{ cred.isKillSwitchActive ? "SHIELD BLOCKED" : "AKTIF & AMAN" }}
               </span>
             </div>
             <div class="text-[11px] text-jetblack/60">
-              Pemakaian: <span class="font-mono font-bold text-jetblack">{{ formatRupiah(cred.currentMonthlyUsage || 0) }}</span> /
-              Batas: <span class="font-mono font-bold text-jetblack">{{ formatRupiah(cred.monthlyBudgetLimit) }}</span>
+              Pemakaian:
+              <span class="font-mono font-bold text-jetblack">{{
+                formatRupiah(cred.currentMonthlyUsage || 0)
+              }}</span>
+              / Batas:
+              <span class="font-mono font-bold text-jetblack">{{
+                formatRupiah(cred.monthlyBudgetLimit)
+              }}</span>
             </div>
           </div>
 
           <button
             @click="emit('toggleKillSwitch', cred)"
             class="px-3 h-8 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
-            :class="cred.isKillSwitchActive ? 'bg-forest text-white hover:bg-forest/90' : 'bg-crimson/10 text-crimson hover:bg-crimson/20'"
+            :class="
+              cred.isKillSwitchActive
+                ? 'bg-forest text-white hover:bg-forest/90'
+                : 'bg-crimson/10 text-crimson hover:bg-crimson/20'
+            "
           >
             <Power class="w-3 h-3" />
-            <span>{{ cred.isKillSwitchActive ? 'Buka Blokir' : 'Aktifkan Kill-Switch' }}</span>
+            <span>{{ cred.isKillSwitchActive ? "Buka Blokir" : "Aktifkan Kill-Switch" }}</span>
           </button>
         </div>
       </div>

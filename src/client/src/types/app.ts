@@ -36,7 +36,8 @@ export interface DeliveryConfig {
 
 export interface MeteringConfig {
   enabled: boolean;
-  template: "llm_tokens" | "api_calls" | "compute_minutes" | "storage" | "active_seats" | "custom" | string;
+  template:
+    "llm_tokens" | "api_calls" | "compute_minutes" | "storage" | "active_seats" | "custom" | string;
   name: string;
   aggregation: string;
   eventName?: string;
@@ -48,7 +49,8 @@ export interface MeteringConfig {
   freeAllowance?: number;
 }
 
-export type BillingPeriodType = "weekly" | "daily" | "monthly" | "every_3_months" | "every_6_months" | "yearly" | "custom";
+export type BillingPeriodType =
+  "weekly" | "daily" | "monthly" | "every_3_months" | "every_6_months" | "yearly" | "custom";
 
 export interface AppItem {
   id: string;
@@ -60,7 +62,16 @@ export interface AppItem {
   mode: AppMode;
   targetPrice: number;
   pricingType?: "one_time" | "subscription" | "free";
-  billingPeriod?: "daily" | "weekly" | "monthly" | "every_3_months" | "every_6_months" | "yearly" | "custom" | string | null;
+  billingPeriod?:
+    | "daily"
+    | "weekly"
+    | "monthly"
+    | "every_3_months"
+    | "every_6_months"
+    | "yearly"
+    | "custom"
+    | string
+    | null;
   trialPeriodDays?: number | null;
   deliveryConfig?: DeliveryConfig | null;
   meteringConfig?: MeteringConfig | null;
@@ -77,7 +88,6 @@ export interface AppItem {
   redirectUrl: string | null;
   createdAt: string;
 }
-
 
 export interface DashboardStats {
   totalGMV: number;

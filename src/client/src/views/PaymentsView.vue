@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PaymentsLedger from '../components/payments/PaymentsLedger.vue'
+import PaymentsLedger from "../components/payments/PaymentsLedger.vue";
 </script>
 
 <template>

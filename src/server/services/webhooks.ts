@@ -49,7 +49,8 @@ export class WebhookService {
    */
   static async emit(event: WebhookEvent, ctx: EmitContext): Promise<number> {
     try {
-      const app = ctx.app || (await db.query.apps.findFirst({ where: eq(apps.id, ctx.license.appId) }));
+      const app =
+        ctx.app || (await db.query.apps.findFirst({ where: eq(apps.id, ctx.license.appId) }));
       if (!app) return 0;
 
       const rawPayload: Record<string, any> = {
@@ -62,9 +63,7 @@ export class WebhookService {
           status: ctx.license.status,
           ...(ctx.payload || {}),
         },
-        actor: ctx.actorType
-          ? { type: ctx.actorType, id: ctx.actorId || null }
-          : undefined,
+        actor: ctx.actorType ? { type: ctx.actorType, id: ctx.actorId || null } : undefined,
       };
 
       const endpoints = await db.query.webhookEndpoints.findMany({
@@ -115,10 +114,9 @@ export class WebhookService {
     if (due.length === 0) return 0;
 
     const endpoints = await db.query.webhookEndpoints.findMany({
-      where: inArray(
-        webhookEndpoints.id,
-        [...new Set(due.map((d) => d.endpointId).filter(Boolean))] as string[]
-      ),
+      where: inArray(webhookEndpoints.id, [
+        ...new Set(due.map((d) => d.endpointId).filter(Boolean)),
+      ] as string[]),
     });
     const endpointById = new Map(endpoints.map((e) => [e.id, e]));
 
@@ -158,12 +156,16 @@ export class WebhookService {
         clearTimeout(timer);
         ok = res.status >= 200 && res.status < 300;
       } catch (err: any) {
-        console.warn(`[Webhook] delivery ${delivery.id} -> ${endpoint.url} gagal:`, err?.message || err);
+        console.warn(
+          `[Webhook] delivery ${delivery.id} -> ${endpoint.url} gagal:`,
+          err?.message || err
+        );
         ok = false;
       }
 
       const attempts = (delivery.attempts || 0) + 1;
-      const isDiscardPort = endpoint.url.includes("127.0.0.1:9") || endpoint.url.includes(":9/hook");
+      const isDiscardPort =
+        endpoint.url.includes("127.0.0.1:9") || endpoint.url.includes(":9/hook");
       const failed = attempts >= MAX_WEBHOOK_ATTEMPTS || isDiscardPort;
       await db
         .update(webhookDeliveries)
@@ -174,8 +176,8 @@ export class WebhookService {
           nextRetryAt: ok
             ? delivery.nextRetryAt
             : failed
-            ? delivery.nextRetryAt
-            : new Date(Date.now() + Math.pow(2, attempts) * 30_000),
+              ? delivery.nextRetryAt
+              : new Date(Date.now() + Math.pow(2, attempts) * 30_000),
           updatedAt: new Date(),
         })
         .where(eq(webhookDeliveries.id, delivery.id));
@@ -197,7 +199,10 @@ export class WebhookService {
     });
   }
 
-  static async create(builderId: string, input: { url: string; events?: string[]; secret?: string; isActive?: boolean }) {
+  static async create(
+    builderId: string,
+    input: { url: string; events?: string[]; secret?: string; isActive?: boolean }
+  ) {
     const newSecret = input.secret || this.generateSecret();
     const [endpoint] = await db
       .insert(webhookEndpoints)
@@ -213,7 +218,11 @@ export class WebhookService {
     return endpoint;
   }
 
-  static async update(builderId: string, endpointId: string, patch: { url?: string; events?: string[]; isActive?: boolean }) {
+  static async update(
+    builderId: string,
+    endpointId: string,
+    patch: { url?: string; events?: string[]; isActive?: boolean }
+  ) {
     const [updated] = await db
       .update(webhookEndpoints)
       .set({ ...patch, updatedAt: new Date() })
@@ -223,9 +232,7 @@ export class WebhookService {
   }
 
   static async delete(builderId: string, endpointId: string) {
-    await db
-      .delete(webhookDeliveries)
-      .where(eq(webhookDeliveries.endpointId, endpointId));
+    await db.delete(webhookDeliveries).where(eq(webhookDeliveries.endpointId, endpointId));
 
     const deleted = await db
       .delete(webhookEndpoints)
@@ -245,8 +252,6 @@ export class WebhookService {
   }
 
   private static generateSecret(): string {
-    return createHmac("sha256", randomBytes(32))
-      .update(`whsec_${Date.now()}`)
-      .digest("hex");
+    return createHmac("sha256", randomBytes(32)).update(`whsec_${Date.now()}`).digest("hex");
   }
 }

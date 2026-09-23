@@ -3,30 +3,31 @@
 **Versi**: 3.0 (Serverless AI Gateway with Encrypted Vault & Token Guardrails)  
 **Status**: Approved for Engineering  
 **Modul Parent**: tertaut.com (Engine Infrastructure)  
-**Tech Stack Alignment**: ElysiaJS (Bun) + SSE (Server-Sent Events) + AES-256-GCM Vault + PostgreSQL / SQLite  
+**Tech Stack Alignment**: ElysiaJS (Bun) + SSE (Server-Sent Events) + AES-256-GCM Vault + PostgreSQL / SQLite
 
 ---
 
 ## 1. Metadata Dokumen
 
-| Parameter | Detail |
-|---|---|
-| **Nama Modul** | AI API Proxy Shield & Cost Guardrails |
-| **Kode Modul** | MOD-04 |
-| **Target User** | AI App Builders, Chrome Extension Creators, Desktop App Developers (Tauri/Electron), Mobile Developers |
-| **Tujuan Utama** | Mengamankan API Key provider AI (OpenAI, Anthropic, Gemini, DeepSeek) agar tidak bocor di client-side, serta mengendalikan penggunaan token dan kuota secara presisi. |
-| **Mekanisme Keamanan** | AES-256-GCM Secret Vault + Dynamic Rate Limiting + License JWT Binding |
-| **Integrasi Utama** | Modul 3 (Universal Licensing Engine) & `@tertaut/sdk` |
+| Parameter              | Detail                                                                                                                                                                |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Nama Modul**         | AI API Proxy Shield & Cost Guardrails                                                                                                                                 |
+| **Kode Modul**         | MOD-04                                                                                                                                                                |
+| **Target User**        | AI App Builders, Chrome Extension Creators, Desktop App Developers (Tauri/Electron), Mobile Developers                                                                |
+| **Tujuan Utama**       | Mengamankan API Key provider AI (OpenAI, Anthropic, Gemini, DeepSeek) agar tidak bocor di client-side, serta mengendalikan penggunaan token dan kuota secara presisi. |
+| **Mekanisme Keamanan** | AES-256-GCM Secret Vault + Dynamic Rate Limiting + License JWT Binding                                                                                                |
+| **Integrasi Utama**    | Modul 3 (Universal Licensing Engine) & `@tertaut/sdk`                                                                                                                 |
 
 ---
 
 ## 2. Ringkasan & Visi Modul
 
-Modul 4 menyelesaikan masalah terbesar pengembang aplikasi berbasis AI (*client-side AI apps*): **kebocoran kredensial dan pembengkakan tagihan API tak terkendali**.
+Modul 4 menyelesaikan masalah terbesar pengembang aplikasi berbasis AI (_client-side AI apps_): **kebocoran kredensial dan pembengkakan tagihan API tak terkendali**.
 
-Ketika vibe coder membuat ekstensi Chrome atau aplikasi desktop yang memanggil AI (misalnya OpenAI, Anthropic, Gemini API), menanamkan API Key langsung di dalam kode client-side sangat berbahaya karena kunci tersebut mudah diekstrak melalui *decompilation* atau *network inspection*. Jika kunci bocor, orang tak dikenal dapat menguras kuota API milik builder.
+Ketika vibe coder membuat ekstensi Chrome atau aplikasi desktop yang memanggil AI (misalnya OpenAI, Anthropic, Gemini API), menanamkan API Key langsung di dalam kode client-side sangat berbahaya karena kunci tersebut mudah diekstrak melalui _decompilation_ atau _network inspection_. Jika kunci bocor, orang tak dikenal dapat menguras kuota API milik builder.
 
 Modul 4 hadir sebagai **AI Proxy Gateway** yang aman dan ringan:
+
 - **Encrypted Vault**: API Key rahasia disimpan di server `tertaut.com` terenkripsi aman (AES-256-GCM).
 - **Zero-Trust Client SDK**: Aplikasi pengguna akhir (client) hanya mengirimkan Lisensi JWT valid dari Modul 3. Server `tertaut.com` menyuntikkan API Key resmi dan meneruskan permintaan ke provider AI.
 - **Cost Guardrails & Token Metering**: Membatasi jumlah request, penggunaan input/output token, serta menetapkan batas pengeluaran harian/bulanan per pengguna atau per aplikasi.
@@ -62,19 +63,22 @@ Modul 4 hadir sebagai **AI Proxy Gateway** yang aman dan ringan:
 ## 4. Persyaratan Fungsional (Functional Requirements)
 
 ### 4.1 Encrypted Vault & Provider Key Management
+
 - **FR-1.1 (Multi-Provider Support)**: Vault mendukung penyimpanan API Key dari berbagai provider populer:
   - **OpenAI**: `gpt-4o`, `gpt-4o-mini`, dll.
   - **Anthropic**: `claude-3-5-sonnet`, `claude-3-opus`, dll.
   - **Google Gemini**: `gemini-1.5-pro`, `gemini-1.5-flash`, dll.
   - **DeepSeek**: `deepseek-chat` (DeepSeek-V3), `deepseek-reasoner` (DeepSeek-R1).
   - **Custom OpenAI-Compatible Endpoints**: Ollama, Groq, Together AI.
-- **FR-1.2 (Vault Encryption)**: Seluruh API Key disimpan pada database dalam format terenkripsi menggunakan algoritma AES-256-GCM dengan Kunci Master (*Master Key*) yang diisolasi di lingkungan server.
+- **FR-1.2 (Vault Encryption)**: Seluruh API Key disimpan pada database dalam format terenkripsi menggunakan algoritma AES-256-GCM dengan Kunci Master (_Master Key_) yang diisolasi di lingkungan server.
 
 ### 4.2 License-Aware Authentication & Verification
+
 - **FR-2.1 (Entitlement Validation)**: Setiap panggilan ke endpoint AI Proxy wajib menyertakan token Lisensi JWT valid yang diproduksi oleh Modul 3 (atau Authorization Header).
 - **FR-2.2 (Kill-Switch Active Status Check)**: Panggilan ditolak dengan kode status `403 License Suspended/Revoked` apabila lisensi dalam status terblokir (`REVOKED` atau `EXPIRED`).
 
 ### 4.3 Token Metering & Cost Guardrails
+
 - **FR-3.1 (Usage Metering)**: Sistem mencatat jumlah prompt tokens ($T_{\text{in}}$) dan completion tokens ($T_{\text{out}}$) untuk setiap panggilan API.
 - **FR-3.2 (Quota Allocation Engine)**: Builder dapat mengonfigurasi batas penggunaan untuk pengguna akhir:
   - **Strict Request Rate Limit**: Maksimal $R_{\text{max}}$ panggilan per menit (misal: $15\text{ req/min}$).
@@ -83,7 +87,8 @@ Modul 4 hadir sebagai **AI Proxy Gateway** yang aman dan ringan:
 - **FR-3.3 (Auto Cut-Off / Cost Ceiling)**: Apabila pengguna melebihi kuota harian atau aplikasi mencapai anggaran maksimum bulanan, sistem otomatis menolak permintaan berikutnya dengan kode status `429 Quota Exceeded`.
 
 ### 4.4 Low-Latency Streaming Relay (SSE)
-- **FR-4.1 (Server-Sent Events Support)**: Proxy wajib mendukung penyaluran ulang (*streaming relay*) berbasis Server-Sent Events (SSE) tanpa memutus atau menunda chunk data dari provider AI.
+
+- **FR-4.1 (Server-Sent Events Support)**: Proxy wajib mendukung penyaluran ulang (_streaming relay_) berbasis Server-Sent Events (SSE) tanpa memutus atau menunda chunk data dari provider AI.
 - **FR-4.2 (Zero-Storage Privacy Rule)**: Proxy **TIDAK MENYIMPAN** isi teks prompt atau jawaban AI dari pengguna akhir ke database. Hanya jumlah statistik token yang dicatat untuk keperluan rekonsiliasi kuota dan audit.
 
 ---
@@ -91,6 +96,7 @@ Modul 4 hadir sebagai **AI Proxy Gateway** yang aman dan ringan:
 ## 5. End-to-End Workflows
 
 ### 5.1 Builder Setup Workflow
+
 1. Builder masuk ke Dashboard tertaut.com $\rightarrow$ Menu **AI Proxy Shield**.
 2. Builder menambahkan provider baru (misal: OpenAI) dan memasukkan API Key `sk-proj-...`.
 3. Backend ElysiaJS mengenkripsi kunci menggunakan AES-256-GCM dan menyimpannya ke database vault.
@@ -98,6 +104,7 @@ Modul 4 hadir sebagai **AI Proxy Gateway** yang aman dan ringan:
 5. Builder mendapatkan `modelAlias` (misal: `fast-summary-model`) untuk digunakan pada `@tertaut/sdk`.
 
 ### 5.2 Client Application Execution Workflow
+
 1. Pengguna akhir membuka aplikasi desktop/ekstensi Chrome dan mengetikkan prompt.
 2. SDK mengirimkan request ke `POST /api/v1/ai/chat` membawa payload:
    - Header `Authorization: Bearer {LICENSE_JWT}`
@@ -105,7 +112,7 @@ Modul 4 hadir sebagai **AI Proxy Gateway** yang aman dan ringan:
 3. Proxy memverifikasi JWT via Modul 3, memastikan kuota token pengguna masih mencukupi.
 4. Proxy mengonversi `modelAlias` menjadi provider asli, mendekripsi API Key terkait dari Vault.
 5. Proxy meneruskan request ke API resmi provider AI.
-6. Response berupa aliran data (*stream*) diteruskan secara real-time ke SDK client.
+6. Response berupa aliran data (_stream_) diteruskan secara real-time ke SDK client.
 7. Setelah aliran selesai, Proxy menghitung penggunaan token aktual ($T_{\text{in}} + T_{\text{out}}$) dan memperbarui tabel statistik kuota.
 
 ---
@@ -169,11 +176,13 @@ CREATE INDEX idx_ai_usage_app_time ON ai_usage_logs(app_id, created_at);
 ### 7.1 Backend API Endpoints (ElysiaJS Backend)
 
 #### A. Execute AI Chat Stream / Non-Stream
+
 - **Endpoint**: `POST /api/v1/ai/chat` (dan alias `/api/v1/ai-proxy/chat`)
 - **Headers**:
   - `Authorization: Bearer {LICENSE_JWT_TOKEN}`
   - `Content-Type: application/json`
 - **Payload**:
+
 ```json
 {
   "modelAlias": "fast-summary-model",
@@ -191,7 +200,9 @@ CREATE INDEX idx_ai_usage_app_time ON ai_usage_logs(app_id, created_at);
   "stream": true
 }
 ```
+
 - **Response (200 OK - SSE Stream)**:
+
 ```text
 data: {"id":"chatcmpl-123","choices":[{"delta":{"content":"Ringkasan"}}]}
 
@@ -201,9 +212,11 @@ data: [DONE]
 ```
 
 #### B. Fetch Usage Quota Status
+
 - **Endpoint**: `GET /api/v1/ai/quota-status` (dan alias `/api/v1/ai-proxy/quota-status`)
 - **Headers**: `Authorization: Bearer {LICENSE_JWT_TOKEN}`
 - **Response (200 OK)**:
+
 ```json
 {
   "success": true,
@@ -219,17 +232,15 @@ data: [DONE]
 ### 7.2 `@tertaut/sdk` Integration Example
 
 ```typescript
-import { Tertaut } from '@tertaut/sdk';
+import { Tertaut } from "@tertaut/sdk";
 
-const tertaut = new Tertaut({ appId: 'app_987123' });
+const tertaut = new Tertaut({ appId: "app_987123" });
 
 async function runAISummary() {
   const stream = await tertaut.aiProxy.chatStream({
     licenseToken: userSavedJwt,
-    modelAlias: 'fast-summary-model',
-    messages: [
-      { role: 'user', content: 'Ringkas teks ini...' }
-    ]
+    modelAlias: "fast-summary-model",
+    messages: [{ role: "user", content: "Ringkas teks ini..." }],
   });
 
   for await (const chunk of stream) {
@@ -244,5 +255,5 @@ async function runAISummary() {
 
 - **Latensi Overhead Minim**: Latensi tambahan yang disebabkan oleh verifikasi token dan enkripsi Vault pada proxy wajib $< 50\text{ ms}$.
 - **Zero Text Retention (Privasi)**: Server dilarang menyimpan teks prompt atau tanggapan pengguna ke basis data atau berkas log internal untuk menjamin privasi pengguna akhir.
-- **High Throughput Streaming**: Pipa transmisi SSE wajib dapat menangani hingga $1.000$ koneksi streaming paralel per node instance ElysiaJS tanpa kebocoran memori (*memory leak*).
-- **Graceful Upstream Handling**: Memberikan pesan kesalahan terstruktur jika upstream AI provider mengalami *rate-limit* atau gangguan koneksi jaringan.
+- **High Throughput Streaming**: Pipa transmisi SSE wajib dapat menangani hingga $1.000$ koneksi streaming paralel per node instance ElysiaJS tanpa kebocoran memori (_memory leak_).
+- **Graceful Upstream Handling**: Memberikan pesan kesalahan terstruktur jika upstream AI provider mengalami _rate-limit_ atau gangguan koneksi jaringan.

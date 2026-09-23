@@ -132,15 +132,21 @@ describe("Fase 0 & Fase 1: License Schema & Feature Flags Entitlements", () => {
     expect(entResult.licenseVersion).toBe(1);
 
     // Uji SDK verifyOfflineToken dengan version floor check
-    const offlineValid = await sdk.licensing.verifyOfflineToken(issued.license.offlineJwtGraceToken!, {
-      appVersion: "2.4.0",
-    });
+    const offlineValid = await sdk.licensing.verifyOfflineToken(
+      issued.license.offlineJwtGraceToken!,
+      {
+        appVersion: "2.4.0",
+      }
+    );
     expect(offlineValid.valid).toBe(true);
     expect(offlineValid.claims?.feat).toEqual(customFeatures);
 
-    const offlineTooOld = await sdk.licensing.verifyOfflineToken(issued.license.offlineJwtGraceToken!, {
-      appVersion: "2.1.0",
-    });
+    const offlineTooOld = await sdk.licensing.verifyOfflineToken(
+      issued.license.offlineJwtGraceToken!,
+      {
+        appVersion: "2.1.0",
+      }
+    );
     expect(offlineTooOld.valid).toBe(false);
     expect(offlineTooOld.reason).toBe("APP_VERSION_TOO_OLD");
   });

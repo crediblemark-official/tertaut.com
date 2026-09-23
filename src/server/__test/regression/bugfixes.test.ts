@@ -28,7 +28,11 @@ import { LicenseService } from "../../services/license";
 import { LicenseTokenService } from "../../services/licenseToken";
 import { CreditService } from "../../services/credits";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
-import { handleActivateLicense, handleValidateLicense, handleListSeats } from "../../routes/licensing/device";
+import {
+  handleActivateLicense,
+  handleValidateLicense,
+  handleListSeats,
+} from "../../routes/licensing/device";
 import { handleSimulatePaid } from "../../routes/checkout/handlers";
 import { handleDisburse } from "../../routes/apps/disburse";
 import { DanaService } from "../../services/dana";
@@ -119,7 +123,15 @@ describe("Regression #1: /checkout/session tidak lagi menerima grantCredits dari
     const { app: a } = await seedBuilderApp();
     await db
       .update(apps)
-      .set({ meteringConfig: { enabled: true, template: "api_calls", name: "calls", aggregation: "sum", freeAllowance: allowance } as any })
+      .set({
+        meteringConfig: {
+          enabled: true,
+          template: "api_calls",
+          name: "calls",
+          aggregation: "sum",
+          freeAllowance: allowance,
+        } as any,
+      })
       .where(eq(apps.id, a.id));
 
     const res = await app.handle(
@@ -158,7 +170,9 @@ describe("Regression #1: /checkout/session tidak lagi menerima grantCredits dari
       set,
     });
     expect(res.success).toBe(true);
-    const tx = await db.query.transactions.findFirst({ where: eq(transactions.id, res.transactionId) });
+    const tx = await db.query.transactions.findFirst({
+      where: eq(transactions.id, res.transactionId),
+    });
     expect(tx!.grantCredits).toBe(0);
   });
 });
@@ -246,7 +260,9 @@ describe("Regression #3: checkoutUrl mock DANA memakai param externalId", () => 
     expect(order.checkoutUrl).not.toContain("orderId=");
 
     // Endpoint finish harus menerima URL ini tanpa 400
-    const finishRes = await app.handle(new Request(`${BASE}/api/v1/checkout/dana/finish?externalId=${externalId}`));
+    const finishRes = await app.handle(
+      new Request(`${BASE}/api/v1/checkout/dana/finish?externalId=${externalId}`)
+    );
     // 404 transaksi tidak ada pun membuktikan param terbaca (sebelumnya 400 param hilang)
     expect([200, 404]).toContain(finishRes.status);
   });
@@ -468,7 +484,15 @@ describe("Regression #8: simulate-paid menerbitkan lisensi lengkap", () => {
     });
     await db
       .update(apps)
-      .set({ meteringConfig: { enabled: true, template: "api_calls", name: "calls", aggregation: "sum", freeAllowance: 250 } as any })
+      .set({
+        meteringConfig: {
+          enabled: true,
+          template: "api_calls",
+          name: "calls",
+          aggregation: "sum",
+          freeAllowance: 250,
+        } as any,
+      })
       .where(eq(apps.id, a.id));
 
     const tx = await createTx(builder.id, a.id, { grantCredits: 250 });
@@ -486,7 +510,9 @@ describe("Regression #8: simulate-paid menerbitkan lisensi lengkap", () => {
     expect(lic!.maxSeats).toBe(5);
     expect(lic!.apiKey).toMatch(/^tt_cust_/);
 
-    const ledger = await db.query.creditLedger.findMany({ where: eq(creditLedger.licenseId, lic!.id) });
+    const ledger = await db.query.creditLedger.findMany({
+      where: eq(creditLedger.licenseId, lic!.id),
+    });
     expect(ledger.length).toBe(1);
     expect(ledger[0].delta).toBe(250);
   });

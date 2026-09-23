@@ -116,12 +116,20 @@ export async function handleStatsOverview({ query, request: { headers } }: ModeQ
       netEarnings: sql<number>`COALESCE(SUM(${transactions.netAmount}), 0)::int`,
     })
     .from(transactions)
-    .where(txScope ? and(eq(transactions.paymentStatus, "PAID"), txScope) : eq(transactions.paymentStatus, "PAID"));
+    .where(
+      txScope
+        ? and(eq(transactions.paymentStatus, "PAID"), txScope)
+        : eq(transactions.paymentStatus, "PAID")
+    );
 
   const [activeLicensesCount] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(licenses)
-    .where(licenseScope ? and(eq(licenses.status, "ACTIVE"), licenseScope) : eq(licenses.status, "ACTIVE"));
+    .where(
+      licenseScope
+        ? and(eq(licenses.status, "ACTIVE"), licenseScope)
+        : eq(licenses.status, "ACTIVE")
+    );
 
   const totalGMV = paidTxAgg?.totalGMV || 0;
   const netEarnings = paidTxAgg?.netEarnings || 0;
@@ -185,11 +193,8 @@ export async function handleStatsCatalog({ query, request: { headers } }: ModeQu
     );
 
   // R2: Filter active subscriptions hanya dari produk yang bertipe subscription
-  const subAppIds = appRows
-    .filter((a) => a.pricingType === "subscription")
-    .map((a) => a.id);
-  const subLicenseScope =
-    subAppIds.length > 0 ? inArray(licenses.appId, subAppIds) : sql`1 = 0`;
+  const subAppIds = appRows.filter((a) => a.pricingType === "subscription").map((a) => a.id);
+  const subLicenseScope = subAppIds.length > 0 ? inArray(licenses.appId, subAppIds) : sql`1 = 0`;
 
   const [licAgg] = await db
     .select({
@@ -244,7 +249,8 @@ export async function handleGetBySlug({ params: { slug }, set }: SlugParamContex
     mediaUrl: app.mediaUrl,
     valueProps: app.valueProps || [],
     ctaText: app.ctaText || "Beli Sekarang",
-    customIntentMessage: app.customIntentMessage || "Aplikasi dalam persiapan rilis. Masukkan email untuk diskon 50%!",
+    customIntentMessage:
+      app.customIntentMessage || "Aplikasi dalam persiapan rilis. Masukkan email untuk diskon 50%!",
     pageBlocks: app.pageBlocks || null,
     redirectUrl: app.redirectUrl,
   };

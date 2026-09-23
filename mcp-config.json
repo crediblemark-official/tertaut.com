@@ -2,10 +2,7 @@
   "mcpServers": {
     "DANA-MCP-INTEGRATION": {
       "command": "bunx",
-      "args": [
-        "mcp-remote",
-        "https://dana-mcp.dana.id/sse"
-      ]
+      "args": ["mcp-remote", "https://dana-mcp.dana.id/sse"]
     }
   }
 }

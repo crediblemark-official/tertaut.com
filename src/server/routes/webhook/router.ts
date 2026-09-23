@@ -19,4 +19,8 @@ export const webhooksPluralRoutes = new Elysia({ prefix: "/webhooks" })
 
 export const snapBiWebhookRoutes = new Elysia()
   .post("/v1.0/debit/notify", handleDanaFinishPaymentWebhook, danaWebhookSchema)
-  .post("/v1.0/emoney/transfer-bank-notify.htm", handleDanaDisburseNotifyWebhook, danaDisburseWebhookSchema);
+  .post(
+    "/v1.0/emoney/transfer-bank-notify.htm",
+    handleDanaDisburseNotifyWebhook,
+    danaDisburseWebhookSchema
+  );

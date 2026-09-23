@@ -15,7 +15,12 @@ async function setupFloatingApp(leaseTtlSeconds = 30) {
   const email = `fl_${suffix()}@test.tertaut.com`;
   const [b] = await db
     .insert(builders)
-    .values({ name: "Floating Builder", email, apiKey: generateAppApiKey("live"), secretApiKey: generateBuilderSecretApiKey() })
+    .values({
+      name: "Floating Builder",
+      email,
+      apiKey: generateAppApiKey("live"),
+      secretApiKey: generateBuilderSecretApiKey(),
+    })
     .returning();
   const appId = `app_fl_${suffix()}`;
   await db.insert(apps).values({
@@ -69,7 +74,13 @@ describe("Fase 2: Floating License (rolling seat via lease + heartbeat)", () => 
     const hb = await fetch(`${BASE}/api/v1/licensing/heartbeat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ appId, licenseKey: licKey, hwid: "hwid-a-001", leaseKey: leaseKeyA, deviceName: "Laptop A" }),
+      body: JSON.stringify({
+        appId,
+        licenseKey: licKey,
+        hwid: "hwid-a-001",
+        leaseKey: leaseKeyA,
+        deviceName: "Laptop A",
+      }),
     });
     expect(hb.status).toBe(200);
     const hbData = await hb.json();
@@ -83,7 +94,12 @@ describe("Fase 2: Floating License (rolling seat via lease + heartbeat)", () => 
     const hbBad = await fetch(`${BASE}/api/v1/licensing/heartbeat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ appId, licenseKey: licKey, hwid: "hwid-a-001", leaseKey: "lk_bogus_123" }),
+      body: JSON.stringify({
+        appId,
+        licenseKey: licKey,
+        hwid: "hwid-a-001",
+        leaseKey: "lk_bogus_123",
+      }),
     });
     expect(hbBad.status).toBe(409);
     expect((await hbBad.json()).reason).toBe("LEASE_MISMATCH");
@@ -111,7 +127,12 @@ describe("Fase 2: Floating License (rolling seat via lease + heartbeat)", () => 
     await db
       .update(licenseLeases)
       .set({ expiresAt: new Date(Date.now() - 60_000) })
-      .where(and(eq(licenseLeases.licenseId, issued.license.id), eq(licenseLeases.hwidHash, LicenseService.hashHardwareIdSecure("hwid-b-002"))));
+      .where(
+        and(
+          eq(licenseLeases.licenseId, issued.license.id),
+          eq(licenseLeases.hwidHash, LicenseService.hashHardwareIdSecure("hwid-b-002"))
+        )
+      );
 
     // Device C kini mendapat slot rolling (seat hidup B sudah bebas)
     const actC2 = await activate(licKey, appId, "hwid-c-003", "Laptop C");
@@ -141,14 +162,19 @@ describe("Fase 2: Floating License (rolling seat via lease + heartbeat)", () => 
     });
     const aLease = kv.find((l) => l.hwidHash === LicenseService.hashHardwareIdSecure("hwid-a-001"));
     expect(aLease).toBeUndefined(); // lease A dihapus permanen saat deactivate
-    expect(kv.some((l) => l.hwidHash === LicenseService.hashHardwareIdSecure("hwid-c-003"))).toBe(true);
+    expect(kv.some((l) => l.hwidHash === LicenseService.hashHardwareIdSecure("hwid-c-003"))).toBe(
+      true
+    );
 
     void leaseKeyB;
   });
 
   it("license non-floating: heartbeat berfungsi sebagai keep-alive tanpa lease", async () => {
     const email = `nf_${suffix()}@test.tertaut.com`;
-    const [b] = await db.insert(builders).values({ name: "Plain Builder", email, apiKey: generateAppApiKey("live") }).returning();
+    const [b] = await db
+      .insert(builders)
+      .values({ name: "Plain Builder", email, apiKey: generateAppApiKey("live") })
+      .returning();
     const appId = `app_nf_${suffix()}`;
     await db.insert(apps).values({
       id: appId,
@@ -160,11 +186,21 @@ describe("Fase 2: Floating License (rolling seat via lease + heartbeat)", () => 
       targetPrice: 0,
     });
 
-    const issued = await LicenseService.issueDirect({ appId, customerEmail: `nf_cust_${suffix()}@test.com`, grantDays: 30, maxSeats: 1 });
+    const issued = await LicenseService.issueDirect({
+      appId,
+      customerEmail: `nf_cust_${suffix()}@test.com`,
+      grantDays: 30,
+      maxSeats: 1,
+    });
     const hb = await fetch(`${BASE}/api/v1/licensing/heartbeat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ appId, licenseKey: issued.license.licenseKey, hwid: "nf-device", leaseKey: "" }),
+      body: JSON.stringify({
+        appId,
+        licenseKey: issued.license.licenseKey,
+        hwid: "nf-device",
+        leaseKey: "",
+      }),
     });
     expect(hb.status).toBe(200);
     const data = await hb.json();

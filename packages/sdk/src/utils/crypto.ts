@@ -61,20 +61,17 @@ export async function verifyEd25519OfflineToken(
     let jwk = options?.publicKeyJwk;
     if (!jwk) {
       const base = options?.baseUrl ?? "";
-      const url = options?.jwksUrl ?? (base ? `${base}/.well-known/jwks.json` : "/.well-known/jwks.json");
+      const url =
+        options?.jwksUrl ?? (base ? `${base}/.well-known/jwks.json` : "/.well-known/jwks.json");
       const res = await fetch(url);
       const jwks = (await res.json()) as { keys?: JsonWebKey[] };
       jwk = jwks.keys?.[0];
     }
     if (!jwk) return { valid: false, reason: "PUBLIC_KEY_UNAVAILABLE" };
 
-    const key = await crypto.subtle.importKey(
-      "jwk",
-      jwk,
-      { name: "Ed25519" } as any,
-      false,
-      ["verify"]
-    );
+    const key = await crypto.subtle.importKey("jwk", jwk, { name: "Ed25519" } as any, false, [
+      "verify",
+    ]);
     const signatureBytes = base64urlToBytes(signature);
     const data = new TextEncoder().encode(`${header}.${body}`);
     const ok = await crypto.subtle.verify(

@@ -29,7 +29,11 @@ export class CouponService {
   ): Promise<CouponValidationResult> {
     const normalized = (code || "").trim().toUpperCase();
     if (!normalized) {
-      return { valid: false, errorCode: "COUPON_NOT_FOUND", message: "Kode kupon tidak boleh kosong." };
+      return {
+        valid: false,
+        errorCode: "COUPON_NOT_FOUND",
+        message: "Kode kupon tidak boleh kosong.",
+      };
     }
 
     // Kupon dengan code unik global; cek app-scope dulu, lalu fallback global (appId null)
@@ -42,7 +46,11 @@ export class CouponService {
       }));
 
     if (!coupon) {
-      return { valid: false, errorCode: "COUPON_NOT_FOUND", message: `Kupon "${normalized}" tidak ditemukan.` };
+      return {
+        valid: false,
+        errorCode: "COUPON_NOT_FOUND",
+        message: `Kupon "${normalized}" tidak ditemukan.`,
+      };
     }
 
     if (!coupon.isActive) {

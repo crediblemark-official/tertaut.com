@@ -4,15 +4,15 @@
 
 ## Yang Disediakan
 
-| Kemampuan | Mulai dari | Endpoint |
-| --- | --- | --- |
-| Hosted Checkout & Payment | [Get Started](/getting-started) | `POST /api/v1/checkout/session` |
-| Universal Licensing | [Get Started](/getting-started) | `POST /api/v1/licensing/*` |
-| Metered Credits (Client) | [Get Started](/getting-started#7-metered-credits) | `POST /api/v1/licensing/credits/consume` |
-| Metered Credits (S2S) | [Server-to-Server](/server-to-server#metered-credits) | `POST /api/v1/s2s/credits/consume` |
-| Customer API Access | [Getting Started](/getting-started#8-verifikasi-kunci-api-pelanggan) | `POST /api/v1/licensing/api-key/verify` |
-| AI Proxy Shield | [SDK](/sdk) | `POST /api/v1/ai/chat` |
-| Server-to-Server (Otomasi) | [S2S API](/server-to-server) | `/api/v1/s2s/*` (Bearer `tt_secret_...`) |
+| Kemampuan                  | Mulai dari                                                           | Endpoint                                 |
+| -------------------------- | -------------------------------------------------------------------- | ---------------------------------------- |
+| Hosted Checkout & Payment  | [Get Started](/getting-started)                                      | `POST /api/v1/checkout/session`          |
+| Universal Licensing        | [Get Started](/getting-started)                                      | `POST /api/v1/licensing/*`               |
+| Metered Credits (Client)   | [Get Started](/getting-started#7-metered-credits)                    | `POST /api/v1/licensing/credits/consume` |
+| Metered Credits (S2S)      | [Server-to-Server](/server-to-server#metered-credits)                | `POST /api/v1/s2s/credits/consume`       |
+| Customer API Access        | [Getting Started](/getting-started#8-verifikasi-kunci-api-pelanggan) | `POST /api/v1/licensing/api-key/verify`  |
+| AI Proxy Shield            | [SDK](/sdk)                                                          | `POST /api/v1/ai/chat`                   |
+| Server-to-Server (Otomasi) | [S2S API](/server-to-server)                                         | `/api/v1/s2s/*` (Bearer `tt_secret_...`) |
 
 ## Alur Sederhana
 

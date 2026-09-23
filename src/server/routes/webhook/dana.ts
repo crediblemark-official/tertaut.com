@@ -52,7 +52,8 @@ export async function handleDanaFinishPaymentWebhook({ request, headers, body, s
   // --- DANA UAT Scenarios (HANYA AKTIF DI SANDBOX) ---
   // Skenario pengujian UAT tidak boleh menginterupsi transaksi riil di production.
   if (config.isSandbox) {
-    const rawAmtVal = data?.amount?.value || data?.transAmount?.value || data?.orderAmount?.value || "0";
+    const rawAmtVal =
+      data?.amount?.value || data?.transAmount?.value || data?.orderAmount?.value || "0";
     const amountVal = Math.round(parseFloat(rawAmtVal));
     if (amountVal === 11012) {
       set.status = 500;
@@ -84,10 +85,7 @@ export async function handleDanaFinishPaymentWebhook({ request, headers, body, s
     data?.external_id;
 
   const orderId =
-    data?.acquirementId ||
-    data?.order?.acquirementId ||
-    data?.orderId ||
-    data?.originalReferenceNo;
+    data?.acquirementId || data?.order?.acquirementId || data?.orderId || data?.originalReferenceNo;
 
   // SNAP BI memakai kode status: "00" = sukses, "05"/"06" = kedaluwarsa/gagal.
   // Legacy memakai label teks (SUCCESS, EXPIRED, dst).
@@ -101,9 +99,7 @@ export async function handleDanaFinishPaymentWebhook({ request, headers, body, s
 
   const isSuccess = isSnapBi
     ? snapStatus === "00"
-    : rawStatus === "SUCCESS" ||
-      rawStatus === "FINISHED" ||
-      rawStatus === "PAID";
+    : rawStatus === "SUCCESS" || rawStatus === "FINISHED" || rawStatus === "PAID";
 
   const isExpired = isSnapBi
     ? snapStatus === "05" || snapStatus === "06"
@@ -119,7 +115,8 @@ export async function handleDanaFinishPaymentWebhook({ request, headers, body, s
   };
 
   if (!externalId && !orderId) {
-    if (!config.isProd) console.warn(`[DanaWebhook] No transaction identifier found, acknowledging`);
+    if (!config.isProd)
+      console.warn(`[DanaWebhook] No transaction identifier found, acknowledging`);
     return snapBiAck;
   }
 
@@ -143,7 +140,10 @@ export async function handleDanaFinishPaymentWebhook({ request, headers, body, s
   }
 
   if (!tx) {
-    if (!config.isProd) console.warn(`[DanaWebhook] Transaction ${externalId || orderId} not found in DB. Acknowledging.`);
+    if (!config.isProd)
+      console.warn(
+        `[DanaWebhook] Transaction ${externalId || orderId} not found in DB. Acknowledging.`
+      );
     return snapBiAck;
   }
 
@@ -165,16 +165,16 @@ export async function handleDanaFinishPaymentWebhook({ request, headers, body, s
       data?.amount !== undefined;
 
     const rawAmountValue =
-      data?.amount?.value ??
-      data?.transAmount?.value ??
-      data?.orderAmount?.value ??
-      data?.amount;
+      data?.amount?.value ?? data?.transAmount?.value ?? data?.orderAmount?.value ?? data?.amount;
     const paidAmount = Number.isFinite(Number(rawAmountValue))
       ? Math.round(Number(rawAmountValue))
       : NaN;
 
     // Transaksi yang masih PENDING: nominal Wajib cocok dengan grossAmount.
-    if (tx.paymentStatus === "PENDING" && (!amountPresent || !Number.isFinite(paidAmount) || paidAmount !== tx.grossAmount)) {
+    if (
+      tx.paymentStatus === "PENDING" &&
+      (!amountPresent || !Number.isFinite(paidAmount) || paidAmount !== tx.grossAmount)
+    ) {
       if (!config.isProd) {
         console.warn(
           `[DanaWebhook] Amount mismatch: paid=${String(rawAmountValue)} (${paidAmount}) vs expected=${tx.grossAmount} (${externalId || orderId}) — tidak mem-fulfill.`
@@ -220,17 +220,16 @@ export async function handleDanaDisburseNotifyWebhook({ request, headers, body, 
   }
 
   const webhookMethod = request?.method || "POST";
-  const webhookPath = request?.url ? new URL(request.url).pathname : "/v1.0/emoney/transfer-bank-notify.htm";
+  const webhookPath = request?.url
+    ? new URL(request.url).pathname
+    : "/v1.0/emoney/transfer-bank-notify.htm";
   if (!DanaService.verifyWebhook(headers, body, { method: webhookMethod, path: webhookPath })) {
     set.status = 401;
     return { error: "Invalid Webhook Signature" };
   }
 
   const data = (body || {}) as any;
-  const partnerReferenceNo =
-    data?.partnerReferenceNo ||
-    data?.externalId ||
-    data?.merchantTransId;
+  const partnerReferenceNo = data?.partnerReferenceNo || data?.externalId || data?.merchantTransId;
 
   const rawStatus = (
     data?.status ||
@@ -239,15 +238,10 @@ export async function handleDanaDisburseNotifyWebhook({ request, headers, body, 
     ""
   ).toUpperCase();
 
-  const isCompleted =
-    rawStatus === "SUCCESS" ||
-    rawStatus === "COMPLETED" ||
-    rawStatus === "00";
+  const isCompleted = rawStatus === "SUCCESS" || rawStatus === "COMPLETED" || rawStatus === "00";
 
   const isPending =
-    rawStatus === "PENDING" ||
-    rawStatus === "PROCESSING" ||
-    rawStatus === "IN_PROGRESS";
+    rawStatus === "PENDING" || rawStatus === "PROCESSING" || rawStatus === "IN_PROGRESS";
 
   // Hanya status terminal yang mengubah ledger; status pending diabaikan.
   if (partnerReferenceNo && !isPending) {

@@ -18,17 +18,20 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
 
   beforeEach(async () => {
     const email = `payout_cov_${suffix()}@test.com`;
-    const [b] = await db.insert(builders).values({
-      email,
-      name: "Payout Builder",
-      apiKey: generateAppApiKey("live"),
-      secretApiKey: generateBuilderSecretApiKey(),
-      disbursementAccount: {
-        bankCode: "BCA",
-        accountNumber: "1234567890",
-        accountHolderName: "Payout Builder",
-      },
-    }).returning();
+    const [b] = await db
+      .insert(builders)
+      .values({
+        email,
+        name: "Payout Builder",
+        apiKey: generateAppApiKey("live"),
+        secretApiKey: generateBuilderSecretApiKey(),
+        disbursementAccount: {
+          bankCode: "BCA",
+          accountNumber: "1234567890",
+          accountHolderName: "Payout Builder",
+        },
+      })
+      .returning();
     builderId = b.id;
 
     liveAppId = `app_live_${suffix()}`;
@@ -68,7 +71,7 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
       body: JSON.stringify({ builderId }),
     });
     expect(res.status).toBe(400);
-    const data = await res.json() as any;
+    const data = (await res.json()) as any;
     expect(data.error).toContain("Tidak ada saldo");
   });
 
@@ -94,7 +97,7 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
       body: JSON.stringify({ builderId }),
     });
     expect(res.status).toBe(400);
-    const data = await res.json() as any;
+    const data = (await res.json()) as any;
     expect(data.error).toContain("belum mencapai batas minimum");
   });
 
@@ -126,7 +129,7 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
         body: JSON.stringify({ builderId }),
       });
       expect(res.status).toBe(400);
-      const data = await res.json() as any;
+      const data = (await res.json()) as any;
       expect(data.error).toContain("belum menyimpan rekening");
     } finally {
       config.isSandbox = origSandbox;
@@ -135,13 +138,16 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
 
   it("POST /payouts/trigger: pencairan berhasil", async () => {
     // Re-add bank account
-    await db.update(builders).set({
-      disbursementAccount: {
-        bankCode: "BCA",
-        accountNumber: "1234567890",
-        accountHolderName: "Payout Builder",
-      },
-    }).where(eq(builders.id, builderId));
+    await db
+      .update(builders)
+      .set({
+        disbursementAccount: {
+          bankCode: "BCA",
+          accountNumber: "1234567890",
+          accountHolderName: "Payout Builder",
+        },
+      })
+      .where(eq(builders.id, builderId));
 
     // Insert transaksi Rp 100.000
     await db.insert(transactions).values({
@@ -163,7 +169,7 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ builderId }),
     });
-    const data = await res.json() as any;
+    const data = (await res.json()) as any;
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
     expect(["COMPLETED", "PROCESSING"]).toContain(data.data.status);
@@ -183,7 +189,7 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
 
     const getRes = await fetch("http://localhost:3001/api/v1/payouts/account");
     expect(getRes.status).toBe(200);
-    const data = await getRes.json() as any;
+    const data = (await getRes.json()) as any;
     expect(data.success).toBe(true);
   });
 });

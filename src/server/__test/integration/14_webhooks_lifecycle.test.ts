@@ -57,7 +57,10 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
 
   it("issue license memicu delivery webhook ber-tanda tangan HMAC yang valid", async () => {
     const email = `wh_${suffix()}@test.tertaut.com`;
-    const [b] = await db.insert(builders).values({ name: "Webhook Builder", email, apiKey: generateAppApiKey("live") }).returning();
+    const [b] = await db
+      .insert(builders)
+      .values({ name: "Webhook Builder", email, apiKey: generateAppApiKey("live") })
+      .returning();
     const appId = `app_wh_${suffix()}`;
     await db.insert(apps).values({
       id: appId,
@@ -77,7 +80,12 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
     });
 
     const before = captured.length;
-    await LicenseService.issueDirect({ appId, customerEmail: `wh_cust_${suffix()}@test.com`, grantDays: 30, maxSeats: 3 });
+    await LicenseService.issueDirect({
+      appId,
+      customerEmail: `wh_cust_${suffix()}@test.com`,
+      grantDays: 30,
+      maxSeats: 3,
+    });
     const sent = await WebhookService.dispatchDue();
     expect(sent).toBeGreaterThan(0);
 
@@ -104,7 +112,10 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
 
   it("delivery gagal di-retry exponential backoff lalu sukses setelah endpoint pulih", async () => {
     const email = `whr_${suffix()}@test.tertaut.com`;
-    const [b] = await db.insert(builders).values({ name: "Retry Builder", email, apiKey: generateAppApiKey("live") }).returning();
+    const [b] = await db
+      .insert(builders)
+      .values({ name: "Retry Builder", email, apiKey: generateAppApiKey("live") })
+      .returning();
     const appId = `app_whr_${suffix()}`;
     await db.insert(apps).values({
       id: appId,
@@ -123,12 +134,20 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
       secret: "retry-secret",
     });
 
-    const issued = await LicenseService.issueDirect({ appId, customerEmail: `whr_cust_${suffix()}@test.com`, grantDays: 30, maxSeats: 1 });
+    const issued = await LicenseService.issueDirect({
+      appId,
+      customerEmail: `whr_cust_${suffix()}@test.com`,
+      grantDays: 30,
+      maxSeats: 1,
+    });
     await LicenseService.revoke({ licenseId: issued.license.id, actor: { type: "ADMIN" } });
 
     await WebhookService.dispatchDue();
     let delivery = await db.query.webhookDeliveries.findFirst({
-      where: and(eq(webhookDeliveries.endpointId, endpoint.id), eq(webhookDeliveries.event, "license.revoked")),
+      where: and(
+        eq(webhookDeliveries.endpointId, endpoint.id),
+        eq(webhookDeliveries.event, "license.revoked")
+      ),
     });
     expect(delivery).toBeDefined();
     expect(delivery!.status).toBe("PENDING");
@@ -142,7 +161,9 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
       .where(eq(webhookDeliveries.id, delivery!.id));
 
     await WebhookService.dispatchDue();
-    delivery = await db.query.webhookDeliveries.findFirst({ where: eq(webhookDeliveries.id, delivery!.id) });
+    delivery = await db.query.webhookDeliveries.findFirst({
+      where: eq(webhookDeliveries.id, delivery!.id),
+    });
     expect(delivery!.status).toBe("PENDING");
     expect(delivery!.attempts).toBe(2);
     expect(delivery!.nextRetryAt.getTime()).toBeGreaterThan(nextRetry.getTime());
@@ -153,14 +174,19 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
       .where(eq(webhookDeliveries.id, delivery!.id));
 
     await WebhookService.dispatchDue();
-    delivery = await db.query.webhookDeliveries.findFirst({ where: eq(webhookDeliveries.id, delivery!.id) });
+    delivery = await db.query.webhookDeliveries.findFirst({
+      where: eq(webhookDeliveries.id, delivery!.id),
+    });
     expect(delivery!.status).toBe("SENT");
     expect(delivery!.attempts).toBe(3);
   });
 
   it("konsumsi kredit melebihi saldo memicu webhook credits.insufficient", async () => {
     const email = `wci_${suffix()}@test.tertaut.com`;
-    const [b] = await db.insert(builders).values({ name: "CreditBuilder", email, apiKey: generateAppApiKey("live") }).returning();
+    const [b] = await db
+      .insert(builders)
+      .values({ name: "CreditBuilder", email, apiKey: generateAppApiKey("live") })
+      .returning();
     const appId = `app_wci_${suffix()}`;
     await db.insert(apps).values({
       id: appId,
@@ -178,13 +204,24 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
       secret: "credit-secret",
     });
 
-    const issued = await LicenseService.issueDirect({ appId, customerEmail: `wci_cust_${suffix()}@test.com`, grantDays: 30, maxSeats: 1, grantCredits: 0 });
+    const issued = await LicenseService.issueDirect({
+      appId,
+      customerEmail: `wci_cust_${suffix()}@test.com`,
+      grantDays: 30,
+      maxSeats: 1,
+      grantCredits: 0,
+    });
 
     // Perlu device teraktivasi agar /credits/consume lolos authorizeLicense
     const actRes = await fetch(`${BASE}/api/v1/licensing/activate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ licenseKey: issued.license.licenseKey, appId, hwid: "wb-hw-1", deviceName: "Webhook Box" }),
+      body: JSON.stringify({
+        licenseKey: issued.license.licenseKey,
+        appId,
+        hwid: "wb-hw-1",
+        deviceName: "Webhook Box",
+      }),
     });
     expect(actRes.status).toBe(200);
 
@@ -192,7 +229,12 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
     const res = await fetch(`${BASE}/api/v1/licensing/credits/consume`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ licenseKey: issued.license.licenseKey, hwid: "wb-hw-1", amount: 10, reason: "wh-overdraw" }),
+      body: JSON.stringify({
+        licenseKey: issued.license.licenseKey,
+        hwid: "wb-hw-1",
+        amount: 10,
+        reason: "wh-overdraw",
+      }),
     });
     expect(res.status).toBe(402);
 

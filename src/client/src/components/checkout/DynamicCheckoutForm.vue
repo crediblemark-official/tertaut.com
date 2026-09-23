@@ -1,36 +1,38 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Sparkles, AlertTriangle } from 'lucide-vue-next'
-import { formatRupiah } from '../../lib/utils'
-import type { AppItem } from '../../lib/api'
-import SearchPicker from '../common/SearchPicker.vue'
-import { dashboardEnv, envPath } from '../../lib/environment'
+import { computed } from "vue";
+import { Sparkles, AlertTriangle } from "lucide-vue-next";
+import { formatRupiah } from "../../lib/utils";
+import type { AppItem } from "../../lib/api";
+import SearchPicker from "../common/SearchPicker.vue";
+import { dashboardEnv, envPath } from "../../lib/environment";
 
 defineProps<{
-  loading: boolean
-  appsList?: AppItem[]
-}>()
+  loading: boolean;
+  appsList?: AppItem[];
+}>();
 
-const selectedAppId = defineModel<string>('selectedAppId', { default: '' })
-const amount = defineModel<number | string>('amount', { default: 0 })
-const customerEmail = defineModel<string>('customerEmail', { default: '' })
-const grantDays = defineModel<number | string>('grantDays', { default: 30 })
+const selectedAppId = defineModel<string>("selectedAppId", { default: "" });
+const amount = defineModel<number | string>("amount", { default: 0 });
+const customerEmail = defineModel<string>("customerEmail", { default: "" });
+const grantDays = defineModel<number | string>("grantDays", { default: 30 });
 
 const numericAmount = computed(() => {
-  const n = typeof amount.value === 'number' ? amount.value : Number(amount.value)
-  return isNaN(n) ? 0 : n
-})
+  const n = typeof amount.value === "number" ? amount.value : Number(amount.value);
+  return isNaN(n) ? 0 : n;
+});
 
 const emit = defineEmits<{
-  (e: 'createCheckout'): void
-  (e: 'appChange'): void
-}>()
+  (e: "createCheckout"): void;
+  (e: "appChange"): void;
+}>();
 </script>
 
 <template>
   <div class="space-y-3">
     <div class="flex items-center justify-between">
-      <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack/80">Buat Sesi Dynamic Checkout</h2>
+      <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack/80">
+        Buat Sesi Dynamic Checkout
+      </h2>
     </div>
 
     <div class="space-y-2.5 text-xs">
@@ -48,18 +50,29 @@ const emit = defineEmits<{
             button-class="w-full !h-9 !rounded-lg !min-w-0 justify-between px-3 text-xs border-slate-300/80 hover:border-slate-400 bg-white shadow-2xs focus:ring-2 focus:ring-gold/20 focus:border-gold"
           />
         </div>
-        <div v-else class="sm:col-span-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div
+          v-else
+          class="sm:col-span-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+        >
           <div class="flex items-center gap-2 text-xs">
             <AlertTriangle class="w-4 h-4 text-amber-600 shrink-0" />
-            <span>Belum ada software terdaftar di mode <strong>{{ dashboardEnv.toUpperCase() }}</strong>. Daftarkan software terlebih dahulu untuk membuat checkout link.</span>
+            <span
+              >Belum ada software terdaftar di mode <strong>{{ dashboardEnv.toUpperCase() }}</strong
+              >. Daftarkan software terlebih dahulu untuk membuat checkout link.</span
+            >
           </div>
-          <router-link :to="envPath(dashboardEnv, '/apps')" class="px-2.5 py-1 rounded bg-jetblack text-gold text-xs font-bold hover:bg-jetblack-hover transition shrink-0 inline-flex items-center gap-1">
+          <router-link
+            :to="envPath(dashboardEnv, '/apps')"
+            class="px-2.5 py-1 rounded bg-jetblack text-gold text-xs font-bold hover:bg-jetblack-hover transition shrink-0 inline-flex items-center gap-1"
+          >
             <span>+ Buat Software</span>
           </router-link>
         </div>
 
         <div>
-          <label class="block font-bold text-[11px] text-jetblack/70 mb-1">Nominal Pembayaran (IDR)</label>
+          <label class="block font-bold text-[11px] text-jetblack/70 mb-1"
+            >Nominal Pembayaran (IDR)</label
+          >
           <input
             v-model.number="amount"
             type="number"
@@ -69,7 +82,9 @@ const emit = defineEmits<{
         </div>
 
         <div>
-          <label class="block font-bold text-[11px] text-jetblack/70 mb-1">Email Pembeli (Opsional)</label>
+          <label class="block font-bold text-[11px] text-jetblack/70 mb-1"
+            >Email Pembeli (Opsional)</label
+          >
           <input
             v-model="customerEmail"
             type="email"
@@ -79,7 +94,9 @@ const emit = defineEmits<{
         </div>
 
         <div>
-          <label class="block font-bold text-[11px] text-jetblack/70 mb-1">Masa Aktif Lisensi (Hari)</label>
+          <label class="block font-bold text-[11px] text-jetblack/70 mb-1"
+            >Masa Aktif Lisensi (Hari)</label
+          >
           <input
             v-model.number="grantDays"
             type="number"
@@ -92,9 +109,19 @@ const emit = defineEmits<{
       <div class="px-3 py-2 rounded-lg bg-jetblack/[0.02] border border-jetblack/10 text-xs">
         <div class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
           <div class="flex items-center gap-3 text-jetblack/70 text-[11px]">
-            <span>Gross: <strong class="font-mono text-jetblack font-bold">{{ formatRupiah(numericAmount) }}</strong></span>
+            <span
+              >Gross:
+              <strong class="font-mono text-jetblack font-bold">{{
+                formatRupiah(numericAmount)
+              }}</strong></span
+            >
             <span class="text-jetblack/30">•</span>
-            <span>Fee 5%: <strong class="font-mono text-crimson font-bold">-{{ formatRupiah(Math.round(numericAmount * 0.05)) }}</strong></span>
+            <span
+              >Fee 5%:
+              <strong class="font-mono text-crimson font-bold"
+                >-{{ formatRupiah(Math.round(numericAmount * 0.05)) }}</strong
+              ></span
+            >
           </div>
           <div class="flex items-center gap-1.5 font-bold">
             <span class="text-[11px] text-jetblack/60">Net Payout (95%):</span>
@@ -115,10 +142,10 @@ const emit = defineEmits<{
         <span>
           {{
             loading
-              ? 'Menghubungkan ke API DANA...'
+              ? "Menghubungkan ke API DANA..."
               : !selectedAppId
-              ? 'Pilih atau Buat Software Terlebih Dahulu'
-              : 'Generate Dynamic Checkout Link'
+                ? "Pilih atau Buat Software Terlebih Dahulu"
+                : "Generate Dynamic Checkout Link"
           }}
         </span>
       </button>

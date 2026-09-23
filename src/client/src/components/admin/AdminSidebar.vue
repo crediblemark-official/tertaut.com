@@ -5,42 +5,50 @@ import {
   Globe,
   ExternalLink,
   ChevronRight,
-  LogOut
-} from 'lucide-vue-next'
+  LogOut,
+} from "lucide-vue-next";
 
 interface AdminNavItem {
-  key: string
-  name: string
-  icon: any
-  badge?: number
-  category: string
+  key: string;
+  name: string;
+  icon: any;
+  badge?: number;
+  category: string;
 }
 
 defineProps<{
-  activeTab: string
-  adminNavItems: AdminNavItem[]
-  adminName: string
-  adminEmail: string
-  adminInitial: string
-}>()
+  activeTab: string;
+  adminNavItems: AdminNavItem[];
+  adminName: string;
+  adminEmail: string;
+  adminInitial: string;
+}>();
 
 const emit = defineEmits<{
-  'update:activeTab': [tab: string]
-  'logout': []
-}>()
+  "update:activeTab": [tab: string];
+  logout: [];
+}>();
 </script>
 
 <template>
-  <aside class="hidden md:flex w-56 flex-col justify-between p-4 border-r border-jetblack/10 bg-white sticky top-0 h-screen shrink-0 z-30">
+  <aside
+    class="hidden md:flex w-56 flex-col justify-between p-4 border-r border-jetblack/10 bg-white sticky top-0 h-screen shrink-0 z-30"
+  >
     <div class="space-y-5">
       <!-- Brand Header with Super Admin Tag -->
       <router-link to="/panel" class="flex items-center gap-2.5 px-2 py-1 group">
-        <div class="w-8 h-8 rounded-lg bg-jetblack flex items-center justify-center font-bold text-white shadow-md relative overflow-hidden group-hover:scale-105 transition">
+        <div
+          class="w-8 h-8 rounded-lg bg-jetblack flex items-center justify-center font-bold text-white shadow-md relative overflow-hidden group-hover:scale-105 transition"
+        >
           <span class="text-sm font-black tracking-tighter">T</span>
-          <span class="absolute bottom-1 right-1 w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_6px_#D4AF37]"></span>
+          <span
+            class="absolute bottom-1 right-1 w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_6px_#D4AF37]"
+          ></span>
         </div>
         <div>
-          <div class="font-extrabold text-sm tracking-tight text-jetblack flex items-center gap-0.5 font-mono">
+          <div
+            class="font-extrabold text-sm tracking-tight text-jetblack flex items-center gap-0.5 font-mono"
+          >
             tertaut<span class="text-gold">.com</span>
           </div>
           <div class="text-[10px] text-jetblack/50 font-medium flex items-center gap-1">
@@ -51,9 +59,15 @@ const emit = defineEmits<{
       </router-link>
 
       <!-- Access Scope Pill -->
-      <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-jetblack/5 border border-jetblack/10 text-xs">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-jetblack/60">Hak Akses</span>
-        <span class="px-2 py-0.5 rounded-md bg-gold/20 text-[#8a6d1f] text-[10px] font-bold border border-gold/30">
+      <div
+        class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-jetblack/5 border border-jetblack/10 text-xs"
+      >
+        <span class="text-[10px] font-bold uppercase tracking-wider text-jetblack/60"
+          >Hak Akses</span
+        >
+        <span
+          class="px-2 py-0.5 rounded-md bg-gold/20 text-[#8a6d1f] text-[10px] font-bold border border-gold/30"
+        >
           Super Admin
         </span>
       </div>
@@ -69,7 +83,7 @@ const emit = defineEmits<{
             'w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition duration-150 cursor-pointer',
             activeTab === item.key
               ? 'bg-jetblack text-white shadow-sm'
-              : 'text-jetblack/75 hover:text-jetblack hover:bg-jetblack/5'
+              : 'text-jetblack/75 hover:text-jetblack hover:bg-jetblack/5',
           ]"
         >
           <div class="flex items-center gap-2.5">
@@ -85,7 +99,9 @@ const emit = defineEmits<{
               v-if="item.badge !== undefined"
               :class="[
                 'px-1.5 py-0.2 rounded-full text-[10px] font-bold',
-                activeTab === item.key ? 'bg-white/20 text-white' : 'bg-jetblack/5 text-jetblack/60'
+                activeTab === item.key
+                  ? 'bg-white/20 text-white'
+                  : 'bg-jetblack/5 text-jetblack/60',
               ]"
             >
               {{ item.badge }}
@@ -129,7 +145,9 @@ const emit = defineEmits<{
       <div class="p-2.5 rounded-lg bg-jetblack text-white space-y-1 text-[11px] shadow-sm">
         <div class="flex items-center justify-between">
           <span class="text-[10px] font-bold uppercase tracking-wider text-gold">Admin Rail</span>
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40 animate-pulse"></span>
+          <span
+            class="w-1.5 h-1.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40 animate-pulse"
+          ></span>
         </div>
         <div class="text-[10px] text-white/75 font-mono">Bun + PostgreSQL Live</div>
       </div>
@@ -138,7 +156,9 @@ const emit = defineEmits<{
       <div class="pt-2 border-t border-jetblack/10 space-y-1.5">
         <div class="p-2 rounded-lg bg-jetblack/5 space-y-2">
           <div class="flex items-center gap-2 min-w-0">
-            <div class="w-7 h-7 rounded-full bg-jetblack text-white flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-gold/40">
+            <div
+              class="w-7 h-7 rounded-full bg-jetblack text-white flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-gold/40"
+            >
               {{ adminInitial }}
             </div>
             <div class="min-w-0 text-left flex-1">

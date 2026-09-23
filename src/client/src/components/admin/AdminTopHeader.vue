@@ -1,33 +1,29 @@
 <script setup lang="ts">
-import {
-  RefreshCw,
-  ChevronRight,
-  Globe,
-  Code2,
-  LayoutDashboard
-} from 'lucide-vue-next'
+import { RefreshCw, ChevronRight, Globe, Code2, LayoutDashboard } from "lucide-vue-next";
 
 interface AdminNavItem {
-  key: string
-  name: string
-  icon: any
-  badge?: number
-  category: string
+  key: string;
+  name: string;
+  icon: any;
+  badge?: number;
+  category: string;
 }
 
 defineProps<{
-  currentNavItem: AdminNavItem
-  refreshing: boolean
-}>()
+  currentNavItem: AdminNavItem;
+  refreshing: boolean;
+}>();
 
 const emit = defineEmits<{
-  'refresh': []
-}>()
+  refresh: [];
+}>();
 </script>
 
 <template>
   <!-- Admin Desktop Top Header -->
-  <header class="hidden md:flex items-center justify-between px-6 min-h-[44px] py-1.5 sm:py-0 border-b border-jetblack bg-jetblack text-white shrink-0 z-20">
+  <header
+    class="hidden md:flex items-center justify-between px-6 min-h-[44px] py-1.5 sm:py-0 border-b border-jetblack bg-jetblack text-white shrink-0 z-20"
+  >
     <!-- Left: Breadcrumb / Category / Title -->
     <div class="flex items-center gap-3">
       <div class="flex items-center gap-1.5 text-xs text-white/50 font-medium">
@@ -38,14 +34,19 @@ const emit = defineEmits<{
       </div>
       <h2 class="text-sm font-bold text-white tracking-tight flex items-center gap-2">
         <span>{{ currentNavItem.name }}</span>
-        <span class="px-2 py-0.5 rounded-full bg-white/10 text-white text-[10px] font-mono font-normal">v2.2</span>
+        <span
+          class="px-2 py-0.5 rounded-full bg-white/10 text-white text-[10px] font-mono font-normal"
+          >v2.2</span
+        >
       </h2>
     </div>
 
     <!-- Right: Status, Refresh & External Links -->
     <div class="flex items-center gap-3">
       <!-- Mode Pill -->
-      <div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold bg-forest/30 border-forest/50 text-emerald-300">
+      <div
+        class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold bg-forest/30 border-forest/50 text-emerald-300"
+      >
         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
         <span>Super Admin Rail</span>
       </div>
@@ -82,10 +83,14 @@ const emit = defineEmits<{
   </header>
 
   <!-- Mobile Top Compact Bar -->
-  <header class="md:hidden bg-jetblack text-white border-b border-jetblack sticky top-0 z-40 shadow-xs min-h-[44px]">
+  <header
+    class="md:hidden bg-jetblack text-white border-b border-jetblack sticky top-0 z-40 shadow-xs min-h-[44px]"
+  >
     <div class="flex items-center justify-between px-3.5 py-1.5">
       <router-link to="/panel" class="flex items-center gap-2">
-        <div class="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center font-bold text-white text-xs relative shadow-xs">
+        <div
+          class="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center font-bold text-white text-xs relative shadow-xs"
+        >
           T
           <span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-gold"></span>
         </div>
@@ -115,7 +120,9 @@ const emit = defineEmits<{
     </div>
 
     <!-- Context Sub-bar -->
-    <div class="px-3.5 py-1.5 bg-jetblack/[0.02] border-t border-jetblack/5 flex items-center justify-between text-[11px]">
+    <div
+      class="px-3.5 py-1.5 bg-jetblack/[0.02] border-t border-jetblack/5 flex items-center justify-between text-[11px]"
+    >
       <div class="flex items-center gap-1.5 font-medium text-jetblack/60 truncate">
         <span class="text-gold font-bold">{{ currentNavItem.category }}</span>
         <span>•</span>

@@ -2,7 +2,14 @@ import { describe, it, expect } from "bun:test";
 import { setupTestAuth, authCookie } from "../setup";
 import { app } from "../../index";
 import { db } from "../../db";
-import { builders, apps, licenses, licenseActivations, licenseLeases, creditLedger } from "../../db/schema";
+import {
+  builders,
+  apps,
+  licenses,
+  licenseActivations,
+  licenseLeases,
+  creditLedger,
+} from "../../db/schema";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
 import { LicenseService } from "../../services/license";
 import {
@@ -11,7 +18,11 @@ import {
   handleHeartbeat,
   handleListSeats,
 } from "../../routes/licensing/device";
-import { handleConsumeCredits, handleCreditBalance, handleCreditHistory } from "../../routes/licensing/credits";
+import {
+  handleConsumeCredits,
+  handleCreditBalance,
+  handleCreditHistory,
+} from "../../routes/licensing/credits";
 import { CreditService } from "../../services/credits";
 import { enforceRateLimit, resetRateLimits } from "../../services/rateLimiter";
 import { eq, and } from "drizzle-orm";
@@ -24,22 +35,28 @@ const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
 async function seedBuilderApp(mode: "live" | "sandbox" = "live") {
   const email = `cov4_b_${suffix()}@test.com`;
-  const [b] = await db.insert(builders).values({
-    name: "Cov4Builder",
-    email,
-    apiKey: generateAppApiKey("live"),
-    secretApiKey: generateBuilderSecretApiKey(),
-  }).returning();
-  const [a] = await db.insert(apps).values({
-    id: `app_c4_${suffix()}`,
-    name: "Cov4App",
-    slug: `cov4-${suffix()}`,
-    builderId: b.id,
-    targetPrice: 50000,
-    mode,
-    // Enable floating licensing for floating tests
-    deliveryConfig: null,
-  }).returning();
+  const [b] = await db
+    .insert(builders)
+    .values({
+      name: "Cov4Builder",
+      email,
+      apiKey: generateAppApiKey("live"),
+      secretApiKey: generateBuilderSecretApiKey(),
+    })
+    .returning();
+  const [a] = await db
+    .insert(apps)
+    .values({
+      id: `app_c4_${suffix()}`,
+      name: "Cov4App",
+      slug: `cov4-${suffix()}`,
+      builderId: b.id,
+      targetPrice: 50000,
+      mode,
+      // Enable floating licensing for floating tests
+      deliveryConfig: null,
+    })
+    .returning();
   return { builder: b, app: a };
 }
 
@@ -121,12 +138,14 @@ describe("Coverage Booster4: licensing/device.ts edge cases", () => {
 
     // Directly delete activation to force re-insert, simulating idempotent path
     const hwidHash = LicenseService.hashHardwareIdSecure(hwid);
-    await db.delete(licenseActivations).where(
-      and(
-        eq(licenseActivations.licenseId, issueRes.license.id),
-        eq(licenseActivations.hwidHash, hwidHash)
-      )
-    );
+    await db
+      .delete(licenseActivations)
+      .where(
+        and(
+          eq(licenseActivations.licenseId, issueRes.license.id),
+          eq(licenseActivations.hwidHash, hwidHash)
+        )
+      );
 
     // Second activation — would be fresh insert now
     const res2 = await handleActivateLicense({
@@ -141,7 +160,10 @@ describe("Coverage Booster4: licensing/device.ts edge cases", () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
     // Set platform to android
-    await db.update(licenses).set({ platform: "android" }).where(eq(licenses.id, issueRes.license.id));
+    await db
+      .update(licenses)
+      .set({ platform: "android" })
+      .where(eq(licenses.id, issueRes.license.id));
     const set: any = {};
     const res = await handleValidateLicense({
       body: { licenseKey: issueRes.license.licenseKey, appId: a.id, platform: "desktop" },
@@ -267,9 +289,28 @@ describe("Coverage Booster4: licensing/credits.ts branches", () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
     // Activate the license first (requireHwid=true path)
-    await fetch("http://localhost:3001/api/v1/licensing/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ licenseKey: issueRes.license.licenseKey, hwid: "CPU_INTEL_i9_13900K_SN_88219", appId: a.id }) });
+    await fetch("http://localhost:3001/api/v1/licensing/activate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        licenseKey: issueRes.license.licenseKey,
+        hwid: "CPU_INTEL_i9_13900K_SN_88219",
+        appId: a.id,
+      }),
+    });
     // Top up some credits first
-    await db.insert(creditLedger).values({ id: "crl_" + Date.now().toString(), licenseId: issueRes.license.id, appId: a.id, customerEmail: "test@test.com", type: "GRANT", delta: 5, balanceAfter: 5, reference: null, description: "test topup", createdAt: new Date() });
+    await db.insert(creditLedger).values({
+      id: "crl_" + Date.now().toString(),
+      licenseId: issueRes.license.id,
+      appId: a.id,
+      customerEmail: "test@test.com",
+      type: "GRANT",
+      delta: 5,
+      balanceAfter: 5,
+      reference: null,
+      description: "test topup",
+      createdAt: new Date(),
+    });
     const set: any = {};
     // Consume more than available → INSUFFICIENT_CREDITS
     const res = await handleConsumeCredits({
@@ -302,9 +343,28 @@ describe("Coverage Booster4: licensing/credits.ts branches", () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
     // Activate the license first
-    await fetch("http://localhost:3001/api/v1/licensing/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ licenseKey: issueRes.license.licenseKey, hwid: "CPU_INTEL_i9_13900K_SN_88219", appId: a.id }) });
+    await fetch("http://localhost:3001/api/v1/licensing/activate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        licenseKey: issueRes.license.licenseKey,
+        hwid: "CPU_INTEL_i9_13900K_SN_88219",
+        appId: a.id,
+      }),
+    });
     // Top up first
-    await db.insert(creditLedger).values({ id: "crl_" + Date.now().toString(), licenseId: issueRes.license.id, appId: a.id, customerEmail: "test@test.com", type: "GRANT", delta: 50, balanceAfter: 50, reference: null, description: "initial topup", createdAt: new Date() });
+    await db.insert(creditLedger).values({
+      id: "crl_" + Date.now().toString(),
+      licenseId: issueRes.license.id,
+      appId: a.id,
+      customerEmail: "test@test.com",
+      type: "GRANT",
+      delta: 50,
+      balanceAfter: 50,
+      reference: null,
+      description: "initial topup",
+      createdAt: new Date(),
+    });
     const set: any = {};
     const res = await handleCreditHistory({
       body: { licenseKey: issueRes.license.licenseKey },
@@ -326,43 +386,70 @@ describe("Coverage Booster4: metering/router.ts additional branches", () => {
     // Test the "Gagal memproses konsumsi metering" path (line 93-94)
     // This requires a valid license with metering but where debit returns unknown error
     const { app: a } = await seedBuilderApp();
-    await db.update(apps).set({ meteringConfig: { enabled: true, unitPrice: 1, unitLabel: "u" } as any }).where(eq(apps.id, a.id));
+    await db
+      .update(apps)
+      .set({ meteringConfig: { enabled: true, unitPrice: 1, unitLabel: "u" } as any })
+      .where(eq(apps.id, a.id));
     const issueRes = await issueLicense(a.id);
     // Give some credits but consume 0 units → should succeed
-    await db.insert(creditLedger).values({ id: "crl_" + Date.now().toString(), licenseId: issueRes.license.id, appId: a.id, customerEmail: "test@test.com", type: "GRANT", delta: 10, balanceAfter: 10, reference: null, description: "topup", createdAt: new Date() });
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        licenseKey: issueRes.license.licenseKey,
-        eventName: "test.event",
-        units: 1,
-      }),
-    }));
+    await db.insert(creditLedger).values({
+      id: "crl_" + Date.now().toString(),
+      licenseId: issueRes.license.id,
+      appId: a.id,
+      customerEmail: "test@test.com",
+      type: "GRANT",
+      delta: 10,
+      balanceAfter: 10,
+      reference: null,
+      description: "topup",
+      createdAt: new Date(),
+    });
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/metering/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          licenseKey: issueRes.license.licenseKey,
+          eventName: "test.event",
+          units: 1,
+        }),
+      })
+    );
     // Should succeed (200) since we have credits
     expect(res.status).toBe(200);
   });
 
   it("POST /metering/events: 403 when license status is revoked", async () => {
     const { app: a } = await seedBuilderApp();
-    await db.update(apps).set({ meteringConfig: { enabled: true, unitPrice: 1 } as any }).where(eq(apps.id, a.id));
+    await db
+      .update(apps)
+      .set({ meteringConfig: { enabled: true, unitPrice: 1 } as any })
+      .where(eq(apps.id, a.id));
     const issueRes = await issueLicense(a.id);
-    await db.update(licenses).set({ status: "EXPIRED" }).where(eq(licenses.id, issueRes.license.id));
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        licenseKey: issueRes.license.licenseKey,
-        eventName: "expired",
-        units: 1,
-      }),
-    }));
+    await db
+      .update(licenses)
+      .set({ status: "EXPIRED" })
+      .where(eq(licenses.id, issueRes.license.id));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/metering/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          licenseKey: issueRes.license.licenseKey,
+          eventName: "expired",
+          units: 1,
+        }),
+      })
+    );
     expect(res.status).toBe(403);
   });
 
   it("GET /metering/usage/:licenseKey: returns history for active license", async () => {
     const { app: a } = await seedBuilderApp();
-    await db.update(apps).set({ meteringConfig: { enabled: true, unitPrice: 1, unitLabel: "u" } as any }).where(eq(apps.id, a.id));
+    await db
+      .update(apps)
+      .set({ meteringConfig: { enabled: true, unitPrice: 1, unitLabel: "u" } as any })
+      .where(eq(apps.id, a.id));
     const issueRes = await issueLicense(a.id);
     const res = await app.handle(
       new Request(`http://localhost:3001/api/v1/metering/usage/${issueRes.license.licenseKey}`)
@@ -410,12 +497,14 @@ describe("Coverage Booster4: services/dana.ts additional branches", () => {
     config.dana.clientId = "test_client";
     config.dana.privateKey = "INVALID_PRIVATE_KEY_NOT_PEM";
 
-    await expect(DanaService.createOrder({
-      payerEmail: "t@t.com",
-      externalId: "ext_dana_test",
-      amount: 10000,
-      description: "test order",
-    })).rejects.toThrow();
+    await expect(
+      DanaService.createOrder({
+        payerEmail: "t@t.com",
+        externalId: "ext_dana_test",
+        amount: 10000,
+        description: "test order",
+      })
+    ).rejects.toThrow();
 
     (config as any).isSandbox = origSandbox;
     config.dana.clientId = "";
@@ -454,32 +543,38 @@ describe("Coverage Booster4: apps/mutations.ts additional branches", () => {
       asResponse: true,
     });
     // Access as admin (already has all rights) — instead test that 404 for bad app
-    const res = await app.handle(new Request(`http://localhost:3001/api/v1/apps/nonexistent_app_id/settings`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", cookie: authCookie },
-      body: JSON.stringify({ name: "Updated" }),
-    }));
+    const res = await app.handle(
+      new Request(`http://localhost:3001/api/v1/apps/nonexistent_app_id/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", cookie: authCookie },
+        body: JSON.stringify({ name: "Updated" }),
+      })
+    );
     // Either 404 or 405 depending on routing
     expect([400, 404, 405]).toContain(res.status);
   });
 
   it("DELETE /apps/:appId: 200 when app exists and admin deletes", async () => {
     const { app: a } = await seedBuilderApp();
-    const res = await app.handle(new Request(`http://localhost:3001/api/v1/apps/${a.id}`, {
-      method: "DELETE",
-      headers: { cookie: authCookie },
-    }));
+    const res = await app.handle(
+      new Request(`http://localhost:3001/api/v1/apps/${a.id}`, {
+        method: "DELETE",
+        headers: { cookie: authCookie },
+      })
+    );
     expect([200, 204]).toContain(res.status);
   });
 
   it("PATCH /apps/:appId: successfully updates name", async () => {
     const { app: a } = await seedBuilderApp();
     const newName = `Updated Name ${suffix()}`;
-    const res = await app.handle(new Request(`http://localhost:3001/api/v1/apps/${a.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", cookie: authCookie },
-      body: JSON.stringify({ name: newName }),
-    }));
+    const res = await app.handle(
+      new Request(`http://localhost:3001/api/v1/apps/${a.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", cookie: authCookie },
+        body: JSON.stringify({ name: newName }),
+      })
+    );
     expect([200, 201]).toContain(res.status);
     if (res.status === 200) {
       const body = (await res.json()) as any;
@@ -511,7 +606,18 @@ describe("Coverage Booster4: service edge cases", () => {
   it("CreditService.topUp: adds credits to license", async () => {
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
-    await db.insert(creditLedger).values({ id: "crl_" + Date.now().toString(), licenseId: issueRes.license.id, appId: a.id, customerEmail: "test@test.com", type: "GRANT", delta: 100, balanceAfter: 100, reference: null, description: "test topup", createdAt: new Date() });
+    await db.insert(creditLedger).values({
+      id: "crl_" + Date.now().toString(),
+      licenseId: issueRes.license.id,
+      appId: a.id,
+      customerEmail: "test@test.com",
+      type: "GRANT",
+      delta: 100,
+      balanceAfter: 100,
+      reference: null,
+      description: "test topup",
+      createdAt: new Date(),
+    });
     const balance = await CreditService.getBalance(issueRes.license.id);
     expect(balance).toBe(100);
   });
@@ -526,11 +632,13 @@ describe("Coverage Booster4: s2s/router.ts via HTTP", () => {
     // but apiV1Routes also has authMiddleware. Since /api/v1/s2s is in PUBLIC_PREFIXES,
     // authMiddleware skips it, and s2sRoutes.onBeforeHandle handles auth.
     // Without a secret key, authenticateSecretApiKey returns 401.
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/s2s/licensing/issue", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ appId: "app_x", customerEmail: "t@t.com" }),
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/s2s/licensing/issue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appId: "app_x", customerEmail: "t@t.com" }),
+      })
+    );
     // The s2s route prefix is /s2s, so this hits /api/v1/s2s which is a public prefix.
     // The route is at /api/v1/s2s/licensing/issue which maps to s2sRoutes prefix /s2s + /licensing/issue.
     // Without secret key, authenticateSecretApiKey returns 401.
@@ -538,24 +646,28 @@ describe("Coverage Booster4: s2s/router.ts via HTTP", () => {
   });
 
   it("POST /s2s/licensing/activate: 401 without secret key", async () => {
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/s2s/licensing/activate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ licenseKey: "TT-FAKE", appId: "x", hwid: "h" }),
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/s2s/licensing/activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licenseKey: "TT-FAKE", appId: "x", hwid: "h" }),
+      })
+    );
     expect([401, 404]).toContain(res.status);
   });
 
   it("POST /s2s/licensing/issue: 404 for unknown app with valid secret key", async () => {
     const { builder } = await seedBuilderApp();
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/s2s/licensing/issue", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        authorization: `Bearer ${builder.secretApiKey}`,
-      },
-      body: JSON.stringify({ appId: "nonexistent_app_id", customerEmail: "t@t.com" }),
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/s2s/licensing/issue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${builder.secretApiKey}`,
+        },
+        body: JSON.stringify({ appId: "nonexistent_app_id", customerEmail: "t@t.com" }),
+      })
+    );
     expect(res.status).toBe(404);
   });
 
@@ -565,11 +677,13 @@ describe("Coverage Booster4: s2s/router.ts via HTTP", () => {
     // This route doesn't exist, so it returns 404.
     // The test expects 401 but the route doesn't exist in the codebase.
     // Update expectation to match actual route behavior.
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/s2s/credits/topup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ licenseKey: "TT-FAKE", amount: 100 }),
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/s2s/credits/topup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licenseKey: "TT-FAKE", amount: 100 }),
+      })
+    );
     // s2sRoutes has authenticateSecretApiKey onBeforeHandle, but /api/v1/s2s is a PUBLIC_PREFIX.
     // The route doesn't exist, so 404 is expected.
     expect([401, 404]).toContain(res.status);
@@ -580,14 +694,16 @@ describe("Coverage Booster4: s2s/router.ts via HTTP", () => {
     // Only /s2s/credits/balance and /s2s/credits/consume exist.
     // Update expectation to 404 for nonexistent route.
     const { builder } = await seedBuilderApp();
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/s2s/credits/topup", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        authorization: `Bearer ${builder.secretApiKey}`,
-      },
-      body: JSON.stringify({ licenseKey: "TT-NOTFOUND-S2S", amount: 100 }),
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/s2s/credits/topup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${builder.secretApiKey}`,
+        },
+        body: JSON.stringify({ licenseKey: "TT-NOTFOUND-S2S", amount: 100 }),
+      })
+    );
     expect([404, 400, 401]).toContain(res.status);
   });
 });
@@ -608,21 +724,32 @@ describe("Coverage Booster4: payouts/router.ts additional", () => {
     const cookie = signRes.headers.get("set-cookie")?.split(";")[0] || "";
     // Link email to builder
     await db.update(builders).set({ email }).where(eq(builders.id, b.id));
-    await db.update(builders).set({
-      disbursementAccount: { bankCode: "BCA", accountNumber: "1234567890", accountHolderName: "Test" } as any,
-    }).where(eq(builders.id, b.id));
+    await db
+      .update(builders)
+      .set({
+        disbursementAccount: {
+          bankCode: "BCA",
+          accountNumber: "1234567890",
+          accountHolderName: "Test",
+        } as any,
+      })
+      .where(eq(builders.id, b.id));
 
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/payouts/account", {
-      headers: { cookie },
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/payouts/account", {
+        headers: { cookie },
+      })
+    );
     // Either 200 (account found) or 404 (no builder for this email yet)
     expect([200, 404]).toContain(res.status);
   });
 
   it("GET /payouts/transactions: returns builder transactions", async () => {
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/payouts/transactions", {
-      headers: { cookie: authCookie },
-    }));
+    const res = await app.handle(
+      new Request("http://localhost:3001/api/v1/payouts/transactions", {
+        headers: { cookie: authCookie },
+      })
+    );
     // panel/transactions uses handlePanelTransactions; /api/v1/panel/transactions
     // requires admin auth. authCookie may be from builder user, not admin.
     expect([200, 401, 403, 404, 302]).toContain(res.status);

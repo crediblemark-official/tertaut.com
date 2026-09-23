@@ -28,23 +28,29 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
     if (bList.length > 0) {
       testBuilder = bList[0];
     } else {
-      const [b] = await db.insert(builders).values({
-        name: "Queries Builder",
-        email: `q_${Date.now()}@test.com`,
-        apiKey: generateAppApiKey("live"),
-      }).returning();
+      const [b] = await db
+        .insert(builders)
+        .values({
+          name: "Queries Builder",
+          email: `q_${Date.now()}@test.com`,
+          apiKey: generateAppApiKey("live"),
+        })
+        .returning();
       testBuilder = b;
     }
 
     const testSlug = `app-query-${Date.now()}`;
-    const [a] = await db.insert(apps).values({
-      id: `app_q_${Date.now()}`,
-      name: "Query Test App",
-      slug: testSlug,
-      builderId: testBuilder.id,
-      mode: "live",
-      targetPrice: 50000,
-    }).returning();
+    const [a] = await db
+      .insert(apps)
+      .values({
+        id: `app_q_${Date.now()}`,
+        name: "Query Test App",
+        slug: testSlug,
+        builderId: testBuilder.id,
+        mode: "live",
+        targetPrice: 50000,
+      })
+      .returning();
     testApp = a;
   });
 
@@ -64,14 +70,23 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
     const listAll = await handleListApps({ query: {}, request: { headers: adminHeaders } });
     expect(Array.isArray(listAll.apps)).toBe(true);
 
-    const listLive = await handleListApps({ query: { mode: "live" }, request: { headers: adminHeaders } });
+    const listLive = await handleListApps({
+      query: { mode: "live" },
+      request: { headers: adminHeaders },
+    });
     expect(Array.isArray(listLive.apps)).toBe(true);
 
     // 3. handleStatsOverview & handleStatsCatalog
-    const statsOverview = await handleStatsOverview({ query: { mode: "live" }, request: { headers: adminHeaders } });
+    const statsOverview = await handleStatsOverview({
+      query: { mode: "live" },
+      request: { headers: adminHeaders },
+    });
     expect(statsOverview).toBeDefined();
 
-    const statsCatalog = await handleStatsCatalog({ query: {}, request: { headers: adminHeaders } });
+    const statsCatalog = await handleStatsCatalog({
+      query: {},
+      request: { headers: adminHeaders },
+    });
     expect(statsCatalog).toBeDefined();
 
     // 4. handleCheckSlug
@@ -252,7 +267,9 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
     globalThis.fetch = (async (url: any, init: any) => {
       const urlStr = typeof url === "string" ? url : url?.url || "";
       if (urlStr.includes("dana/v1/disbursement")) {
-        return new Response(JSON.stringify({ acquirementId: "dana_disb_mock_123" }), { status: 200 });
+        return new Response(JSON.stringify({ acquirementId: "dana_disb_mock_123" }), {
+          status: 200,
+        });
       }
       return originalFetch(url, init);
     }) as any;

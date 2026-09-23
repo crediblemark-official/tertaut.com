@@ -100,9 +100,7 @@ export class LicenseLeaseService {
     const rows = await executor
       .select({ id: licenseLeases.id })
       .from(licenseLeases)
-      .where(
-        and(eq(licenseLeases.licenseId, licenseId), gt(licenseLeases.expiresAt, now))
-      );
+      .where(and(eq(licenseLeases.licenseId, licenseId), gt(licenseLeases.expiresAt, now)));
     return rows.length;
   }
 
@@ -168,10 +166,7 @@ export class LicenseLeaseService {
     const deleted = await db
       .delete(licenseLeases)
       .where(
-        and(
-          eq(licenseLeases.licenseId, licenseId),
-          inArray(licenseLeases.hwidHash, lookupHashes)
-        )
+        and(eq(licenseLeases.licenseId, licenseId), inArray(licenseLeases.hwidHash, lookupHashes))
       )
       .returning({ id: licenseLeases.id });
     return deleted.length;

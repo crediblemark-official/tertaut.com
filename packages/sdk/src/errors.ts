@@ -38,7 +38,10 @@ export class SeatLimitExceededError extends TertautError {
 }
 
 export class HeartbeatLeaseError extends TertautError {
-  constructor(message = "Lease floating license tidak valid atau telah hangus.", code = "LEASE_EXPIRED") {
+  constructor(
+    message = "Lease floating license tidak valid atau telah hangus.",
+    code = "LEASE_EXPIRED"
+  ) {
     super(message, { code, status: code === "LEASE_INVALID" ? 403 : 409 });
     this.name = "HeartbeatLeaseError";
   }

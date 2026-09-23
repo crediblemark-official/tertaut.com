@@ -147,7 +147,17 @@ export class CreditService {
     licenseId: string,
     limit = 50,
     executor: any = db
-  ): Promise<Array<{ id: string; type: string; delta: number; balanceAfter: number; reference: string | null; description: string | null; createdAt: Date }>> {
+  ): Promise<
+    Array<{
+      id: string;
+      type: string;
+      delta: number;
+      balanceAfter: number;
+      reference: string | null;
+      description: string | null;
+      createdAt: Date;
+    }>
+  > {
     const rows = await executor
       .select({
         id: creditLedger.id,

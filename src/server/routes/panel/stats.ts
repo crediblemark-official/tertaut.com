@@ -13,9 +13,18 @@ export async function handlePanelStats() {
       totalFee: sql<number>`coalesce(sum(${transactions.platformFee}), 0)`.mapWith(Number),
       totalNet: sql<number>`coalesce(sum(${transactions.netAmount}), 0)`.mapWith(Number),
       totalTx: sql<number>`count(*)`.mapWith(Number),
-      pendingAmount: sql<number>`coalesce(sum(case when ${transactions.disbursementStatus} = 'PENDING' then ${transactions.netAmount} else 0 end), 0)`.mapWith(Number),
-      pendingCount: sql<number>`count(*) filter (where ${transactions.disbursementStatus} = 'PENDING')`.mapWith(Number),
-      completedAmount: sql<number>`coalesce(sum(case when ${transactions.disbursementStatus} = 'COMPLETED' then ${transactions.netAmount} else 0 end), 0)`.mapWith(Number),
+      pendingAmount:
+        sql<number>`coalesce(sum(case when ${transactions.disbursementStatus} = 'PENDING' then ${transactions.netAmount} else 0 end), 0)`.mapWith(
+          Number
+        ),
+      pendingCount:
+        sql<number>`count(*) filter (where ${transactions.disbursementStatus} = 'PENDING')`.mapWith(
+          Number
+        ),
+      completedAmount:
+        sql<number>`coalesce(sum(case when ${transactions.disbursementStatus} = 'COMPLETED' then ${transactions.netAmount} else 0 end), 0)`.mapWith(
+          Number
+        ),
     })
     .from(transactions)
     .where(eq(transactions.paymentStatus, "PAID"));

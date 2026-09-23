@@ -1,18 +1,10 @@
 import { db } from "../../db";
-import {
-  aiVaultCredentials,
-  aiProviderKeys,
-  aiAppConfigs,
-} from "../../db/schema";
+import { aiVaultCredentials, aiProviderKeys, aiAppConfigs } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { CryptoService } from "../../services/crypto";
 import { AiGatewayService } from "../../services/aiGateway";
 import { config } from "../../config";
-import {
-  isMockApiKey,
-  callUpstreamNonStreaming,
-  callUpstreamStreamingChunks,
-} from "./upstream";
+import { isMockApiKey, callUpstreamNonStreaming, callUpstreamStreamingChunks } from "./upstream";
 
 /**
  * Core Chat Handler for both Streaming (SSE) and Non-Streaming calls
@@ -90,10 +82,7 @@ export async function handleAiChat({
   // 3. Resolve Model Alias & App Guardrails
   const modelAlias = body.modelAlias || "default";
   const appConfig = await db.query.aiAppConfigs.findFirst({
-    where: and(
-      eq(aiAppConfigs.appId, appId),
-      eq(aiAppConfigs.modelAlias, modelAlias)
-    ),
+    where: and(eq(aiAppConfigs.appId, appId), eq(aiAppConfigs.modelAlias, modelAlias)),
   });
 
   const dailyTokenLimit = appConfig?.dailyTokenLimit ?? 100_000;
@@ -117,19 +106,12 @@ export async function handleAiChat({
   // Coba ambil dari aiProviderKeys jika config memiliki providerKeyId
   if (appConfig?.providerKeyId) {
     const pKey = await db.query.aiProviderKeys.findFirst({
-      where: and(
-        eq(aiProviderKeys.id, appConfig.providerKeyId),
-        eq(aiProviderKeys.isActive, true)
-      ),
+      where: and(eq(aiProviderKeys.id, appConfig.providerKeyId), eq(aiProviderKeys.isActive, true)),
     });
     if (pKey) {
       resolvedProvider = pKey.providerName.toLowerCase();
       try {
-        rawApiKey = CryptoService.decrypt(
-          pKey.encryptedApiKey,
-          pKey.ivVector,
-          pKey.authTag || ""
-        );
+        rawApiKey = CryptoService.decrypt(pKey.encryptedApiKey, pKey.ivVector, pKey.authTag || "");
       } catch {
         set.status = 500;
         return { success: false, error: "FAILED_DECRYPTING_VAULT_KEY" };
@@ -214,7 +196,12 @@ export async function handleAiChat({
 
           if (rawApiKey && !isMockApiKey(rawApiKey)) {
             // Pemanggilan streaming nyata ke upstream AI (SSE relay asli)
-            chunks = await callUpstreamStreamingChunks(resolvedProvider, targetModel, rawApiKey, promptText);
+            chunks = await callUpstreamStreamingChunks(
+              resolvedProvider,
+              targetModel,
+              rawApiKey,
+              promptText
+            );
           } else if (config.isSandbox) {
             // Sandbox/Mock Mode: tanpa real key, simulasikan streaming chunks
             chunks = [
@@ -236,7 +223,9 @@ export async function handleAiChat({
           } else {
             set.status = 503;
             controller.error(
-              new Error("AI Proxy tidak dapat memproses: API key tidak valid / mode sandbox nonaktif.")
+              new Error(
+                "AI Proxy tidak dapat memproses: API key tidak valid / mode sandbox nonaktif."
+              )
             );
             return;
           }
@@ -267,9 +256,7 @@ export async function handleAiChat({
           controller.close();
         } catch (streamErr: any) {
           set.status = 502;
-          controller.error(
-            new Error(streamErr?.message || "Upstream AI provider gagal diproses.")
-          );
+          controller.error(new Error(streamErr?.message || "Upstream AI provider gagal diproses."));
         }
       },
     });
@@ -291,7 +278,12 @@ export async function handleAiChat({
     // Kegagalan upstream TIDAK lagi disembunyikan di balik teks fallback palsu —
     // client harus tahu request-nya gagal agar bisa retry.
     try {
-      responseText = await callUpstreamNonStreaming(resolvedProvider, targetModel, rawApiKey, promptText);
+      responseText = await callUpstreamNonStreaming(
+        resolvedProvider,
+        targetModel,
+        rawApiKey,
+        promptText
+      );
     } catch (upstreamErr: any) {
       set.status = 502;
       return {
@@ -303,7 +295,8 @@ export async function handleAiChat({
       };
     }
   } else if (config.isSandbox) {
-    responseText = "Respon terverifikasi dari Tertaut AI Proxy Shield. Kredensial terlindungi oleh enkripsi AES-256-GCM.";
+    responseText =
+      "Respon terverifikasi dari Tertaut AI Proxy Shield. Kredensial terlindungi oleh enkripsi AES-256-GCM.";
   } else {
     set.status = 503;
     return {

@@ -10,10 +10,7 @@ import { config } from "../../config";
 export async function handleBatchPayout() {
   // Hanya transaksi dari aplikasi mode LIVE yang boleh dicairkan.
   // Transaksi sandbox adalah simulasi dan tidak pernah dikirim ke Xendit.
-  const liveAppRows = await db
-    .select({ id: apps.id })
-    .from(apps)
-    .where(eq(apps.mode, "live"));
+  const liveAppRows = await db.select({ id: apps.id }).from(apps).where(eq(apps.mode, "live"));
   const liveAppIds = liveAppRows.map((a) => a.id);
 
   const eligibleTxs = liveAppIds.length
@@ -117,7 +114,12 @@ export async function handleBatchPayout() {
           disbursementId: disb.id,
           updatedAt: new Date(),
         })
-        .where(inArray(transactions.id, lockedRows.map((r) => r.id)));
+        .where(
+          inArray(
+            transactions.id,
+            lockedRows.map((r) => r.id)
+          )
+        );
 
       totalDisbursedAmount += lockedNet;
       results.push({
@@ -135,7 +137,12 @@ export async function handleBatchPayout() {
           disbursementStatus: "PENDING",
           updatedAt: new Date(),
         })
-        .where(inArray(transactions.id, lockedRows.map((r) => r.id)));
+        .where(
+          inArray(
+            transactions.id,
+            lockedRows.map((r) => r.id)
+          )
+        );
 
       results.push({
         builderId,

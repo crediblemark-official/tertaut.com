@@ -20,12 +20,15 @@ describe("Coverage: handleAiChat edge cases & error branches", () => {
 
   beforeEach(async () => {
     const email = `ai_chat_${suffix()}@test.com`;
-    const [b] = await db.insert(builders).values({
-      email,
-      name: "AI Chat Builder",
-      apiKey: generateAppApiKey("live"),
-      secretApiKey: generateBuilderSecretApiKey(),
-    }).returning();
+    const [b] = await db
+      .insert(builders)
+      .values({
+        email,
+        name: "AI Chat Builder",
+        apiKey: generateAppApiKey("live"),
+        secretApiKey: generateBuilderSecretApiKey(),
+      })
+      .returning();
     builderId = b.id;
 
     appId = `app_aichat_${suffix()}`;

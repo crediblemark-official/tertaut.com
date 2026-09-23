@@ -138,7 +138,9 @@ export class LicenseTokenService {
       );
       if (!ok) return { valid: false, reason: "INVALID_SIGNATURE" };
 
-      const claims = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as LicenseTokenClaims;
+      const claims = JSON.parse(
+        Buffer.from(body, "base64url").toString("utf8")
+      ) as LicenseTokenClaims;
       if (claims.typ !== "license") return { valid: false, reason: "INVALID_TOKEN_TYPE" };
       if (claims.exp && claims.exp < Math.floor(Date.now() / 1000)) {
         return { valid: false, reason: "TOKEN_EXPIRED" };

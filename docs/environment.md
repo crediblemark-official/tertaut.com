@@ -4,11 +4,11 @@ Panduan ini ditujukan bagi **pengembang yang mengintegrasikan SDK tertaut.com ke
 
 ## Ringkasan: 3 Nilai Wajib
 
-| Nilai | Contoh | Sifat | Dari mana |
-| --- | --- | --- | --- |
-| `apiKey` | `tt_live_xxxx...` | **Publik** | Publishable API key aplikasi — dashboard → **Aplikasi** / **Dashboard Docs** |
-| `appId` | `app_xxxx` | Publik | ID aplikasi (dashboard → Aplikasi) |
-| `baseUrl` | `https://tertaut.com` | Publik | Server API tertaut |
+| Nilai     | Contoh                | Sifat      | Dari mana                                                                    |
+| --------- | --------------------- | ---------- | ---------------------------------------------------------------------------- |
+| `apiKey`  | `tt_live_xxxx...`     | **Publik** | Publishable API key aplikasi — dashboard → **Aplikasi** / **Dashboard Docs** |
+| `appId`   | `app_xxxx`            | Publik     | ID aplikasi (dashboard → Aplikasi)                                           |
+| `baseUrl` | `https://tertaut.com` | Publik     | Server API tertaut                                                           |
 
 - SDK tidak membaca variabel environment secara otomatis — aplikasi Anda meneruskan nilai ini ke konstruktor.
 - `environment` (production/sandbox) **diturunkan secara otomatis dari prefiks `apiKey`**: `tt_live_` = produksi, `tt_test_` = sandbox. Tidak memerlukan konfigurasi flag tambahan.
@@ -82,10 +82,10 @@ const tertaut = new Tertaut({
 
 ## Kapan Pakai Key Sandbox vs Live
 
-| Skenario | Key | `baseUrl` |
-| --- | --- | --- |
+| Skenario              | Key           | `baseUrl`                                 |
+| --------------------- | ------------- | ----------------------------------------- |
 | Development / testing | `tt_test_...` | `https://tertaut.com` atau server staging |
-| Production / rilis | `tt_live_...` | `https://tertaut.com` |
+| Production / rilis    | `tt_live_...` | `https://tertaut.com`                     |
 
 Ganti .env (mis. per-build via env CI) — tidak perlu ubah kode: `.env.development`/`.env.production` di Vite/Next langsung meresolusi nilai yang benar.
 
@@ -96,7 +96,7 @@ Ganti .env (mis. per-build via env CI) — tidak perlu ubah kode: `.env.developm
 
 ## API Key untuk Apa?
 
-| Key | Dipakai untuk | Tempat |
-| --- | --- | --- |
-| `tt_live_...` / `tt_test_...` | SDK (checkout, lisensi, kredit, AI) di frontend/backend | Env aplikasi client |
-| `tt_secret_...` | Server-to-Server (`/api/v1/s2s*`) | Env **backend** saja |
+| Key                           | Dipakai untuk                                           | Tempat               |
+| ----------------------------- | ------------------------------------------------------- | -------------------- |
+| `tt_live_...` / `tt_test_...` | SDK (checkout, lisensi, kredit, AI) di frontend/backend | Env aplikasi client  |
+| `tt_secret_...`               | Server-to-Server (`/api/v1/s2s*`)                       | Env **backend** saja |

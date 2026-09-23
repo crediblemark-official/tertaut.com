@@ -109,9 +109,7 @@ router.beforeEach(async (to) => {
   applyEnvFromPath(to.path);
 
   const requiresAuth =
-    !!to.meta.requiresAuth ||
-    to.path.startsWith("/dashboard") ||
-    to.path.startsWith("/panel");
+    !!to.meta.requiresAuth || to.path.startsWith("/dashboard") || to.path.startsWith("/panel");
 
   // Wajib login untuk halaman beranda dashboard & panel.
   // Di dev sekalipun; server juga menegakkan authenticate() (DEV_USER hanya safety net).

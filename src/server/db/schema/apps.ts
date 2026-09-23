@@ -65,7 +65,8 @@ export interface DeliveryConfig {
 
 export interface MeteringConfig {
   enabled: boolean;
-  template: "llm_tokens" | "api_calls" | "compute_minutes" | "storage" | "active_seats" | "custom" | string;
+  template:
+    "llm_tokens" | "api_calls" | "compute_minutes" | "storage" | "active_seats" | "custom" | string;
   name: string;
   aggregation: string; // e.g. "sum(tokens) on ai_usage"
   eventName?: string;
@@ -77,45 +78,48 @@ export interface MeteringConfig {
   freeAllowance?: number;
 }
 
-export const apps = pgTable("apps", {
-  id: text("id").primaryKey(), // e.g. "app_xyz123"
-  /** Publishable API key aplikasi (pola publishable-key): `tt_live_...` / `tt_test_...`. Dipakai klien SDK @tertaut/sdk. */
-  apiKey: text("api_key").notNull().default(""),
-  builderId: uuid("builder_id")
-    .notNull()
-    .references(() => builders.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  slug: text("slug").notNull().unique(), // e.g. "fastmail-ai" for tertaut.com/v/:slug
-  mode: text("mode", { enum: ["sandbox", "live"] })
-    .default("sandbox")
-    .notNull(),
-  targetPrice: integer("target_price").default(0).notNull(), // dalam IDR
-  pricingType: text("pricing_type", { enum: ["one_time", "subscription", "free"] })
-    .default("one_time")
-    .notNull(),
-  billingPeriod: text("billing_period"),
-  trialPeriodDays: integer("trial_period_days").default(0),
-  deliveryConfig: jsonb("delivery_config").$type<DeliveryConfig>(),
-  meteringConfig: jsonb("metering_config").$type<MeteringConfig>(),
-  description: text("description"),
-  headline: text("headline"),
-  subheadline: text("subheadline"),
-  mediaUrl: text("media_url"),
-  valueProps: jsonb("value_props").$type<string[]>(),
-  ctaText: text("cta_text").default("Beli Sekarang"),
-  customIntentMessage: text("custom_intent_message"),
-  pageBlocks: jsonb("page_blocks").$type<any[]>(),
-  customHtml: text("custom_html"),
-  captureConfig: jsonb("capture_config").$type<CaptureConfig>(),
-  webhookUrl: text("webhook_url"),
-  redirectUrl: text("redirect_url"), // URL redirect balik (situsbisnis.com)
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [
-  index("idx_apps_builder_id").on(table.builderId),
-  index("idx_apps_mode").on(table.mode),
-]);
+export const apps = pgTable(
+  "apps",
+  {
+    id: text("id").primaryKey(), // e.g. "app_xyz123"
+    /** Publishable API key aplikasi (pola publishable-key): `tt_live_...` / `tt_test_...`. Dipakai klien SDK @tertaut/sdk. */
+    apiKey: text("api_key").notNull().default(""),
+    builderId: uuid("builder_id")
+      .notNull()
+      .references(() => builders.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(), // e.g. "fastmail-ai" for tertaut.com/v/:slug
+    mode: text("mode", { enum: ["sandbox", "live"] })
+      .default("sandbox")
+      .notNull(),
+    targetPrice: integer("target_price").default(0).notNull(), // dalam IDR
+    pricingType: text("pricing_type", { enum: ["one_time", "subscription", "free"] })
+      .default("one_time")
+      .notNull(),
+    billingPeriod: text("billing_period"),
+    trialPeriodDays: integer("trial_period_days").default(0),
+    deliveryConfig: jsonb("delivery_config").$type<DeliveryConfig>(),
+    meteringConfig: jsonb("metering_config").$type<MeteringConfig>(),
+    description: text("description"),
+    headline: text("headline"),
+    subheadline: text("subheadline"),
+    mediaUrl: text("media_url"),
+    valueProps: jsonb("value_props").$type<string[]>(),
+    ctaText: text("cta_text").default("Beli Sekarang"),
+    customIntentMessage: text("custom_intent_message"),
+    pageBlocks: jsonb("page_blocks").$type<any[]>(),
+    customHtml: text("custom_html"),
+    captureConfig: jsonb("capture_config").$type<CaptureConfig>(),
+    webhookUrl: text("webhook_url"),
+    redirectUrl: text("redirect_url"), // URL redirect balik (situsbisnis.com)
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_apps_builder_id").on(table.builderId),
+    index("idx_apps_mode").on(table.mode),
+  ]
+);
 
 export type App = typeof apps.$inferSelect;
 export type NewApp = typeof apps.$inferInsert;
-

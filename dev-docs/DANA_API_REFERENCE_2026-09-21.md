@@ -9,14 +9,15 @@
 
 ## 1. Arsitektur Produk API DANA
 
-| API | Keterangan | Status di tertaut.com |
-|---|---|---|
-| **Gapura Payment Gateway** | Hosted Checkout (`REDIRECT`) & Custom Checkout (`API`). API: Consult Pay, Create Order, Finish Notify, Query/Cancel/Refund | ✅ dipakai via `dana-node` SDK (`services/dana.ts`) |
-| **Disbursement to Bank / Balance** | Payout ke rekening bank: Transfer to Bank, Account Inquiry, Check Balance, Transfer Notify | ⚠️ dipakai sebagian (`transferToBank` saja) |
-| **Merchant Management** | Shop, Division (sub-merchant) | ❌ belum dipakai |
-| **DANA Widget** (Binding/Non-Binding), **QRIS (Acquirer)**, **OTC**, **Remittance**, **Subscription**, **Digital Goods** | Solusi lain | ❌ belum dipakai |
+| API                                                                                                                      | Keterangan                                                                                                                 | Status di tertaut.com                               |
+| ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| **Gapura Payment Gateway**                                                                                               | Hosted Checkout (`REDIRECT`) & Custom Checkout (`API`). API: Consult Pay, Create Order, Finish Notify, Query/Cancel/Refund | ✅ dipakai via `dana-node` SDK (`services/dana.ts`) |
+| **Disbursement to Bank / Balance**                                                                                       | Payout ke rekening bank: Transfer to Bank, Account Inquiry, Check Balance, Transfer Notify                                 | ⚠️ dipakai sebagian (`transferToBank` saja)         |
+| **Merchant Management**                                                                                                  | Shop, Division (sub-merchant)                                                                                              | ❌ belum dipakai                                    |
+| **DANA Widget** (Binding/Non-Binding), **QRIS (Acquirer)**, **OTC**, **Remittance**, **Subscription**, **Digital Goods** | Solusi lain                                                                                                                | ❌ belum dipakai                                    |
 
 Standar SNAP (Bank Indonesia) yang relevan:
+
 - Service code: **54** = Create Order, **56** = Finish Notify (terlihat dari response code `2005400` / `2005600`, dan `54xx`/`56xx`).
 - Expected timeout server: **8 detik**.
 - Format uang ISO-4217: string 2 desimal → `"10000.00"` untuk IDR 10.000.
@@ -34,6 +35,7 @@ Consult Pay → Create Order → tampilkan VA/QRIS/redirect ke buyer
 ```
 
 Aturan penting dari docs:
+
 - `urlParams` (Create Order) **wajib** memuat type `NOTIFICATION` + `PAY_RETURN`, masing-masing dengan `isDeeplink`. → ✅ kode sudah mengirim keduanya (`services/dana.ts`).
 - Sandbox: `validUpTo` **≤ 30 menit** dari waktu request. → ✅ kode pakai 20 menit (`formatWibIso`).
 - `partnerReferenceNo` untuk QRIS **maksimal 25 karakter**. → ✅ kode `.slice(0, 25)`.
@@ -49,23 +51,26 @@ Aturan penting dari docs:
 Headers yang dikirim DANA: `Content-Type`, `X-TIMESTAMP` (WIB), `X-SIGNATURE`, `ORIGIN`, `X-PARTNER-ID`, `X-EXTERNAL-ID`, `CHANNEL-ID`.
 
 Field body penting:
-| Field | Arti |
-|---|---|
-| `originalPartnerReferenceNo` | ID transaksi di sistem merchant (= `externalId` kita `tt_...`) |
-| `originalReferenceNo` | ID transaksi di sistem DANA |
-| `originalExternalId` | X-EXTERNAL-ID dari header saat Create Order |
-| `merchantId` / `subMerchantId` / `externalStoreId` | Identitas merchant/store |
-| `amount.value/currency` | Nominal transaksi (2 desimal) |
-| `latestTransactionStatus` | **`00` = Success**, `05` = Cancelled/expired |
-| `transactionStatusDesc` | Deskripsi status |
+
+| Field                                                             | Arti                                                                        |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `originalPartnerReferenceNo`                                      | ID transaksi di sistem merchant (= `externalId` kita `tt_...`)              |
+| `originalReferenceNo`                                             | ID transaksi di sistem DANA                                                 |
+| `originalExternalId`                                              | X-EXTERNAL-ID dari header saat Create Order                                 |
+| `merchantId` / `subMerchantId` / `externalStoreId`                | Identitas merchant/store                                                    |
+| `amount.value/currency`                                           | Nominal transaksi (2 desimal)                                               |
+| `latestTransactionStatus`                                         | **`00` = Success**, `05` = Cancelled/expired                                |
+| `transactionStatusDesc`                                           | Deskripsi status                                                            |
 | `additionalInfo.paymentInfo.payOptionInfos[].payMethod/payOption` | Metode pembayaran yang dipakai (mis. `NETWORK_PAY` + `NETWORK_PAY_PG_QRIS`) |
 
 Respons yang diharapkan DANA (HTTP 200):
+
 ```json
 { "responseCode": "2005600", "responseMessage": "Successful" }
 ```
 
 Pemetaan ke `routes/webhook/dana.ts`:
+
 - ✅ Deteksi format SNAP (`latestTransactionStatus`) vs legacy (`orderStatus`) sudah benar; `00` → success, `05`/`06` → expired/failed.
 - ✅ Ekstraksi identifier menjangkau `originalPartnerReferenceNo` & `originalReferenceNo`.
 - ✅ Ack SNAP `2005600` dikembalikan untuk jalur SNAP; legacy mempertahankan payload kaya.
@@ -75,7 +80,7 @@ Pemetaan ke `routes/webhook/dana.ts`:
 
 ## 4. ⚠️ Verifikasi Signature Webhook (GAP #1 — paling kritis)
 
-Format `X-SIGNATURE` SNAP (docs: *Authentication Asymmetric SNAP*):
+Format `X-SIGNATURE` SNAP (docs: _Authentication Asymmetric SNAP_):
 
 ```
 stringToSign = <HTTP METHOD> + ":" + <RELATIVE PATH URL> + ":" +
@@ -85,10 +90,11 @@ stringToSign = <HTTP METHOD> + ":" + <RELATIVE PATH URL> + ":" +
 
 - Diverifikasi dengan **DANA public key** (RSA-2048, SHA-256, hasil Base64) — BUKAN public key milik merchant.
 - Header peserta: `X-TIMESTAMP` wajib disertakan saat verifikasi.
-- SDK `dana-node` menyediakan `WebhookParser.parseWebhook(httpMethod, relativePathUrl, headers, body)` yang melakukan semuanya; ia melempar error jika signature tidak valid. Docs menekankan: *"Never trust webhook data unless it passes verification."*
+- SDK `dana-node` menyediakan `WebhookParser.parseWebhook(httpMethod, relativePathUrl, headers, body)` yang melakukan semuanya; ia melempar error jika signature tidak valid. Docs menekankan: _"Never trust webhook data unless it passes verification."_
 - Untuk request keluar (Create Order dll), signature dibuat dari `X-CLIENT-KEY|X-TIMESTAMP` (asymmetric) + field di atas — SDK menanganinya otomatis.
 
 **Kondisi di kode:** `DanaService.verifyWebhook()` hanya memakai `WebhookParser` bila dipanggil dengan `options.method` + `options.path`. Kedua pemanggil di `routes/webhook/dana.ts` (baris ±65 dan ±187) **tidak meneruskan** argumen tersebut, sehingga:
+
 1. Parser SNAP tidak pernah dieksekusi;
 2. Kode jatuh ke fallback `crypto.createVerify("SHA256").update(body)` yang memverifikasi signature **terhadap raw body saja** — bukan format `method:path:hash:timestamp` DANA;
 3. Webhook asli production dari DANA akan gagal verifikasi (atau lebih buruk: policy fallback membuat verifikasi bisa terlewati di kondisi tertentu, mis. sandbox tanpa public key).
@@ -100,6 +106,7 @@ stringToSign = <HTTP METHOD> + ":" + <RELATIVE PATH URL> + ":" +
 ## 5. Disbursement to Bank — flow resmi (GAP #2)
 
 Urutan resmi dari docs:
+
 1. **Check Disbursement Account API** — cek saldo merchant deposit account sebelum transfer.
 2. **Transfer to Bank Account Inquiry API** — validasi rekening tujuan ke bank (request: `customerNumber`, `beneficiaryAccountNumber`, `amount`, `additionalInfo.fundType`, `additionalInfo.beneficiaryBankCode`).
 3. **Transfer to Bank API** — eksekusi transfer.
@@ -107,6 +114,7 @@ Urutan resmi dari docs:
 5. Bila `needNotify == true`, DANA memanggil **Transfer to Bank Notify API** webhook (`/v1.0/emoney/transfer-bank-notify.htm`) dengan status final.
 
 **Kondisi di kode (`DanaService.createDisbursement`):**
+
 - Tidak ada inquiry & tidak ada cek saldo sebelum transfer.
 - Status di-hardcode `COMPLETED` untuk semua respons SDK yang tidak throw, padahal DANA lazim membalas `2024300` (in-progress). Ledger bisa mencatat "sudah cair" padahal masih diproses.
 - Webhook notify final sudah terdaftar di `snapBiWebhookRoutes` dan `handleDanaDisburseNotifyWebhook` sudah meng-update `disbursementStatus` — tetapi karena status awal langsung `COMPLETED`, update webhook-nya kehilangan peran (guard `inArray(disbursementStatus, ["PROCESSING","PENDING"])` tidak akan match).
@@ -120,6 +128,7 @@ Urutan resmi dari docs:
 Sudah sesuai: `amount.value` 2 desimal, `payOptionDetails[].transAmount`, `additionalInfo.mcc`, `envInfo.sourcePlatform: "IPG"`, `envInfo.orderTerminalType: "WEB"`, `additionalInfo.order.scenario`, `externalStoreId` untuk QRIS.
 
 Perlu perhatian:
+
 - Docs menandai `additionalInfo.order.buyer` **Required** dengan sub-field `externalUserId` **Required** — kode mengirim `buyer: {}` kosong. Validator production dapat menolak payload. Isi minimal `externalUserId` (mis. hash email buyer).
 - Idempotency retry: jika `createOrder` timeout, **pakai `partnerReferenceNo` yang sama** — jangan generate externalId baru (saat ini retry dari user akan membuat session/externalId baru; tidak fatal, tapi boros order di sisi DANA).
 
@@ -136,7 +145,7 @@ Perlu perhatian:
 
 ## 8. Proses Go-Live (konteks operasional)
 
-1. Sandbox: jalankan semua **mandatory scenario UAT** di *Integration Checklist* (`dashboard.dana.id/sandbox/golive`). Test suite otomatis resmi: `github.com/dana-id/uat-script` (< 15 menit).
+1. Sandbox: jalankan semua **mandatory scenario UAT** di _Integration Checklist_ (`dashboard.dana.id/sandbox/golive`). Test suite otomatis resmi: `github.com/dana-id/uat-script` (< 15 menit).
 2. Tanda tangani **UAT Sign-Off Report** di portal (✅ sudah dilakukan 17 Sep 2026 — lihat `DANA_INTEGRATION.md`).
 3. Devsite testing ASPI/SNAP (berjalan otomatis).
 4. Submit pilot testing documents + verifikasi E2E (✅ arsip `pilot_testing_filled.zip`).
@@ -146,11 +155,11 @@ Perlu perhatian:
 
 ## 9. Ringkasan Gap & Rekomendasi
 
-| # | Temuan | Dampak | Prioritas |
-|---|---|---|---|
-| 1 | Verifikasi `X-SIGNATURE` SNAP tidak pernah memakai `WebhookParser` (handler tidak meneruskan `method`/`path`); fallback memverifikasi format yang salah | Webhook production ditolak ATAU verifikasi bisa terlewati → risiko keamanan finansial | 🔴 Kritis — perbaiki sebelum go-live |
-| 2 | `createDisbursement` hardcode `COMPLETED`; tidak menghormati `2024300` in-progress; inquiry & cek saldo tidak dipakai | Ledger pencarian dana tidak akurat; webhook final kehilangan fungsi | 🟠 Tinggi |
-| 3 | `additionalInfo.order.buyer.externalUserId` (Required per docs) dikirim kosong | Potensi penolakan Create Order di production | 🟡 Sedang |
-| 4 | Retry Create Order belum memanfaatkan idempotency key `merchantId+partnerReferenceNo` | Order duplikat di sisi DANA saat retry | 🟢 Rendah |
+| #   | Temuan                                                                                                                                                  | Dampak                                                                                | Prioritas                            |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------ |
+| 1   | Verifikasi `X-SIGNATURE` SNAP tidak pernah memakai `WebhookParser` (handler tidak meneruskan `method`/`path`); fallback memverifikasi format yang salah | Webhook production ditolak ATAU verifikasi bisa terlewati → risiko keamanan finansial | 🔴 Kritis — perbaiki sebelum go-live |
+| 2   | `createDisbursement` hardcode `COMPLETED`; tidak menghormati `2024300` in-progress; inquiry & cek saldo tidak dipakai                                   | Ledger pencarian dana tidak akurat; webhook final kehilangan fungsi                   | 🟠 Tinggi                            |
+| 3   | `additionalInfo.order.buyer.externalUserId` (Required per docs) dikirim kosong                                                                          | Potensi penolakan Create Order di production                                          | 🟡 Sedang                            |
+| 4   | Retry Create Order belum memanfaatkan idempotency key `merchantId+partnerReferenceNo`                                                                   | Order duplikat di sisi DANA saat retry                                                | 🟢 Rendah                            |
 
 > Setelah perbaikan #1, wajib re-test UAT Finish Notify (nominal `11011` sukses, `11012` error, plus skenario signature unauthorized `4015600`) karena perilaku verifikasi akan berubah.

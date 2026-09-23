@@ -4,10 +4,10 @@ Panduan integrasi menyeluruh end-to-end menggunakan REST API dan SDK tertaut.com
 
 ## 0. Lingkungan & Base URL
 
-| Mode | API Key | Base URL (server) |
-| --- | --- | --- |
+| Mode    | API Key       | Base URL (server)     |
+| ------- | ------------- | --------------------- |
 | Sandbox | `tt_test_...` | `https://tertaut.com` |
-| Live | `tt_live_...` | `https://tertaut.com` |
+| Live    | `tt_live_...` | `https://tertaut.com` |
 
 - Mode (`environment`) di SDK otomatis ditentukan dari **prefiks** API key — tidak memerlukan konfigurasi terpisah.
 - Saat development lokal, set `baseUrl` ke server lokal Anda, misal `http://localhost:3001`.
@@ -73,6 +73,7 @@ Respons sukses:
 ```
 
 > **Catatan Keamanan & Parameter**:
+>
 > - `amount`: Harus sesuai dengan harga resmi aplikasi atau harga setelah diskon kupon valid (anti-tampering).
 > - `grantDays`: Durasi lisensi ditentukan secara terpusat oleh konfigurasi produk (`deliveryConfig.licenseKey.expiresInDays`, default 365 hari) dan tidak dapat dimanipulasi dari sisi klien.
 > - `appSlug` / `slug` dapat digunakan sebagai alternatif `appId`.
@@ -126,13 +127,13 @@ Respons **valid**:
 
 Respons **tidak valid** (`valid: false` + `status`):
 
-| `status` | Keterangan & HTTP Code |
-| --- | --- |
-| `NOT_FOUND` | Kunci lisensi tidak ditemukan di sistem (HTTP 404). |
-| `REVOKED` | Lisensi telah dicabut oleh builder. |
-| `EXPIRED` | Masa aktif lisensi telah habis. |
+| `status`               | Keterangan & HTTP Code                                                              |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| `NOT_FOUND`            | Kunci lisensi tidak ditemukan di sistem (HTTP 404).                                 |
+| `REVOKED`              | Lisensi telah dicabut oleh builder.                                                 |
+| `EXPIRED`              | Masa aktif lisensi telah habis.                                                     |
 | `DEVICE_NOT_ACTIVATED` | Perangkat belum diaktivasi untuk lisensi ini. Jalankan `/activate` terlebih dahulu. |
-| `RATE_LIMITED` | Terlalu banyak permintaan validasi (HTTP 429, batas 120 req/menit). |
+| `RATE_LIMITED`         | Terlalu banyak permintaan validasi (HTTP 429, batas 120 req/menit).                 |
 
 > Catatan: Status `APP_MISMATCH` (HTTP 403) hanya dikembalikan oleh endpoint verifikasi berbasis aplikasi (`POST /api/v1/licensing/validate`) jika lisensi divalidasi pada aplikasi yang berbeda.
 
@@ -224,16 +225,16 @@ Respons:
 
 API tertaut.com menggunakan kode status HTTP standar:
 
-| HTTP Code | Arti | Contoh Kasus |
-| --- | --- | --- |
-| `200 OK` | Permintaan berhasil diproses. | Validasi berhasil, saldo terbaca. |
-| `400 Bad Request` | Parameter input tidak valid. | Format email salah, harga tidak cocok dengan list price. |
-| `401 Unauthorized` | Autentikasi gagal atau API key salah. | Header `Authorization` S2S tidak valid. |
-| `402 Payment Required` | Saldo kredit lisensi habis. | Konsumsi kredit melewati batas saldo saat ini. |
-| `403 Forbidden` | Akses ditolak. | Lisensi `REVOKED`/`EXPIRED`, atau kuota perangkat (*seat*) penuh. |
-| `404 Not Found` | Resource tidak ditemukan. | Kunci lisensi atau ID aplikasi tidak terdaftar. |
-| `409 Conflict` | Terjadi konflik state atau balapan data. | Kuota kupon habis saat checkout, pendaftaran trial ganda. |
-| `429 Too Many Requests` | Melebihi batas ambang (*Rate Limit*). | Terlalu banyak percobaan aktivasi/validasi per menit. |
+| HTTP Code               | Arti                                     | Contoh Kasus                                                      |
+| ----------------------- | ---------------------------------------- | ----------------------------------------------------------------- |
+| `200 OK`                | Permintaan berhasil diproses.            | Validasi berhasil, saldo terbaca.                                 |
+| `400 Bad Request`       | Parameter input tidak valid.             | Format email salah, harga tidak cocok dengan list price.          |
+| `401 Unauthorized`      | Autentikasi gagal atau API key salah.    | Header `Authorization` S2S tidak valid.                           |
+| `402 Payment Required`  | Saldo kredit lisensi habis.              | Konsumsi kredit melewati batas saldo saat ini.                    |
+| `403 Forbidden`         | Akses ditolak.                           | Lisensi `REVOKED`/`EXPIRED`, atau kuota perangkat (_seat_) penuh. |
+| `404 Not Found`         | Resource tidak ditemukan.                | Kunci lisensi atau ID aplikasi tidak terdaftar.                   |
+| `409 Conflict`          | Terjadi konflik state atau balapan data. | Kuota kupon habis saat checkout, pendaftaran trial ganda.         |
+| `429 Too Many Requests` | Melebihi batas ambang (_Rate Limit_).    | Terlalu banyak percobaan aktivasi/validasi per menit.             |
 
 ## Referensi Lengkap
 

@@ -20,14 +20,14 @@ export const badgeRoutes = new Elysia({ prefix: "/badge" })
       const statusText = !app
         ? "unverified"
         : app.mode === "live"
-        ? "Verified • MoR Protected"
-        : "Sandbox • Testing";
+          ? "Verified • MoR Protected"
+          : "Sandbox • Testing";
 
       const statusBg = !app
         ? "#666666"
         : app.mode === "live"
-        ? "#0F4C3A" // Forest Green
-        : "#2563EB"; // Sandbox Blue
+          ? "#0F4C3A" // Forest Green
+          : "#2563EB"; // Sandbox Blue
 
       const statusTextColor = !app?.mode || app.mode === "live" ? "#ffffff" : "#ffffff";
 
@@ -65,7 +65,8 @@ export const badgeRoutes = new Elysia({ prefix: "/badge" })
       detail: {
         tags: ["Launch Kit"],
         summary: "Embeddable Launch Badge (SVG)",
-        description: "Generates dynamic SVG trust and launch status badges for external landing pages",
+        description:
+          "Generates dynamic SVG trust and launch status badges for external landing pages",
       },
     }
   );

@@ -44,7 +44,10 @@ export class AiGatewayService {
    * Validasi lisensi JWT atau licenseKey mentah dari Modul 3
    * Menegakkan FR-2.1 (Entitlement) & FR-2.2 (Kill-Switch Active Status Check)
    */
-  static async validateLicense(authHeaderOrToken?: string, bodyLicenseKey?: string): Promise<LicenseValidationResult> {
+  static async validateLicense(
+    authHeaderOrToken?: string,
+    bodyLicenseKey?: string
+  ): Promise<LicenseValidationResult> {
     let rawToken = "";
 
     if (authHeaderOrToken) {
@@ -126,7 +129,10 @@ export class AiGatewayService {
   /**
    * Cek Rate Limit (FR-3.2: Strict Request Rate Limit per minute)
    */
-  static checkRateLimit(identifier: string, maxRequestsPerMin = 15): { allowed: boolean; retryAfter?: number } {
+  static checkRateLimit(
+    identifier: string,
+    maxRequestsPerMin = 15
+  ): { allowed: boolean; retryAfter?: number } {
     const now = Date.now();
     const windowStart = now - 60_000;
 
@@ -171,12 +177,7 @@ export class AiGatewayService {
           sumTokens: sql<number>`COALESCE(SUM(${aiUsageLogs.totalTokens}), 0)::int`,
         })
         .from(aiUsageLogs)
-        .where(
-          and(
-            eq(aiUsageLogs.licenseId, licenseId),
-            gte(aiUsageLogs.createdAt, startOfDay)
-          )
-        );
+        .where(and(eq(aiUsageLogs.licenseId, licenseId), gte(aiUsageLogs.createdAt, startOfDay)));
       totalUsed += usageResults[0]?.sumTokens || 0;
     }
 
@@ -187,12 +188,7 @@ export class AiGatewayService {
           sumTokens: sql<number>`COALESCE(SUM(${aiProxyLogs.totalTokens}), 0)::int`,
         })
         .from(aiProxyLogs)
-        .where(
-          and(
-            eq(aiProxyLogs.appId, appId),
-            gte(aiProxyLogs.createdAt, startOfDay)
-          )
-        );
+        .where(and(eq(aiProxyLogs.appId, appId), gte(aiProxyLogs.createdAt, startOfDay)));
       totalUsed += legacyResults[0]?.sumTokens || 0;
     }
 
@@ -204,7 +200,11 @@ export class AiGatewayService {
    * Tanpa increment ini, cek BUDGET_LIMIT_EXCEEDED tidak pernah terpicu oleh
    * pemakaian nyata. Dipanggil setiap kali request AI sukses diproses.
    */
-  static async incrementVaultMonthlyUsage(appId: string, provider: string, totalTokens: number): Promise<void> {
+  static async incrementVaultMonthlyUsage(
+    appId: string,
+    provider: string,
+    totalTokens: number
+  ): Promise<void> {
     if (totalTokens <= 0) return;
 
     await db
@@ -214,10 +214,7 @@ export class AiGatewayService {
         updatedAt: new Date(),
       })
       .where(
-        and(
-          eq(aiVaultCredentials.appId, appId),
-          eq(aiVaultCredentials.provider, provider as any)
-        )
+        and(eq(aiVaultCredentials.appId, appId), eq(aiVaultCredentials.provider, provider as any))
       );
   }
 
@@ -227,10 +224,7 @@ export class AiGatewayService {
   static async getQuotaStatus(license: License, modelAlias = "default") {
     // Ambil app config untuk mendapatkan daily_token_limit
     const appConfig = await db.query.aiAppConfigs.findFirst({
-      where: and(
-        eq(aiAppConfigs.appId, license.appId),
-        eq(aiAppConfigs.modelAlias, modelAlias)
-      ),
+      where: and(eq(aiAppConfigs.appId, license.appId), eq(aiAppConfigs.modelAlias, modelAlias)),
     });
 
     const dailyLimit = appConfig?.dailyTokenLimit ?? 100_000;

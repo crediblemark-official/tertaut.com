@@ -22,14 +22,26 @@ describe("Coverage: apps/builder.ts resolveCurrentBuilder & seedSandboxBuilderIf
 
   it("resolveCurrentBuilder: user login cocok dengan builders.userId", async () => {
     const userId = `usr_${suffix()}`;
-    const [u] = await db.insert(user).values({ id: userId, email: `u_${suffix()}@test.com`, name: "Test User", createdAt: new Date(), updatedAt: new Date() }).returning();
-    const [b] = await db.insert(builders).values({
-      userId: u.id,
-      email: u.email,
-      name: u.name,
-      apiKey: generateAppApiKey("live"),
-      secretApiKey: generateBuilderSecretApiKey(),
-    }).returning();
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: userId,
+        email: `u_${suffix()}@test.com`,
+        name: "Test User",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    const [b] = await db
+      .insert(builders)
+      .values({
+        userId: u.id,
+        email: u.email,
+        name: u.name,
+        apiKey: generateAppApiKey("live"),
+        secretApiKey: generateBuilderSecretApiKey(),
+      })
+      .returning();
 
     // Headers with admin session from setupTestAuth
     const headers = new Headers();
@@ -54,12 +66,15 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
 
   beforeEach(async () => {
     const email = `meter_${suffix()}@test.com`;
-    const [b] = await db.insert(builders).values({
-      email,
-      name: "Metering Builder",
-      apiKey: generateAppApiKey("live"),
-      secretApiKey: generateBuilderSecretApiKey(),
-    }).returning();
+    const [b] = await db
+      .insert(builders)
+      .values({
+        email,
+        name: "Metering Builder",
+        apiKey: generateAppApiKey("live"),
+        secretApiKey: generateBuilderSecretApiKey(),
+      })
+      .returning();
     builderId = b.id;
 
     appId = `app_meter_${suffix()}`;
@@ -86,11 +101,15 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
     licenseKey = licRes.license.licenseKey;
 
     // Topup credits
-    await CreditService.grant({
-      licenseId: licRes.license.id,
-      appId,
-      customerEmail: licRes.license.customerEmail,
-    }, 100, { description: "Initial balance" });
+    await CreditService.grant(
+      {
+        licenseId: licRes.license.id,
+        appId,
+        customerEmail: licRes.license.customerEmail,
+      },
+      100,
+      { description: "Initial balance" }
+    );
 
     // Create unmetered app
     unmeteredAppId = `app_unmeter_${suffix()}`;
@@ -171,7 +190,7 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
         metadata: { model: "gemini-flash" },
       }),
     });
-    const data = await res.json() as any;
+    const data = (await res.json()) as any;
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.creditsDebited).toBe(10); // 2 units * 5 unitPrice
@@ -198,7 +217,7 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
 
     // Sukses jika ada
     const res = await fetch(`http://localhost:3001/api/v1/metering/usage/${licenseKey}`);
-    const data = await res.json() as any;
+    const data = (await res.json()) as any;
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.balance).toBeDefined();
@@ -207,7 +226,7 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
 
   it("GET /metering/stats: admin / builder ringkasan stats", async () => {
     const res = await fetch("http://localhost:3001/api/v1/metering/stats");
-    const data = await res.json() as any;
+    const data = (await res.json()) as any;
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
     expect(typeof data.totalEvents).toBe("number");

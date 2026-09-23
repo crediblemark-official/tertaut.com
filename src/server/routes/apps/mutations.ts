@@ -138,7 +138,12 @@ export async function handleCreateApp({ body, set, request: { headers } }: Creat
 /**
  * Perbarui Konfigurasi Kampanye / Aplikasi (FR-1.1 & FR-1.3)
  */
-export async function handleUpdateApp({ params: { appId }, body, set, request: { headers } }: UpdateAppContext) {
+export async function handleUpdateApp({
+  params: { appId },
+  body,
+  set,
+  request: { headers },
+}: UpdateAppContext) {
   const { builder, isAdmin } = await resolveCurrentBuilder(headers);
   const existing = await db.query.apps.findFirst({
     where: eq(apps.id, appId),
@@ -167,10 +172,26 @@ export async function handleUpdateApp({ params: { appId }, body, set, request: {
 
   // Explicit allowlist to prevent mass-assignment/field pollution
   const {
-    name, slug, targetPrice, mode, description, headline, subheadline,
-    mediaUrl, valueProps, ctaText, customIntentMessage, redirectUrl,
-    pageBlocks, customHtml, captureConfig,
-    pricingType, billingPeriod, trialPeriodDays, deliveryConfig, meteringConfig
+    name,
+    slug,
+    targetPrice,
+    mode,
+    description,
+    headline,
+    subheadline,
+    mediaUrl,
+    valueProps,
+    ctaText,
+    customIntentMessage,
+    redirectUrl,
+    pageBlocks,
+    customHtml,
+    captureConfig,
+    pricingType,
+    billingPeriod,
+    trialPeriodDays,
+    deliveryConfig,
+    meteringConfig,
   } = body as Record<string, any>;
 
   const updateData: Record<string, any> = { updatedAt: new Date() };
@@ -195,11 +216,7 @@ export async function handleUpdateApp({ params: { appId }, body, set, request: {
   if (customHtml !== undefined) updateData.customHtml = customHtml;
   if (captureConfig !== undefined) updateData.captureConfig = captureConfig;
 
-  const [updated] = await db
-    .update(apps)
-    .set(updateData)
-    .where(eq(apps.id, appId))
-    .returning();
+  const [updated] = await db.update(apps).set(updateData).where(eq(apps.id, appId)).returning();
 
   return { success: true, app: updated };
 }
@@ -207,7 +224,11 @@ export async function handleUpdateApp({ params: { appId }, body, set, request: {
 /**
  * Hapus Kampanye / Aplikasi (FR-1.1)
  */
-export async function handleDeleteApp({ params: { appId }, set, request: { headers } }: AppIdParamContext) {
+export async function handleDeleteApp({
+  params: { appId },
+  set,
+  request: { headers },
+}: AppIdParamContext) {
   const { builder, isAdmin } = await resolveCurrentBuilder(headers);
   const existing = await db.query.apps.findFirst({
     where: eq(apps.id, appId),
@@ -231,7 +252,12 @@ export async function handleDeleteApp({ params: { appId }, set, request: { heade
 /**
  * Perbarui status mode aplikasi (sandbox <-> live)
  */
-export async function handleUpdateMode({ params: { appId }, body: { mode }, set, request: { headers } }: UpdateModeContext) {
+export async function handleUpdateMode({
+  params: { appId },
+  body: { mode },
+  set,
+  request: { headers },
+}: UpdateModeContext) {
   const { builder, isAdmin } = await resolveCurrentBuilder(headers);
   const currentApp = await db.query.apps.findFirst({
     where: eq(apps.id, appId),
@@ -259,7 +285,11 @@ export async function handleUpdateMode({ params: { appId }, body: { mode }, set,
 /**
  * Rotasi (regenerate) publishable API key aplikasi (pola publishable-key ala creem.io)
  */
-export async function handleRotateApiKey({ params: { appId }, set, request: { headers } }: AppIdParamContext) {
+export async function handleRotateApiKey({
+  params: { appId },
+  set,
+  request: { headers },
+}: AppIdParamContext) {
   const { builder, isAdmin } = await resolveCurrentBuilder(headers);
   const existing = await db.query.apps.findFirst({
     where: eq(apps.id, appId),
@@ -287,7 +317,10 @@ export async function handleRotateApiKey({ params: { appId }, set, request: { he
 /**
  * Rotasi secret API key builder (server-to-server). Hanya sesi dashboard owner.
  */
-export async function handleRotateBuilderSecret({ request: { headers }, set }: RotateSecretContext) {
+export async function handleRotateBuilderSecret({
+  request: { headers },
+  set,
+}: RotateSecretContext) {
   const { builder } = await resolveCurrentBuilder(headers);
 
   if (!builder) {

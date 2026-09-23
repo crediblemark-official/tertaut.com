@@ -6,7 +6,11 @@ import { resolveCurrentBuilder } from "./builder";
 /**
  * Eksekusi Pencairan Otomatis (Disbursement 95% net) via Xendit
  */
-export async function handleDisburse({ params: { transactionId }, set, request: { headers } }: any) {
+export async function handleDisburse({
+  params: { transactionId },
+  set,
+  request: { headers },
+}: any) {
   const { builder: authBuilder, isAdmin } = await resolveCurrentBuilder(headers);
   const tx = await db.query.transactions.findFirst({
     where: eq(transactions.id, transactionId),
@@ -43,7 +47,9 @@ export async function handleDisburse({ params: { transactionId }, set, request: 
   const txApp = await db.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
   if (txApp?.mode === "sandbox") {
     set.status = 400;
-    return { error: "Transaksi sandbox (simulasi) tidak dapat dicairkan. Cairkan hanya transaksi live." };
+    return {
+      error: "Transaksi sandbox (simulasi) tidak dapat dicairkan. Cairkan hanya transaksi live.",
+    };
   }
 
   // Atomic lock using conditional UPDATE to prevent double disbursement race condition

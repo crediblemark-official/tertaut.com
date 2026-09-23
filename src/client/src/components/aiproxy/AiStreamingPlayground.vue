@@ -1,30 +1,32 @@
 <script setup lang="ts">
-import { Send, Bot } from 'lucide-vue-next'
-import type { AppItem } from '../../types/app'
-import SearchPicker from '../common/SearchPicker.vue'
+import { Send, Bot } from "lucide-vue-next";
+import type { AppItem } from "../../types/app";
+import SearchPicker from "../common/SearchPicker.vue";
 
 defineProps<{
-  loading: boolean
-  aiResult: any
-  appsList?: AppItem[]
-}>()
+  loading: boolean;
+  aiResult: any;
+  appsList?: AppItem[];
+}>();
 
-const selectedAppId = defineModel<string>('selectedAppId', { default: '' })
-const licenseKey = defineModel<string>('licenseKey', { default: '' })
-const modelAlias = defineModel<string>('modelAlias', { default: 'fast-summary-model' })
-const streamMode = defineModel<boolean>('streamMode', { default: true })
-const userPrompt = defineModel<string>('userPrompt', {
-  default: 'Rangkumkan email penting dari investor ini dalam 3 poin actionable.'
-})
+const selectedAppId = defineModel<string>("selectedAppId", { default: "" });
+const licenseKey = defineModel<string>("licenseKey", { default: "" });
+const modelAlias = defineModel<string>("modelAlias", { default: "fast-summary-model" });
+const streamMode = defineModel<boolean>("streamMode", { default: true });
+const userPrompt = defineModel<string>("userPrompt", {
+  default: "Rangkumkan email penting dari investor ini dalam 3 poin actionable.",
+});
 
 const emit = defineEmits<{
-  (e: 'testAiCall'): void
-  (e: 'appChange'): void
-}>()
+  (e: "testAiCall"): void;
+  (e: "appChange"): void;
+}>();
 </script>
 
 <template>
-  <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-jetblack/10 border-t border-b border-jetblack/10 py-6">
+  <div
+    class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-jetblack/10 border-t border-b border-jetblack/10 py-6"
+  >
     <!-- Prompt Input Form -->
     <div class="pb-6 lg:pb-0 pr-0 lg:pr-6 space-y-3.5">
       <div class="flex items-center justify-between">
@@ -88,7 +90,7 @@ const emit = defineEmits<{
           class="w-full h-9 rounded-lg btn-gold text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
         >
           <Send class="w-3.5 h-3.5" />
-          <span>{{ loading ? 'Mengalirkan via Proxy Shield...' : 'Kirim via Proxy Shield' }}</span>
+          <span>{{ loading ? "Mengalirkan via Proxy Shield..." : "Kirim via Proxy Shield" }}</span>
         </button>
       </div>
     </div>
@@ -97,9 +99,14 @@ const emit = defineEmits<{
     <div class="pt-6 lg:pt-0 pl-0 lg:pl-6 space-y-3.5">
       <h2 class="text-sm font-bold text-jetblack">Respon AI Terlindungi</h2>
 
-      <div v-if="aiResult" class="p-3.5 rounded-xl bg-jetblack text-white font-mono text-xs space-y-2">
+      <div
+        v-if="aiResult"
+        class="p-3.5 rounded-xl bg-jetblack text-white font-mono text-xs space-y-2"
+      >
         <div class="flex items-center justify-between text-[11px] border-b border-white/10 pb-1.5">
-          <span class="text-gold font-bold">Latency: {{ aiResult.latencyMs ?? 'Streaming...' }}ms</span>
+          <span class="text-gold font-bold"
+            >Latency: {{ aiResult.latencyMs ?? "Streaming..." }}ms</span
+          >
           <span class="text-white/60">Model: {{ aiResult.model || modelAlias }}</span>
         </div>
 
@@ -109,7 +116,10 @@ const emit = defineEmits<{
 
         <div v-else class="text-white/90 text-xs whitespace-pre-wrap leading-relaxed min-h-[80px]">
           {{ aiResult.text }}
-          <span v-if="aiResult.isStreaming" class="inline-block w-2 h-4 bg-gold animate-pulse ml-0.5"></span>
+          <span
+            v-if="aiResult.isStreaming"
+            class="inline-block w-2 h-4 bg-gold animate-pulse ml-0.5"
+          ></span>
         </div>
       </div>
 

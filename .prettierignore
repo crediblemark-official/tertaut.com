@@ -12,3 +12,4 @@ bun.lock
 src/server/db/migrations/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+.agents/

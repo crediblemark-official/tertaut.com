@@ -1,68 +1,86 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { KeyRound, X, Sparkles } from 'lucide-vue-next'
-import type { AppItem } from '../../types/app'
-import type { LicensePlatform } from '../../types/licensing'
-import SearchPicker from '../common/SearchPicker.vue'
+import { ref, watch } from "vue";
+import { KeyRound, X, Sparkles } from "lucide-vue-next";
+import type { AppItem } from "../../types/app";
+import type { LicensePlatform } from "../../types/licensing";
+import SearchPicker from "../common/SearchPicker.vue";
 
 const props = defineProps<{
-  show: boolean
-  appsList: AppItem[]
-  isIssuing: boolean
-  defaultAppId?: string
-}>()
+  show: boolean;
+  appsList: AppItem[];
+  isIssuing: boolean;
+  defaultAppId?: string;
+}>();
 
 const emit = defineEmits<{
-  (e: 'close'): void
-  (e: 'issue', payload: {
-    appId: string
-    customerEmail: string
-    grantDays: number
-    maxSeats: number
-    platform: LicensePlatform
-  }): void
-}>()
+  (e: "close"): void;
+  (
+    e: "issue",
+    payload: {
+      appId: string;
+      customerEmail: string;
+      grantDays: number;
+      maxSeats: number;
+      platform: LicensePlatform;
+    }
+  ): void;
+}>();
 
-const issueAppId = ref(props.defaultAppId || '')
-const issueEmail = ref('')
-const issueGrantDays = ref(30)
-const issueMaxSeats = ref(3)
-const issuePlatform = ref<LicensePlatform>('general')
+const issueAppId = ref(props.defaultAppId || "");
+const issueEmail = ref("");
+const issueGrantDays = ref(30);
+const issueMaxSeats = ref(3);
+const issuePlatform = ref<LicensePlatform>("general");
 
-watch(() => props.defaultAppId, (val) => {
-  if (val && !issueAppId.value) {
-    issueAppId.value = val
+watch(
+  () => props.defaultAppId,
+  (val) => {
+    if (val && !issueAppId.value) {
+      issueAppId.value = val;
+    }
   }
-})
+);
 
 function submit() {
-  if (!issueEmail.value || !issueAppId.value) return
-  emit('issue', {
+  if (!issueEmail.value || !issueAppId.value) return;
+  emit("issue", {
     appId: issueAppId.value,
     customerEmail: issueEmail.value,
     grantDays: issueGrantDays.value,
     maxSeats: issueMaxSeats.value,
-    platform: issuePlatform.value
-  })
+    platform: issuePlatform.value,
+  });
 }
 </script>
 
 <template>
-  <div v-if="show" class="fixed inset-0 bg-jetblack/50 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
-    <div class="bg-white rounded-xl max-w-sm w-full p-4 shadow-xl space-y-3 border border-jetblack/10 animate-fadeIn">
+  <div
+    v-if="show"
+    class="fixed inset-0 bg-jetblack/50 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4"
+  >
+    <div
+      class="bg-white rounded-xl max-w-sm w-full p-4 shadow-xl space-y-3 border border-jetblack/10 animate-fadeIn"
+    >
       <div class="flex items-center justify-between pb-1 border-b border-jetblack/5">
         <div class="flex items-center gap-2">
           <KeyRound class="w-4 h-4 text-gold" />
-          <h3 class="text-xs font-bold uppercase tracking-wider text-jetblack">Terbitkan Lisensi Manual</h3>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-jetblack">
+            Terbitkan Lisensi Manual
+          </h3>
         </div>
-        <button @click="emit('close')" class="text-jetblack/40 hover:text-jetblack cursor-pointer p-0.5">
+        <button
+          @click="emit('close')"
+          class="text-jetblack/40 hover:text-jetblack cursor-pointer p-0.5"
+        >
           <X class="w-4 h-4" />
         </button>
       </div>
 
       <div class="space-y-2.5 text-xs">
         <div>
-          <label class="block font-semibold text-[11px] text-jetblack/70 mb-1">Pilih Aplikasi</label>
+          <label class="block font-semibold text-[11px] text-jetblack/70 mb-1"
+            >Pilih Aplikasi</label
+          >
           <SearchPicker
             v-model="issueAppId"
             :items="appsList"
@@ -73,7 +91,9 @@ function submit() {
         </div>
 
         <div>
-          <label class="block font-semibold text-[11px] text-jetblack/70 mb-1">Email Pembeli / Penerima</label>
+          <label class="block font-semibold text-[11px] text-jetblack/70 mb-1"
+            >Email Pembeli / Penerima</label
+          >
           <input
             v-model="issueEmail"
             type="email"
@@ -130,7 +150,7 @@ function submit() {
             class="btn-gold px-3.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             <Sparkles class="w-3.5 h-3.5" />
-            <span>{{ isIssuing ? 'Menerbitkan...' : 'Terbitkan Sekarang' }}</span>
+            <span>{{ isIssuing ? "Menerbitkan..." : "Terbitkan Sekarang" }}</span>
           </button>
         </div>
       </div>

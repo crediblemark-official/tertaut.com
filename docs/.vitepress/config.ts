@@ -2,7 +2,8 @@ import { defineConfig } from "vitepress";
 
 export default defineConfig({
   title: "tertaut.com Docs",
-  description: "Developer documentation untuk tertaut.com Engine — Monetization, Licensing, AI Protection & Validation",
+  description:
+    "Developer documentation untuk tertaut.com Engine — Monetization, Licensing, AI Protection & Validation",
   lang: "id-ID",
   base: "/docs/",
   lastUpdated: false,

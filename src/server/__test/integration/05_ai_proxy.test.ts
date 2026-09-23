@@ -214,13 +214,16 @@ describe("PRD Module 4: AI API Proxy Shield & Cost Guardrails", () => {
     // agar chat handler masuk ke sandbox mock path (bukan upstream real)
     const mockKey = "mock-sse-test-key-sandbox";
     const encrypted = CryptoService.encrypt(mockKey);
-    const [insertedVault] = await db.insert(aiVaultCredentials).values({
-      appId: app.id,
-      provider: "openai",
-      encryptedApiKey: encrypted.cipherText,
-      iv: encrypted.iv,
-      authTag: encrypted.authTag,
-    }).returning({ id: aiVaultCredentials.id });
+    const [insertedVault] = await db
+      .insert(aiVaultCredentials)
+      .values({
+        appId: app.id,
+        provider: "openai",
+        encryptedApiKey: encrypted.cipherText,
+        iv: encrypted.iv,
+        authTag: encrypted.authTag,
+      })
+      .returning({ id: aiVaultCredentials.id });
     const vaultId = insertedVault.id;
 
     // Hapus vault credential real yang mungkin sudah ada untuk app ini
@@ -228,16 +231,12 @@ describe("PRD Module 4: AI API Proxy Shield & Cost Guardrails", () => {
     const existingVaults = await db.query.aiVaultCredentials.findMany({
       where: eq(aiVaultCredentials.appId, app.id),
     });
-    const realVaultIds = existingVaults
-      .filter((v) => v.id !== vaultId)
-      .map((v) => v.id);
+    const realVaultIds = existingVaults.filter((v) => v.id !== vaultId).map((v) => v.id);
 
     try {
       // Temporarily delete real vault credentials so mock vault is used
       if (realVaultIds.length > 0) {
-        await db.delete(aiVaultCredentials).where(
-          inArray(aiVaultCredentials.id, realVaultIds)
-        );
+        await db.delete(aiVaultCredentials).where(inArray(aiVaultCredentials.id, realVaultIds));
       }
 
       // 1. Eksekusi streaming chat ke /api/v1/ai/chat (atau alias /api/v1/ai-proxy/chat)
@@ -324,9 +323,12 @@ describe("PRD Module 4: AI API Proxy Shield & Cost Guardrails", () => {
     const chatData: any = await chatRes.json();
     expect(chatData.error).toBe("INVALID_LICENSE");
 
-    const quotaReq = new Request("http://localhost:3001/api/v1/ai/quota-status?licenseKey=TT-NONEXISTENT", {
-      method: "GET",
-    });
+    const quotaReq = new Request(
+      "http://localhost:3001/api/v1/ai/quota-status?licenseKey=TT-NONEXISTENT",
+      {
+        method: "GET",
+      }
+    );
     const quotaRes = await app.handle(quotaReq);
     expect(quotaRes.status).toBe(403);
     const quotaData: any = await quotaRes.json();

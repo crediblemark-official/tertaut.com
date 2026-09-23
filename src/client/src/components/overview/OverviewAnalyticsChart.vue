@@ -1,39 +1,33 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import {
-  DollarSign,
-  TrendingUp,
-  TicketPercent,
-  Monitor,
-  BarChart3
-} from 'lucide-vue-next'
-import type { TransactionItem } from '../../types/transaction'
-import type { LicenseItem } from '../../types/licensing'
-import { formatRupiah } from '../../lib/utils'
+import { ref, computed } from "vue";
+import { DollarSign, TrendingUp, TicketPercent, Monitor, BarChart3 } from "lucide-vue-next";
+import type { TransactionItem } from "../../types/transaction";
+import type { LicenseItem } from "../../types/licensing";
+import { formatRupiah } from "../../lib/utils";
 
 const props = defineProps<{
-  transactions: TransactionItem[]
-  licenses: LicenseItem[]
-}>()
+  transactions: TransactionItem[];
+  licenses: LicenseItem[];
+}>();
 
-const statsDays = ref<7 | 14 | 30>(7)
-const hoveredDay = ref<{ date: string; label: string; count: number; gross: number } | null>(null)
+const statsDays = ref<7 | 14 | 30>(7);
+const hoveredDay = ref<{ date: string; label: string; count: number; gross: number } | null>(null);
 
 // Deep analytics metrics
 const analyticsStats = computed(() => {
-  const txs = props.transactions
-  const paidTxs = txs.filter(t => t.paymentStatus === 'PAID')
+  const txs = props.transactions;
+  const paidTxs = txs.filter((t) => t.paymentStatus === "PAID");
 
-  const totalPaidCount = paidTxs.length
-  const totalGross = paidTxs.reduce((sum, t) => sum + (t.grossAmount || 0), 0)
-  const aov = totalPaidCount > 0 ? Math.round(totalGross / totalPaidCount) : 0
-  const conversionRate = txs.length > 0 ? Math.round((totalPaidCount / txs.length) * 100) : 0
+  const totalPaidCount = paidTxs.length;
+  const totalGross = paidTxs.reduce((sum, t) => sum + (t.grossAmount || 0), 0);
+  const aov = totalPaidCount > 0 ? Math.round(totalGross / totalPaidCount) : 0;
+  const conversionRate = txs.length > 0 ? Math.round((totalPaidCount / txs.length) * 100) : 0;
 
-  const totalDiscount = txs.reduce((sum, t) => sum + (t.discountAmount || 0), 0)
+  const totalDiscount = txs.reduce((sum, t) => sum + (t.discountAmount || 0), 0);
 
-  const lics = props.licenses
-  const totalSeatsUsed = lics.reduce((sum, l) => sum + (l.seatsUsed || 0), 0)
-  const totalMaxSeats = lics.reduce((sum, l) => sum + (l.maxSeats || 3), 0)
+  const lics = props.licenses;
+  const totalSeatsUsed = lics.reduce((sum, l) => sum + (l.seatsUsed || 0), 0);
+  const totalMaxSeats = lics.reduce((sum, l) => sum + (l.maxSeats || 3), 0);
 
   return {
     aov,
@@ -41,100 +35,100 @@ const analyticsStats = computed(() => {
     totalDiscount,
     totalPaidCount,
     totalSeatsUsed,
-    totalMaxSeats
-  }
-})
+    totalMaxSeats,
+  };
+});
 
 // Daily chart data for 7, 14, or 30 days
 const dailyChartData = computed(() => {
-  const days = statsDays.value
-  const result: { date: string; label: string; count: number; gross: number }[] = []
+  const days = statsDays.value;
+  const result: { date: string; label: string; count: number; gross: number }[] = [];
 
-  const now = new Date()
+  const now = new Date();
   for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now)
-    d.setDate(d.getDate() - i)
-    const dateKey = d.toISOString().split('T')[0]
-    const label = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short' }).format(d)
-    result.push({ date: dateKey, label, count: 0, gross: 0 })
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const dateKey = d.toISOString().split("T")[0];
+    const label = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(d);
+    result.push({ date: dateKey, label, count: 0, gross: 0 });
   }
 
   for (const tx of props.transactions) {
-    if (tx.paymentStatus !== 'PAID') continue
-    const txDate = tx.createdAt ? tx.createdAt.split('T')[0] : ''
-    const item = result.find(r => r.date === txDate)
+    if (tx.paymentStatus !== "PAID") continue;
+    const txDate = tx.createdAt ? tx.createdAt.split("T")[0] : "";
+    const item = result.find((r) => r.date === txDate);
     if (item) {
-      item.count++
-      item.gross += tx.grossAmount || 0
+      item.count++;
+      item.gross += tx.grossAmount || 0;
     }
   }
 
-  return result
-})
+  return result;
+});
 
 const maxDailyGross = computed(() => {
-  const max = Math.max(...dailyChartData.value.map(d => d.gross), 1)
-  return max
-})
+  const max = Math.max(...dailyChartData.value.map((d) => d.gross), 1);
+  return max;
+});
 
 const periodTotalGross = computed(() => {
-  return dailyChartData.value.reduce((sum, d) => sum + d.gross, 0)
-})
+  return dailyChartData.value.reduce((sum, d) => sum + d.gross, 0);
+});
 
 interface ChartPoint {
-  date: string
-  label: string
-  count: number
-  gross: number
-  x: number
-  y: number
+  date: string;
+  label: string;
+  count: number;
+  gross: number;
+  x: number;
+  y: number;
 }
 
 const lineChartPoints = computed<ChartPoint[]>(() => {
-  const data = dailyChartData.value
-  if (data.length === 0) return []
+  const data = dailyChartData.value;
+  if (data.length === 0) return [];
 
-  const width = 360
-  const height = 90
-  const padX = 14
-  const padTop = 14
-  const padBottom = 16
-  const graphWidth = width - padX * 2
-  const graphHeight = height - padTop - padBottom
+  const width = 360;
+  const height = 90;
+  const padX = 14;
+  const padTop = 14;
+  const padBottom = 16;
+  const graphWidth = width - padX * 2;
+  const graphHeight = height - padTop - padBottom;
 
-  const maxVal = maxDailyGross.value || 1
+  const maxVal = maxDailyGross.value || 1;
 
   return data.map((d, i) => {
-    const x = padX + (i / Math.max(1, data.length - 1)) * graphWidth
-    const ratio = d.gross / maxVal
-    const y = (height - padBottom) - (ratio * graphHeight)
+    const x = padX + (i / Math.max(1, data.length - 1)) * graphWidth;
+    const ratio = d.gross / maxVal;
+    const y = height - padBottom - ratio * graphHeight;
     return {
       ...d,
       x: Math.round(x * 10) / 10,
-      y: Math.round(y * 10) / 10
-    }
-  })
-})
+      y: Math.round(y * 10) / 10,
+    };
+  });
+});
 
 const linePath = computed(() => {
-  const pts = lineChartPoints.value
-  if (pts.length === 0) return ''
-  return pts.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ')
-})
+  const pts = lineChartPoints.value;
+  if (pts.length === 0) return "";
+  return pts.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(" ");
+});
 
 const areaPath = computed(() => {
-  const pts = lineChartPoints.value
-  if (pts.length === 0) return ''
-  const first = pts[0]
-  const last = pts[pts.length - 1]
-  const baseline = 90 - 16
-  return `${linePath.value} L ${last.x} ${baseline} L ${first.x} ${baseline} Z`
-})
+  const pts = lineChartPoints.value;
+  if (pts.length === 0) return "";
+  const first = pts[0];
+  const last = pts[pts.length - 1];
+  const baseline = 90 - 16;
+  return `${linePath.value} L ${last.x} ${baseline} L ${first.x} ${baseline} Z`;
+});
 
 const hoveredPoint = computed(() => {
-  if (!hoveredDay.value) return null
-  return lineChartPoints.value.find(p => p.date === hoveredDay.value?.date) || null
-})
+  if (!hoveredDay.value) return null;
+  return lineChartPoints.value.find((p) => p.date === hoveredDay.value?.date) || null;
+});
 </script>
 
 <template>
@@ -143,19 +137,25 @@ const hoveredPoint = computed(() => {
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
       <div class="flex items-center gap-2">
         <BarChart3 class="w-4 h-4 text-gold" />
-        <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">Tren &amp; Performa Penjualan</h2>
-        <span class="text-[11px] text-jetblack/40 hidden sm:inline">• Pantau omzet MoR &amp; transaksi harian</span>
+        <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">
+          Tren &amp; Performa Penjualan
+        </h2>
+        <span class="text-[11px] text-jetblack/40 hidden sm:inline"
+          >• Pantau omzet MoR &amp; transaksi harian</span
+        >
       </div>
 
       <div class="flex items-center gap-1">
         <button
-          v-for="d in ([7, 14, 30] as const)"
+          v-for="d in [7, 14, 30] as const"
           :key="d"
           type="button"
           @click="statsDays = d"
           :class="[
             'px-2.5 py-0.5 rounded-md font-bold transition cursor-pointer text-xs',
-            statsDays === d ? 'bg-jetblack text-white' : 'bg-jetblack/5 text-jetblack/60 hover:bg-jetblack/10'
+            statsDays === d
+              ? 'bg-jetblack text-white'
+              : 'bg-jetblack/5 text-jetblack/60 hover:bg-jetblack/10',
           ]"
         >
           {{ d }} Hari
@@ -167,7 +167,9 @@ const hoveredPoint = computed(() => {
       <!-- 4 Sub-KPIs (Left 5 cols - Flat layout) -->
       <div class="lg:col-span-5 grid grid-cols-2 gap-3">
         <div class="space-y-0.5">
-          <div class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider">
+          <div
+            class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider"
+          >
             <span>Rata-Rata Order</span>
             <DollarSign class="w-3.5 h-3.5 text-jetblack" />
           </div>
@@ -178,18 +180,24 @@ const hoveredPoint = computed(() => {
         </div>
 
         <div class="space-y-0.5 pl-3 border-l border-jetblack/10">
-          <div class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider">
+          <div
+            class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider"
+          >
             <span>Sukses Bayar</span>
             <TrendingUp class="w-3.5 h-3.5 text-forest" />
           </div>
           <div class="text-lg font-black font-mono text-forest">
             {{ analyticsStats.conversionRate }}%
           </div>
-          <div class="text-[10px] text-forest font-medium">{{ analyticsStats.totalPaidCount }} lunas</div>
+          <div class="text-[10px] text-forest font-medium">
+            {{ analyticsStats.totalPaidCount }} lunas
+          </div>
         </div>
 
         <div class="space-y-0.5 pt-2 border-t border-jetblack/10">
-          <div class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider">
+          <div
+            class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider"
+          >
             <span>Diskon Kupon</span>
             <TicketPercent class="w-3.5 h-3.5 text-gold" />
           </div>
@@ -200,25 +208,39 @@ const hoveredPoint = computed(() => {
         </div>
 
         <div class="space-y-0.5 pt-2 pl-3 border-t border-l border-jetblack/10">
-          <div class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider">
+          <div
+            class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider"
+          >
             <span>Aktivasi Seat</span>
             <Monitor class="w-3.5 h-3.5 text-jetblack" />
           </div>
           <div class="text-lg font-black font-mono text-jetblack">
-            {{ analyticsStats.totalSeatsUsed }} <span class="text-xs font-normal text-jetblack/50">/ {{ analyticsStats.totalMaxSeats }}</span>
+            {{ analyticsStats.totalSeatsUsed }}
+            <span class="text-xs font-normal text-jetblack/50"
+              >/ {{ analyticsStats.totalMaxSeats }}</span
+            >
           </div>
           <div class="text-[10px] text-jetblack/50">Device terikat HWID</div>
         </div>
       </div>
 
       <!-- Interactive Line Chart (Right 7 cols - Seamless Flat) -->
-      <div class="lg:col-span-7 flex flex-col justify-between lg:pl-5 lg:border-l lg:border-jetblack/10">
-        <div class="flex items-center justify-between text-[11px] font-bold text-jetblack/70 mb-1 min-h-[22px]">
+      <div
+        class="lg:col-span-7 flex flex-col justify-between lg:pl-5 lg:border-l lg:border-jetblack/10"
+      >
+        <div
+          class="flex items-center justify-between text-[11px] font-bold text-jetblack/70 mb-1 min-h-[22px]"
+        >
           <span>Tren Omzet ({{ statsDays }} Hari)</span>
-          <div v-if="hoveredDay" class="font-mono text-xs text-jetblack flex items-center gap-1.5 animate-fadeIn">
+          <div
+            v-if="hoveredDay"
+            class="font-mono text-xs text-jetblack flex items-center gap-1.5 animate-fadeIn"
+          >
             <span class="text-jetblack/60 font-medium">{{ hoveredDay.label }}:</span>
             <span class="font-bold text-gold">{{ formatRupiah(hoveredDay.gross) }}</span>
-            <span class="text-[10px] text-jetblack/50 font-normal">({{ hoveredDay.count }} tx)</span>
+            <span class="text-[10px] text-jetblack/50 font-normal"
+              >({{ hoveredDay.count }} tx)</span
+            >
           </div>
           <div v-else class="font-mono text-xs text-jetblack">
             <span class="text-jetblack/50 font-medium text-[11px]">Total: </span>
@@ -228,11 +250,7 @@ const hoveredPoint = computed(() => {
 
         <!-- SVG Line / Area Chart -->
         <div class="relative w-full pt-1 pb-1 select-none">
-          <svg
-            viewBox="0 0 360 90"
-            class="w-full h-22 overflow-visible"
-            preserveAspectRatio="none"
-          >
+          <svg viewBox="0 0 360 90" class="w-full h-22 overflow-visible" preserveAspectRatio="none">
             <defs>
               <linearGradient id="omzetGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.35" />
@@ -241,16 +259,28 @@ const hoveredPoint = computed(() => {
             </defs>
 
             <!-- Subtle horizontal grid lines -->
-            <line x1="14" y1="14" x2="346" y2="14" stroke="#111111" stroke-opacity="0.05" stroke-dasharray="3 3" />
-            <line x1="14" y1="44" x2="346" y2="44" stroke="#111111" stroke-opacity="0.05" stroke-dasharray="3 3" />
+            <line
+              x1="14"
+              y1="14"
+              x2="346"
+              y2="14"
+              stroke="#111111"
+              stroke-opacity="0.05"
+              stroke-dasharray="3 3"
+            />
+            <line
+              x1="14"
+              y1="44"
+              x2="346"
+              y2="44"
+              stroke="#111111"
+              stroke-opacity="0.05"
+              stroke-dasharray="3 3"
+            />
             <line x1="14" y1="74" x2="346" y2="74" stroke="#111111" stroke-opacity="0.12" />
 
             <!-- Gradient Area Fill -->
-            <path
-              :d="areaPath"
-              fill="url(#omzetGradient)"
-              class="transition duration-300"
-            />
+            <path :d="areaPath" fill="url(#omzetGradient)" class="transition duration-300" />
 
             <!-- Active Hover Vertical Guideline -->
             <line
@@ -292,13 +322,13 @@ const hoveredPoint = computed(() => {
               <circle
                 :cx="pt.x"
                 :cy="pt.y"
-                :r="hoveredDay?.date === pt.date ? 5 : (pt.gross > 0 ? 3.5 : 2.5)"
+                :r="hoveredDay?.date === pt.date ? 5 : pt.gross > 0 ? 3.5 : 2.5"
                 :class="[
                   hoveredDay?.date === pt.date
                     ? 'fill-jetblack stroke-gold stroke-[2.5]'
                     : pt.gross > 0
                       ? 'fill-gold stroke-white stroke-2'
-                      : 'fill-white stroke-jetblack/30 stroke-1.5'
+                      : 'fill-white stroke-jetblack/30 stroke-1.5',
                 ]"
                 class="transition duration-150 pointer-events-none"
               />
@@ -314,7 +344,7 @@ const hoveredPoint = computed(() => {
             class="text-[9px] font-mono leading-none transition-colors"
             :class="hoveredDay?.date === pt.date ? 'font-bold text-jetblack' : 'text-jetblack/50'"
           >
-            {{ pt.label.split(' ')[0] }}
+            {{ pt.label.split(" ")[0] }}
           </span>
         </div>
       </div>

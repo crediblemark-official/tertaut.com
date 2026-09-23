@@ -14,29 +14,29 @@ Tanpa/`tt_secret_` salah → `401 { "error": "..." }`. Secret key didapat & diro
 
 ## Daftar Endpoint
 
-| Method | Endpoint | Fungsi |
-| --- | --- | --- |
-| GET | `/api/v1/s2s` | Info akun builder |
-| GET | `/api/v1/s2s/apps` | Daftar aplikasi (`?mode=sandbox\|live`) |
-| GET | `/api/v1/s2s/apps/:appId` | Detail satu aplikasi |
-| GET | `/api/v1/s2s/licenses` | Daftar lisensi scoped |
-| POST | `/api/v1/s2s/licenses/issue` | Terbitkan lisensi (tanpa pembayaran) |
-| POST | `/api/v1/s2s/licenses/revoke` | Cabut lisensi + denylist token offline |
-| POST | `/api/v1/s2s/licenses/issue-batch` | Terbitkan batch lisensi (maks 200) |
-| POST | `/api/v1/s2s/licenses/revoke-batch` | Cabut batch lisensi (maks 200) |
-| GET | `/api/v1/s2s/licenses/seats` | Daftar seat perangkat + status lease floating |
-| POST | `/api/v1/s2s/licenses/seat/release` | Force-release satu seat perangkat |
-| POST | `/api/v1/s2s/licenses/recover` | Pulihkan lisensi dari device hilang (reset seluruh seat) |
-| POST | `/api/v1/s2s/licenses/transfer` | Pindah kepemilikan lisensi ke customer lain |
-| GET | `/api/v1/s2s/licenses/events` | Audit trail lisensi (event-sourced) |
-| GET | `/api/v1/s2s/credits/balance` | Saldo kredit lisensi |
-| POST | `/api/v1/s2s/credits/consume` | Konsumsi kredit (idempoten, atomik) |
-| GET | `/api/v1/s2s/webhooks` | Daftar webhook endpoint + event tersedia |
-| POST | `/api/v1/s2s/webhooks` | Daftarkan webhook endpoint |
-| PATCH | `/api/v1/s2s/webhooks/:id` | Perbarui webhook endpoint |
-| DELETE | `/api/v1/s2s/webhooks/:id` | Hapus webhook endpoint |
-| POST | `/api/v1/s2s/webhooks/:id/rotate-secret` | Rotasi secret HMAC webhook |
-| POST | `/api/v1/s2s/webhooks/:id/test` | Kirim test delivery |
+| Method | Endpoint                                 | Fungsi                                                   |
+| ------ | ---------------------------------------- | -------------------------------------------------------- |
+| GET    | `/api/v1/s2s`                            | Info akun builder                                        |
+| GET    | `/api/v1/s2s/apps`                       | Daftar aplikasi (`?mode=sandbox\|live`)                  |
+| GET    | `/api/v1/s2s/apps/:appId`                | Detail satu aplikasi                                     |
+| GET    | `/api/v1/s2s/licenses`                   | Daftar lisensi scoped                                    |
+| POST   | `/api/v1/s2s/licenses/issue`             | Terbitkan lisensi (tanpa pembayaran)                     |
+| POST   | `/api/v1/s2s/licenses/revoke`            | Cabut lisensi + denylist token offline                   |
+| POST   | `/api/v1/s2s/licenses/issue-batch`       | Terbitkan batch lisensi (maks 200)                       |
+| POST   | `/api/v1/s2s/licenses/revoke-batch`      | Cabut batch lisensi (maks 200)                           |
+| GET    | `/api/v1/s2s/licenses/seats`             | Daftar seat perangkat + status lease floating            |
+| POST   | `/api/v1/s2s/licenses/seat/release`      | Force-release satu seat perangkat                        |
+| POST   | `/api/v1/s2s/licenses/recover`           | Pulihkan lisensi dari device hilang (reset seluruh seat) |
+| POST   | `/api/v1/s2s/licenses/transfer`          | Pindah kepemilikan lisensi ke customer lain              |
+| GET    | `/api/v1/s2s/licenses/events`            | Audit trail lisensi (event-sourced)                      |
+| GET    | `/api/v1/s2s/credits/balance`            | Saldo kredit lisensi                                     |
+| POST   | `/api/v1/s2s/credits/consume`            | Konsumsi kredit (idempoten, atomik)                      |
+| GET    | `/api/v1/s2s/webhooks`                   | Daftar webhook endpoint + event tersedia                 |
+| POST   | `/api/v1/s2s/webhooks`                   | Daftarkan webhook endpoint                               |
+| PATCH  | `/api/v1/s2s/webhooks/:id`               | Perbarui webhook endpoint                                |
+| DELETE | `/api/v1/s2s/webhooks/:id`               | Hapus webhook endpoint                                   |
+| POST   | `/api/v1/s2s/webhooks/:id/rotate-secret` | Rotasi secret HMAC webhook                               |
+| POST   | `/api/v1/s2s/webhooks/:id/test`          | Kirim test delivery                                      |
 
 ## Info Akun
 
@@ -216,7 +216,11 @@ curl -X POST https://tertaut.com/api/v1/s2s/licenses/recover \
 ```
 
 ```json
-{ "success": true, "message": "Lisensi dipulihkan. Seluruh seat device dilepas.", "licenseKey": "TT-..." }
+{
+  "success": true,
+  "message": "Lisensi dipulihkan. Seluruh seat device dilepas.",
+  "licenseKey": "TT-..."
+}
 ```
 
 Melepas seluruh aktivasi + lease, lalu **me-rotate token offline** (hak akses device lama hangus).
@@ -230,7 +234,15 @@ curl -X POST https://tertaut.com/api/v1/s2s/licenses/transfer \
 ```
 
 ```json
-{ "success": true, "license": { "id": "lic_...", "licenseKey": "TT-...", "customerEmail": "penerima@example.com", "status": "ACTIVE" } }
+{
+  "success": true,
+  "license": {
+    "id": "lic_...",
+    "licenseKey": "TT-...",
+    "customerEmail": "penerima@example.com",
+    "status": "ACTIVE"
+  }
+}
 ```
 
 Email tidak valid → HTTP `400`.
@@ -279,7 +291,11 @@ curl -X POST https://tertaut.com/api/v1/s2s/licenses/revoke-batch \
   "success": true,
   "revoked": 1,
   "results": [
-    { "licenseKey": "TT-A1B2...", "revoked": true, "message": "Kunci lisensi berhasil dicabut (REVOKED)." },
+    {
+      "licenseKey": "TT-A1B2...",
+      "revoked": true,
+      "message": "Kunci lisensi berhasil dicabut (REVOKED)."
+    },
     { "licenseKey": "TT-C3D4...", "revoked": false, "error": "NOT_FOUND_OR_UNOWNED" }
   ]
 }
@@ -339,13 +355,25 @@ curl "https://tertaut.com/api/v1/s2s/webhooks" \
 {
   "success": true,
   "events": [
-    "license.issued", "license.activated", "license.deactivated",
-    "license.seat_full", "license.revoked", "license.expired",
-    "license.renewed", "license.transferred", "license.unbound",
+    "license.issued",
+    "license.activated",
+    "license.deactivated",
+    "license.seat_full",
+    "license.revoked",
+    "license.expired",
+    "license.renewed",
+    "license.transferred",
+    "license.unbound",
     "credits.insufficient"
   ],
   "webhooks": [
-    { "id": "whk_...", "url": "https://api.anda.com/webhook", "events": ["license.issued", "license.revoked"], "isActive": true, "createdAt": "..." }
+    {
+      "id": "whk_...",
+      "url": "https://api.anda.com/webhook",
+      "events": ["license.issued", "license.revoked"],
+      "isActive": true,
+      "createdAt": "..."
+    }
   ]
 }
 ```
@@ -442,13 +470,13 @@ curl -X POST https://tertaut.com/api/v1/s2s/credits/consume \
 
 API Server-to-Server mengembalikan kode status HTTP standar:
 
-| HTTP Code | Arti | Contoh Kasus |
-| --- | --- | --- |
-| `200 OK` | Permintaan berhasil diproses. | Lisensi terbit, saldo didapatkan. |
-| `400 Bad Request` | Payload atau parameter tidak valid. | Format email pembeli salah atau parameter wajib kosong. |
-| `401 Unauthorized` | Autentikasi secret key gagal. | Header `Authorization: Bearer tt_secret_...` tidak disertakan atau key tidak valid/sudah dirotasi. |
-| `404 Not Found` | Resource tidak ditemukan atau bukan milik builder. | ID aplikasi (`appId`) atau kunci lisensi tidak ditemukan di bawah akun Anda. |
-| `409 Conflict` | Saldo kredit tidak mencukupi (*Insufficient Credits*). | Konsumsi kredit melebihi saldo aktif lisensi (`{ "success": false, "reason": "INSUFFICIENT_CREDITS", "balance": ... }`). |
+| HTTP Code          | Arti                                                   | Contoh Kasus                                                                                                             |
+| ------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `200 OK`           | Permintaan berhasil diproses.                          | Lisensi terbit, saldo didapatkan.                                                                                        |
+| `400 Bad Request`  | Payload atau parameter tidak valid.                    | Format email pembeli salah atau parameter wajib kosong.                                                                  |
+| `401 Unauthorized` | Autentikasi secret key gagal.                          | Header `Authorization: Bearer tt_secret_...` tidak disertakan atau key tidak valid/sudah dirotasi.                       |
+| `404 Not Found`    | Resource tidak ditemukan atau bukan milik builder.     | ID aplikasi (`appId`) atau kunci lisensi tidak ditemukan di bawah akun Anda.                                             |
+| `409 Conflict`     | Saldo kredit tidak mencukupi (_Insufficient Credits_). | Konsumsi kredit melebihi saldo aktif lisensi (`{ "success": false, "reason": "INSUFFICIENT_CREDITS", "balance": ... }`). |
 
 ## Referensi Lengkap
 

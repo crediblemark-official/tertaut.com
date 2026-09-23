@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { TrendingUp, DollarSign, Users, Send } from 'lucide-vue-next'
-import type { PanelStats } from '../../types/panel'
+import { TrendingUp, DollarSign, Users, Send } from "lucide-vue-next";
+import type { PanelStats } from "../../types/panel";
 
 defineProps<{
-  stats: PanelStats | null
-}>()
+  stats: PanelStats | null;
+}>();
 </script>
 
 <template>
-  <section class="w-full flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 divide-x divide-jetblack/10 border-b border-jetblack/10 pb-4 pt-1 top-scrollbar">
+  <section
+    class="w-full flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 divide-x divide-jetblack/10 border-b border-jetblack/10 pb-4 pt-1 top-scrollbar"
+  >
     <!-- 1. Total Platform GMV -->
     <div class="min-w-[220px] sm:min-w-0 flex-1 shrink-0 py-2 pr-4 pl-0 space-y-1">
       <div class="flex items-center justify-between text-jetblack/50 text-xs font-semibold">
@@ -16,7 +18,7 @@ defineProps<{
         <TrendingUp class="w-4 h-4 text-jetblack" />
       </div>
       <div class="text-2xl font-black text-jetblack font-mono">
-        Rp {{ (stats?.totalGMV || 0).toLocaleString('id-ID') }}
+        Rp {{ (stats?.totalGMV || 0).toLocaleString("id-ID") }}
       </div>
       <div class="text-[11px] text-jetblack/50">
         {{ stats?.paidTransactions || 0 }} transaksi berhasil
@@ -30,11 +32,9 @@ defineProps<{
         <DollarSign class="w-4 h-4 text-gold" />
       </div>
       <div class="text-2xl font-black text-jetblack font-mono">
-        Rp {{ (stats?.platformFeeRevenue || 0).toLocaleString('id-ID') }}
+        Rp {{ (stats?.platformFeeRevenue || 0).toLocaleString("id-ID") }}
       </div>
-      <div class="text-[11px] text-jetblack/50">
-        Pendapatan kotor platform
-      </div>
+      <div class="text-[11px] text-jetblack/50">Pendapatan kotor platform</div>
     </div>
 
     <!-- 3. Net Builder Share (95%) -->
@@ -44,7 +44,7 @@ defineProps<{
         <Users class="w-4 h-4 text-forest" />
       </div>
       <div class="text-2xl font-black text-forest font-mono">
-        Rp {{ (stats?.netBuilderShare || 0).toLocaleString('id-ID') }}
+        Rp {{ (stats?.netBuilderShare || 0).toLocaleString("id-ID") }}
       </div>
       <div class="text-[11px] text-forest font-medium">
         {{ stats?.totalBuilders || 0 }} builders terdaftar
@@ -58,7 +58,7 @@ defineProps<{
         <Send class="w-4 h-4 text-gold" />
       </div>
       <div class="text-2xl font-black text-jetblack font-mono">
-        Rp {{ (stats?.pendingDisbursementsAmount || 0).toLocaleString('id-ID') }}
+        Rp {{ (stats?.pendingDisbursementsAmount || 0).toLocaleString("id-ID") }}
       </div>
       <div class="text-[11px] text-jetblack/50">
         {{ stats?.pendingDisbursementsCount || 0 }} transaksi siap dicairkan

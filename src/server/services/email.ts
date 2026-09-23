@@ -54,7 +54,9 @@ export class EmailService {
   static async send(params: SendEmailParams): Promise<SendEmailResult> {
     if (!this.isConfigured()) {
       if (!config.isProd) {
-        console.warn(`[Email] RESEND_API_KEY belum diset — email "${params.subject}" ke ${params.to} dilewati.`);
+        console.warn(
+          `[Email] RESEND_API_KEY belum diset — email "${params.subject}" ke ${params.to} dilewati.`
+        );
       }
       return { ok: false, skipped: true };
     }
@@ -87,9 +89,13 @@ export class EmailService {
         const detail = await res.text().catch(() => "");
         if (res.status === 429) {
           this.quotaBlockedUntil = Date.now() + 15 * 60 * 1000; // Tangguhkan selama 15 menit
-          console.warn(`[Email] Kuota Resend harian habis (429) — pengiriman email ditangguhkan sementara.`);
+          console.warn(
+            `[Email] Kuota Resend harian habis (429) — pengiriman email ditangguhkan sementara.`
+          );
         } else if (res.status === 422 && !config.isProd) {
-          console.warn(`[Email] Resend 422: Alamat ${params.to} bukan email terverifikasi untuk mode testing Resend.`);
+          console.warn(
+            `[Email] Resend 422: Alamat ${params.to} bukan email terverifikasi untuk mode testing Resend.`
+          );
         } else {
           console.error(`[Email] Resend gagal (${res.status}) untuk ${params.to}: ${detail}`);
         }
@@ -128,7 +134,9 @@ export class EmailService {
     const textExtra: string[] = [];
 
     if (params.deliveryDetails?.fileDownload?.fileUrl) {
-      const fileTitle = escapeHtml(params.deliveryDetails.fileDownload.title || "Unduh Software / Aset");
+      const fileTitle = escapeHtml(
+        params.deliveryDetails.fileDownload.title || "Unduh Software / Aset"
+      );
       const fileUrl = escapeHtml(params.deliveryDetails.fileDownload.fileUrl);
       const fileName = params.deliveryDetails.fileDownload.fileName
         ? ` (${escapeHtml(params.deliveryDetails.fileDownload.fileName)})`
@@ -138,23 +146,33 @@ export class EmailService {
           <p style="margin:0 0 8px;font-size:12px;font-weight:bold;text-transform:uppercase;color:#93c5fd;">Berkas Digital</p>
           <a href="${fileUrl}" style="display:inline-block;padding:8px 16px;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:bold;border-radius:6px;font-size:13px;">${fileTitle}${fileName}</a>
         </div>`;
-      textExtra.push(`Unduh Berkas: ${params.deliveryDetails.fileDownload.title || "Download"} -> ${params.deliveryDetails.fileDownload.fileUrl}`);
+      textExtra.push(
+        `Unduh Berkas: ${params.deliveryDetails.fileDownload.title || "Download"} -> ${params.deliveryDetails.fileDownload.fileUrl}`
+      );
     }
 
     if (params.deliveryDetails?.privateNote?.note) {
-      const noteTitle = escapeHtml(params.deliveryDetails.privateNote.title || "Catatan Rahasia / Panduan");
+      const noteTitle = escapeHtml(
+        params.deliveryDetails.privateNote.title || "Catatan Rahasia / Panduan"
+      );
       const noteContent = escapeHtml(params.deliveryDetails.privateNote.note);
       deliverySectionHtml += `
         <div style="margin:20px 0;padding:16px;background:#0b0b0f;border:1px solid #27272a;border-radius:8px;">
           <p style="margin:0 0 6px;font-size:12px;font-weight:bold;text-transform:uppercase;color:#a5f3fc;">${noteTitle}</p>
           <p style="margin:0;font-size:13px;color:#d4d4d8;white-space:pre-wrap;">${noteContent}</p>
         </div>`;
-      textExtra.push(`Catatan: ${params.deliveryDetails.privateNote.title || "Panduan"} -> ${params.deliveryDetails.privateNote.note}`);
+      textExtra.push(
+        `Catatan: ${params.deliveryDetails.privateNote.title || "Panduan"} -> ${params.deliveryDetails.privateNote.note}`
+      );
     }
 
     if (params.deliveryDetails?.apiAccess) {
-      const apiUrl = params.deliveryDetails.apiAccess.endpointUrl ? escapeHtml(params.deliveryDetails.apiAccess.endpointUrl) : "";
-      const apiKey = params.deliveryDetails.apiAccess.apiKey ? escapeHtml(params.deliveryDetails.apiAccess.apiKey) : "";
+      const apiUrl = params.deliveryDetails.apiAccess.endpointUrl
+        ? escapeHtml(params.deliveryDetails.apiAccess.endpointUrl)
+        : "";
+      const apiKey = params.deliveryDetails.apiAccess.apiKey
+        ? escapeHtml(params.deliveryDetails.apiAccess.apiKey)
+        : "";
       const apiInstruction = escapeHtml(params.deliveryDetails.apiAccess.instruction || "");
       deliverySectionHtml += `
         <div style="margin:20px 0;padding:16px;background:#0b0b0f;border:1px solid #27272a;border-radius:8px;">

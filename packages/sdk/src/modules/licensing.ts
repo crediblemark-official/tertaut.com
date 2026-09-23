@@ -29,7 +29,8 @@ export interface LicensingExecutor {
 
 export function createFeatureHelpers(entitlements: Record<string, any> = {}) {
   return {
-    hasFeature: (featureName: string): boolean => Boolean(entitlements && entitlements[featureName]),
+    hasFeature: (featureName: string): boolean =>
+      Boolean(entitlements && entitlements[featureName]),
     getFeature: <T = any>(featureName: string, defaultValue?: T): T =>
       entitlements && entitlements[featureName] !== undefined
         ? entitlements[featureName]
@@ -111,7 +112,9 @@ export class LicensingModule {
     return res.json();
   }
 
-  public async deactivate(options: LicenseDeactivateOptions): Promise<{ success: boolean; deactivated?: boolean }> {
+  public async deactivate(
+    options: LicenseDeactivateOptions
+  ): Promise<{ success: boolean; deactivated?: boolean }> {
     const res = await this.ctx.request("/api/v1/licensing/deactivate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -285,7 +288,11 @@ export class LicensingModule {
     return Boolean(entitlements && entitlements[featureName]);
   }
 
-  public getFeature<T = any>(entitlements: Record<string, any>, featureName: string, defaultValue?: T): T {
+  public getFeature<T = any>(
+    entitlements: Record<string, any>,
+    featureName: string,
+    defaultValue?: T
+  ): T {
     return entitlements && entitlements[featureName] !== undefined
       ? entitlements[featureName]
       : (defaultValue as T);

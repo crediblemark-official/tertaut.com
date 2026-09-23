@@ -14,7 +14,14 @@ import {
 } from "./handlers";
 
 /** Endpoint checkout yang memang harus publik (webhook, buat sesi, preview kupon, redirect DANA, polling status). */
-const PUBLIC_CHECKOUT_PATHS = ["webhook", "/session", "preview-coupon", "dana/finish", "/status", "consult-pay"];
+const PUBLIC_CHECKOUT_PATHS = [
+  "webhook",
+  "/session",
+  "preview-coupon",
+  "dana/finish",
+  "/status",
+  "consult-pay",
+];
 
 export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
   // Dashboard-only: /transactions, /disburse/:txId, /simulate-paid/:txId
@@ -55,7 +62,8 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
     detail: {
       tags: ["MoR Checkout"],
       summary: "Create Dynamic Checkout Session",
-      description: "Creates a dynamic invoice session (DANA Gapura) with 5% MoR platform fee auto-deducted",
+      description:
+        "Creates a dynamic invoice session (DANA Gapura) with 5% MoR platform fee auto-deducted",
     },
   })
   /**
@@ -95,7 +103,8 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
     detail: {
       tags: ["MoR Checkout"],
       summary: "Preview Coupon Discount",
-      description: "Validates a coupon code against an app and returns the computed discount without creating a transaction.",
+      description:
+        "Validates a coupon code against an app and returns the computed discount without creating a transaction.",
     },
   })
   /**
