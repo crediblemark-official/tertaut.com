@@ -74,7 +74,13 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
       detail: {
         tags: ["S2S API"],
         summary: "List aplikasi builder",
+        description:
+          "Mengambil daftar seluruh aplikasi milik builder, termasuk publishable apiKey untuk konfigurasi frontend SDK.",
         security: [{ BuilderSecretKey: [] }],
+        responses: {
+          200: { description: "Daftar aplikasi builder berhasil diambil" },
+          401: { description: "Secret API key tidak valid atau hilang" },
+        },
       },
     }
   )
@@ -93,11 +99,16 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
       return app;
     },
     {
-      params: t.Object({ appId: t.String() }),
+      params: t.Object({ appId: t.String({ description: "ID aplikasi (app_...)" }) }),
       detail: {
         tags: ["S2S API"],
         summary: "Detail aplikasi",
+        description: "Mengambil konfigurasi lengkap satu aplikasi milik builder.",
         security: [{ BuilderSecretKey: [] }],
+        responses: {
+          200: { description: "Data detail aplikasi" },
+          404: { description: "Aplikasi tidak ditemukan atau bukan milik builder" },
+        },
       },
     }
   )
@@ -107,16 +118,23 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
    */
   .get("/licenses", handleS2SListLicenses, {
     query: t.Object({
-      appId: t.Optional(t.String()),
+      appId: t.Optional(t.String({ description: "Filter berdasarkan ID aplikasi" })),
       status: t.Optional(
-        t.Union([t.Literal("ACTIVE"), t.Literal("REVOKED"), t.Literal("EXPIRED")])
+        t.Union([t.Literal("ACTIVE"), t.Literal("REVOKED"), t.Literal("EXPIRED")], {
+          description: "Filter status lisensi",
+        })
       ),
-      limit: t.Optional(t.Numeric({ default: 50 })),
+      limit: t.Optional(t.Numeric({ default: 50, description: "Jumlah data per halaman" })),
     }),
     detail: {
       tags: ["S2S API"],
       summary: "List lisensi builder",
+      description:
+        "Mengambil daftar lisensi terbitan builder dengan opsi filter appId, status keaktifan, dan paginasi.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Daftar lisensi dan kuota seat" },
+      },
     },
   })
 
@@ -125,10 +143,12 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
    */
   .post("/licenses/issue", handleS2SIssueLicense, {
     body: t.Object({
-      appId: t.String(),
-      customerEmail: t.String(),
-      grantDays: t.Optional(t.Numeric({ default: 30 })),
-      maxSeats: t.Optional(t.Numeric({ default: 3 })),
+      appId: t.String({ description: "ID aplikasi target" }),
+      customerEmail: t.String({ description: "Email customer pemilik lisensi" }),
+      grantDays: t.Optional(t.Numeric({ default: 30, description: "Masa aktif dalam hari" })),
+      maxSeats: t.Optional(
+        t.Numeric({ default: 3, description: "Batas maksimal perangkat (seats)" })
+      ),
       platform: t.Optional(
         t.Union([
           t.Literal("web"),
@@ -138,16 +158,24 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
           t.Literal("general"),
         ])
       ),
-      grantCredits: t.Optional(t.Numeric({ default: 0 })),
+      grantCredits: t.Optional(
+        t.Numeric({ default: 0, description: "Saldo kredit awal yang diberikan" })
+      ),
       features: t.Optional(
-        t.Record(t.String(), t.Any(), { description: "Entitlements / feature flags" })
+        t.Record(t.String(), t.Any(), { description: "Entitlements / feature flags kustom" })
       ),
       licenseVersion: t.Optional(t.Numeric({ default: 1 })),
     }),
     detail: {
       tags: ["S2S API"],
       summary: "Terbitkan lisensi (issuance programatik)",
+      description:
+        "Menerbitkan kunci lisensi baru (format TT-XXXX-XXXX-XXXX) secara programatik tanpa melewati alur checkout pembayaran.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Lisensi berhasil diterbitkan" },
+        400: { description: "Parameter input tidak valid" },
+      },
     },
   })
 
@@ -155,11 +183,19 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
    * Cabut lisensi milik builder (termasuk denylist token offline)
    */
   .post("/licenses/revoke", handleS2SRevokeLicense, {
-    body: t.Object({ licenseKey: t.String() }),
+    body: t.Object({
+      licenseKey: t.String({ description: "Kunci lisensi (TT-...) yang akan dicabut" }),
+    }),
     detail: {
       tags: ["S2S API"],
       summary: "Cabut lisensi",
+      description:
+        "Mencabut lisensi secara permanen. Status lisensi diubah menjadi REVOKED, offline token dimasukkan ke denylist, dan seat dinonaktifkan.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Lisensi berhasil dicabut" },
+        404: { description: "Lisensi tidak ditemukan" },
+      },
     },
   })
 
@@ -167,11 +203,16 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
    * Cek saldo kredit lisensi milik builder
    */
   .get("/credits/balance", handleS2SCreditBalance, {
-    query: t.Object({ licenseKey: t.String() }),
+    query: t.Object({ licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }) }),
     detail: {
       tags: ["S2S API"],
       summary: "Saldo kredit lisensi",
+      description:
+        "Memeriksa sisa unit kredit aktif yang dimiliki lisensi tertentu dari sisi server.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Informasi saldo kredit lisensi" },
+      },
     },
   })
 
@@ -180,15 +221,23 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
    */
   .post("/credits/consume", handleS2SCreditConsume, {
     body: t.Object({
-      licenseKey: t.String(),
-      amount: t.Numeric(),
-      reference: t.Optional(t.String()),
-      reason: t.Optional(t.String()),
+      licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }),
+      amount: t.Numeric({ description: "Jumlah unit kredit yang ingin didebit" }),
+      reference: t.Optional(
+        t.String({ description: "Idempotency key unik untuk mencegah duplikasi potongan" })
+      ),
+      reason: t.Optional(t.String({ description: "Alasan atau nama fitur yang dikonsumsi" })),
     }),
     detail: {
       tags: ["S2S API"],
       summary: "Konsumsi kredit lisensi",
+      description:
+        "Mendebit saldo kredit lisensi secara aman dan idempoten (anti saldo negatif) dari backend builder.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Kredit berhasil didebit" },
+        402: { description: "Saldo kredit tidak cukup" },
+      },
     },
   })
 
@@ -196,11 +245,16 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
    * Fase 2/6 — Daftar seat (aktivasi + lease floating) lisensi milik builder.
    */
   .get("/licenses/seats", handleS2SListSeats, {
-    query: t.Object({ licenseKey: t.String() }),
+    query: t.Object({ licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }) }),
     detail: {
       tags: ["S2S API"],
       summary: "List seat lisensi (aktivasi + lease)",
+      description:
+        "Mengembalikan daftar seluruh perangkat yang sedang aktif terikat pada lisensi beserta data lease floating.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Daftar seat perangkat aktif" },
+      },
     },
   })
 
@@ -208,11 +262,19 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
    * Fase 6 — Paksa lepas satu seat (force-release) milik builder.
    */
   .post("/licenses/seat/release", handleS2SReleaseSeat, {
-    body: t.Object({ licenseKey: t.String(), hwid: t.String() }),
+    body: t.Object({
+      licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }),
+      hwid: t.String({ description: "Hardware ID perangkat yang ingin dilepas" }),
+    }),
     detail: {
       tags: ["S2S API"],
       summary: "Force-release one device seat",
+      description:
+        "Melepaskan ikatan satu perangkat tertentu dari kuota seat lisensi sehingga slot dapat digunakan perangkat lain.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Seat perangkat berhasil dilepas" },
+      },
     },
   })
 
@@ -220,11 +282,16 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
    * Fase 6 — Pulihkan lisensi dari device hilang (recover): reset seluruh seat device.
    */
   .post("/licenses/recover", handleS2SRecoverLicense, {
-    body: t.Object({ licenseKey: t.String() }),
+    body: t.Object({ licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }) }),
     detail: {
       tags: ["S2S API"],
       summary: "Recover lisensi saat device hilang",
+      description:
+        "Mereset seluruh seat perangkat yang terikat dan membatalkan token offline lama jika perangkat pengguna hilang atau rusak.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Lisensi berhasil dipulihkan dan seluruh seat direset" },
+      },
     },
   })
 
@@ -232,11 +299,19 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
    * Fase 6 — Transfer kepemilikan lisensi ke customer lain.
    */
   .post("/licenses/transfer", handleS2STransferLicense, {
-    body: t.Object({ licenseKey: t.String(), newCustomerEmail: t.String() }),
+    body: t.Object({
+      licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }),
+      newCustomerEmail: t.String({ description: "Alamat email pemilik baru" }),
+    }),
     detail: {
       tags: ["S2S API"],
       summary: "Transfer lisensi ke customer lain",
+      description:
+        "Memindahkan kepemilikan lisensi ke customer lain dan mereset device binding yang terdaftar sebelumnya.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Lisensi berhasil ditransfer" },
+      },
     },
   })
 
@@ -245,16 +320,23 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
    */
   .get("/licenses/events", handleS2SLicenseEvents, {
     query: t.Object({
-      licenseKey: t.Optional(t.String()),
-      appId: t.Optional(t.String()),
-      event: t.Optional(t.String()),
+      licenseKey: t.Optional(t.String({ description: "Filter kunci lisensi tertentu" })),
+      appId: t.Optional(t.String({ description: "Filter ID aplikasi" })),
+      event: t.Optional(
+        t.String({ description: "Filter jenis event (ISSUED, ACTIVATED, REVOKED, dll)" })
+      ),
       actorType: t.Optional(t.String()),
       limit: t.Optional(t.Numeric({ default: 50 })),
     }),
     detail: {
       tags: ["S2S API"],
       summary: "Audit trail lisensi (event-sourced)",
+      description:
+        "Riwayat log audit trail perubahan siklus hidup lisensi untuk kebutuhan verifikasi dan debugging.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Log audit trail event lisensi" },
+      },
     },
   })
 
@@ -263,7 +345,7 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
    */
   .post("/licenses/issue-batch", handleS2SIssueBatch, {
     body: t.Object({
-      appId: t.String(),
+      appId: t.String({ description: "ID aplikasi target" }),
       items: t.Array(
         t.Object({
           customerEmail: t.String(),
@@ -280,13 +362,19 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
           ),
           grantCredits: t.Optional(t.Numeric({ default: 0 })),
           features: t.Optional(t.Record(t.String(), t.Any())),
-        })
+        }),
+        { description: "Maksimal 200 lisensi dalam satu batch" }
       ),
     }),
     detail: {
       tags: ["S2S API"],
       summary: "Batch issue lisensi (hingga 200)",
+      description:
+        "Menerbitkan hingga 200 lisensi sekaligus secara massal dalam satu transaksi atomik untuk efisiensi distribusi.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Seluruh lisensi batch berhasil diterbitkan" },
+      },
     },
   })
 
@@ -300,7 +388,11 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
     detail: {
       tags: ["S2S API"],
       summary: "Batch revoke lisensi",
+      description: "Mencabut hingga 200 lisensi sekaligus dalam satu kali panggilan API.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Lisensi batch berhasil dicabut" },
+      },
     },
   })
 
@@ -311,26 +403,40 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
     detail: {
       tags: ["S2S API"],
       summary: "List webhook endpoints + event yang tersedia",
+      description:
+        "Melihat seluruh endpoint webhook yang terdaftar beserta daftar event yang didukung (mis. payment.fulfilled, license.issued, license.revoked).",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Daftar webhook endpoint aktif" },
+      },
     },
   })
 
   .post("/webhooks", handleS2SCreateWebhook, {
     body: t.Object({
-      url: t.String(),
-      events: t.Optional(t.Array(t.String(), { description: "Kosong = langganan semua event" })),
-      secret: t.Optional(t.String({ description: "Opsional; bila kosong dibuat otomatis" })),
+      url: t.String({ description: "Target URL server yang menerima webhook POST HTTP" }),
+      events: t.Optional(
+        t.Array(t.String(), { description: "Daftar event yang dilanggani (kosong = semua event)" })
+      ),
+      secret: t.Optional(
+        t.String({ description: "Secret HMAC kustom untuk verifikasi signature header" })
+      ),
       isActive: t.Optional(t.Boolean({ default: true })),
     }),
     detail: {
       tags: ["S2S API"],
       summary: "Daftarkan webhook endpoint",
+      description:
+        "Mendaftarkan endpoint URL baru untuk menerima event notifikasi real-time via webhook ber-signature HMAC.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        201: { description: "Webhook endpoint berhasil dibuat" },
+      },
     },
   })
 
   .patch("/webhooks/:id", handleS2SUpdateWebhook, {
-    params: t.Object({ id: t.String() }),
+    params: t.Object({ id: t.String({ description: "ID webhook endpoint" }) }),
     body: t.Object({
       url: t.Optional(t.String()),
       events: t.Optional(t.Array(t.String())),
@@ -339,33 +445,51 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
     detail: {
       tags: ["S2S API"],
       summary: "Perbarui webhook endpoint",
+      description:
+        "Memperbarui URL, event subscriptions, atau status aktif/non-aktif webhook endpoint.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Webhook endpoint berhasil diperbarui" },
+      },
     },
   })
 
   .delete("/webhooks/:id", handleS2SDeleteWebhook, {
-    params: t.Object({ id: t.String() }),
+    params: t.Object({ id: t.String({ description: "ID webhook endpoint" }) }),
     detail: {
       tags: ["S2S API"],
       summary: "Hapus webhook endpoint",
+      description: "Menghapus webhook endpoint terdaftar secara permanen.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Webhook endpoint berhasil dihapus" },
+      },
     },
   })
 
   .post("/webhooks/:id/rotate-secret", handleS2SRotateWebhookSecret, {
-    params: t.Object({ id: t.String() }),
+    params: t.Object({ id: t.String({ description: "ID webhook endpoint" }) }),
     detail: {
       tags: ["S2S API"],
       summary: "Rotate secret HMAC webhook",
+      description: "Menghasilkan kunci secret HMAC baru untuk webhook endpoint.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Secret webhook berhasil dirotasi" },
+      },
     },
   })
 
   .post("/webhooks/:id/test", handleS2STestWebhook, {
-    params: t.Object({ id: t.String() }),
+    params: t.Object({ id: t.String({ description: "ID webhook endpoint" }) }),
     detail: {
       tags: ["S2S API"],
       summary: "Kirim test delivery webhook",
+      description:
+        "Mengirimkan sampel payload ping ke URL webhook target untuk menguji kesiapan server Anda.",
       security: [{ BuilderSecretKey: [] }],
+      responses: {
+        200: { description: "Test ping webhook terkirim" },
+      },
     },
   });

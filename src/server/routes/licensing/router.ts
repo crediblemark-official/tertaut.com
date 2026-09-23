@@ -163,12 +163,24 @@ export function createLicensingRouter(prefix: string) {
        */
       .post("/credits/balance", handleCreditBalance, {
         body: t.Object({
-          licenseKey: t.String(),
-          hwid: t.Optional(t.String()),
+          licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }),
+          hwid: t.Optional(
+            t.String({ description: "Hardware ID perangkat untuk verifikasi seat" })
+          ),
         }),
         detail: {
           tags: ["Credits"],
           summary: "Get License Credit Balance",
+          description:
+            "Mengambil sisa saldo kredit aktif yang dimiliki lisensi. Digunakan untuk aplikasi dengan model bisnis berbasis pemakaian (metered/usage-based credits).",
+          responses: {
+            200: {
+              description: "Informasi saldo kredit dan kuota terpakai",
+            },
+            404: {
+              description: "Lisensi tidak ditemukan atau tidak aktif",
+            },
+          },
         },
       })
 
@@ -177,15 +189,30 @@ export function createLicensingRouter(prefix: string) {
        */
       .post("/credits/consume", handleConsumeCredits, {
         body: t.Object({
-          licenseKey: t.String(),
-          hwid: t.String(),
-          amount: t.Number({ minimum: 1 }),
-          reason: t.Optional(t.String()),
-          reference: t.Optional(t.String()),
+          licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }),
+          hwid: t.String({ description: "Hardware ID perangkat pengonsumsi" }),
+          amount: t.Number({ minimum: 1, description: "Jumlah unit kredit yang ingin dikonsumsi" }),
+          reason: t.Optional(t.String({ description: "Deskripsi pemakaian (mis. export_pdf_hd)" })),
+          reference: t.Optional(
+            t.String({ description: "Idempotency key unik untuk mencegah double-debit" })
+          ),
         }),
         detail: {
           tags: ["Credits"],
           summary: "Consume License Credits",
+          description:
+            "Mengurangi saldo kredit lisensi secara atomik (database lock) dengan pencegahan saldo negatif dan dukungan idempotensi via reference key.",
+          responses: {
+            200: {
+              description: "Kredit berhasil didebit atau permintaan idempoten sebelumnya ditemukan",
+            },
+            402: {
+              description: "Saldo kredit tidak mencukupi (INSUFFICIENT_CREDITS)",
+            },
+            404: {
+              description: "Lisensi tidak ditemukan",
+            },
+          },
         },
       })
 
@@ -194,13 +221,20 @@ export function createLicensingRouter(prefix: string) {
        */
       .post("/credits/history", handleCreditHistory, {
         body: t.Object({
-          licenseKey: t.String(),
-          hwid: t.Optional(t.String()),
-          limit: t.Optional(t.Number({ minimum: 1, maximum: 200 })),
+          licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }),
+          hwid: t.Optional(t.String({ description: "Hardware ID perangkat" })),
+          limit: t.Optional(t.Number({ minimum: 1, maximum: 200, default: 50 })),
         }),
         detail: {
           tags: ["Credits"],
           summary: "License Credit Ledger History",
+          description:
+            "Audit trail mutasi kredit lisensi: riwayat penambahan (top-up/pembelian) dan pengurangan kredit (konsumsi).",
+          responses: {
+            200: {
+              description: "Daftar entri ledger mutasi kredit",
+            },
+          },
         },
       })
 
@@ -209,9 +243,9 @@ export function createLicensingRouter(prefix: string) {
        */
       .post("/validate", handleValidateLicense, {
         body: t.Object({
-          licenseKey: t.String(),
-          appId: t.String(),
-          hardwareId: t.Optional(t.String()),
+          licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }),
+          appId: t.String({ description: "ID aplikasi tertaut" }),
+          hardwareId: t.Optional(t.String({ description: "Hardware fingerprint ID perangkat" })),
           appVersion: t.Optional(
             t.String({
               description: "Versi aplikasi klien saat ini untuk pengecekan version floor",
@@ -230,6 +264,17 @@ export function createLicensingRouter(prefix: string) {
         detail: {
           tags: ["Universal Licensing"],
           summary: "Validate License & Bind Hardware",
+          description:
+            "Endpoint validasi serbaguna yang memeriksa status lisensi, mengikat device ke slot seat yang tersedia, memeriksa floor version aplikasi, dan menerbitkan Ed25519 token offline.",
+          responses: {
+            200: {
+              description: "Lisensi valid dan perangkat terikat",
+            },
+            403: {
+              description:
+                "Lisensi dicabut, kedaluwarsa, kuota seat habis, atau versi aplikasi terlalu lama",
+            },
+          },
         },
       })
 
@@ -238,11 +283,21 @@ export function createLicensingRouter(prefix: string) {
        */
       .post("/verify-offline-token", handleVerifyOfflineToken, {
         body: t.Object({
-          token: t.String(),
+          token: t.String({ description: "Signed Ed25519 offline license JWT token" }),
         }),
         detail: {
           tags: ["Universal Licensing"],
           summary: "Verify Offline Grace Token",
+          description:
+            "Memverifikasi keabsahan token offline Ed25519 dan memeriksa apakah token telah dimasukkan ke denylist revocations server.",
+          responses: {
+            200: {
+              description: "Token offline valid dan grace period aktif",
+            },
+            401: {
+              description: "Token tidak valid, kedaluwarsa, atau telah dicabut (TOKEN_REVOKED)",
+            },
+          },
         },
       })
 

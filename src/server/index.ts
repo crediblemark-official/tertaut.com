@@ -179,27 +179,52 @@ export const app = new Elysia()
         /^\/api\/v1\/checkout\/preview-coupon/,
         /^\/api\/v1\/metering\/events/,
         /^\/api\/v1\/metering\/usage\//,
+        // Internal banner pengumuman frontend
+        /^\/api\/v1\/announcement/,
       ],
       documentation: {
         info: {
-          title: "tertaut.com Engine API",
-          version: "2.3.0",
+          title: "tertaut.com Developer API",
+          version: "0.2.0",
           description:
-            "Headless Developer Infrastructure Engine (Monetization, Universal Licensing, AI Protection, Fake Door Validation)",
+            "Spesifikasi OpenAPI resmi untuk platform **tertaut.com** — Merchant of Record (MoR), Lisensi Kriptografis Offline-First (Ed25519), dan AI Proxy Shield untuk software builder di Indonesia.\n\n" +
+            "### 🛡️ Skema Autentikasi:\n" +
+            "- **`BuilderSecretKey` (`Bearer tt_secret_...`)**: Wajib untuk seluruh endpoint Server-to-Server (`/api/v1/s2s/*`). Ambil secret key Anda di halaman Dashboard > Docs. Jangan pernah mengekspos secret key ini di aplikasi klien/frontend.\n" +
+            "- **`LicenseToken` (`Bearer <token>`)**: Digunakan oleh perangkat klien setelah aktivasi lisensi (`POST /api/v1/licensing/activate`) untuk mengakses AI Proxy Shield dan membuktikan kepemilikan lisensi secara offline.\n\n" +
+            "### 📦 Integrasi SDK Resmi:\n" +
+            "Gunakan library resmi [`@tertaut/sdk`](https://www.npmjs.com/package/@tertaut/sdk) (`npm install @tertaut/sdk`) untuk TypeScript/JavaScript, browser, Bun, Node.js, Tauri, dan Electron.",
         },
         tags: [
           {
-            name: "Launch Kit",
-            description: "One-click live launch, badges and developer SDK tooling",
+            name: "MoR Checkout",
+            description:
+              "Alur pembayaran Merchant of Record (QRIS & Virtual Account), e-receipt resmi (PPN 11%), kupon diskon, dan status polling.",
           },
-          { name: "MoR Checkout", description: "Dynamic hosted checkout" },
           {
             name: "Universal Licensing",
-            description: "Multi-platform key validation & hardware binding",
+            description:
+              "Validasi lisensi multi-platform, binding hardware ID perangkat, aktivasi floating seat, dan token offline Ed25519.",
           },
-          { name: "AI API Proxy Shield", description: "Zero-leak AI API gateway" },
-          { name: "Credits", description: "License metered credit ledger & consumption" },
-          { name: "S2S API", description: "Server-to-Server programatic automation" },
+          {
+            name: "AI API Proxy Shield",
+            description:
+              "Gateway AI aman tanpa kebocoran master API key, dilengkapi proteksi rate limit, daily token cap, dan relay SSE streaming.",
+          },
+          {
+            name: "Credits",
+            description:
+              "Ledger saldo kredit dan pelaporan pemakaian konsumsi kredit lisensi secara atomik dan idempoten.",
+          },
+          {
+            name: "S2S API",
+            description:
+              "Endpoint Server-to-Server terproteksi secret API key untuk otomasi backend (issuance, revoke, batch ops, transfer, webhooks).",
+          },
+          {
+            name: "Launch Kit",
+            description:
+              "Web component trust badge embeddable dan widget penjualan penambah konversi.",
+          },
         ],
         components: {
           securitySchemes: {
