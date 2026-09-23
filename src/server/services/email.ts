@@ -42,9 +42,28 @@ function formatDate(date: Date | string): string {
  */
 export class EmailService {
   private static quotaBlockedUntil = 0;
+  /**
+   * Override pengiriman — hanya untuk unit test layer HTTP (fetch mock).
+   * null = ikuti environment. Jangan dipakai di production code path.
+   */
+  private static sendOverride: boolean | null = null;
 
   static resetQuotaBlock(): void {
     this.quotaBlockedUntil = 0;
+  }
+
+  static setSendOverride(enabled: boolean | null): void {
+    this.sendOverride = enabled;
+  }
+
+  /**
+   * Email transaksional HANYA dikirim di production (NODE_ENV=production).
+   * Di development/test/sandbox pengiriman dilewati agar kuota Resend
+   * (free tier: 100/hari) tidak habis oleh percobaan/uji coba.
+   */
+  static isDeliveryEnabled(): boolean {
+    if (this.sendOverride !== null) return this.sendOverride;
+    return config.isProd;
   }
 
   static isConfigured(): boolean {
@@ -56,6 +75,16 @@ export class EmailService {
       if (!config.isProd) {
         console.warn(
           `[Email] RESEND_API_KEY belum diset — email "${params.subject}" ke ${params.to} dilewati.`
+        );
+      }
+      return { ok: false, skipped: true };
+    }
+
+    // P0: jangan buang kuota & percobaan Resend di environment non-produksi.
+    if (!this.isDeliveryEnabled()) {
+      if (!config.isTest) {
+        console.warn(
+          `[Email] Pengiriman dinonaktifkan di environment non-produksi (${config.nodeEnv}) — email "${params.subject}" ke ${params.to} dilewati.`
         );
       }
       return { ok: false, skipped: true };

@@ -42,6 +42,9 @@ describe("Unit Tests - EmailService", () => {
     const originalFetch = globalThis.fetch;
 
     try {
+      // Test ini memeriksa layer HTTP (fetch mock) — paksa pengiriman aktif,
+      // karena default-nya email hanya dikirim di production.
+      EmailService.setSendOverride(true);
       config.email.resendApiKey = "re_mock_test_key";
       config.email.from = "Tertaut <noreply@tertaut.com>";
 
@@ -111,6 +114,7 @@ describe("Unit Tests - EmailService", () => {
       config.email.resendApiKey = originalKey;
       config.email.from = originalFrom;
       EmailService.resetQuotaBlock();
+      EmailService.setSendOverride(null);
     }
   });
 });

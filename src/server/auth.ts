@@ -20,12 +20,15 @@ const trustedOrigins = [
 /**
  * Verifikasi email wajib (anti-registrasi email orang lain / akun palsu).
  * Diaktifkan hanya bila:
- *  - mail provider (Resend) terkonfigurasi sehingga tautan verifikasi benar-benar terkirim,
+ *  - mail provider (Resend) terkonfigurasi DAN pengiriman aktif (production —
+ *    di dev/test/sandbox pengiriman email dilewati otomatis), sehingga tautan
+ *    verifikasi benar-benar terkirim ke inbox user,
  *  - bukan environment test (suite tes memakai user seed tanpa alur verifikasi),
- *  - tidak dimatikan eksplisit via REQUIRE_EMAIL_VERIFICATION=false (development lokal).
+ *  - tidak dimatikan eksplisit via REQUIRE_EMAIL_VERIFICATION=false.
  */
 const verifyEmailEnabled =
   EmailService.isConfigured() &&
+  EmailService.isDeliveryEnabled() &&
   config.nodeEnv !== "test" &&
   process.env.REQUIRE_EMAIL_VERIFICATION !== "false";
 
