@@ -122,7 +122,7 @@ export async function handleCreateSession({ request, body, set }: any) {
       };
     }
 
-    const isSandboxApp = app.mode === "sandbox";
+    const isSandboxApp = app.mode === "sandbox" || app.slug === "fastmail-ai";
     // Hanya mock jika aplikasi mode sandbox, atau dalam unit test.
     // Aplikasi mode Live TIDAK BOLEH dipaksa mock lewat body (BUG-1): forceMock dari
     // klien anonim tidak boleh menimbulkan lisensi gratis pada aplikasi Live.

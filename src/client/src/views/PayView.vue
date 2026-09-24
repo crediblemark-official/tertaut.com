@@ -142,7 +142,7 @@ async function loadCheckoutData() {
           id: "app_fastmail_ai",
           name: "FastMail AI Summarizer",
           slug: "fastmail-ai",
-          mode: "live",
+          mode: "sandbox",
           targetPrice: 49000,
           description:
             "Ekstensi Chrome & web app untuk merangkum email penting secara otomatis menggunakan Gemini AI.",

@@ -94,10 +94,10 @@ export async function ensureDemoData(): Promise<void> {
       await db.insert(apps).values({
         id: "app_fastmail_ai",
         builderId: primaryBuilder.id,
-        apiKey: `tt_live_${randomBytes(16).toString("hex")}`,
+        apiKey: `tt_test_${randomBytes(16).toString("hex")}`,
         name: "FastMail AI Summarizer",
         slug: "fastmail-ai",
-        mode: "live",
+        mode: "sandbox",
         targetPrice: 49000,
         pricingType: "one_time",
         description:
@@ -111,10 +111,18 @@ export async function ensureDemoData(): Promise<void> {
           "Lisensi resmi terikat hardware / device",
           "Update versi & dukungan pelanggan langsung",
         ],
-        ctaText: "Beli Lisensi Sekarang",
+        ctaText: "Coba Demo Checkout",
         deliveryConfig: fastMailDelivery,
       });
-      console.log("✅ [Demo] Aplikasi demo FastMail AI (fastmail-ai) berhasil disiapkan!");
+      console.log(
+        "✅ [Demo] Aplikasi demo FastMail AI (fastmail-ai) berhasil disiapkan dalam mode Sandbox!"
+      );
+    } else if (existingFastMail.mode !== "sandbox") {
+      await db
+        .update(apps)
+        .set({ mode: "sandbox", ctaText: "Coba Demo Checkout" })
+        .where(eq(apps.id, existingFastMail.id));
+      console.log("✅ [Demo] Mode aplikasi demo FastMail AI dipindahkan ke Sandbox.");
     }
 
     // 4. Pastikan Aplikasi Demo: DevDocs Desktop Pro (devdocs-desktop)

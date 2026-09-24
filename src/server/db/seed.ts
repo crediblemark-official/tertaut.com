@@ -49,7 +49,7 @@ const APPS = [
     id: "app_fastmail_ai",
     name: "FastMail AI Summarizer",
     slug: "fastmail-ai",
-    mode: "live" as const,
+    mode: "sandbox" as const,
     targetPrice: 49000,
     platform: "chrome_extension" as const,
     description:

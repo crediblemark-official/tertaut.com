@@ -247,11 +247,13 @@ export async function handleGetBySlug({ params: { slug }, set }: SlugParamContex
     return { error: "Product not found" };
   }
 
+  const isDemoFastMail = app.slug === "fastmail-ai";
+
   return {
     id: app.id,
     name: app.name,
     slug: app.slug,
-    mode: app.mode,
+    mode: isDemoFastMail ? "sandbox" : app.mode,
     targetPrice: app.targetPrice,
     description: app.description,
     headline: app.headline || app.name,
