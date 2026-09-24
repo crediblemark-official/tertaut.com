@@ -16,19 +16,7 @@ import {
 import { api } from "../../lib/api";
 import { useClipboard } from "../../composables/useClipboard";
 import type { WebhookEndpointItem } from "../../types/licensing";
-
-const WEBHOOK_EVENT_LABELS: Record<string, string> = {
-  "license.issued": "License Diterbitkan",
-  "license.activated": "License Diaktifkan",
-  "license.deactivated": "License Di-deactivate",
-  "license.seat_full": "Seat Penuh",
-  "license.revoked": "License Dicabut (Revoke)",
-  "license.expired": "License Kadaluarsa",
-  "license.renewed": "License Diperpanjang",
-  "license.transferred": "License Dipindah",
-  "license.unbound": "Hardware Unbound",
-  "credits.insufficient": "Kredit Tidak Cukup",
-};
+import { WEBHOOK_EVENT_LABELS } from "../../constants";
 
 const loading = ref(true);
 const webhooks = ref<WebhookEndpointItem[]>([]);

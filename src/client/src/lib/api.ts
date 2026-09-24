@@ -282,9 +282,11 @@ export const api = {
     customerEmail: string;
     grantDays?: number;
     preferredPaymentChannel?: string;
-    paymentRail?: "qris" | "va" | "ewallet";
+    paymentRail?: "qris" | "va" | "ewallet" | "card" | "retail";
     scenario?: "API" | "REDIRECT";
     vaBank?: string;
+    ewalletChannel?: string;
+    retailOutlet?: string;
     redirectUrl?: string;
     couponCode?: string;
   }): Promise<{
@@ -293,7 +295,7 @@ export const api = {
     ticket?: string;
     checkoutUrl?: string;
     scenario?: "API" | "REDIRECT";
-    paymentRail?: "qris" | "va" | "ewallet";
+    paymentRail?: "qris" | "va" | "ewallet" | "card" | "retail";
     paymentCode?: string;
     qrDataUrl?: string;
     vaBank?: string;
@@ -327,6 +329,25 @@ export const api = {
     const sep = ticket ? (txId.includes("?") ? "&" : "?") : "";
     const qs = ticket ? `${sep}ticket=${encodeURIComponent(ticket)}` : "";
     const res = await apiFetch(`/api/v1/checkout/status/${txId}${qs}`);
+    return parseJson(res);
+  },
+
+  async simulatePaid(
+    txId: string,
+    ticket?: string
+  ): Promise<{
+    success: boolean;
+    message?: string;
+    licenseKey?: string;
+    error?: string;
+  }> {
+    const sep = ticket ? (txId.includes("?") ? "&" : "?") : "";
+    const qs = ticket ? `${sep}ticket=${encodeURIComponent(ticket)}` : "";
+    const res = await apiFetch(`/api/v1/checkout/simulate-paid/${txId}${qs}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticket }),
+    });
     return parseJson(res);
   },
 

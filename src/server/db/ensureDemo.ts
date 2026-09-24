@@ -3,10 +3,15 @@ import { user, builders, apps, coupons, type DeliveryConfig } from "./schema";
 import { eq } from "drizzle-orm";
 import { auth } from "../auth";
 import { randomBytes } from "crypto";
+import { config } from "../config";
 
 export async function ensureDemoData(): Promise<void> {
   try {
-    const adminEmail = (process.env.ADMIN_EMAIL || "platformtertaut@gmail.com").toLowerCase();
+    const adminEmail = (
+      config.admin.email ||
+      process.env.ADMIN_EMAIL ||
+      "platformtertaut@gmail.com"
+    ).toLowerCase();
 
     // 1. Pastikan akun Super Admin resmi (platformtertaut@gmail.com) tersedia
     let adminUser = await db.query.user.findFirst({
@@ -14,11 +19,15 @@ export async function ensureDemoData(): Promise<void> {
     });
 
     if (!adminUser) {
+      const adminPassword =
+        config.admin.password ||
+        (config.isTest ? "TestAdminPass123!" : `Sec_${randomBytes(16).toString("hex")}!Aa1`);
+
       try {
         await auth.api.signUpEmail({
           body: {
             email: adminEmail,
-            password: process.env.ADMIN_DEFAULT_PASSWORD || "AdminPassword123!",
+            password: adminPassword,
             name: "Platform Tertaut",
           },
         });

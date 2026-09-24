@@ -363,7 +363,6 @@ onMounted(() => {
               <h1 class="text-base font-extrabold text-jetblack">
                 Pengaturan Platform &amp; Moderasi
               </h1>
-              <span class="text-xs text-jetblack/50 font-mono">Dinamis Tanpa Redeploy</span>
             </div>
             <PlatformSettingsCard @alert="showAlert($event.type, $event.text)" />
           </div>

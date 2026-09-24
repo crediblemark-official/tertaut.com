@@ -23,6 +23,7 @@ const PUBLIC_CHECKOUT_PATHS = [
   "/status",
   "consult-pay",
   "/invoice",
+  "simulate-paid",
 ];
 
 export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
@@ -47,10 +48,20 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
       slug: t.Optional(t.String()),
       paymentGateway: t.Optional(t.String()),
       scenario: t.Optional(t.Union([t.Literal("API"), t.Literal("REDIRECT")])),
-      paymentRail: t.Optional(t.Union([t.Literal("qris"), t.Literal("va"), t.Literal("ewallet")])),
+      paymentRail: t.Optional(
+        t.Union([
+          t.Literal("qris"),
+          t.Literal("va"),
+          t.Literal("ewallet"),
+          t.Literal("card"),
+          t.Literal("retail"),
+        ])
+      ),
       preferredPaymentChannel: t.Optional(t.String()),
       vaBank: t.Optional(t.String()),
       bank: t.Optional(t.String()),
+      ewalletChannel: t.Optional(t.String()),
+      retailOutlet: t.Optional(t.String()),
       amount: t.Optional(t.Number({ minimum: 0 })),
       customAmount: t.Optional(t.Number({ minimum: 0 })),
       customerEmail: t.Optional(t.String()),
@@ -178,6 +189,13 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
    */
   .post("/simulate-paid/:txId", handleSimulatePaid, {
     params: t.Object({ txId: t.String() }),
+    query: t.Optional(
+      t.Object({
+        ticket: t.Optional(
+          t.String({ description: "HMAC poll ticket bukti kepemilikan sesi sandbox" })
+        ),
+      })
+    ),
     detail: {
       tags: ["MoR Checkout"],
       summary: "Simulate Successful Payment (Local Developer Sandbox)",

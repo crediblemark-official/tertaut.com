@@ -1,6 +1,7 @@
 import { db } from "../../db";
 import { platformSettings } from "../../db/schema/settings";
 import { eq, inArray } from "drizzle-orm";
+import { config } from "../../config";
 
 const DEFAULT_SETTINGS: Record<string, string> = {
   platform_fee_percent: "5",
@@ -11,6 +12,7 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   active_payment_gateway: "dana", // dana | xendit
   xendit_secret_key: "",
   xendit_webhook_token: "",
+  checkout_mode: "custom", // custom (Full Custom Native UI) | hosted (Redirect ke Halaman Hosted Xendit)
 };
 
 /**
@@ -24,17 +26,23 @@ export async function handleGetPlatformSettings() {
     settingsMap[r.key] = r.value;
   }
 
-  // Jika di database belum disimpan, ambil dari environment jika ada
-  if (!settingsMap.xendit_secret_key && process.env.XENDIT_SECRET_KEY) {
-    settingsMap.xendit_secret_key = process.env.XENDIT_SECRET_KEY;
+  // Kredensial environment (.env / Dokploy) selalu menjadi acuan utama (di luar test runner)
+  if (!config.isTest) {
+    if (process.env.XENDIT_SECRET_KEY) {
+      settingsMap.xendit_secret_key = process.env.XENDIT_SECRET_KEY;
+    }
+    if (process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN || process.env.XENDIT_WEBHOOK_TOKEN) {
+      settingsMap.xendit_webhook_token =
+        process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN || process.env.XENDIT_WEBHOOK_TOKEN || "";
+    }
   }
-  if (
-    !settingsMap.xendit_webhook_token &&
-    (process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN || process.env.XENDIT_WEBHOOK_TOKEN)
-  ) {
-    settingsMap.xendit_webhook_token =
-      process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN || process.env.XENDIT_WEBHOOK_TOKEN || "";
-  }
+
+  settingsMap.xendit_configured = String(
+    Boolean(settingsMap.xendit_secret_key && settingsMap.xendit_webhook_token)
+  );
+  settingsMap.dana_configured = String(
+    Boolean(process.env.DANA_CLIENT_ID || process.env.DANA_SANDBOX_CLIENT_ID)
+  );
 
   return {
     success: true,
@@ -62,6 +70,16 @@ export async function handleUpdatePlatformSettings({ body, set }: any) {
       return { success: false, error: "Gateway pembayaran harus bernilai 'dana' atau 'xendit'." };
     }
     updates.active_payment_gateway = pg;
+  }
+
+  // Validasi checkout mode (custom vs hosted)
+  if (updates.checkout_mode !== undefined) {
+    const cm = String(updates.checkout_mode).toLowerCase().trim();
+    if (cm !== "custom" && cm !== "hosted") {
+      set.status = 400;
+      return { success: false, error: "Mode checkout harus bernilai 'custom' atau 'hosted'." };
+    }
+    updates.checkout_mode = cm;
   }
 
   // Validasi fee percent

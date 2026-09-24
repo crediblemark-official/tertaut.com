@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "bun:test";
+import { describe, it, expect, beforeEach, afterAll } from "bun:test";
 import { setupTestAuth, authCookie } from "../setup";
 import { app } from "../../index";
 import { db } from "../../db";
@@ -223,5 +223,75 @@ describe("Multi-Payment Gateway Integration (DANA & Xendit)", () => {
     expect(issuedLicense).toBeDefined();
     expect(issuedLicense?.customerEmail).toBe("xendit-webhook-test@tertaut.com");
     expect(issuedLicense?.status).toBe("ACTIVE");
+  });
+
+  it("should process Xendit v3 Payments API (payment.capture) webhook event", async () => {
+    const txId = `tx_v3_${Date.now()}`;
+    const extId = `tt_v3_${Date.now()}`;
+
+    await db.insert(transactions).values({
+      id: txId,
+      appId: testAppId,
+      builderId: testBuilderId,
+      paymentProvider: "xendit",
+      customerEmail: "v3-webhook-test@tertaut.com",
+      grossAmount: 75000,
+      platformFee: 3750,
+      netAmount: 71250,
+      paymentChannel: "QRIS",
+      paymentStatus: "PENDING",
+      disbursementStatus: "PENDING",
+      grantDays: 30,
+      grantCredits: 0,
+      mockOrder: false,
+      xenditExternalId: extId,
+    });
+
+    const whRes = await app.handle(
+      new Request("http://localhost/webhook/xendit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-callback-token": "test_wh_token_123",
+        },
+        body: JSON.stringify({
+          created: new Date().toISOString(),
+          business_id: "biz_123",
+          event: "payment.capture",
+          api_version: "v3",
+          data: {
+            payment_id: "py_test_123",
+            business_id: "biz_123",
+            reference_id: extId,
+            status: "SUCCEEDED",
+            request_amount: 75000,
+            channel_code: "QRIS",
+          },
+        }),
+      })
+    );
+
+    expect(whRes.status).toBe(200);
+    const whJson = (await whRes.json()) as any;
+    expect(whJson.success).toBe(true);
+
+    const updatedTx = await db.query.transactions.findFirst({
+      where: eq(transactions.id, txId),
+    });
+    expect(updatedTx?.paymentStatus).toBe("PAID");
+  });
+
+  afterAll(async () => {
+    await db
+      .insert(platformSettings)
+      .values({
+        key: "active_payment_gateway",
+        value: "dana",
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: platformSettings.key,
+        set: { value: "dana", updatedAt: new Date() },
+      });
   });
 });

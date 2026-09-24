@@ -428,4 +428,9 @@ export const config = {
     webhookToken: getEnv("XENDIT_WEBHOOK_VERIFICATION_TOKEN") || getEnv("XENDIT_WEBHOOK_TOKEN"),
     platformFeePercent: 5,
   },
+
+  admin: {
+    email: (getEnv("ADMIN_EMAIL") || "platformtertaut@gmail.com").toLowerCase(),
+    password: getEnv("ADMIN_PASSWORD") || getEnv("ADMIN_DEFAULT_PASSWORD") || "",
+  },
 };

@@ -27,17 +27,24 @@ import { DanaService } from "../services/dana";
 import { randomBytes } from "crypto";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../routes/apps/api-key";
 import type { DeliveryConfig } from "../db/schema/apps";
+import { config } from "../config";
 
 /**
  * Satu-satunya akun default: milik pemilik platform.
- * - DB baru / fresh install: akun dibuat dengan password default di bawah.
+ * - DB baru / fresh install: akun dibuat dengan password dari .env (atau random bila kosong).
  * - DB yang sudah memiliki akun ini: password TIDAK direset (tetap milik pemilik),
  *   hanya role dinaikkan ke "admin" + emailVerified:true.
  */
 const ADMIN_CREDENTIALS = {
   name: "Platform Tertaut",
-  email: "platformtertaut@gmail.com",
-  password: "AdminPassword123!",
+  email: (
+    config.admin.email ||
+    process.env.ADMIN_EMAIL ||
+    "platformtertaut@gmail.com"
+  ).toLowerCase(),
+  password:
+    config.admin.password ||
+    (config.isTest ? "TestAdminPass123!" : `Sec_${randomBytes(16).toString("hex")}!Aa1`),
 };
 
 // Email akun default dari versi seed lama — dihapus agar tidak ada akun
@@ -312,7 +319,7 @@ export async function seed() {
       disbursementAccount: {
         bankCode: "BCA",
         accountNumber: "8830192847",
-        accountHolderName: "Ahmad Rizky",
+        accountHolderName: ADMIN_CREDENTIALS.name,
       },
     })
     .returning();
@@ -845,6 +852,11 @@ export async function seed() {
   console.log("🎉 Seeding database Postgres selesai 100%!");
   if (process.env.NODE_ENV !== "production") {
     console.log(`📋 Dashboard Login: ${ADMIN_CREDENTIALS.email}`);
+    if (!config.admin.password) {
+      console.log(
+        `📋 Admin Password: ${ADMIN_CREDENTIALS.password} (Generated acak, disarankan disetel di .env)`
+      );
+    }
     console.log(`📋 Builder Secret Key: [Tersedia di Dashboard -> Settings -> API Keys]`);
   }
 }

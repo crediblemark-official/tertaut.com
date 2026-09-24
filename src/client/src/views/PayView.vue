@@ -48,8 +48,10 @@ const loading = ref(true);
 const notFound = ref(false);
 const isSubmitting = ref(false);
 const errorMessage = ref("");
-const selectedPaymentRail = ref<"qris" | "va" | "ewallet">("qris");
+const selectedPaymentRail = ref<"qris" | "va" | "ewallet" | "card" | "retail">("qris");
 const selectedBank = ref("BCA");
+const selectedEwallet = ref("DANA");
+const selectedRetail = ref("ALFAMART");
 const activeCustomOrder = ref<{
   transactionId: string;
   scenario?: string;
@@ -57,6 +59,12 @@ const activeCustomOrder = ref<{
   paymentCode?: string;
   qrDataUrl?: string;
   vaBank?: string;
+  ewalletChannel?: string;
+  retailOutlet?: string;
+  cardDetails?: {
+    last4?: string;
+    brand?: string;
+  };
   amount?: number;
   checkoutUrl?: string;
   ticket?: string;
@@ -97,7 +105,7 @@ function startPolling(txId: string) {
         isPaid.value = true;
         paidResult.value = {
           licenseKey: res.licenseKey || undefined,
-          message: "Pembayaran DANA berhasil diverifikasi secara instan.",
+          message: "Pembayaran berhasil diverifikasi secara instan.",
         };
       } else if (res && (res.paymentStatus === "EXPIRED" || res.paymentStatus === "FAILED")) {
         stopPolling();
@@ -174,7 +182,7 @@ async function loadCheckoutData() {
             isPaid.value = true;
             paidResult.value = {
               licenseKey: statusRes.licenseKey || undefined,
-              message: "Pembayaran DANA berhasil diverifikasi.",
+              message: "Pembayaran berhasil diverifikasi.",
             };
           } else if (statusRes.paymentStatus === "PENDING") {
             activeCustomOrder.value = {
@@ -246,32 +254,53 @@ function setProductData(app: any) {
   };
 }
 
-async function handlePay() {
+async function handlePay(payload?: {
+  paymentRail?: "qris" | "va" | "ewallet" | "card" | "retail";
+  vaBank?: string;
+  ewalletChannel?: string;
+  retailOutlet?: string;
+  cardDetails?: {
+    cardNumber?: string;
+    cardExpiry?: string;
+    cardCvv?: string;
+    cardHolderName?: string;
+  };
+}) {
   if (!product.value || !emailInput.value) return;
   isSubmitting.value = true;
   errorMessage.value = "";
   isPaid.value = false;
   paidResult.value = null;
 
+  const rail = payload?.paymentRail || selectedPaymentRail.value;
+  const bank = payload?.vaBank || selectedBank.value;
+  const ewallet = payload?.ewalletChannel || selectedEwallet.value;
+  const retail = payload?.retailOutlet || selectedRetail.value;
+
   try {
-    const isCustomScenario =
-      selectedPaymentRail.value === "qris" ||
-      selectedPaymentRail.value === "va" ||
-      selectedPaymentRail.value === "ewallet";
     const data = await api.createCheckoutSession({
       appId: product.value.id,
       customerEmail: emailInput.value,
       amount: product.value.targetPrice,
-      preferredPaymentChannel: selectedPaymentRail.value,
-      paymentRail: selectedPaymentRail.value,
-      scenario: isCustomScenario ? "API" : "REDIRECT",
-      vaBank: selectedBank.value,
+      preferredPaymentChannel: rail,
+      paymentRail: rail,
+      vaBank: bank,
+      ewalletChannel: ewallet,
+      retailOutlet: retail,
       redirectUrl: product.value.redirectUrl || `${window.location.origin}/dashboard`,
       couponCode: appliedCoupon.value?.code || couponInput.value.trim() || undefined,
     });
 
     if (!data.success) {
-      errorMessage.value = data.error || "Gagal menyiapkan sesi checkout";
+      const rawErr = (data as any).error;
+      errorMessage.value =
+        typeof rawErr === "string"
+          ? rawErr
+          : typeof rawErr?.message === "string"
+            ? rawErr.message
+            : typeof (data as any).message === "string"
+              ? (data as any).message
+              : "Gagal menyiapkan sesi checkout";
       return;
     }
 
@@ -286,14 +315,33 @@ async function handlePay() {
     // Simpan ticket polling (BUG-5) supaya licenseKey tidak bocor ke pemegang txId saja.
     currentTicket = data.ticket || (data as any).data?.ticket || "";
 
-    if (data.scenario === "API" && (data.paymentCode || data.qrDataUrl)) {
+    // Full Custom Mode: scenario === "API" selalu menampilkan custom view di tertaut.com
+    if (data.scenario === "API") {
+      const rawCard = payload?.cardDetails?.cardNumber?.replace(/\D/g, "") || "";
+      const last4 = rawCard.slice(-4) || "2151";
+      const cardBrand = rawCard.startsWith("4")
+        ? "VISA"
+        : rawCard.startsWith("5")
+          ? "Mastercard"
+          : rawCard.startsWith("3")
+            ? "AMEX"
+            : rawCard.startsWith("35")
+              ? "JCB"
+              : "Kartu Kredit/Debit";
+
       activeCustomOrder.value = {
         transactionId: data.transactionId || "",
         scenario: data.scenario,
-        paymentRail: data.paymentRail || selectedPaymentRail.value,
+        paymentRail: data.paymentRail || rail,
         paymentCode: data.paymentCode,
         qrDataUrl: data.qrDataUrl,
-        vaBank: data.vaBank || selectedBank.value,
+        vaBank: data.vaBank || bank,
+        ewalletChannel: ewallet,
+        retailOutlet: retail,
+        cardDetails: {
+          last4,
+          brand: cardBrand,
+        },
         amount: data.amount || payableAmount.value,
         checkoutUrl: data.checkoutUrl,
         ticket: currentTicket,
@@ -302,10 +350,13 @@ async function handlePay() {
         startPolling(data.transactionId);
       }
     } else if (data.checkoutUrl) {
+      // Hosted Mode: dialihkan ke invoice resmi Xendit
       window.location.href = data.checkoutUrl;
     }
   } catch (err: any) {
-    errorMessage.value = err.message || "Terjadi kesalahan jaringan";
+    const rawMsg = err?.message || err?.error || err;
+    errorMessage.value =
+      typeof rawMsg === "string" ? rawMsg : "Terjadi kesalahan jaringan atau data tidak valid";
   } finally {
     isSubmitting.value = false;
   }
@@ -440,6 +491,8 @@ onUnmounted(() => {
               :email-input="emailInput"
               :selected-payment-rail="selectedPaymentRail"
               :selected-bank="selectedBank"
+              :selected-ewallet="selectedEwallet"
+              :selected-retail="selectedRetail"
               :payable-amount="payableAmount"
               :is-submitting="isSubmitting"
               :error-message="errorMessage"
@@ -448,6 +501,8 @@ onUnmounted(() => {
               :paid-result="paidResult"
               @update:selected-payment-rail="selectedPaymentRail = $event"
               @update:selected-bank="selectedBank = $event"
+              @update:selected-ewallet="selectedEwallet = $event"
+              @update:selected-retail="selectedRetail = $event"
               @reset-order="
                 activeCustomOrder = null;
                 stopPolling();

@@ -26,21 +26,53 @@ export async function handleXenditInvoiceWebhook({ request, headers, body, set }
     return { error: "Invalid callback verification token" };
   }
 
-  const {
-    id: xenditInvoiceId,
-    external_id: externalId,
-    status,
-    payment_channel,
-    payment_method,
-  } = (body || {}) as {
-    id?: string;
-    external_id?: string;
-    status?: string;
-    payment_channel?: string;
-    payment_method?: string;
-  };
+  // Ekstraksi multi-format (Invoice v2, Payments API v3, Virtual Account, & QRIS callbacks)
+  const data = body?.data || {};
+  const externalId =
+    body?.external_id ||
+    body?.externalId ||
+    data?.reference_id ||
+    data?.external_id ||
+    data?.referenceId;
+
+  const xenditInvoiceId =
+    body?.id ||
+    data?.payment_id ||
+    data?.payment_request_id ||
+    body?.payment_id ||
+    body?.callback_virtual_account_id;
+
+  const rawStatus =
+    body?.status ||
+    data?.status ||
+    (body?.event === "payment.capture" ||
+    body?.event === "payment.succeeded" ||
+    body?.event === "payment_request.succeeded"
+      ? "PAID"
+      : undefined);
+
+  const payment_channel =
+    body?.payment_channel ||
+    body?.paymentChannel ||
+    data?.channel_code ||
+    data?.payment_method?.type ||
+    body?.bank_code;
+
+  const payment_method =
+    body?.payment_method ||
+    body?.paymentMethod ||
+    data?.payment_method?.type ||
+    body?.payment_channel;
 
   if (!externalId && !xenditInvoiceId) {
+    // Tangani event ping / tes koneksi umum dari Xendit
+    if (body?.event || body?.type || body?.business_id) {
+      return {
+        received: true,
+        acknowledged: true,
+        message: "Xendit event received successfully",
+      };
+    }
     set.status = 400;
     return { error: "Missing external_id or id" };
   }
@@ -59,13 +91,33 @@ export async function handleXenditInvoiceWebhook({ request, headers, body, set }
   }
 
   if (!tx) {
-    set.status = 404;
-    return { error: "Transaction not found" };
+    const isTestSample =
+      externalId?.startsWith("demo_") ||
+      externalId?.startsWith("sample_") ||
+      externalId?.startsWith("test_") ||
+      externalId === "demo_123456789";
+
+    console.warn(
+      `[XenditWebhook] Transaksi tidak ditemukan untuk external_id: ${externalId}, invoice_id: ${xenditInvoiceId}`
+    );
+
+    return {
+      received: true,
+      acknowledged: true,
+      message: isTestSample
+        ? "Test webhook acknowledged successfully"
+        : "Webhook received but transaction was not found in database",
+    };
   }
 
-  const normalizedStatus = String(status || "").toUpperCase();
+  const normalizedStatus = String(rawStatus || "").toUpperCase();
 
-  if (normalizedStatus === "PAID" || normalizedStatus === "SETTLED") {
+  if (
+    normalizedStatus === "PAID" ||
+    normalizedStatus === "SETTLED" ||
+    normalizedStatus === "SUCCEEDED" ||
+    normalizedStatus === "COMPLETED"
+  ) {
     const channel = payment_method || payment_channel || "XENDIT";
     const result = await fulfillPaymentTransaction(tx, channel);
     return { success: result.status === "success", ...result };
@@ -133,8 +185,14 @@ export async function handleXenditDisbursementWebhook({ headers, body, set }: an
       : null);
 
   if (!target) {
-    set.status = 404;
-    return { error: "Disbursement transaction not found" };
+    console.warn(
+      `[XenditDisbursementWebhook] Target disbursement tidak ditemukan untuk id: ${id}, external_id: ${externalId}`
+    );
+    return {
+      received: true,
+      acknowledged: true,
+      message: "Disbursement webhook acknowledged",
+    };
   }
 
   const normalized = String(status || "").toUpperCase();

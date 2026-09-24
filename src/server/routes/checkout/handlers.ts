@@ -13,6 +13,15 @@ import { enforceRateLimit } from "../../services/rateLimiter";
 import { createPollTicket, verifyPollTicket } from "../../utils/pollTicket";
 import { parsePagination, paginationEnvelope } from "../../lib/pagination";
 
+// Rate-limit sync gateway remote per transaction agar tidak membebani network / API eksternal
+// dan membuat polling frontend setiap 2.5 detik tetap responsif dalam hitungan milidetik.
+const gatewaySyncThrottleMap = new Map<string, number>();
+
+export function clearGatewaySyncThrottle(txId?: string) {
+  if (txId) gatewaySyncThrottleMap.delete(txId);
+  else gatewaySyncThrottleMap.clear();
+}
+
 /**
  * Endpoint Redirect pembeli setelah menyelesaikan pembayaran DANA (Finish Redirect URL)
  */
@@ -139,57 +148,58 @@ export async function handleGetPaymentStatus({ params, query, request, set }: an
   let paymentCode: string | undefined;
   const channel = (tx.paymentChannel || "").toUpperCase();
 
-  // Sinkronisasi status aktif ke gateway DANA jika masih PENDING
-  if (tx.paymentStatus === "PENDING" && tx.paymentProvider === "dana") {
+  // Sinkronisasi status aktif ke gateway jika masih PENDING (lewati jika transaksi mock)
+  // Polling default membaca langsung dari DB lokal (<2ms). Query ke remote gateway
+  // di-throttle maksimal 1x per 15 detik atau bila diminta eksplisit (?sync=true) agar tidak lemot.
+  const nowMs = Date.now();
+  const lastSync = gatewaySyncThrottleMap.get(tx.id) || 0;
+  const isExplicitSync = (query as any)?.sync === "true" || (query as any)?.refresh === "true";
+  const shouldSyncRemote = isExplicitSync || checkoutConfig.isTest || nowMs - lastSync > 15_000;
+
+  if (tx.paymentStatus === "PENDING" && !tx.mockOrder && shouldSyncRemote) {
+    gatewaySyncThrottleMap.set(tx.id, nowMs);
     try {
-      const { DanaService } = await import("../../services/dana");
-      const queryRes = await DanaService.queryOrderStatus({
+      const { getPaymentGateway } = await import("../../services/gateways");
+      const gateway = getPaymentGateway(tx.paymentProvider);
+      const queryRes = await gateway.queryOrderStatus({
         externalId: tx.xenditExternalId,
-        referenceNo: tx.providerReferenceId || undefined,
+        referenceNo: tx.providerReferenceId || tx.xenditInvoiceId || undefined,
       });
 
-      if (queryRes) {
-        if (queryRes.paymentCode) {
-          paymentCode = queryRes.paymentCode;
-        }
-
-        // 00 = Success / Paid di DANA SNAP BI
-        if (queryRes.latestTransactionStatus === "00") {
-          const rawAmountValue =
-            (queryRes as any)?.amount?.value ??
-            (queryRes as any)?.transAmount?.value ??
-            (queryRes as any)?.orderAmount?.value ??
-            (queryRes as any)?.totalAmount?.value ??
-            (queryRes as any)?.amount;
-          const paidAmount = Number.isFinite(Number(rawAmountValue))
-            ? Math.round(Number(rawAmountValue))
-            : NaN;
-
-          // P0.5: Verifikasi nominal pembayaran sebelum fulfillment
-          if (Number.isFinite(paidAmount) && paidAmount !== tx.grossAmount) {
-            console.warn(
-              `[Checkout Polling] Amount mismatch: paid=${paidAmount} vs expected=${tx.grossAmount} (TX ${tx.id}) — tidak mem-fulfill.`
-            );
-          } else {
-            const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
-            await fulfillPaymentTransaction(tx, tx.paymentChannel || "VA");
-            const refreshed = await db.query.transactions.findFirst({
-              where: eq(transactions.id, tx.id),
-            });
-            if (refreshed) {
-              tx = refreshed;
-            }
-          }
-        } else if (queryRes.latestTransactionStatus === "05") {
-          await db
-            .update(transactions)
-            .set({ paymentStatus: "EXPIRED", updatedAt: new Date() })
-            .where(eq(transactions.id, tx.id));
-          tx = { ...tx, paymentStatus: "EXPIRED" as any };
-        }
+      if (queryRes.paymentCode) {
+        paymentCode = queryRes.paymentCode;
       }
-    } catch (e: any) {
-      // Abaikan jika network error atau test mock
+
+      if (queryRes.isPaid) {
+        const paidAmount = queryRes.paidAmount;
+        if (typeof paidAmount === "number" && paidAmount > 0 && paidAmount !== tx.grossAmount) {
+          console.warn(
+            `[Checkout Polling] Amount mismatch: paid=${paidAmount} vs expected=${tx.grossAmount} (TX ${tx.id}) — tidak mem-fulfill.`
+          );
+        } else {
+          const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
+          await fulfillPaymentTransaction(
+            tx,
+            queryRes.paymentChannel ||
+              tx.paymentChannel ||
+              (tx.paymentProvider === "xendit" ? "XENDIT" : "DANA")
+          );
+          const refreshed = await db.query.transactions.findFirst({
+            where: eq(transactions.id, tx.id),
+          });
+          if (refreshed) {
+            tx = refreshed;
+          }
+        }
+      } else if (queryRes.isExpired) {
+        await db
+          .update(transactions)
+          .set({ paymentStatus: "EXPIRED", updatedAt: new Date() })
+          .where(eq(transactions.id, tx.id));
+        tx = { ...tx, paymentStatus: "EXPIRED" as any };
+      }
+    } catch {
+      // Abaikan error jaringan saat polling status
     }
   }
 
@@ -382,7 +392,27 @@ export async function handleDisburseTx(ctx: any) {
 /**
  * One-Click Local Payment Simulator for Developers (Hanya Sandbox)
  */
-export async function handleSimulatePaid({ params: { txId }, request, set }: any) {
+export async function handleSimulatePaid({ params: { txId }, query, body, request, set }: any) {
+  // BUG-4: simulasi pembayaran dilindungi dengan otorisasi ganda:
+  // 1. Sesi checkout publik yang membawa cryptographic poll ticket (HMAC) bukti kepemilikan sesi sandbox
+  // 2. Dashboard admin (super) atau builder pemilik aplikasi
+  const ticket = (
+    query?.ticket ||
+    body?.ticket ||
+    (request?.url ? new URL(request.url).searchParams.get("ticket") : "") ||
+    ""
+  ).trim();
+
+  const { builder, isAdmin } = request?.headers
+    ? await resolveCurrentBuilder(request.headers)
+    : { builder: null, isAdmin: true };
+
+  // Jika tanpa ticket dan tanpa login builder/admin -> 401 Unauthorized
+  if (!ticket && !builder && !isAdmin) {
+    set.status = 401;
+    return { error: "Autentikasi diperlukan untuk simulasi pembayaran." };
+  }
+
   const tx = await db.query.transactions.findFirst({
     where: eq(transactions.id, txId),
   });
@@ -392,30 +422,27 @@ export async function handleSimulatePaid({ params: { txId }, request, set }: any
     return { error: "Transaksi tidak ditemukan" };
   }
 
-  // BUG-4: simulasi pembayaran adalah operasi dashboard — hanya admin (super) atau
-  // builder pemilik aplikasi yang berhak. Endpoint ini sebelumnya publik tanpa
-  // pemeriksaan kepemilikan, sehingga siapa pun bisa mem-PAID-kan transaksi milik
-  // builder lain dan mencetak lisensi + kredit.
-  const { builder, isAdmin } = request?.headers
-    ? await resolveCurrentBuilder(request.headers)
-    : { builder: null, isAdmin: true };
-
-  if (!isAdmin) {
-    if (!builder) {
-      set.status = 401;
-      return { error: "Autentikasi diperlukan untuk simulasi pembayaran." };
-    }
-    if (builder.id !== tx.builderId) {
-      set.status = 403;
-      return { error: "Anda tidak berhak mensimulasikan pembayaran transaksi ini." };
-    }
-  }
-
   // Simulasi pembayaran hanya boleh untuk aplikasi yang sedang dalam mode sandbox.
   const txApp = await db.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
   if (txApp?.mode !== "sandbox") {
     set.status = 403;
     return { error: "Simulate paid hanya tersedia untuk aplikasi dalam mode sandbox." };
+  }
+
+  // Jika membawa ticket, verifikasi keabsahan HMAC ticket atas txId
+  const isTicketValid = ticket ? verifyPollTicket(tx.id, ticket) : false;
+
+  if (!isTicketValid) {
+    if (!isAdmin) {
+      if (!builder) {
+        set.status = 401;
+        return { error: "Autentikasi atau ticket valid diperlukan untuk simulasi pembayaran." };
+      }
+      if (builder.id !== tx.builderId) {
+        set.status = 403;
+        return { error: "Anda tidak berhak mensimulasikan pembayaran transaksi ini." };
+      }
+    }
   }
 
   if (tx.paymentStatus === "PAID") {

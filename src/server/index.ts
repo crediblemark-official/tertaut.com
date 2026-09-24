@@ -19,6 +19,7 @@ import { LicenseLeaseService } from "./services/licenseLease";
 import { AuditService } from "./services/audit";
 import { WebhookService } from "./services/webhooks";
 import { ensureDemoData } from "./db/ensureDemo";
+import { randomBytes } from "crypto";
 
 const clientDistPath = resolve(import.meta.dir, "../../dist");
 const docsDistPath = resolve(clientDistPath, "docs");
@@ -498,17 +499,31 @@ async function runAutoMigrations(): Promise<void> {
  */
 export async function ensurePlatformAdmin(): Promise<void> {
   try {
-    const adminEmail = (process.env.ADMIN_EMAIL || "platformtertaut@gmail.com").toLowerCase();
+    const adminEmail = (
+      config.admin.email ||
+      process.env.ADMIN_EMAIL ||
+      "platformtertaut@gmail.com"
+    ).toLowerCase();
     let platformUser = await db.query.user.findFirst({
       where: eq(user.email, adminEmail),
     });
 
     if (!platformUser) {
+      const adminPassword =
+        config.admin.password ||
+        (config.isTest ? "TestAdminPass123!" : `Sec_${randomBytes(16).toString("hex")}!Aa1`);
+
+      if (!config.admin.password && !config.isTest) {
+        console.warn(
+          `[Auth] PERINGATAN: ADMIN_PASSWORD tidak disetel di environment. Password awal yang di-generate: ${adminPassword}`
+        );
+      }
+
       try {
         await auth.api.signUpEmail({
           body: {
             email: adminEmail,
-            password: process.env.ADMIN_DEFAULT_PASSWORD || "AdminPassword123!",
+            password: adminPassword,
             name: "Platform Tertaut",
           },
         });

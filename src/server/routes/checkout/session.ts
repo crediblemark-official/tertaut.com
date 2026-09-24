@@ -1,9 +1,11 @@
 import { db } from "../../db";
 import { apps, transactions, licenses, builders } from "../../db/schema";
+import { platformSettings } from "../../db/schema/settings";
 import { eq, and } from "drizzle-orm";
 import { DanaService } from "../../services/dana";
 import { XenditService } from "../../services/xendit";
 import { getActivePaymentGateway } from "../../services/paymentGateway";
+import { getPaymentGateway as getGatewayAdapter } from "../../services/gateways";
 import { CouponService } from "../../services/coupon";
 import { LicenseService } from "../../services/license";
 import { CreditService } from "../../services/credits";
@@ -48,17 +50,25 @@ export async function handleCreateSession({ request, body, set }: any) {
       scenario,
       vaBank,
       bank,
+      ewalletChannel,
+      retailOutlet,
     } = body;
 
     // B8: Dukung preferredPaymentChannel (dari PayView) maupun paymentRail secara konsisten
     const selectedRail = (paymentRail || preferredPaymentChannel || "ewallet") as
-      "qris" | "va" | "ewallet";
+      "qris" | "va" | "ewallet" | "card" | "retail";
     const selectedBank = (vaBank || bank || "BCA").toUpperCase();
-    const selectedScenario =
-      scenario ||
-      (selectedRail === "qris" || selectedRail === "va" || selectedRail === "ewallet"
-        ? "API"
-        : "REDIRECT");
+
+    // Baca preferensi mode checkout dari platformSettings (Super Admin Panel)
+    const checkoutModeRow = await db.query.platformSettings.findFirst({
+      where: eq(platformSettings.key, "checkout_mode"),
+    });
+    const isHostedMode = checkoutModeRow?.value === "hosted";
+
+    // Jika mode di panel adalah 'hosted', paksa redirect ke checkout resmi gateway.
+    // Jika 'custom' (default), seluruh rail menggunakan scenario API (Custom UI di tertaut.com).
+    const defaultScenario = isHostedMode ? "REDIRECT" : "API";
+    const selectedScenario = isHostedMode ? "REDIRECT" : scenario || defaultScenario;
 
     const targetIdentifier = appId || appSlug || slug;
     if (!targetIdentifier) {
@@ -369,59 +379,48 @@ export async function handleCreateSession({ request, body, set }: any) {
 
     // Resolve payment gateway: request body -> active setting from platformSettings -> default "dana"
     const activePlatformPg = await getActivePaymentGateway();
-    const requestedPg = (body.paymentGateway || activePlatformPg || "dana").toLowerCase().trim();
+    let requestedPg = (body.paymentGateway || activePlatformPg || "dana").toLowerCase().trim();
+
+    // Channel yang tidak didukung oleh DANA SNAP (Kartu Kredit/Debit, Retail minimarket,
+    // e-wallet non-DANA, atau bank tertentu) secara otomatis diarahkan ke adapter Xendit.
+    const isXenditExclusiveRail =
+      selectedRail === "card" ||
+      selectedRail === "retail" ||
+      (selectedRail === "ewallet" && ewalletChannel && ewalletChannel.toLowerCase() !== "dana") ||
+      (selectedRail === "va" && ["BJB", "SAHABAT_SAMPOERNA", "BSS"].includes(selectedBank));
+
+    if (isXenditExclusiveRail) {
+      requestedPg = "xendit";
+    }
+
     const selectedGateway: "dana" | "xendit" = requestedPg === "xendit" ? "xendit" : "dana";
 
+    const gatewayAdapter = getGatewayAdapter(selectedGateway);
+
     // Hitung Merchant of Record 5% platform fee & 95% net atas nominal yang dibayar
-    const { grossAmount, platformFee, netAmount } =
-      selectedGateway === "xendit"
-        ? XenditService.calculateMorBreakdown(payableAmount)
-        : DanaService.calculateMorBreakdown(payableAmount);
+    const { grossAmount, platformFee, netAmount } = gatewayAdapter.calculateMor(payableAmount);
 
     const txId = `tx_${randomBytes(8).toString("hex")}`;
     const externalId = `tt_${randomBytes(8).toString("hex")}`;
 
-    let orderResult: {
-      orderId: string;
-      checkoutUrl: string;
-      expiryDate?: string;
-      scenario?: "API" | "REDIRECT";
-      paymentRail?: string;
-      paymentCode?: string;
-      qrDataUrl?: string;
-      vaBank?: string;
-      mock?: boolean;
-    };
+    const finishRedirectUrl =
+      selectedGateway === "xendit"
+        ? `${requestOrigin}/checkout/success?externalId=${externalId}`
+        : `${requestOrigin}/checkout/dana/finish?externalId=${externalId}`;
 
-    if (selectedGateway === "xendit") {
-      orderResult = await XenditService.createOrder({
-        externalId,
-        amount: grossAmount,
-        payerEmail: email,
-        description: `Lisensi ${app.name} (${grantDays} hari)`,
-        returnUrl: redirectUrl || app.redirectUrl || undefined,
-        finishRedirectUrl: `${requestOrigin}/checkout/success?externalId=${externalId}`,
-        forceMock: isMockOrder,
-        allowMock: isSandboxApp,
-        scenario: selectedScenario,
-        paymentRail: selectedRail,
-        vaBank: selectedBank,
-      });
-    } else {
-      orderResult = await DanaService.createOrder({
-        externalId,
-        amount: grossAmount,
-        payerEmail: email,
-        description: `Lisensi ${app.name} (${grantDays} hari)`,
-        returnUrl: redirectUrl || app.redirectUrl || undefined,
-        finishRedirectUrl: `${requestOrigin}/checkout/dana/finish?externalId=${externalId}`,
-        forceMock: isMockOrder,
-        allowMock: isSandboxApp,
-        scenario: selectedScenario,
-        paymentRail: selectedRail,
-        vaBank: selectedBank,
-      });
-    }
+    const orderResult = await gatewayAdapter.createOrder({
+      externalId,
+      amount: grossAmount,
+      payerEmail: email,
+      description: `Lisensi ${app.name} (${grantDays} hari)`,
+      returnUrl: redirectUrl || app.redirectUrl || undefined,
+      finishRedirectUrl,
+      forceMock: isMockOrder,
+      allowMock: isSandboxApp,
+      scenario: selectedScenario,
+      paymentRail: selectedRail,
+      vaBank: selectedBank,
+    });
 
     // Sebuah transaksi HANYA ditandai mock bila aplikasinya benar-benar mode sandbox.
     // Aplikasi Live tidak pernah mockOrder=true, apapun respons createOrder (GUARD ganda:
@@ -440,9 +439,13 @@ export async function handleCreateSession({ request, body, set }: any) {
           ? selectedGateway === "xendit"
             ? "XENDIT_QRIS"
             : "QRIS"
-          : selectedGateway === "xendit"
-            ? "XENDIT"
-            : "DANA";
+          : orderResult.paymentRail === "card"
+            ? "CARD"
+            : orderResult.paymentRail === "retail"
+              ? "RETAIL"
+              : selectedGateway === "xendit"
+                ? "XENDIT"
+                : "DANA";
 
     // Simpan transaksi di database
     const [newTx] = await db

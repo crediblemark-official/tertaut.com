@@ -21,17 +21,9 @@ const emit = defineEmits<{
   "update:trialPeriodDays": [val: number];
 }>();
 
-const isBillingPeriodDropdownOpen = ref(false);
+import { BILLING_PERIOD_OPTIONS as billingPeriodOptions } from "../../constants";
 
-const billingPeriodOptions: { id: BillingPeriodType; label: string }[] = [
-  { id: "weekly", label: "Weekly" },
-  { id: "daily", label: "Daily" },
-  { id: "monthly", label: "Monthly" },
-  { id: "every_3_months", label: "3 Months" },
-  { id: "every_6_months", label: "6 Months" },
-  { id: "yearly", label: "Yearly" },
-  { id: "custom", label: "Custom" },
-];
+const isBillingPeriodDropdownOpen = ref(false);
 
 const selectedBillingPeriodLabel = computed(() => {
   const opt = billingPeriodOptions.find((o) => o.id === props.billingPeriod);
