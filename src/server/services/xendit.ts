@@ -124,11 +124,7 @@ export class XenditService {
   static async createOrder(params: CreateXenditOrderParams): Promise<XenditOrderResponse> {
     const { secretKey } = await this.getCredentials();
 
-    const mockEnabled =
-      Boolean(params.forceMock) ||
-      (params.allowMock && (!secretKey || secretKey.includes("sample_key") || config.isTest));
-
-    if (mockEnabled) {
+    const buildMockResponse = async (): Promise<XenditOrderResponse> => {
       const rail = params.paymentRail || "qris";
       const bank = (params.vaBank || "BCA").toUpperCase();
 
@@ -166,9 +162,25 @@ export class XenditService {
         vaBank: bank,
         mock: true,
       };
+    };
+
+    const isDummyKey =
+      !secretKey ||
+      secretKey.includes("sample_key") ||
+      secretKey.includes("dummy") ||
+      secretKey.includes("test_");
+
+    const mockEnabled =
+      Boolean(params.forceMock) || (params.allowMock && (isDummyKey || config.isTest));
+
+    if (mockEnabled) {
+      return buildMockResponse();
     }
 
     if (!secretKey) {
+      if (params.allowMock) {
+        return buildMockResponse();
+      }
       throw new Error("Xendit Invoice Creation Failed: XENDIT_SECRET_KEY belum dikonfigurasi.");
     }
 
@@ -196,13 +208,31 @@ export class XenditService {
       payload.payment_methods = paymentMethods;
     }
 
-    const response = await fetch("https://api.xendit.co/v2/invoices", {
-      method: "POST",
-      headers: this.getHeaders(secretKey),
-      body: JSON.stringify(payload),
-    });
+    let response: Response;
+    try {
+      response = await fetch("https://api.xendit.co/v2/invoices", {
+        method: "POST",
+        headers: this.getHeaders(secretKey),
+        body: JSON.stringify(payload),
+      });
+    } catch (networkErr: any) {
+      if (params.allowMock) {
+        console.warn(
+          "[XenditService] Network error to Xendit in sandbox. Fallback to mock:",
+          networkErr?.message
+        );
+        return buildMockResponse();
+      }
+      throw networkErr;
+    }
 
     if (!response.ok) {
+      if (params.allowMock) {
+        console.warn(
+          `[XenditService] Xendit API returned ${response.status} in sandbox mode. Fallback to mock.`
+        );
+        return buildMockResponse();
+      }
       const errorText = await response.text();
       throw new Error(`Xendit Invoice Creation Failed: ${response.status} - ${errorText}`);
     }
