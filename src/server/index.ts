@@ -499,10 +499,28 @@ async function runAutoMigrations(): Promise<void> {
 export async function ensurePlatformAdmin(): Promise<void> {
   try {
     const adminEmail = (process.env.ADMIN_EMAIL || "platformtertaut@gmail.com").toLowerCase();
-    const platformUser = await db.query.user.findFirst({
+    let platformUser = await db.query.user.findFirst({
       where: eq(user.email, adminEmail),
     });
-    if (platformUser && platformUser.role !== "admin") {
+
+    if (!platformUser) {
+      try {
+        await auth.api.signUpEmail({
+          body: {
+            email: adminEmail,
+            password: process.env.ADMIN_DEFAULT_PASSWORD || "AdminPassword123!",
+            name: "Platform Tertaut",
+          },
+        });
+        platformUser = await db.query.user.findFirst({
+          where: eq(user.email, adminEmail),
+        });
+      } catch (err: any) {
+        console.warn("[Auth] Gagal inisialisasi akun platform admin:", err?.message || err);
+      }
+    }
+
+    if (platformUser && (platformUser.role !== "admin" || !platformUser.emailVerified)) {
       await db
         .update(user)
         .set({ role: "admin", emailVerified: true })

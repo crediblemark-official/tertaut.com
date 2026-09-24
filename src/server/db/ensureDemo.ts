@@ -8,14 +8,10 @@ export async function ensureDemoData(): Promise<void> {
   try {
     const adminEmail = (process.env.ADMIN_EMAIL || "platformtertaut@gmail.com").toLowerCase();
 
-    // 1. Pastikan akun Super Admin / Platform tersedia
+    // 1. Pastikan akun Super Admin resmi (platformtertaut@gmail.com) tersedia
     let adminUser = await db.query.user.findFirst({
       where: eq(user.email, adminEmail),
     });
-
-    if (!adminUser) {
-      adminUser = await db.query.user.findFirst();
-    }
 
     if (!adminUser) {
       try {
@@ -29,12 +25,13 @@ export async function ensureDemoData(): Promise<void> {
         adminUser = await db.query.user.findFirst({
           where: eq(user.email, adminEmail),
         });
+        console.log(`[Demo] Akun Super Admin (${adminEmail}) berhasil dibuat.`);
       } catch (err: any) {
         console.warn("[Demo] Gagal membuat akun platform otomatis:", err?.message || err);
       }
     }
 
-    if (adminUser && adminUser.role !== "admin") {
+    if (adminUser) {
       await db
         .update(user)
         .set({ role: "admin", emailVerified: true })
@@ -42,7 +39,7 @@ export async function ensureDemoData(): Promise<void> {
     }
 
     if (!adminUser) {
-      console.warn("[Demo] Tidak ada admin user tersedia untuk seeding demo data.");
+      console.warn(`[Demo] Tidak dapat memuat akun Super Admin (${adminEmail}).`);
       return;
     }
 
