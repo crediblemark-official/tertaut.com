@@ -339,6 +339,11 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
     const app = await db.query.apps.findFirst();
     if (!app) return;
 
+    // BUG A5: debit metering kini wajib bukti kepemilikan (X-Api-Key aplikasi).
+    const { generateAppApiKey } = await import("../../routes/apps/api-key");
+    const appApiKey = generateAppApiKey(app.mode === "sandbox" ? "sandbox" : "live");
+    await db.update(apps).set({ apiKey: appApiKey }).where(eq(apps.id, app.id));
+
     // Konfigurasi metering pada aplikasi
     await db
       .update(apps)
@@ -380,7 +385,7 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
       // 1. Ingest event pemakaian (10 unit * 2 = 20 kredit terpotong)
       const eventRes = await fetch("http://localhost:3001/api/v1/metering/events", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-api-key": appApiKey },
         body: JSON.stringify({
           licenseKey,
           eventName: "generate_image",
@@ -407,7 +412,7 @@ describe("Credit Ledger (grantCredits enforcement)", () => {
       // 3. Ingest event yang melebihi saldo (20 unit * 2 = 40 kredit > 30 sisa)
       const overRes = await fetch("http://localhost:3001/api/v1/metering/events", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-api-key": appApiKey },
         body: JSON.stringify({
           licenseKey,
           eventName: "generate_video",

@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { aiVaultCredentials, aiProviderKeys, aiAppConfigs } from "../../db/schema";
+import { apps, aiVaultCredentials, aiProviderKeys, aiAppConfigs } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { CryptoService } from "../../services/crypto";
 import { AiGatewayService } from "../../services/aiGateway";
@@ -105,8 +105,16 @@ export async function handleAiChat({
 
   // Coba ambil dari aiProviderKeys jika config memiliki providerKeyId
   if (appConfig?.providerKeyId) {
+    // BUG B8: providerKeyId di config TIDAK boleh menunjuk key milik builder lain
+    // (IDOR). Key wajib dimiliki builder pemilik aplikasi yang melayani lisensi ini.
+    const appRow = await db.query.apps.findFirst({ where: eq(apps.id, appId) });
+    const ownerBuilderId = appRow?.builderId ?? "__key_unowned__";
     const pKey = await db.query.aiProviderKeys.findFirst({
-      where: and(eq(aiProviderKeys.id, appConfig.providerKeyId), eq(aiProviderKeys.isActive, true)),
+      where: and(
+        eq(aiProviderKeys.id, appConfig.providerKeyId),
+        eq(aiProviderKeys.isActive, true),
+        eq(aiProviderKeys.builderId, ownerBuilderId)
+      ),
     });
     if (pKey) {
       resolvedProvider = pKey.providerName.toLowerCase();
@@ -127,14 +135,36 @@ export async function handleAiChat({
     ),
   });
 
-  if (!vaultCred && !rawApiKey) {
-    // Cari kredensial vault pertama yang tersedia untuk app ini
+  if (!vaultCred) {
     vaultCred = await db.query.aiVaultCredentials.findFirst({
-      where: eq(aiVaultCredentials.appId, appId),
+      where: and(
+        eq(aiVaultCredentials.appId, appId),
+        eq(aiVaultCredentials.provider, resolvedProvider as any)
+      ),
     });
+    if (!vaultCred && !rawApiKey && !body.provider) {
+      vaultCred = await db.query.aiVaultCredentials.findFirst({
+        where: eq(aiVaultCredentials.appId, appId),
+      });
+    }
   }
 
   if (vaultCred) {
+    // Reset pemakaian bulanan jika berpindah bulan kalender
+    const now = new Date();
+    const isNewMonth =
+      vaultCred.updatedAt &&
+      (vaultCred.updatedAt.getMonth() !== now.getMonth() ||
+        vaultCred.updatedAt.getFullYear() !== now.getFullYear());
+
+    if (isNewMonth) {
+      await db
+        .update(aiVaultCredentials)
+        .set({ currentMonthlyUsage: 0, updatedAt: now })
+        .where(eq(aiVaultCredentials.id, vaultCred.id));
+      vaultCred.currentMonthlyUsage = 0;
+    }
+
     if (vaultCred.isKillSwitchActive) {
       set.status = 429;
       return {
@@ -144,7 +174,12 @@ export async function handleAiChat({
       };
     }
 
-    if ((vaultCred.currentMonthlyUsage ?? 0) >= (vaultCred.monthlyBudgetLimit ?? 500000)) {
+    const effectiveBudget =
+      appConfig?.monthlyBudgetIdr && appConfig.monthlyBudgetIdr > 0
+        ? appConfig.monthlyBudgetIdr
+        : (vaultCred.monthlyBudgetLimit ?? 500000);
+
+    if ((vaultCred.currentMonthlyUsage ?? 0) >= effectiveBudget) {
       set.status = 429;
       return {
         success: false,

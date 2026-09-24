@@ -200,6 +200,11 @@ export async function handleDanaFinishPaymentWebhook({ request, headers, body, s
         : "FAILED";
 
     // Jangan menurunkan transaksi yang sudah PAID (webhook telat/duplikat).
+    if (tx.couponCode) {
+      const { CouponService } = await import("../../services/coupon");
+      await CouponService.rollback(tx.couponCode);
+    }
+
     await db
       .update(transactions)
       .set({ paymentStatus: nextStatus, updatedAt: new Date() })
@@ -230,6 +235,7 @@ export async function handleDanaDisburseNotifyWebhook({ request, headers, body, 
 
   const data = (body || {}) as any;
   const partnerReferenceNo = data?.partnerReferenceNo || data?.externalId || data?.merchantTransId;
+  const referenceNo = data?.referenceNo || data?.disbursementId;
 
   const rawStatus = (
     data?.status ||
@@ -244,7 +250,28 @@ export async function handleDanaDisburseNotifyWebhook({ request, headers, body, 
     rawStatus === "PENDING" || rawStatus === "PROCESSING" || rawStatus === "IN_PROGRESS";
 
   // Hanya status terminal yang mengubah ledger; status pending diabaikan.
-  if (partnerReferenceNo && !isPending) {
+  if ((partnerReferenceNo || referenceNo) && !isPending) {
+    const matchConditions: any[] = [];
+    if (partnerReferenceNo) {
+      matchConditions.push(eq(transactions.disbursementId, partnerReferenceNo));
+      matchConditions.push(eq(transactions.xenditExternalId, partnerReferenceNo));
+      matchConditions.push(eq(transactions.providerReferenceId, partnerReferenceNo));
+
+      // Jika partnerReferenceNo berpola disb_{txId}_{timestamp}
+      if (partnerReferenceNo.startsWith("disb_")) {
+        const parts = partnerReferenceNo.split("_");
+        if (parts.length >= 3) {
+          const candidateTxId = parts.slice(1, -1).join("_");
+          if (candidateTxId) {
+            matchConditions.push(eq(transactions.id, candidateTxId));
+          }
+        }
+      }
+    }
+    if (referenceNo) {
+      matchConditions.push(eq(transactions.disbursementId, referenceNo));
+    }
+
     await db
       .update(transactions)
       .set({
@@ -253,10 +280,7 @@ export async function handleDanaDisburseNotifyWebhook({ request, headers, body, 
       })
       .where(
         and(
-          or(
-            eq(transactions.xenditExternalId, partnerReferenceNo),
-            eq(transactions.providerReferenceId, partnerReferenceNo)
-          ),
+          or(...matchConditions),
           inArray(transactions.disbursementStatus, ["PROCESSING", "PENDING"])
         )
       );

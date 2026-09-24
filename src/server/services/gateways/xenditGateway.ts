@@ -29,14 +29,19 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
    */
   async getCredentials(): Promise<{ secretKey: string; webhookToken: string }> {
     try {
-      const [keyRow, tokenRow] = await Promise.all([
+      const [keyRow, tokenRow, sandboxRow] = await Promise.all([
         db.query.platformSettings.findFirst({
           where: eq(platformSettings.key, "xendit_secret_key"),
         }),
         db.query.platformSettings.findFirst({
           where: eq(platformSettings.key, "xendit_webhook_token"),
         }),
+        db.query.platformSettings.findFirst({
+          where: eq(platformSettings.key, "sandbox_mode"),
+        }),
       ]);
+
+      const isSandbox = sandboxRow?.value !== "false";
 
       if (config.isTest && tokenRow?.value) {
         return {
@@ -45,11 +50,27 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
         };
       }
 
+      // Jika sandbox dinonaktifkan (mode Production), gunakan kredensial dari .env server
+      if (!isSandbox) {
+        const prodSecret =
+          process.env.XENDIT_SECRET_KEY_PRODUCTION ||
+          process.env.XENDIT_PRODUCTION_SECRET_KEY ||
+          config.xendit.secretKey?.trim() ||
+          "";
+        const prodToken =
+          process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN_PRODUCTION ||
+          process.env.XENDIT_WEBHOOK_TOKEN ||
+          config.xendit.webhookToken?.trim() ||
+          "";
+        return { secretKey: prodSecret, webhookToken: prodToken };
+      }
+
+      // Mode Sandbox: prioritaskan kredensial pengujian dari Super Admin Panel
       const envSecret = config.xendit.secretKey?.trim();
       const envToken = config.xendit.webhookToken?.trim();
 
-      const secretKey = envSecret || keyRow?.value?.trim() || "";
-      const webhookToken = envToken || tokenRow?.value?.trim() || "";
+      const secretKey = keyRow?.value?.trim() || envSecret || "";
+      const webhookToken = tokenRow?.value?.trim() || envToken || "";
 
       return { secretKey, webhookToken };
     } catch {
@@ -233,7 +254,7 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
             external_id: params.externalId,
             type: "DYNAMIC",
             amount: params.amount,
-            callback_url: "https://tertaut.com/api/v1/webhook/xendit",
+            callback_url: `${(config.publicAppUrl || "https://tertaut.com").replace(/\/$/, "")}/api/v1/webhook/xendit`,
           }),
         });
         if (qrRes.ok) {

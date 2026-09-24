@@ -41,11 +41,17 @@ export async function executeCheckout(
     throw new Error(`Checkout session failed: ${res.statusText}`);
   }
 
-  const data = (await res.json()) as { checkoutUrl: string; transactionId: string };
-  if (typeof window !== "undefined" && data.checkoutUrl) {
-    window.location.href = data.checkoutUrl;
+  const data = (await res.json()) as any;
+  const checkoutUrl = data.checkoutUrl || data.redirectUrl || "";
+  const result = {
+    checkoutUrl,
+    transactionId: data.transactionId,
+    ...data,
+  };
+  if (typeof window !== "undefined" && checkoutUrl) {
+    window.location.href = checkoutUrl;
   }
-  return data;
+  return result;
 }
 
 export async function getPaymentStatus(
@@ -53,9 +59,11 @@ export async function getPaymentStatus(
   transactionId: string,
   ticket?: string
 ): Promise<any> {
-  const query = ticket
-    ? `?txId=${transactionId}&ticket=${encodeURIComponent(ticket)}`
-    : `?txId=${transactionId}`;
-  const res = await executor.request(`/api/v1/checkout/status${query}`);
+  // BUG A1: server hanya mendefinisikan GET /checkout/status/:txId (path param),
+  // bukan query param txId. Perbaiki agar method ini benar-benar bekerja.
+  const query = ticket ? `?ticket=${encodeURIComponent(ticket)}` : "";
+  const res = await executor.request(
+    `/api/v1/checkout/status/${encodeURIComponent(transactionId)}${query}`
+  );
   return res.json();
 }

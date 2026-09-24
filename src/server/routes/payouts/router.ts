@@ -3,6 +3,7 @@ import { db } from "../../db";
 import { transactions, builders, apps } from "../../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { DanaService } from "../../services/dana";
+import { getActiveGateway } from "../../services/gateways";
 import { config } from "../../config";
 import { authenticate, isAdminUser } from "../../middleware/auth";
 
@@ -187,11 +188,15 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
       };
 
       try {
-        const disbResult = await DanaService.createDisbursement({
+        const gateway = await getActiveGateway();
+        const gatewayLabel = gateway.displayName || (gateway.id === "xendit" ? "Xendit" : "DANA");
+        const disbResult = await gateway.createDisbursement({
           externalId,
           amount: disburseAmount,
-          ...recipient,
-          description: `Pencairan Saldo Bersih Builder tertaut.com (DANA Transfer to Bank)`,
+          accountNumber: recipient.accountNumber,
+          bankCode: recipient.bankCode,
+          accountHolderName: recipient.accountHolderName,
+          description: `Pencairan Saldo Bersih Builder tertaut.com (${gatewayLabel})`,
         });
 
         // Hanya tandai COMPLETED kalau gateway benar-benar menyelesaikannya.
@@ -206,7 +211,7 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
           .update(transactions)
           .set({
             disbursementStatus: finalStatus,
-            disbursementId: disbResult.id,
+            disbursementId: disbResult.externalId || (disbResult as any).id,
             updatedAt: new Date(),
           })
           .where(inArray(transactions.id, lockedIds));
@@ -215,25 +220,35 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
           set.status = 502;
           return {
             success: false,
-            error:
-              "Xendit menolak permintaan pencairan (status FAILED). Saldo tidak terkirim; transaksi perlu di-set ulang ke PENDING untuk dicoba lagi.",
-            data: { ...responseData, disbursementId: disbResult.id, status: finalStatus },
+            error: `${gatewayLabel} menolak permintaan pencairan (status FAILED). Saldo tidak terkirim; transaksi perlu di-set ulang ke PENDING untuk dicoba lagi.`,
+            data: {
+              ...responseData,
+              disbursementId: disbResult.externalId || (disbResult as any).id,
+              status: finalStatus,
+            },
           };
         }
 
         if (finalStatus === "PROCESSING") {
           return {
             success: true,
-            message:
-              "Pencairan sedang diproses oleh Xendit dan belum final. Status akan diperbarui lewat webhook disbursement.",
-            data: { ...responseData, disbursementId: disbResult.id, status: finalStatus },
+            message: `Pencairan sedang diproses oleh ${gatewayLabel} dan belum final. Status akan diperbarui lewat webhook disbursement.`,
+            data: {
+              ...responseData,
+              disbursementId: disbResult.externalId || (disbResult as any).id,
+              status: finalStatus,
+            },
           };
         }
 
         return {
           success: true,
           message: "Disbursement completed successfully",
-          data: { ...responseData, disbursementId: disbResult.id, status: finalStatus },
+          data: {
+            ...responseData,
+            disbursementId: disbResult.externalId || (disbResult as any).id,
+            status: finalStatus,
+          },
         };
       } catch (err: any) {
         // Bebaskan lock supaya saldo tidak tertahan permanen saat gateway gagal.
@@ -250,7 +265,7 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
         set.status = 502;
         return {
           success: false,
-          error: err.message || "Gagal memproses payout Xendit",
+          error: err.message || "Gagal memproses payout",
         };
       }
     },

@@ -53,18 +53,27 @@ export interface DanaOrderResponse {
 
 // ─── SDK Instance Factory ────────────────────────────────────────────────────
 
-export function getDanaInstance(): Dana {
+export interface DanaRuntimeConfig {
+  partnerId: string;
+  privateKey: string;
+  origin: string;
+  env: "production" | "sandbox";
+  clientSecret?: string;
+}
+
+export function getDanaInstance(overrides?: Partial<DanaRuntimeConfig>): Dana {
   return new Dana({
-    partnerId: config.dana.clientId || "MOCK_PARTNER_ID",
-    privateKey: cleanPemKey(config.dana.privateKey || "MOCK_PRIVATE_KEY"),
-    origin: config.dana.origin,
-    env: config.dana.env,
-    clientSecret: config.dana.clientSecret,
+    partnerId: overrides?.partnerId || config.dana.clientId || "MOCK_PARTNER_ID",
+    privateKey: cleanPemKey(overrides?.privateKey || config.dana.privateKey || "MOCK_PRIVATE_KEY"),
+    origin: overrides?.origin || config.dana.origin,
+    env: overrides?.env || config.dana.env,
+    clientSecret:
+      overrides?.clientSecret !== undefined ? overrides.clientSecret : config.dana.clientSecret,
   });
 }
 
-export function getDanaPaymentGateway(): PaymentGatewayApi {
-  return getDanaInstance().paymentGatewayApi;
+export function getDanaPaymentGateway(overrides?: Partial<DanaRuntimeConfig>): PaymentGatewayApi {
+  return getDanaInstance(overrides).paymentGatewayApi;
 }
 
 export function getDanaDisbursementApi(): DisbursementApi {

@@ -4,6 +4,8 @@ import { eq, and } from "drizzle-orm";
 import { LicenseService } from "../../services/license";
 import { EmailService } from "../../services/email";
 import { CreditService } from "../../services/credits";
+import { WebhookService } from "../../services/webhooks";
+import { AuditService } from "../../services/audit";
 import { randomBytes } from "crypto";
 
 async function sendLicenseIssuedEmail(result: any): Promise<void> {
@@ -163,6 +165,42 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         customerEmail: tx.customerEmail,
         paymentChannel,
       }).catch(() => null);
+
+      // BUG B1: lisensi hasil pembayaran (jalur revenue utama) harus memicu
+      // webhook license.issued + audit — konsisten dengan LicenseService.issueDirect.
+      const issuedLic = await db.query.licenses.findFirst({
+        where: eq(licenses.transactionId, tx.id),
+      });
+      if (issuedLic) {
+        await AuditService.record(
+          "license.issued",
+          {
+            licenseId: issuedLic.id,
+            licenseKey: issuedLic.licenseKey,
+            appId: issuedLic.appId,
+            actorType: "SYSTEM",
+          },
+          {
+            customerEmail: issuedLic.customerEmail,
+            paymentChannel,
+            transactionId: tx.id,
+            expiresAt: result.expiresAt,
+            grantCredits: result.grantedCredits || 0,
+          }
+        );
+        await WebhookService.emit("license.issued", {
+          license: issuedLic,
+          app,
+          actorType: "SYSTEM",
+          payload: {
+            customerEmail: issuedLic.customerEmail,
+            paymentChannel,
+            transactionId: tx.id,
+            expiresAt: result.expiresAt,
+            grantCredits: result.grantedCredits || 0,
+          },
+        });
+      }
     }
 
     return result;

@@ -19,7 +19,7 @@ import { Tertaut } from "@tertaut/sdk";
 
 const tertaut = new Tertaut({
   apiKey: "tt_live_xxxx", // tt_live_... = produksi, tt_test_... = sandbox
-  baseUrl: "https://tertaut.com", // ganti ke http://localhost:3001 saat dev lokal
+  baseUrl: "https://tertaut.com", // ganti ke http://localhost:8081 saat dev lokal
   appId: "app_xxx",
 });
 ```

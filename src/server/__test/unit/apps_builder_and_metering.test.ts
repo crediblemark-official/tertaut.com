@@ -60,6 +60,7 @@ describe("Coverage: apps/builder.ts resolveCurrentBuilder & seedSandboxBuilderIf
 describe("Coverage: metering router /events, /usage, /stats", () => {
   let builderId = "";
   let appId = "";
+  let appApiKey = "";
   let licenseKey = "";
   let unmeteredAppId = "";
   let unmeteredLicKey = "";
@@ -78,6 +79,7 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
     builderId = b.id;
 
     appId = `app_meter_${suffix()}`;
+    appApiKey = generateAppApiKey("live"); // BUG A5: wajib ada untuk debit metering
     await db.insert(apps).values({
       id: appId,
       builderId,
@@ -85,6 +87,7 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
       slug: `meter-app-${suffix()}`,
       mode: "live",
       targetPrice: 10000,
+      apiKey: appApiKey,
       meteringConfig: {
         enabled: true,
         unitPrice: 5,
@@ -178,10 +181,25 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
     expect(res.status).toBe(400);
   });
 
-  it("POST /metering/events: berhasil debit konsumsi unit", async () => {
+  it("POST /metering/events: tanpa kredensial -> 403 METERING_UNAUTHORIZED (BUG A5)", async () => {
     const res = await fetch("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        licenseKey,
+        eventName: "ai_summary",
+        units: 1,
+      }),
+    });
+    const data = (await res.json()) as any;
+    expect(res.status).toBe(403);
+    expect(data.reason).toBe("METERING_UNAUTHORIZED");
+  });
+
+  it("POST /metering/events: berhasil debit konsumsi unit", async () => {
+    const res = await fetch("http://localhost:3001/api/v1/metering/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": appApiKey },
       body: JSON.stringify({
         licenseKey,
         eventName: "ai_summary",
@@ -200,7 +218,7 @@ describe("Coverage: metering router /events, /usage, /stats", () => {
   it("POST /metering/events: saldo kredit tidak cukup -> 402", async () => {
     const res = await fetch("http://localhost:3001/api/v1/metering/events", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-api-key": appApiKey },
       body: JSON.stringify({
         licenseKey,
         eventName: "huge_call",

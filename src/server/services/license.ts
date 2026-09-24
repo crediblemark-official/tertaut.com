@@ -153,6 +153,7 @@ export class LicenseService {
       maxSeats: number;
       features?: Record<string, any> | null;
       offlineJwtGraceToken?: string | null;
+      hardwareId?: string | null;
     },
     offlineGraceDays: number = DEFAULT_OFFLINE_GRACE_DAYS
   ): Promise<string> {
@@ -175,7 +176,7 @@ export class LicenseService {
     const token = LicenseService.createOfflineGraceToken(
       lic.licenseKey,
       lic.appId,
-      null,
+      lic.hardwareId ?? null,
       lic.customerEmail,
       lic.maxSeats || 3,
       lic.features || null,
@@ -392,7 +393,14 @@ export class LicenseService {
    * Cek apakah lisensi sudah kedaluwarsa. Jika ya, perbarui status ke "EXPIRED" di database secara konsisten.
    */
   static async checkAndMarkExpired(
-    lic: { id: string; status: string; expiresAt: Date | null },
+    lic: {
+      id: string;
+      status: string;
+      expiresAt: Date | null;
+      licenseKey?: string;
+      appId?: string;
+      customerEmail?: string | null;
+    },
     dbOrTrx: any = db
   ): Promise<boolean> {
     const now = new Date();
@@ -402,6 +410,31 @@ export class LicenseService {
         .set({ status: "EXPIRED", updatedAt: now })
         .where(eq(licenses.id, lic.id));
       lic.status = "EXPIRED";
+
+      // BUG B2: flip EXPIRED di luar cron tidak pernah emit webhook/audit.
+      // Cron (index.ts) hanya memindai baris dengan status ACTIVE, jadi begitu
+      // status diubah di sini, event license.expired tidak akan pernah dilaporkan.
+      try {
+        const ctxLic = lic as any;
+        await AuditService.record(
+          "license.expired",
+          {
+            licenseId: ctxLic.id,
+            licenseKey: ctxLic.licenseKey || null,
+            appId: ctxLic.appId || null,
+            actorType: "SYSTEM",
+          },
+          { expiresAt: now.toISOString() }
+        );
+        await WebhookService.emit("license.expired", {
+          license: ctxLic,
+          actorType: "SYSTEM",
+          payload: { expiresAt: now.toISOString() },
+        });
+      } catch (err: any) {
+        // Best-effort: jangan menggagalkan jalur verifikasi karena event gagal.
+        console.error("[License] gagal emit license.expired:", err?.message || err);
+      }
       return true;
     }
     return lic.status === "EXPIRED";

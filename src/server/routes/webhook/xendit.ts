@@ -123,12 +123,22 @@ export async function handleXenditInvoiceWebhook({ request, headers, body, set }
     return { success: result.status === "success", ...result };
   }
 
-  // EXPIRED/FAILED adalah status terminal
+  // EXPIRED/FAILED adalah status terminal. BUG A3: revoke lisensi harus digate
+  // paymentStatus="PENDING" SAMA SEPERTI update transaksi di bawahnya — tanpa guard,
+  // callback EXPIRED/FAILED yang terlambat/retried untuk transaksi yang sudah PAID
+  // akan mencabut lisensi aktif secara paksa.
   if (normalizedStatus === "EXPIRED" || normalizedStatus === "FAILED") {
-    await db
-      .update(licenses)
-      .set({ status: "REVOKED", updatedAt: new Date() })
-      .where(and(eq(licenses.transactionId, tx.id), eq(licenses.status, "ACTIVE")));
+    if (tx.paymentStatus === "PENDING") {
+      await db
+        .update(licenses)
+        .set({ status: "REVOKED", updatedAt: new Date() })
+        .where(and(eq(licenses.transactionId, tx.id), eq(licenses.status, "ACTIVE")));
+
+      if (tx.couponCode) {
+        const { CouponService } = await import("../../services/coupon");
+        await CouponService.rollback(tx.couponCode);
+      }
+    }
 
     await db
       .update(transactions)

@@ -42,6 +42,12 @@ const liveDashboardRoutes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: "/dashboard/checkout",
+    name: "checkout",
+    component: () => import("../views/CheckoutView.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
     path: "/dashboard/subscriptions",
     name: "subscriptions",
     component: () => import("../views/SubscriptionsView.vue"),
@@ -86,6 +92,12 @@ const routes: RouteRecordRaw[] = [
   ...liveDashboardRoutes,
   ...sandboxDashboardRoutes,
 
+  {
+    path: "/checkout/success",
+    name: "checkout-success",
+    component: () => import("../views/InvoiceView.vue"),
+    meta: { public: true, standalone: true },
+  },
   {
     path: "/pay/:slug?",
     name: "pay-page",

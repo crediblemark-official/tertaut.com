@@ -95,4 +95,23 @@ export class CouponService {
 
     return claimed.length > 0;
   }
+
+  /**
+   * Kembalikan kuota kupon (misal saat transaksi kedaluwarsa atau pembayaran dibatalkan/gagal).
+   */
+  static async rollback(codeOrId: string): Promise<void> {
+    if (!codeOrId) return;
+    await db
+      .update(coupons)
+      .set({
+        redemptionCount: sql`GREATEST(0, ${coupons.redemptionCount} - 1)`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          sql`(${coupons.id} = ${codeOrId} OR ${coupons.code} = ${codeOrId.trim().toUpperCase()})`,
+          sql`${coupons.redemptionCount} > 0`
+        )
+      );
+  }
 }

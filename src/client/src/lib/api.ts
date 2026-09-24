@@ -264,6 +264,7 @@ export const api = {
     coupon?: CouponItem;
     discountPercent?: number;
     discountAmount?: number;
+    payableAmount?: number;
     finalAmount?: number;
     message?: string;
     error?: string;
@@ -278,6 +279,7 @@ export const api = {
 
   async createCheckoutSession(data: {
     appId: string;
+    paymentGateway?: "dana" | "xendit" | string;
     amount: number;
     customerEmail: string;
     grantDays?: number;

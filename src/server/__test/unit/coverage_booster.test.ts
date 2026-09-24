@@ -391,6 +391,7 @@ describe("Coverage Booster: DanaService Live Signing & Disbursements", () => {
     config.dana.clientId = "test_client_123";
     config.dana.clientSecret = "test_secret_123";
     config.dana.merchantId = "test_merchant_123";
+    config.dana.customerNumber = "6280000000099"; // BUG A4: wajib disetel untuk transferToBank
     config.dana.privateKey = privateKey;
     config.dana.publicKey = publicKey;
     (config as any).isSandbox = false;

@@ -44,6 +44,7 @@ async function seedBuilderApp(mode: "live" | "sandbox" = "live") {
       secretApiKey: generateBuilderSecretApiKey(),
     })
     .returning();
+  const appKey = generateAppApiKey(mode); // BUG A5: app butuh publishable key utk metering
   const [a] = await db
     .insert(apps)
     .values({
@@ -53,11 +54,12 @@ async function seedBuilderApp(mode: "live" | "sandbox" = "live") {
       builderId: b.id,
       targetPrice: 50000,
       mode,
+      apiKey: appKey,
       // Enable floating licensing for floating tests
       deliveryConfig: null,
     })
     .returning();
-  return { builder: b, app: a };
+  return { builder: b, app: a, appApiKey: appKey };
 }
 
 async function issueLicense(appId: string, extras: Record<string, any> = {}) {
@@ -385,7 +387,7 @@ describe("Coverage Booster4: metering/router.ts additional branches", () => {
   it("POST /metering/events: 400 when debit fails for non-INSUFFICIENT reason", async () => {
     // Test the "Gagal memproses konsumsi metering" path (line 93-94)
     // This requires a valid license with metering but where debit returns unknown error
-    const { app: a } = await seedBuilderApp();
+    const { app: a, appApiKey } = await seedBuilderApp();
     await db
       .update(apps)
       .set({ meteringConfig: { enabled: true, unitPrice: 1, unitLabel: "u" } as any })
@@ -407,7 +409,7 @@ describe("Coverage Booster4: metering/router.ts additional branches", () => {
     const res = await app.handle(
       new Request("http://localhost:3001/api/v1/metering/events", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-api-key": appApiKey },
         body: JSON.stringify({
           licenseKey: issueRes.license.licenseKey,
           eventName: "test.event",

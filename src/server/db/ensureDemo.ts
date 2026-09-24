@@ -6,6 +6,13 @@ import { randomBytes } from "crypto";
 import { config } from "../config";
 
 export async function ensureDemoData(): Promise<void> {
+  // BUG A6: Data demo (aplikasi LIVE, rekening disbursement founder, kupon global)
+  // TIDAK boleh di-seed ke production. Kredensial admin tetap dijamin oleh
+  // ensurePlatformAdmin() di index.ts, sehingga skip di sini aman.
+  if (config.isProd) {
+    console.warn("[Demo] ensureDemoData dilewati di production.");
+    return;
+  }
   try {
     const adminEmail = (
       config.admin.email ||
@@ -65,7 +72,7 @@ export async function ensureDemoData(): Promise<void> {
           name: "Tertaut Labs (Founder)",
           email: adminUser.email,
           apiKey: `tt_live_${randomBytes(16).toString("hex")}`,
-          secretApiKey: `tt_sec_${randomBytes(24).toString("hex")}`,
+          secretApiKey: `tt_secret_${randomBytes(24).toString("hex")}`,
           disbursementAccount: {
             bankCode: "BCA",
             accountNumber: "8830192847",

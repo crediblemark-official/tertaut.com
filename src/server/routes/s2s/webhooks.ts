@@ -39,6 +39,20 @@ export async function handleS2SCreateWebhook({ builder, body, set }: any) {
 }
 
 export async function handleS2SUpdateWebhook({ builder, params, body, set }: any) {
+  if (body.url !== undefined && !/^https?:\/\//.test(body.url || "")) {
+    set.status = 400;
+    return { success: false, error: "url harus berupa HTTP(S) endpoint yang valid" };
+  }
+  if (body.events) {
+    const invalid = body.events.filter(
+      (e: string) => !(WEBHOOK_EVENTS as readonly string[]).includes(e)
+    );
+    if (invalid.length > 0) {
+      set.status = 400;
+      return { success: false, error: `Event tidak dikenal: ${invalid.join(", ")}` };
+    }
+  }
+
   const updated = await WebhookService.update(builder.id, params.id, {
     url: body.url,
     events: body.events,

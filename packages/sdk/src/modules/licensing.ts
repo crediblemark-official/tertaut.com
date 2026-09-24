@@ -158,7 +158,17 @@ export class LicensingModule {
 
         if (!res.success) {
           const err = new Error(res.error || "Heartbeat failed");
-          if (res.errorCode === "LEASE_EXPIRED" || res.errorCode === "LEASE_INVALID") {
+          // BUG C3: server mengembalikan { success:false, reason:"LEASE_MISMATCH" } (HTTP 409),
+          // bukan errorCode LEASE_EXPIRED/LEASE_INVALID seperti yang dideklarasikan type.
+          // Tangani kedua bentuk agar onLeaseExpired benar-benar terpicu dan loop
+          // onError tidak berjalan selamanya.
+          const leaseLost =
+            res.reason === "LEASE_MISMATCH" ||
+            res.reason === "LEASE_EXPIRED" ||
+            res.reason === "LEASE_INVALID" ||
+            res.errorCode === "LEASE_EXPIRED" ||
+            res.errorCode === "LEASE_INVALID";
+          if (leaseLost) {
             active = false;
             options.onLeaseExpired?.(err);
           }
@@ -166,8 +176,14 @@ export class LicensingModule {
           return res;
         }
 
-        options.onSuccess?.(res);
-        return res;
+        // Normalisasi backward-compat: konsumen lama membaca res.expiresAt padahal
+        // server mengembalikan leaseExpiresAt.
+        const normalized: LicenseHeartbeatResult = {
+          ...res,
+          expiresAt: res.expiresAt ?? res.leaseExpiresAt,
+        };
+        options.onSuccess?.(normalized);
+        return normalized;
       } catch (err: any) {
         options.onError?.(err);
         throw err;
@@ -217,7 +233,10 @@ export class LicensingModule {
           licenseVersion: onlineRes.licenseVersion || 1,
           seatsUsed: onlineRes.seatsUsed,
           maxSeats: onlineRes.maxSeats,
-          token: onlineRes.licenseToken,
+          // BUG C4: server /validate mengembalikan offlineGraceToken (bukan licenseToken).
+          // Token hasil rotasi inilah yang harus dipegang client agar token lama yang
+          // sudah didenylist tidak dipakai terus.
+          token: (onlineRes as any).offlineGraceToken ?? (onlineRes as any).licenseToken,
           reason: onlineRes.reason,
           message: onlineRes.message,
           hasFeature: helpers.hasFeature,

@@ -4,6 +4,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { LicenseService } from "../../services/license";
 import { LicenseLeaseService, resolveFloatingConfig } from "../../services/licenseLease";
 import { AuditService } from "../../services/audit";
+import { WebhookService } from "../../services/webhooks";
 import { ownedLicense, ownedApp } from "./helpers";
 
 /**
@@ -155,7 +156,7 @@ export async function handleS2SReleaseSeat({ builder, body, set }: any) {
     set.status = 404;
     return { error: "Lisensi tidak ditemukan atau bukan milik builder" };
   }
-  const { lic } = owned;
+  const { lic, app } = owned;
 
   const lookupHashes = LicenseService.hwidLookupHashes(body.hwid);
 
@@ -169,6 +170,21 @@ export async function handleS2SReleaseSeat({ builder, body, set }: any) {
     );
   const leasesReleased = await LicenseLeaseService.releaseSeat(lic.id, body.hwid);
 
+  // Jika hardwareId utama sama dengan hwid yang di-release, bersihkan / alihkan ke seat tersisa
+  if (lic.hardwareId && lookupHashes.includes(lic.hardwareId)) {
+    const remainingAct = await db.query.licenseActivations.findFirst({
+      where: eq(licenseActivations.licenseId, lic.id),
+    });
+
+    await db
+      .update(licenses)
+      .set({
+        hardwareId: remainingAct ? remainingAct.hwidHash : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(licenses.id, lic.id));
+  }
+
   await AuditService.record(
     "license.seat_released",
     {
@@ -180,6 +196,14 @@ export async function handleS2SReleaseSeat({ builder, body, set }: any) {
     },
     { hwid: body.hwid, leasesReleased }
   );
+
+  await WebhookService.emit("license.deactivated", {
+    license: lic,
+    app,
+    actorType: "S2S",
+    actorId: builder.id,
+    payload: { hwid: body.hwid, leasesReleased },
+  });
 
   return { success: true, leasesReleased, message: "Seat perangkat berhasil dilepas." };
 }
@@ -219,6 +243,14 @@ export async function handleS2SRecoverLicense({ builder, body, set }: any) {
     { seatsReleased: true }
   );
 
+  await WebhookService.emit("license.unbound", {
+    license: lic,
+    app,
+    actorType: "S2S",
+    actorId: builder.id,
+    payload: { seatsReleased: true },
+  });
+
   return {
     success: true,
     message: "Lisensi dipulihkan. Seluruh seat device dilepas.",
@@ -235,7 +267,7 @@ export async function handleS2STransferLicense({ builder, body, set }: any) {
     set.status = 404;
     return { error: "Lisensi tidak ditemukan atau bukan milik builder" };
   }
-  const { lic } = owned;
+  const { lic, app } = owned;
   if (!body.newCustomerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.newCustomerEmail)) {
     set.status = 400;
     return { success: false, error: "newCustomerEmail tidak valid" };
@@ -246,6 +278,11 @@ export async function handleS2STransferLicense({ builder, body, set }: any) {
     .set({ customerEmail: body.newCustomerEmail.trim().toLowerCase(), updatedAt: new Date() })
     .where(eq(licenses.id, lic.id))
     .returning();
+
+  await LicenseService.rotateOfflineToken(
+    { ...updated, features: updated.features || null },
+    app?.deliveryConfig?.licenseKey?.offlineGraceDays
+  );
 
   await AuditService.record(
     "license.transferred",
@@ -258,6 +295,14 @@ export async function handleS2STransferLicense({ builder, body, set }: any) {
     },
     { from: lic.customerEmail, to: updated.customerEmail }
   );
+
+  await WebhookService.emit("license.transferred", {
+    license: updated,
+    app,
+    actorType: "S2S",
+    actorId: builder.id,
+    payload: { from: lic.customerEmail, to: updated.customerEmail },
+  });
 
   return { success: true, license: updated };
 }

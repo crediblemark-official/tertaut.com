@@ -111,7 +111,7 @@ export async function handleBatchPayout() {
         .update(transactions)
         .set({
           disbursementStatus: finalStatus,
-          disbursementId: disb.id,
+          disbursementId: disb.external_id || disb.id,
           updatedAt: new Date(),
         })
         .where(

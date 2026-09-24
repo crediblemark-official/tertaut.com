@@ -359,6 +359,10 @@ if (hasBuiltClient) {
     .get("/docs/*", ({ request, set }) =>
       serveFromDir(docsDistPath, new URL(request.url).pathname.slice("/docs".length), set)
     )
+    .get("/checkout/dana/finish", ({ query, set }: any) => {
+      const qs = new URLSearchParams(query as any).toString();
+      set.redirect = `/api/v1/checkout/dana/finish${qs ? `?${qs}` : ""}`;
+    })
     // SPA fallback
     .get("*", ({ request, set }) => {
       const url = new URL(request.url);
@@ -549,10 +553,12 @@ export async function ensurePlatformAdmin(): Promise<void> {
 
 export const ensureFirstUserIsAdmin = ensurePlatformAdmin;
 
-if (process.env.NODE_ENV !== "test") {
+if (!config.isTest) {
   await runAutoMigrations();
   await ensurePlatformAdmin();
-  await ensureDemoData();
+  if (!config.isProd) {
+    await ensureDemoData();
+  }
 
   expireLicenses();
   setInterval(expireLicenses, 10 * 60 * 1000); // 10 menit (was 5 menit)

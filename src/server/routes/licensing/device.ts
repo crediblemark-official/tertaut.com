@@ -1,6 +1,6 @@
 import { db } from "../../db";
 import { licenses, licenseActivations, licenseLeases, revokedTokens, apps } from "../../db/schema";
-import { eq, and, inArray, sql, desc } from "drizzle-orm";
+import { eq, and, inArray, sql, desc, gt } from "drizzle-orm";
 import { LicenseService } from "../../services/license";
 import { LicenseTokenService } from "../../services/licenseToken";
 import { CreditService } from "../../services/credits";
@@ -154,6 +154,24 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
 
         // Floating: renew/create lease untuk device yang sudah dikenal.
         if (floating.enabled) {
+          const hasLiveLease = await trx.query.licenseLeases.findFirst({
+            where: and(
+              eq(licenseLeases.licenseId, lic.id),
+              inArray(licenseLeases.hwidHash, lookupHashes),
+              gt(licenseLeases.expiresAt, now)
+            ),
+          });
+
+          if (!hasLiveLease) {
+            const liveLeases = await LicenseLeaseService.countLive(lic.id, trx);
+            if (liveLeases >= maxSeats) {
+              return {
+                error: `Device seats quota exceeded (${liveLeases}/${maxSeats}). Please wait for another lease to expire or deactivate another device first.`,
+                seatFull: true,
+              };
+            }
+          }
+
           const { lease } = await LicenseLeaseService.acquire(lic.id, hwidHash, {
             deviceName: deviceName || existingActivation.deviceName || undefined,
             ipAddress,
@@ -335,6 +353,9 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
     return {
       success: true,
       message: "Device activated successfully",
+      // BUG C4: kontrak SDK (LicenseActivateResult.activated & test sdk.test.ts)
+      // mengharuskan field `activated: true` pada respons aktivasi.
+      activated: true,
       data: {
         licenseToken: outcome.licenseToken,
         status: "ACTIVE",
@@ -714,6 +735,7 @@ export async function handleValidateLicense({ body, set, request }: DeviceValida
       maxSeats: lic.maxSeats || 3,
       features: lic.features || null,
       offlineJwtGraceToken: lic.offlineJwtGraceToken,
+      hardwareId: lic.hardwareId || null,
     },
     offlineGraceDays
   );
@@ -775,6 +797,22 @@ export async function handleUnbindHardware({ body, set, request }: DeviceUnbindC
     .set({ hardwareId: null, updatedAt: new Date() })
     .where(eq(licenses.id, lic.id))
     .returning();
+
+  const appRow = await db.query.apps.findFirst({ where: eq(apps.id, lic.appId) });
+  const offlineGraceDays = appRow?.deliveryConfig?.licenseKey?.offlineGraceDays;
+  await LicenseService.rotateOfflineToken(
+    {
+      id: lic.id,
+      licenseKey: lic.licenseKey,
+      appId: lic.appId,
+      customerEmail: lic.customerEmail,
+      maxSeats: lic.maxSeats || 3,
+      features: lic.features || null,
+      offlineJwtGraceToken: lic.offlineJwtGraceToken,
+      hardwareId: null,
+    },
+    offlineGraceDays
+  );
 
   const ipAddress = getClientIp(request);
   await AuditService.record("license.unbound", {

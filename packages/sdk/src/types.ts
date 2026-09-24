@@ -152,6 +152,14 @@ export interface LicenseHeartbeatResult {
   success: boolean;
   status?: string;
   expiresAt?: string;
+  // BUG C3: server mengembalikan leaseExpiresAt (bukan expiresAt) pada success,
+  // dan reason:"LEASE_MISMATCH" pada kegagalan lease (HTTP 409).
+  leaseExpiresAt?: string;
+  leaseKey?: string;
+  lastHeartbeatAt?: string;
+  seatsUsed?: number;
+  floating?: boolean;
+  reason?: string;
   leaseTtlSeconds?: number;
   heartbeatIntervalSeconds?: number;
   gracePeriodRemainingDays?: number;

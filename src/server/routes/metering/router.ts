@@ -4,6 +4,45 @@ import { licenses, apps, creditLedger } from "../../db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { CreditService } from "../../services/credits";
 import { resolveCurrentBuilder } from "../apps/builder";
+import { authorizeLicense } from "../licensing/credits";
+
+/**
+ * BUG A5: endpoint /metering/events sebelumnya mendebit kredit hanya berbekal
+ * licenseKey. Lisensi adalah identifier semi-rahasia (tertanam di aplikasi
+ * client), sehingga pihak ketiga yang mencurinya bisa menguras saldo kredit.
+ * Wajib bukti kepemilikan: (a) perangkat teraktivasi (hwid) ATAU
+ * (b) API key publik aplikasi pemilik lisensi (x-api-key / Authorization Bearer).
+ */
+async function authorizeMeteringEvent(
+  lic: any,
+  app: any,
+  hwid: string | undefined,
+  headers: Headers
+): Promise<{ ok: true } | { ok: false; status: number; reason: string; message: string }> {
+  // (a) Jalur perangkat: hwid wajib milik aktivasi yang masih berlaku.
+  if (hwid) {
+    const auth = await authorizeLicense(lic.licenseKey, hwid, true);
+    if (auth.ok) return { ok: true };
+    return { ok: false, status: auth.status, reason: auth.reason, message: auth.message };
+  }
+
+  // (b) Jalur API key aplikasi (dikirim SDK via header x-api-key).
+  const bearer = headers.get("authorization") || "";
+  const bearerKey = bearer.startsWith("Bearer ") ? bearer.slice(7).trim() : "";
+  const apiKeyHeader = headers.get("x-api-key") || "";
+  const presentedKey = apiKeyHeader || bearerKey;
+  if (presentedKey && app?.apiKey && presentedKey === app.apiKey) {
+    return { ok: true };
+  }
+
+  return {
+    ok: false,
+    status: 403,
+    reason: "METERING_UNAUTHORIZED",
+    message:
+      "Debit metering wajib disertai hwid perangkat teraktivasi atau X-Api-Key aplikasi pemilik lisensi.",
+  };
+}
 
 export const meteringRoutes = new Elysia({ prefix: "/metering" })
   /**
@@ -12,8 +51,8 @@ export const meteringRoutes = new Elysia({ prefix: "/metering" })
    */
   .post(
     "/events",
-    async ({ body, set }) => {
-      const { licenseKey, eventName, units = 1, idempotencyKey, metadata } = body;
+    async ({ body, set, request }) => {
+      const { licenseKey, eventName, units = 1, idempotencyKey, metadata, hwid } = body;
 
       if (!licenseKey || typeof licenseKey !== "string") {
         set.status = 400;
@@ -59,6 +98,13 @@ export const meteringRoutes = new Elysia({ prefix: "/metering" })
           success: false,
           error: "Metered billing belum diaktifkan untuk aplikasi ini di Dashboard",
         };
+      }
+
+      // BUG A5: otorisasi wajib sebelum debit (lihat authorizeMeteringEvent di atas).
+      const auth = await authorizeMeteringEvent(lic, app, hwid, request.headers);
+      if (!auth.ok) {
+        set.status = auth.status;
+        return { success: false, error: auth.message, reason: auth.reason };
       }
 
       // Hitung kredit yang dikonsumsi per unit
@@ -110,6 +156,7 @@ export const meteringRoutes = new Elysia({ prefix: "/metering" })
         units: t.Optional(t.Number()),
         idempotencyKey: t.Optional(t.String()),
         metadata: t.Optional(t.Any()),
+        hwid: t.Optional(t.String()),
       }),
     }
   )

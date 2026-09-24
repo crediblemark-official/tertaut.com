@@ -49,7 +49,7 @@ export class HeartbeatLeaseError extends TertautError {
 
 export class InsufficientCreditsError extends TertautError {
   constructor(message = "Saldo kredit lisensi tidak mencukupi.", details?: any) {
-    super(message, { code: "INSUFFICIENT_CREDITS", status: 409, details });
+    super(message, { code: "INSUFFICIENT_CREDITS", status: 402, details });
     this.name = "InsufficientCreditsError";
   }
 }

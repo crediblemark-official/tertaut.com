@@ -406,6 +406,8 @@ export const config = {
           getEnv("DANA_MERCHANT_ID") ||
           (isTest ? "216620090021032077318" : "")
         : getEnv("DANA_MERCHANT_ID"),
+      /** Akun deposit DANA merchant (format 628xxx) untuk transferToBank. Wajib di prod. */
+      customerNumber: getEnv("DANA_CUSTOMER_NUMBER"),
       baseUrl: isSandbox
         ? getEnv("DANA_SANDBOX_BASE_URL") || getEnv("DANA_BASE_URL", "https://api.sandbox.dana.id")
         : getEnv("DANA_BASE_URL", "https://api.saas.dana.id"),

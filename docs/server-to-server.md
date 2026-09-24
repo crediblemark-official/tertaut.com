@@ -412,7 +412,7 @@ Setiap event dikirim sebagai `POST` dengan body JSON:
 Header wajib diverifikasi:
 
 ```
-x-tertaut-signature: <hex hmac-sha256(endpoint.secret, rawBody)>
+x-tertaut-signature: hmac-sha256=<hex hmac-sha256(endpoint.secret, rawBody)>
 x-tertaut-event: license.issued
 x-tertaut-delivery-id: whd_...
 Content-Type: application/json
@@ -421,12 +421,23 @@ Content-Type: application/json
 Verifikasi di server penerima (Node.js):
 
 ```ts
+// Cara 1: Menggunakan Tertaut SDK
+import { Tertaut } from "@tertaut/sdk";
+const isValid = await Tertaut.verifyWebhookSignature(
+  rawBody,
+  req.headers["x-tertaut-signature"],
+  endpoint.secret
+);
+if (!isValid) return res.status(401).send("Invalid signature");
+
+// Cara 2: Manual Node.js Crypto
 const crypto = require("crypto");
+const sig = (req.headers["x-tertaut-signature"] || "").replace(/^hmac-sha256=/i, "");
 const expected = crypto
   .createHmac("sha256", endpoint.secret)
-  .update(rawBody) // body mentah persis, jangan di-parse dulu
+  .update(rawBody) // body mentah persis string/buffer, jangan di-parse dulu
   .digest("hex");
-if (signature !== expected) reject(401);
+if (sig !== expected) return res.status(401).send("Invalid signature");
 ```
 
 > Gunakan `rawBody` mentah (bukan hasil `JSON.stringify` objek yang sudah di-parse) agar urutan kunci tidak mengubah signature.

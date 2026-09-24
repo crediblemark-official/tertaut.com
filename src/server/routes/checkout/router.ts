@@ -165,6 +165,10 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
     query: t.Object({
       appId: t.Optional(t.String()),
       limit: t.Optional(t.Numeric({ default: 50 })),
+      // BUG D1: client mengirim `page`, tapi schema tidak mendeklarasikannya =>
+      // Elysia membuang param tsb secara diam-diam sehingga pagination selalu
+      // memakai halaman 1. Deklarasikan agar handler benar-benar menerimanya.
+      page: t.Optional(t.Numeric({ default: 1 })),
       mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
     }),
     detail: {

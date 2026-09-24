@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { aiAppConfigs, apps } from "../../db/schema";
+import { apps, aiAppConfigs, aiProviderKeys } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { resolveCurrentBuilder } from "../apps/builder";
 import { verifyOwnedApp } from "../../lib/ownership";
@@ -70,6 +70,22 @@ export async function handleSaveAppConfig({ body, request, set }: any) {
   if (!app) {
     set.status = 404;
     return { success: false, error: "App not found" };
+  }
+
+  // BUG B8: providerKeyId tidak boleh menunjuk key milik builder lain (IDOR).
+  // Verifikasi kepemilikan pada saat penyimpanan, dan chat.ts memverifikasi lagi
+  // pada saat eksekusi.
+  if (providerKeyId) {
+    const pk = await db.query.aiProviderKeys.findFirst({
+      where: and(eq(aiProviderKeys.id, providerKeyId), eq(aiProviderKeys.builderId, app.builderId)),
+    });
+    if (!pk) {
+      set.status = 400;
+      return {
+        success: false,
+        error: "providerKeyId tidak valid: key bukan milik builder aplikasi ini.",
+      };
+    }
   }
 
   const existing = await db.query.aiAppConfigs.findFirst({

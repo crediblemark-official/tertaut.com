@@ -168,9 +168,9 @@ export class AiGatewayService {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    let totalUsed = 0;
-
-    // 1. Cek dari ai_usage_logs
+    // Hitung pemakaian harian dari ai_usage_logs (sumber utama PRD Modul 4).
+    // Jangan menjumlahkan ai_usage_logs dan ai_proxy_logs secara bersamaan karena
+    // recordUsage menulis ke kedua tabel untuk request yang sama (double-counting).
     if (licenseId) {
       const usageResults = await db
         .select({
@@ -178,21 +178,30 @@ export class AiGatewayService {
         })
         .from(aiUsageLogs)
         .where(and(eq(aiUsageLogs.licenseId, licenseId), gte(aiUsageLogs.createdAt, startOfDay)));
-      totalUsed += usageResults[0]?.sumTokens || 0;
+      return usageResults[0]?.sumTokens || 0;
     }
 
-    // 2. Cek juga dari legacy ai_proxy_logs jika ada
     if (appId) {
+      const usageResults = await db
+        .select({
+          sumTokens: sql<number>`COALESCE(SUM(${aiUsageLogs.totalTokens}), 0)::int`,
+        })
+        .from(aiUsageLogs)
+        .where(and(eq(aiUsageLogs.appId, appId), gte(aiUsageLogs.createdAt, startOfDay)));
+      const sum = usageResults[0]?.sumTokens || 0;
+      if (sum > 0) return sum;
+
+      // Fallback ke legacy ai_proxy_logs jika ai_usage_logs belum ada entri
       const legacyResults = await db
         .select({
           sumTokens: sql<number>`COALESCE(SUM(${aiProxyLogs.totalTokens}), 0)::int`,
         })
         .from(aiProxyLogs)
         .where(and(eq(aiProxyLogs.appId, appId), gte(aiProxyLogs.createdAt, startOfDay)));
-      totalUsed += legacyResults[0]?.sumTokens || 0;
+      return legacyResults[0]?.sumTokens || 0;
     }
 
-    return totalUsed;
+    return 0;
   }
 
   /**

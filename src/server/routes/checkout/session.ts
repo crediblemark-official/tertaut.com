@@ -406,7 +406,7 @@ export async function handleCreateSession({ request, body, set }: any) {
     const finishRedirectUrl =
       selectedGateway === "xendit"
         ? `${requestOrigin}/checkout/success?externalId=${externalId}`
-        : `${requestOrigin}/checkout/dana/finish?externalId=${externalId}`;
+        : `${requestOrigin}/api/v1/checkout/dana/finish?externalId=${externalId}`;
 
     const orderResult = await gatewayAdapter.createOrder({
       externalId,

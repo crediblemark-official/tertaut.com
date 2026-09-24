@@ -79,6 +79,7 @@ async function seedBuilderApp(mode: "live" | "sandbox" = "live") {
     })
     .returning();
 
+  const appKey = generateAppApiKey(mode); // BUG A5: app butuh publishable key utk metering
   const [a] = await db
     .insert(apps)
     .values({
@@ -88,10 +89,11 @@ async function seedBuilderApp(mode: "live" | "sandbox" = "live") {
       builderId: b.id,
       targetPrice: 50000,
       mode,
+      apiKey: appKey,
     })
     .returning();
 
-  return { builder: b, app: a };
+  return { builder: b, app: a, appApiKey: appKey };
 }
 
 // ─── Helper: Issue license ────────────────────────────────────────────────────
@@ -972,7 +974,7 @@ describe("Coverage Booster2: metering/router.ts", () => {
   });
 
   it("POST /metering/events: 402 when insufficient credits", async () => {
-    const { app: a } = await seedBuilderApp();
+    const { app: a, appApiKey } = await seedBuilderApp();
     // Enable metering on the app
     await db
       .update(apps)
@@ -983,7 +985,7 @@ describe("Coverage Booster2: metering/router.ts", () => {
     const res = await app.handle(
       new Request("http://localhost:3001/api/v1/metering/events", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-api-key": appApiKey },
         body: JSON.stringify({
           licenseKey: issueRes.license.licenseKey,
           eventName: "test.event",

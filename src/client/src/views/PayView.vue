@@ -29,6 +29,8 @@ const product = ref<{
   name: string;
   slug: string;
   mode: "sandbox" | "live";
+  checkoutMode?: "custom" | "hosted";
+  activePaymentGateway?: "dana" | "xendit";
   targetPrice: number;
   description: string | null;
   headline: string | null;
@@ -236,6 +238,8 @@ function setProductData(app: any) {
     name: queryProductName.value || app.name,
     slug: app.slug || "",
     mode: app.mode || "live",
+    checkoutMode: app.checkoutMode || "custom",
+    activePaymentGateway: app.activePaymentGateway || "dana",
     targetPrice: queryAmount.value || app.targetPrice || 0,
     description: app.description || "Solusi software premium otomatis & berlisensi resmi.",
     headline: app.headline || null,
@@ -280,6 +284,7 @@ async function handlePay(payload?: {
   try {
     const data = await api.createCheckoutSession({
       appId: product.value.id,
+      paymentGateway: product.value.activePaymentGateway || "dana",
       customerEmail: emailInput.value,
       amount: product.value.targetPrice,
       preferredPaymentChannel: rail,
@@ -488,6 +493,8 @@ onUnmounted(() => {
           >
             <PayPaymentForm
               :product="product"
+              :checkout-mode="product?.checkoutMode || 'custom'"
+              :active-gateway="product?.activePaymentGateway || 'dana'"
               :email-input="emailInput"
               :selected-payment-rail="selectedPaymentRail"
               :selected-bank="selectedBank"

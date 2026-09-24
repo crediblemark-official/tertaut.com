@@ -13,6 +13,7 @@ import type {
 
 export interface CreditsExecutor {
   request: (path: string, init?: RequestInit) => Promise<Response>;
+  apiKey?: string;
 }
 
 export class CreditsModule {
@@ -60,6 +61,8 @@ export class CreditsModule {
 
   /**
    * Kirim event penggunaan kredit terukur (metered usage event).
+   * Wajib bukti kepemilikan (BUG A5): SDK mengirim `x-api-key` aplikasi secara
+   * otomatis; integrasi manual harus menyertakan hwid perangkat teraktivasi.
    */
   public async reportUsage(options: {
     licenseKey: string;
@@ -67,10 +70,13 @@ export class CreditsModule {
     units?: number;
     idempotencyKey?: string;
     metadata?: Record<string, any>;
+    hwid?: string;
   }): Promise<any> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (this.ctx.apiKey) headers["x-api-key"] = this.ctx.apiKey;
     const res = await this.ctx.request("/api/v1/metering/events", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(options),
     });
     return res.json();

@@ -96,11 +96,21 @@ export class DanaDisbursementService {
       throw new Error("DANA Disbursement Failed: Kredensial DANA tidak dikonfigurasi.");
     }
 
+    // BUG A4: customerNumber = akun deposit DANA merchant (format 628xxx). Sebelumnya
+    // di-hardcode "6280000000000" sehingga semua transferToBank memakai sumber salah.
+    // Fail-closed: tanpa DANA_CUSTOMER_NUMBER jangan transfer dari akun yang salah.
+    const customerNumber = config.dana.customerNumber;
+    if (!customerNumber) {
+      throw new Error(
+        "DANA Disbursement Failed: DANA_CUSTOMER_NUMBER (akun deposit merchant, format 628xxx) belum dikonfigurasi."
+      );
+    }
+
     try {
       const disbursementApi = getDanaDisbursementApi();
       const response = await disbursementApi.transferToBank({
         partnerReferenceNo: params.externalId,
-        customerNumber: "6280000000000",
+        customerNumber,
         beneficiaryAccountNumber: params.accountNumber,
         beneficiaryBankCode: params.bankCode,
         amount: {

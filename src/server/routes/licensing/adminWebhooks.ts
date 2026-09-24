@@ -110,6 +110,10 @@ export async function handleUpdateWebhook({ params, body, request, set }: any) {
     set.status = 403;
     return { success: false, error: "Bukan milik builder Anda" };
   }
+  if (body.url !== undefined && !/^https?:\/\//.test(body.url || "")) {
+    set.status = 400;
+    return { success: false, error: "url harus berupa endpoint HTTP(S) yang valid" };
+  }
   if (Array.isArray(body.events)) {
     const invalid = body.events.filter(
       (e: string) => !(WEBHOOK_EVENTS as readonly string[]).includes(e)

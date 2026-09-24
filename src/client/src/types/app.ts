@@ -60,6 +60,8 @@ export interface AppItem {
   name: string;
   slug: string;
   mode: AppMode;
+  checkoutMode?: "custom" | "hosted";
+  activePaymentGateway?: "dana" | "xendit";
   targetPrice: number;
   pricingType?: "one_time" | "subscription" | "free";
   billingPeriod?:

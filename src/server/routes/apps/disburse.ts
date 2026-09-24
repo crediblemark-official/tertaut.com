@@ -108,7 +108,7 @@ export async function handleDisburse({
       .update(transactions)
       .set({
         disbursementStatus: finalStatus,
-        disbursementId: payoutResult.id,
+        disbursementId: payoutResult.external_id || payoutResult.id,
         updatedAt: new Date(),
       })
       .where(eq(transactions.id, tx.id));

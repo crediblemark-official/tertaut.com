@@ -10,8 +10,12 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   announcement_type: "info", // info | warning | alert
   payout_schedule_note: "Pencairan massal dieksekusi setiap hari Jumat pukul 17:00 WIB",
   active_payment_gateway: "dana", // dana | xendit
+  sandbox_mode: "true", // true (Sandbox / Pengujian) | false (Production / Live)
   xendit_secret_key: "",
   xendit_webhook_token: "",
+  dana_sandbox_client_id: "",
+  dana_sandbox_client_secret: "",
+  dana_sandbox_merchant_id: "",
   checkout_mode: "custom", // custom (Full Custom Native UI) | hosted (Redirect ke Halaman Hosted Xendit)
 };
 
@@ -35,13 +39,27 @@ export async function handleGetPlatformSettings() {
       settingsMap.xendit_webhook_token =
         process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN || process.env.XENDIT_WEBHOOK_TOKEN || "";
     }
+    // DANA Sandbox defaults dari environment jika belum ada di database
+    if (process.env.DANA_SANDBOX_CLIENT_ID && !settingsMap.dana_sandbox_client_id) {
+      settingsMap.dana_sandbox_client_id = process.env.DANA_SANDBOX_CLIENT_ID;
+    }
+    if (process.env.DANA_SANDBOX_CLIENT_SECRET && !settingsMap.dana_sandbox_client_secret) {
+      settingsMap.dana_sandbox_client_secret = process.env.DANA_SANDBOX_CLIENT_SECRET;
+    }
+    if (process.env.DANA_SANDBOX_MERCHANT_ID && !settingsMap.dana_sandbox_merchant_id) {
+      settingsMap.dana_sandbox_merchant_id = process.env.DANA_SANDBOX_MERCHANT_ID;
+    }
   }
 
   settingsMap.xendit_configured = String(
     Boolean(settingsMap.xendit_secret_key && settingsMap.xendit_webhook_token)
   );
   settingsMap.dana_configured = String(
-    Boolean(process.env.DANA_CLIENT_ID || process.env.DANA_SANDBOX_CLIENT_ID)
+    Boolean(
+      process.env.DANA_CLIENT_ID ||
+      process.env.DANA_SANDBOX_CLIENT_ID ||
+      settingsMap.dana_sandbox_client_id
+    )
   );
 
   return {
@@ -80,6 +98,16 @@ export async function handleUpdatePlatformSettings({ body, set }: any) {
       return { success: false, error: "Mode checkout harus bernilai 'custom' atau 'hosted'." };
     }
     updates.checkout_mode = cm;
+  }
+
+  // Validasi mode sandbox
+  if (updates.sandbox_mode !== undefined) {
+    const sm = String(updates.sandbox_mode).toLowerCase().trim();
+    if (sm !== "true" && sm !== "false") {
+      set.status = 400;
+      return { success: false, error: "Mode sandbox harus bernilai 'true' atau 'false'." };
+    }
+    updates.sandbox_mode = sm;
   }
 
   // Validasi fee percent

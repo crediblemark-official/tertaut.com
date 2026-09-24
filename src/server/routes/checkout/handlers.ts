@@ -316,6 +316,7 @@ export async function handlePreviewCoupon({ body, set }: any) {
     discountPercent: result.discountPercent,
     discountAmount: result.discountAmount,
     payableAmount: Math.max(0, listPrice - (result.discountAmount || 0)),
+    finalAmount: Math.max(0, listPrice - (result.discountAmount || 0)),
   };
 }
 

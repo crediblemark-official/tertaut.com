@@ -430,6 +430,16 @@ export async function handleRenewLicense({ body, set, request }: RenewLicenseCon
     }
   }
 
+  // Batas maksimum perpanjangan lisensi manual oleh builder non-admin (maksimal 365 hari per request)
+  if (!isAdmin && daysToAdd > 365) {
+    set.status = 400;
+    return {
+      success: false,
+      error:
+        "Batas perpanjangan lisensi manual oleh builder dibatasi maksimum 365 hari per request.",
+    };
+  }
+
   const currentExpiry = lic.expiresAt ? new Date(lic.expiresAt) : new Date();
   const baseDate = currentExpiry.getTime() > Date.now() ? currentExpiry : new Date();
   baseDate.setDate(baseDate.getDate() + daysToAdd);

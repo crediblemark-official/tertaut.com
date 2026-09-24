@@ -1,5 +1,9 @@
-import { config } from "../config";
+import { config, cleanPemKey } from "../config";
+import { randomBytes } from "crypto";
 import QRCode from "qrcode";
+import { db } from "../db";
+import { platformSettings } from "../db/schema/settings";
+import { inArray } from "drizzle-orm";
 import {
   getDanaPaymentGateway,
   withDanaTimeout,
@@ -19,24 +23,29 @@ async function buildMockOrder(
   rail: string,
   bankName: string
 ): Promise<DanaOrderResponse> {
-  const mockOrderId = `dana_order_${Date.now()}`;
+  // BUG C10: dana_order_${Date.now()} dapat berbenturan (unique xendit_invoice_id)
+  // jika dua session dibuat di millisecond yang sama (double-click dsb.) → 500.
+  // Gunakan random bytes agar selalu unik.
+  const mockOrderId = `dana_order_${randomBytes(8).toString("hex")}`;
   let paymentCode: string | undefined;
   let qrDataUrl: string | undefined;
 
-  if (rail === "qris") {
-    paymentCode = `00020101021226540014ID.DANA.WWW011893600911000000000002152026092100000000303UMI51440014ID.DANA.WWW0215202609210000000520457325303360540${params.amount.toFixed(2)}5802ID5911Tertaut MoR6007Jakarta61051234062330114${params.externalId}6304ABCD`;
-    qrDataUrl = await QRCode.toDataURL(paymentCode, { width: 320, margin: 2 });
-  } else if (rail === "va") {
-    const bankPrefixMap: Record<string, string> = {
-      BCA: "3901",
-      MANDIRI: "88908",
-      BNI: "8808",
-      BRI: "8809",
-      CIMB: "2599",
-      PERMATA: "8528",
-    };
-    const prefix = bankPrefixMap[bankName.toUpperCase()] || "3901";
-    paymentCode = `${prefix}08${Math.floor(1000000000 + Math.random() * 9000000000)}`;
+  if (scenario === "API") {
+    if (rail === "qris") {
+      paymentCode = `00020101021226540014ID.DANA.WWW011893600911000000000002152026092100000000303UMI51440014ID.DANA.WWW0215202609210000000520457325303360540${params.amount.toFixed(2)}5802ID5911Tertaut MoR6007Jakarta61051234062330114${params.externalId}6304ABCD`;
+      qrDataUrl = await QRCode.toDataURL(paymentCode, { width: 320, margin: 2 });
+    } else if (rail === "va") {
+      const bankPrefixMap: Record<string, string> = {
+        BCA: "3901",
+        MANDIRI: "88908",
+        BNI: "8808",
+        BRI: "8809",
+        CIMB: "2599",
+        PERMATA: "8528",
+      };
+      const prefix = bankPrefixMap[bankName.toUpperCase()] || "3901";
+      paymentCode = `${prefix}08${Math.floor(1000000000 + Math.random() * 9000000000)}`;
+    }
   }
 
   return {
@@ -170,7 +179,47 @@ export class DanaOrderService {
       return buildMockOrder(params, scenario, rail, bankName);
     }
 
-    if (!config.dana.clientId || !config.dana.privateKey) {
+    let clientId = config.dana.clientId;
+    let clientSecret = config.dana.clientSecret;
+    let merchantId = config.dana.merchantId;
+    let danaEnv: "sandbox" | "production" = config.dana.env;
+    let privateKey = config.dana.privateKey;
+
+    try {
+      const rows = await db.query.platformSettings.findMany({
+        where: inArray(platformSettings.key, [
+          "sandbox_mode",
+          "dana_sandbox_client_id",
+          "dana_sandbox_client_secret",
+          "dana_sandbox_merchant_id",
+        ]),
+      });
+      const settingsMap = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+      const isSandbox = settingsMap.sandbox_mode !== "false";
+
+      if (isSandbox) {
+        danaEnv = "sandbox";
+        clientId = settingsMap.dana_sandbox_client_id || config.dana.clientId;
+        clientSecret =
+          settingsMap.dana_sandbox_client_secret !== undefined
+            ? settingsMap.dana_sandbox_client_secret
+            : config.dana.clientSecret;
+        merchantId = settingsMap.dana_sandbox_merchant_id || config.dana.merchantId;
+      } else {
+        danaEnv = "production";
+        clientId = process.env.DANA_CLIENT_ID || config.dana.clientId;
+        clientSecret =
+          process.env.DANA_CLIENT_SECRET !== undefined
+            ? process.env.DANA_CLIENT_SECRET
+            : config.dana.clientSecret;
+        merchantId = process.env.DANA_MERCHANT_ID || config.dana.merchantId;
+        privateKey = process.env.DANA_PRIVATE_KEY
+          ? cleanPemKey(process.env.DANA_PRIVATE_KEY)
+          : config.dana.privateKey;
+      }
+    } catch {}
+
+    if (!clientId || !privateKey) {
       throw new Error(
         "DANA Order Creation Failed: DANA_CLIENT_ID / DANA_PRIVATE_KEY tidak dikonfigurasi."
       );
@@ -232,7 +281,7 @@ export class DanaOrderService {
 
       const createOrderPayload: Record<string, unknown> = {
         partnerReferenceNo,
-        merchantId: config.dana.merchantId || config.dana.clientId,
+        merchantId: merchantId || clientId,
         amount: { value: `${params.amount.toFixed(2)}`, currency: "IDR" },
         validUpTo,
         urlParams: [
@@ -266,12 +315,19 @@ export class DanaOrderService {
         createOrderPayload.payOptionDetails = payOptionDetails;
       }
 
-      if (rail === "qris") {
-        createOrderPayload.externalStoreId = config.dana.merchantId || "TERTAUT_STORE";
+      if (rail === "qris" && scenario !== "REDIRECT") {
+        createOrderPayload.externalStoreId = merchantId || "TERTAUT_STORE";
       }
 
       let response: any;
-      const activeGateway = gateway || getDanaPaymentGateway();
+      const activeGateway =
+        gateway ||
+        getDanaPaymentGateway({
+          partnerId: clientId,
+          clientSecret,
+          env: danaEnv,
+          privateKey,
+        });
       try {
         response = await withDanaTimeout(
           "createOrder",
@@ -280,23 +336,14 @@ export class DanaOrderService {
       } catch (gatewayErr: unknown) {
         const gatewayMessage =
           gatewayErr instanceof Error ? gatewayErr.message : String(gatewayErr);
-        // Jika DANA menolak QRIS karena merchant belum mendaftarkan store/submerchant di dashboard DANA.
-        // Fallback QRIS mock untuk: (a) aplikasi sandbox (allowMock), atau (b) deployment non-produksi —
-        // aplikasi Live di non-prod mendapat invoice DEMO (mock:true) yang dicatat session sebagai
-        // mockOrder=false sehingga tidak pernah mem-fulfill lisensi. Di produksi, aplikasi Live wajib
-        // menerima error asli agar konfigurasi merchant diperbaiki, bukan di-mock.
         if (
           (allowMock || !config.isProd) &&
-          rail === "qris" &&
           (gatewayMessage.includes("externalStoreId") ||
             gatewayMessage.includes("submerchant") ||
             gatewayMessage.includes("Invalid Merchant"))
         ) {
-          console.warn(
-            "[DanaOrderService] Merchant belum mendaftarkan externalStoreId di DANA (https://dashboard.dana.id/sandbox/submerchants). Menggunakan fallback QRIS untuk pengujian:",
-            gatewayMessage
-          );
-          return buildMockOrder(params, "API", "qris", bankName);
+          console.warn("[DanaOrderService] Menggunakan fallback untuk pengujian:", gatewayMessage);
+          return buildMockOrder(params, scenario, rail, bankName);
         }
         throw gatewayErr;
       }

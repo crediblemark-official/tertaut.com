@@ -31,10 +31,11 @@ ENV BUN_JSX_RUNTIME="haste"
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production
 
-# Sumber server
+# Sumber server & kunci
 COPY tsconfig.json ./
 COPY drizzle.config.ts ./
 COPY src/server ./src/server
+COPY keys ./keys
 
 # Aset SPA & Docs hasil build dari stage 1
 COPY --from=client-builder /app/dist ./dist

@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { apps, transactions, licenses } from "../../db/schema";
+import { apps, transactions, licenses, platformSettings } from "../../db/schema";
 import { eq, desc, count, sql, and, inArray } from "drizzle-orm";
 import { config as appConfig } from "../../config";
 import { resolveCurrentBuilder, seedSandboxBuilderIfNeeded } from "./builder";
@@ -249,11 +249,23 @@ export async function handleGetBySlug({ params: { slug }, set }: SlugParamContex
 
   const isDemoFastMail = app.slug === "fastmail-ai";
 
+  const checkoutModeRow = await db.query.platformSettings.findFirst({
+    where: eq(platformSettings.key, "checkout_mode"),
+  });
+  const checkoutMode = checkoutModeRow?.value === "hosted" ? "hosted" : "custom";
+
+  const pgRow = await db.query.platformSettings.findFirst({
+    where: eq(platformSettings.key, "active_payment_gateway"),
+  });
+  const activePaymentGateway = (pgRow?.value === "xendit" ? "xendit" : "dana") as "dana" | "xendit";
+
   return {
     id: app.id,
     name: app.name,
     slug: app.slug,
     mode: isDemoFastMail ? "sandbox" : app.mode,
+    checkoutMode,
+    activePaymentGateway,
     targetPrice: app.targetPrice,
     description: app.description,
     headline: app.headline || app.name,
