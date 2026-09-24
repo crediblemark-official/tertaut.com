@@ -127,11 +127,17 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
   })
 
   /**
-   * Pengaturan Platform: Perbarui Pengaturan
+   * Pengaturan Platform: Perbarui Pengaturan (PUT & PATCH)
    */
   .put("/settings", handleUpdatePlatformSettings, {
     detail: {
       tags: ["Admin Panel"],
       summary: "Update Platform Configuration & Settings",
+    },
+  })
+  .patch("/settings", handleUpdatePlatformSettings, {
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Update Platform Configuration & Settings (Patch)",
     },
   });

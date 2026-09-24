@@ -1,5 +1,6 @@
 import { Elysia } from "elysia";
 import { handleDanaFinishPaymentWebhook, handleDanaDisburseNotifyWebhook } from "./dana";
+import { handleXenditInvoiceWebhook, handleXenditDisbursementWebhook } from "./xendit";
 import { danaWebhookSchema, danaDisburseWebhookSchema } from "./schemas";
 
 export const webhookRoutes = new Elysia({ prefix: "/webhook" })
@@ -11,11 +12,20 @@ export const webhookRoutes = new Elysia({ prefix: "/webhook" })
   /**
    * Webhook callback handler dari DANA Disburse to Bank Notify API
    */
-  .post("/dana/disburse-notify", handleDanaDisburseNotifyWebhook, danaDisburseWebhookSchema);
+  .post("/dana/disburse-notify", handleDanaDisburseNotifyWebhook, danaDisburseWebhookSchema)
+  /**
+   * Webhook callback handler dari Xendit (Invoice & Disbursement)
+   */
+  .post("/xendit", handleXenditInvoiceWebhook)
+  .post("/xendit/invoice", handleXenditInvoiceWebhook)
+  .post("/xendit/disbursement", handleXenditDisbursementWebhook);
 
 export const webhooksPluralRoutes = new Elysia({ prefix: "/webhooks" })
   .post("/dana/finish-payment", handleDanaFinishPaymentWebhook, danaWebhookSchema)
-  .post("/dana/disburse-notify", handleDanaDisburseNotifyWebhook, danaDisburseWebhookSchema);
+  .post("/dana/disburse-notify", handleDanaDisburseNotifyWebhook, danaDisburseWebhookSchema)
+  .post("/xendit", handleXenditInvoiceWebhook)
+  .post("/xendit/invoice", handleXenditInvoiceWebhook)
+  .post("/xendit/disbursement", handleXenditDisbursementWebhook);
 
 export const snapBiWebhookRoutes = new Elysia()
   .post("/v1.0/debit/notify", handleDanaFinishPaymentWebhook, danaWebhookSchema)

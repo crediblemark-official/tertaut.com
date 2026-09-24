@@ -2,6 +2,8 @@ import { db } from "../../db";
 import { apps, transactions, licenses, builders } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { DanaService } from "../../services/dana";
+import { XenditService } from "../../services/xendit";
+import { getActivePaymentGateway } from "../../services/paymentGateway";
 import { CouponService } from "../../services/coupon";
 import { LicenseService } from "../../services/license";
 import { CreditService } from "../../services/credits";
@@ -365,46 +367,82 @@ export async function handleCreateSession({ request, body, set }: any) {
       };
     }
 
-    // Payment gateway tunggal resmi: DANA Enterprise
-    const selectedGateway = "dana" as const;
+    // Resolve payment gateway: request body -> active setting from platformSettings -> default "dana"
+    const activePlatformPg = await getActivePaymentGateway();
+    const requestedPg = (body.paymentGateway || activePlatformPg || "dana").toLowerCase().trim();
+    const selectedGateway: "dana" | "xendit" = requestedPg === "xendit" ? "xendit" : "dana";
 
     // Hitung Merchant of Record 5% platform fee & 95% net atas nominal yang dibayar
     const { grossAmount, platformFee, netAmount } =
-      DanaService.calculateMorBreakdown(payableAmount);
+      selectedGateway === "xendit"
+        ? XenditService.calculateMorBreakdown(payableAmount)
+        : DanaService.calculateMorBreakdown(payableAmount);
 
     const txId = `tx_${randomBytes(8).toString("hex")}`;
     const externalId = `tt_${randomBytes(8).toString("hex")}`;
 
-    const danaOrder = await DanaService.createOrder({
-      externalId,
-      amount: grossAmount,
-      payerEmail: email,
-      description: `Lisensi ${app.name} (${grantDays} hari)`,
-      returnUrl: redirectUrl || app.redirectUrl || undefined,
-      finishRedirectUrl: `${requestOrigin}/checkout/dana/finish?externalId=${externalId}`,
-      forceMock: isMockOrder,
-      allowMock: isSandboxApp,
-      scenario: selectedScenario,
-      paymentRail: selectedRail,
-      vaBank: selectedBank,
-    });
+    let orderResult: {
+      orderId: string;
+      checkoutUrl: string;
+      expiryDate?: string;
+      scenario?: "API" | "REDIRECT";
+      paymentRail?: string;
+      paymentCode?: string;
+      qrDataUrl?: string;
+      vaBank?: string;
+      mock?: boolean;
+    };
+
+    if (selectedGateway === "xendit") {
+      orderResult = await XenditService.createOrder({
+        externalId,
+        amount: grossAmount,
+        payerEmail: email,
+        description: `Lisensi ${app.name} (${grantDays} hari)`,
+        returnUrl: redirectUrl || app.redirectUrl || undefined,
+        finishRedirectUrl: `${requestOrigin}/checkout/success?externalId=${externalId}`,
+        forceMock: isMockOrder,
+        allowMock: isSandboxApp,
+        scenario: selectedScenario,
+        paymentRail: selectedRail,
+        vaBank: selectedBank,
+      });
+    } else {
+      orderResult = await DanaService.createOrder({
+        externalId,
+        amount: grossAmount,
+        payerEmail: email,
+        description: `Lisensi ${app.name} (${grantDays} hari)`,
+        returnUrl: redirectUrl || app.redirectUrl || undefined,
+        finishRedirectUrl: `${requestOrigin}/checkout/dana/finish?externalId=${externalId}`,
+        forceMock: isMockOrder,
+        allowMock: isSandboxApp,
+        scenario: selectedScenario,
+        paymentRail: selectedRail,
+        vaBank: selectedBank,
+      });
+    }
 
     // Sebuah transaksi HANYA ditandai mock bila aplikasinya benar-benar mode sandbox.
     // Aplikasi Live tidak pernah mockOrder=true, apapun respons createOrder (GUARD ganda:
     // createOrder menolak mock untuk allowMock=false; di sini tetap dijaga eksplisit).
-    const mockOrder = isSandboxApp && (isMockOrder || danaOrder.mock === true);
-    const invoiceUrl = danaOrder.checkoutUrl;
-    const invoiceId = danaOrder.orderId;
-    const expiryDate = danaOrder.expiryDate;
+    const mockOrder = isSandboxApp && (isMockOrder || orderResult.mock === true);
+    const invoiceUrl = orderResult.checkoutUrl;
+    const invoiceId = orderResult.orderId;
+    const expiryDate = orderResult.expiryDate;
     const hostedPayUrl = `${requestOrigin}/pay/${app.slug || targetIdentifier}?externalId=${externalId}`;
 
     // Tentukan label paymentChannel yang disimpan
     const savedChannel =
-      danaOrder.paymentRail === "va"
-        ? `VA_${danaOrder.vaBank || selectedBank}`
-        : danaOrder.paymentRail === "qris"
-          ? "QRIS"
-          : "DANA";
+      orderResult.paymentRail === "va"
+        ? `VA_${orderResult.vaBank || selectedBank}`
+        : orderResult.paymentRail === "qris"
+          ? selectedGateway === "xendit"
+            ? "XENDIT_QRIS"
+            : "QRIS"
+          : selectedGateway === "xendit"
+            ? "XENDIT"
+            : "DANA";
 
     // Simpan transaksi di database
     const [newTx] = await db
@@ -453,6 +491,8 @@ export async function handleCreateSession({ request, body, set }: any) {
       }
     }
 
+    const gatewayLabel = selectedGateway === "xendit" ? "Xendit" : "DANA";
+
     return {
       success: true,
       data: {
@@ -463,22 +503,22 @@ export async function handleCreateSession({ request, body, set }: any) {
         xenditInvoiceUrl: invoiceUrl,
         expiresAt: expiryDate || new Date(Date.now() + 15 * 60 * 1000).toISOString(),
         isSandbox: isSandboxApp,
-        scenario: danaOrder.scenario,
-        paymentRail: danaOrder.paymentRail,
-        paymentCode: danaOrder.paymentCode,
-        qrDataUrl: danaOrder.qrDataUrl,
-        vaBank: danaOrder.vaBank,
+        scenario: orderResult.scenario,
+        paymentRail: orderResult.paymentRail,
+        paymentCode: orderResult.paymentCode,
+        qrDataUrl: orderResult.qrDataUrl,
+        vaBank: orderResult.vaBank,
         hostedPayUrl,
       },
       transactionId: newTx.id,
       ticket: pollTicket,
       checkoutUrl: invoiceUrl,
       hostedPayUrl,
-      scenario: danaOrder.scenario,
-      paymentRail: danaOrder.paymentRail,
-      paymentCode: danaOrder.paymentCode,
-      qrDataUrl: danaOrder.qrDataUrl,
-      vaBank: danaOrder.vaBank,
+      scenario: orderResult.scenario,
+      paymentRail: orderResult.paymentRail,
+      paymentCode: orderResult.paymentCode,
+      qrDataUrl: orderResult.qrDataUrl,
+      vaBank: orderResult.vaBank,
       paymentGateway: selectedGateway,
       amount: grossAmount,
       listPrice,
@@ -486,7 +526,7 @@ export async function handleCreateSession({ request, body, set }: any) {
       discountPercent,
       grantDays,
       couponCode: coupon?.code,
-      message: "Sesi pembayaran DANA berhasil disiapkan",
+      message: `Sesi pembayaran ${gatewayLabel} berhasil disiapkan`,
       platformFee,
       netDisbursementAmount: netAmount,
     };
@@ -500,7 +540,6 @@ export async function handleCreateSession({ request, body, set }: any) {
       msg.includes("externalStoreId") ||
       msg.includes("submerchant")
     ) {
-      // QRIS-ish: merchant belum mendaftarkan store/submerchant di dashboard DANA.
       errorMsg =
         "Gateway DANA menolak transaksi: merchant/submerchant (externalStoreId) untuk " +
         "metode pembayaran ini belum terdaftar di dashboard DANA. Daftarkan di " +
@@ -509,12 +548,19 @@ export async function handleCreateSession({ request, body, set }: any) {
     } else if (
       msg.includes("DANA_CLIENT_ID") ||
       msg.includes("DANA_PRIVATE_KEY") ||
-      msg.includes("tidak dikonfigurasi")
+      (msg.includes("DANA") && msg.includes("tidak dikonfigurasi"))
     ) {
       errorMsg = "Gateway pembayaran DANA belum dikonfigurasi dengan benar di server.";
       set.status = 502;
+    } else if (
+      msg.includes("XENDIT_SECRET_KEY") ||
+      (msg.includes("Xendit") && msg.includes("belum dikonfigurasi"))
+    ) {
+      errorMsg =
+        "Gateway pembayaran Xendit belum dikonfigurasi dengan benar di server atau Super Admin Panel.";
+      set.status = 502;
     } else if (msg.toLowerCase().includes("timeout")) {
-      errorMsg = "Gateway DANA tidak merespons tepat waktu. Silakan coba lagi beberapa saat.";
+      errorMsg = "Gateway pembayaran tidak merespons tepat waktu. Silakan coba lagi beberapa saat.";
       set.status = 502;
     }
     return {

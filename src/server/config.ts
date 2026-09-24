@@ -422,4 +422,10 @@ export const config = {
       platformFeePercent: 5, // 5% Merchant of Record platform fee
     };
   })(),
+
+  xendit: {
+    secretKey: getEnv("XENDIT_SECRET_KEY"),
+    webhookToken: getEnv("XENDIT_WEBHOOK_VERIFICATION_TOKEN") || getEnv("XENDIT_WEBHOOK_TOKEN"),
+    platformFeePercent: 5,
+  },
 };

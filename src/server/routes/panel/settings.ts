@@ -8,6 +8,9 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   announcement_banner: "",
   announcement_type: "info", // info | warning | alert
   payout_schedule_note: "Pencairan massal dieksekusi setiap hari Jumat pukul 17:00 WIB",
+  active_payment_gateway: "dana", // dana | xendit
+  xendit_secret_key: "",
+  xendit_webhook_token: "",
 };
 
 /**
@@ -19,6 +22,18 @@ export async function handleGetPlatformSettings() {
 
   for (const r of rows) {
     settingsMap[r.key] = r.value;
+  }
+
+  // Jika di database belum disimpan, ambil dari environment jika ada
+  if (!settingsMap.xendit_secret_key && process.env.XENDIT_SECRET_KEY) {
+    settingsMap.xendit_secret_key = process.env.XENDIT_SECRET_KEY;
+  }
+  if (
+    !settingsMap.xendit_webhook_token &&
+    (process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN || process.env.XENDIT_WEBHOOK_TOKEN)
+  ) {
+    settingsMap.xendit_webhook_token =
+      process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN || process.env.XENDIT_WEBHOOK_TOKEN || "";
   }
 
   return {
@@ -37,6 +52,16 @@ export async function handleUpdatePlatformSettings({ body, set }: any) {
   if (typeof updates !== "object" || Object.keys(updates).length === 0) {
     set.status = 400;
     return { success: false, error: "Data pengaturan tidak valid." };
+  }
+
+  // Validasi active payment gateway
+  if (updates.active_payment_gateway !== undefined) {
+    const pg = String(updates.active_payment_gateway).toLowerCase().trim();
+    if (pg !== "dana" && pg !== "xendit") {
+      set.status = 400;
+      return { success: false, error: "Gateway pembayaran harus bernilai 'dana' atau 'xendit'." };
+    }
+    updates.active_payment_gateway = pg;
   }
 
   // Validasi fee percent

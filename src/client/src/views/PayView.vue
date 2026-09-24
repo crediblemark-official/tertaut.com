@@ -396,7 +396,7 @@ onUnmounted(() => {
             class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[11px] font-mono"
           >
             <ShieldCheck class="w-3 h-3" />
-            <span>DANA Secured</span>
+            <span>MoR Secured</span>
           </div>
           <span class="w-1 h-1 rounded-full bg-white/20"></span>
           <span class="text-[11px] text-white/40 font-mono">256-Bit MoR</span>

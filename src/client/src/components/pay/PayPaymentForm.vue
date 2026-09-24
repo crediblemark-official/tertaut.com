@@ -105,8 +105,8 @@ const BANKS = [
             Pembayaran Berhasil Diverifikasi!
           </p>
           <p class="text-xs text-slate-700 leading-relaxed">
-            Terima kasih! Pembayaran Anda telah terkonfirmasi oleh DANA Enterprise. Lisensi software
-            Anda sudah aktif.
+            Terima kasih! Pembayaran Anda telah terkonfirmasi resmi. Lisensi software Anda sudah
+            aktif.
           </p>
         </div>
       </div>
