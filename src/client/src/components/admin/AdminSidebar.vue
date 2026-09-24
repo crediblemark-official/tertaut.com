@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import logoUrl from "@/assets/logo.svg";
 import {
   ShieldAlert,
   LayoutDashboard,
@@ -38,7 +39,7 @@ const emit = defineEmits<{
       <!-- Brand Header with Super Admin Tag -->
       <router-link to="/panel" class="flex items-center gap-2.5 px-2 py-1 group">
         <img
-          src="/logo.svg"
+          :src="logoUrl"
           alt="tertaut.com"
           class="w-8 h-8 rounded-lg shadow-md group-hover:scale-105 transition shrink-0"
         />

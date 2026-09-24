@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api } from "../lib/api";
+import logoUrl from "@/assets/logo.svg";
 import {
   Printer,
   ArrowLeft,
@@ -145,7 +146,7 @@ onMounted(() => {
       >
         <div class="space-y-1.5">
           <div class="flex items-center gap-2">
-            <img src="/logo.svg" alt="tertaut.com" class="w-8 h-8 rounded-lg shadow-xs" />
+            <img :src="logoUrl" alt="tertaut.com" class="w-8 h-8 rounded-lg shadow-xs" />
             <span class="font-mono text-base font-extrabold tracking-tight"
               >tertaut<span class="text-[#D4AF37]">.com</span></span
             >

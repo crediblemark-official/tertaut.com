@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import logoUrl from "@/assets/logo.svg";
 
 const props = withDefaults(
   defineProps<{
@@ -54,7 +55,7 @@ const textSize = computed(() => {
       :class="[iconDimension, interactive ? 'group-hover:scale-105' : '']"
     >
       <img
-        src="/logo.svg"
+        :src="logoUrl"
         alt="tertaut.com logo"
         class="w-full h-full object-cover select-none pointer-events-none"
         loading="eager"

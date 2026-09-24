@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
+import logoUrl from "@/assets/logo.svg";
 import { dashboardEnv, envPath, SANDBOX_PREFIX, type DashboardEnv } from "../../lib/environment";
 import {
   LayoutDashboard,
@@ -75,7 +76,7 @@ const moreBadgeCount = computed(() => props.activeCouponCount);
   <header class="md:hidden bg-white border-b border-jetblack/10 sticky top-0 z-40 shadow-xs">
     <div class="flex items-center justify-between px-3.5 py-2">
       <router-link to="/" class="flex items-center gap-2 group">
-        <img src="/logo.svg" alt="tertaut.com" class="w-7 h-7 rounded-md shadow-xs shrink-0" />
+        <img :src="logoUrl" alt="tertaut.com" class="w-7 h-7 rounded-md shadow-xs shrink-0" />
         <span class="font-extrabold text-xs tracking-tight text-jetblack font-mono"
           >tertaut<span class="text-gold">.com</span></span
         >

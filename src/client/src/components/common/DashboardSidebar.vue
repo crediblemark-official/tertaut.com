@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
+import logoUrl from "@/assets/logo.svg";
 import { dashboardEnv, envPath, SANDBOX_PREFIX, type DashboardEnv } from "../../lib/environment";
 import {
   LayoutDashboard,
@@ -81,7 +82,7 @@ const emit = defineEmits<{ "switch-env": [target: DashboardEnv] }>();
       <!-- Brand Header -->
       <router-link to="/" class="flex items-center gap-2.5 px-2 py-1 group">
         <img
-          src="/logo.svg"
+          :src="logoUrl"
           alt="tertaut.com"
           class="w-8 h-8 rounded-lg shadow-md group-hover:scale-105 transition shrink-0"
         />

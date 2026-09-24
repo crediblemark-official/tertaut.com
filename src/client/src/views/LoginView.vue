@@ -2,6 +2,7 @@
 import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { authClient } from "../lib/auth";
+import logoUrl from "@/assets/logo.svg";
 import {
   Mail,
   User,
@@ -133,7 +134,7 @@ async function submit() {
       >
         <!-- Brand Header -->
         <div class="flex items-center gap-2.5 shrink-0">
-          <img src="/logo.svg" alt="tertaut.com" class="w-8 h-8 rounded-lg shadow shrink-0" />
+          <img :src="logoUrl" alt="tertaut.com" class="w-8 h-8 rounded-lg shadow shrink-0" />
           <div>
             <div
               class="font-extrabold text-sm tracking-tight text-white flex items-center gap-0.5 font-mono leading-tight"
@@ -242,7 +243,7 @@ async function submit() {
             <!-- Mobile Logo (on mobile view only) -->
             <div class="lg:hidden flex items-center justify-between mb-3.5">
               <div class="flex items-center gap-2">
-                <img src="/logo.svg" alt="tertaut.com" class="w-6 h-6 rounded-md shadow shrink-0" />
+                <img :src="logoUrl" alt="tertaut.com" class="w-6 h-6 rounded-md shadow shrink-0" />
                 <span class="font-extrabold text-xs tracking-tight text-white font-mono">
                   tertaut<span class="text-gold">.com</span>
                 </span>

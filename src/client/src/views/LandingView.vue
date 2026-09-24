@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { authClient } from "../lib/auth";
 import { useClipboard } from "../composables/useClipboard";
+import logoUrl from "@/assets/logo.svg";
 import {
   CreditCard,
   KeyRound,
@@ -181,7 +182,7 @@ function copySdkInstall() {
         <!-- Logo -->
         <router-link to="/" class="flex items-center gap-2.5 group">
           <img
-            src="/logo.svg"
+            :src="logoUrl"
             alt="tertaut.com"
             class="w-8 h-8 rounded-lg shadow-md group-hover:scale-105 transition"
           />
@@ -1372,7 +1373,7 @@ function copySdkInstall() {
           <!-- Column 1: Brand & Bio -->
           <div class="space-y-3 md:col-span-1">
             <div class="flex items-center gap-2">
-              <img src="/logo.svg" alt="tertaut.com" class="w-7 h-7 rounded-md shadow-xs" />
+              <img :src="logoUrl" alt="tertaut.com" class="w-7 h-7 rounded-md shadow-xs" />
               <span class="font-extrabold text-jetblack font-mono text-sm"
                 >tertaut<span class="text-gold">.com</span></span
               >
