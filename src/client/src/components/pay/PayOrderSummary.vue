@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { CheckCircle2, Lock, Sparkles, ChevronDown, ChevronUp, Mail } from "lucide-vue-next";
+import { CheckCircle2, Lock, Sparkles, ChevronDown, ChevronUp, Mail, Tag } from "lucide-vue-next";
 import { formatRupiah } from "../../lib/utils";
 
 interface ProductData {
@@ -110,7 +110,7 @@ const couponInputValue = computed({
       <div class="space-y-2.5 text-xs sm:text-sm pt-3 border-t border-slate-200">
         <div class="flex items-center justify-between font-semibold text-slate-800">
           <span class="truncate max-w-[180px]">{{ product.name }}</span>
-          <span class="font-mono font-bold text-slate-950 text-sm sm:text-base">{{
+          <span class="font-bold text-slate-950 text-sm sm:text-base">{{
             formatRupiah(product.targetPrice)
           }}</span>
         </div>
@@ -123,31 +123,37 @@ const couponInputValue = computed({
         <div class="pt-1">
           <div
             v-if="appliedCoupon"
-            class="flex items-center justify-between text-xs py-1.5 px-3 rounded-lg bg-emerald-50 border border-emerald-300"
+            class="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-300"
           >
-            <span class="inline-flex items-center gap-1.5 text-emerald-700 font-bold">
-              <CheckCircle2 class="w-3.5 h-3.5 text-emerald-600" />
+            <span
+              class="inline-flex items-center gap-1.5 text-emerald-700 font-bold text-xs sm:text-sm"
+            >
+              <CheckCircle2 class="w-4 h-4 text-emerald-600" />
               {{ appliedCoupon.code }} (−{{ appliedCoupon.discountPercent }}%)
             </span>
             <button
               @click="emit('removeCoupon')"
-              class="text-slate-600 hover:text-slate-950 text-xs font-semibold underline cursor-pointer"
+              class="text-slate-600 hover:text-slate-950 text-xs sm:text-sm font-semibold underline cursor-pointer"
             >
               Hapus
             </button>
           </div>
           <div v-else class="flex items-center gap-2">
-            <input
-              v-model="couponInputValue"
-              type="text"
-              placeholder="Kode kupon (opsional)"
-              class="auth-input flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono font-bold uppercase text-slate-950 placeholder:normal-case placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:border-slate-800 focus:ring-1 focus:ring-slate-800 transition"
-              @keyup.enter="emit('applyCoupon')"
-            />
+            <div class="relative flex-1">
+              <Tag class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+              <input
+                v-model="couponInputValue"
+                type="text"
+                placeholder="Kode kupon (opsional)"
+                class="auth-input w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs sm:text-sm font-semibold uppercase text-slate-950 placeholder:normal-case placeholder:font-normal placeholder:text-slate-400 outline-none transition focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
+                @keyup.enter="emit('applyCoupon')"
+              />
+            </div>
             <button
+              type="button"
               @click="emit('applyCoupon')"
               :disabled="!couponInput.trim()"
-              class="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-black text-white text-xs font-bold disabled:opacity-30 cursor-pointer transition border border-slate-900"
+              class="rounded-xl border py-2 px-4 text-xs sm:text-sm font-bold transition shrink-0 cursor-pointer active:scale-95 disabled:cursor-not-allowed disabled:active:scale-100 bg-slate-900 hover:bg-black text-white border-slate-900 disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-200"
             >
               Pakai
             </button>
@@ -160,15 +166,15 @@ const couponInputValue = computed({
             class="flex items-center justify-between text-xs font-bold text-emerald-600 pt-1"
           >
             <span>Diskon Kupon</span>
-            <span class="font-mono">−{{ formatRupiah(estimatedDiscount) }}</span>
+            <span class="font-bold">−{{ formatRupiah(estimatedDiscount) }}</span>
           </div>
         </div>
       </div>
 
       <!-- Grand Total -->
-      <div class="flex items-baseline justify-between pt-3 border-t border-slate-200">
-        <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Total Bayar</span>
-        <span class="text-2xl sm:text-3xl font-black text-slate-950 font-mono tracking-tight">
+      <div class="flex items-center justify-between pt-3 border-t border-slate-200">
+        <span class="text-xs sm:text-sm font-bold text-slate-900">Total Bayar</span>
+        <span class="text-xl sm:text-2xl font-black text-slate-950 tracking-tight font-sans">
           {{ formatRupiah(payableAmount || product.targetPrice) }}
         </span>
       </div>
@@ -201,7 +207,7 @@ const couponInputValue = computed({
         </h1>
       </div>
       <div class="text-right">
-        <span class="font-mono font-black text-base text-slate-950 block">
+        <span class="font-black text-base sm:text-lg text-slate-950 block tracking-tight">
           {{ formatRupiah(payableAmount || product.targetPrice) }}
         </span>
         <button
@@ -263,7 +269,7 @@ const couponInputValue = computed({
       <div class="text-xs space-y-1 pt-1 border-t border-slate-200/60 font-medium">
         <div class="flex justify-between text-slate-600">
           <span>Harga Asli:</span>
-          <span class="font-mono">{{ formatRupiah(product.targetPrice) }}</span>
+          <span class="font-bold text-slate-800">{{ formatRupiah(product.targetPrice) }}</span>
         </div>
         <div class="flex justify-between text-emerald-600 text-[11px] font-semibold">
           <span>Biaya Layanan:</span>
@@ -271,7 +277,7 @@ const couponInputValue = computed({
         </div>
         <div v-if="estimatedDiscount > 0" class="flex justify-between text-emerald-600 font-bold">
           <span>Diskon Kupon:</span>
-          <span class="font-mono">−{{ formatRupiah(estimatedDiscount) }}</span>
+          <span class="font-bold">−{{ formatRupiah(estimatedDiscount) }}</span>
         </div>
       </div>
 
@@ -279,32 +285,37 @@ const couponInputValue = computed({
       <div class="pt-1">
         <div
           v-if="appliedCoupon"
-          class="flex items-center justify-between text-xs py-1.5 px-3 rounded-lg bg-emerald-50 border border-emerald-300"
+          class="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-300"
         >
-          <span class="inline-flex items-center gap-1.5 text-emerald-700 font-bold text-xs">
-            <CheckCircle2 class="w-3.5 h-3.5 text-emerald-600" />
+          <span
+            class="inline-flex items-center gap-1.5 text-emerald-700 font-bold text-xs sm:text-sm"
+          >
+            <CheckCircle2 class="w-4 h-4 text-emerald-600" />
             {{ appliedCoupon.code }} (−{{ appliedCoupon.discountPercent }}%)
           </span>
           <button
             @click="emit('removeCoupon')"
-            class="text-slate-600 hover:text-slate-950 text-xs font-semibold underline cursor-pointer"
+            class="text-slate-600 hover:text-slate-950 text-xs sm:text-sm font-semibold underline cursor-pointer"
           >
             Hapus
           </button>
         </div>
         <div v-else class="flex items-center gap-2">
-          <input
-            v-model="couponInputValue"
-            type="text"
-            placeholder="Kode kupon promo"
-            class="auth-input flex-1 min-h-[36px] bg-white border border-slate-300 rounded-lg px-3 text-xs font-mono font-bold uppercase text-slate-950 placeholder:normal-case placeholder:font-sans placeholder:text-slate-400 focus:outline-none focus:border-slate-800"
-            @keyup.enter="emit('applyCoupon')"
-          />
+          <div class="relative flex-1">
+            <Tag class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+            <input
+              v-model="couponInputValue"
+              type="text"
+              placeholder="Kode kupon (opsional)"
+              class="auth-input w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs sm:text-sm font-semibold uppercase text-slate-950 placeholder:normal-case placeholder:font-normal placeholder:text-slate-400 outline-none transition focus:border-slate-800 focus:ring-1 focus:ring-slate-800"
+              @keyup.enter="emit('applyCoupon')"
+            />
+          </div>
           <button
             type="button"
             @click="emit('applyCoupon')"
             :disabled="!couponInput.trim()"
-            class="min-h-[36px] px-3.5 rounded-lg bg-slate-900 text-white text-xs font-bold disabled:opacity-30 cursor-pointer active:scale-95 transition"
+            class="rounded-xl border py-2 px-4 text-xs sm:text-sm font-bold transition shrink-0 cursor-pointer active:scale-95 disabled:cursor-not-allowed disabled:active:scale-100 bg-slate-900 hover:bg-black text-white border-slate-900 disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-200"
           >
             Pakai
           </button>
@@ -314,3 +325,16 @@ const couponInputValue = computed({
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Ensure clean white background regardless of browser autofill */
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus,
+.auth-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+  -webkit-text-fill-color: #020617 !important;
+  caret-color: #020617 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+</style>
