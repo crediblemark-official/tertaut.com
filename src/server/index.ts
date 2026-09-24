@@ -18,6 +18,7 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { LicenseLeaseService } from "./services/licenseLease";
 import { AuditService } from "./services/audit";
 import { WebhookService } from "./services/webhooks";
+import { ensureDemoData } from "./db/ensureDemo";
 
 const clientDistPath = resolve(import.meta.dir, "../../dist");
 const docsDistPath = resolve(clientDistPath, "docs");
@@ -518,6 +519,7 @@ export const ensureFirstUserIsAdmin = ensurePlatformAdmin;
 if (process.env.NODE_ENV !== "test") {
   await runAutoMigrations();
   await ensurePlatformAdmin();
+  await ensureDemoData();
 
   expireLicenses();
   setInterval(expireLicenses, 10 * 60 * 1000); // 10 menit (was 5 menit)

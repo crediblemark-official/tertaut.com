@@ -137,8 +137,27 @@ async function loadCheckoutData() {
     }
 
     if (!loadedApp) {
-      notFound.value = true;
-      return;
+      if (identifier === "fastmail-ai") {
+        loadedApp = {
+          id: "app_fastmail_ai",
+          name: "FastMail AI Summarizer",
+          slug: "fastmail-ai",
+          mode: "live",
+          targetPrice: 49000,
+          description:
+            "Ekstensi Chrome & web app untuk merangkum email penting secara otomatis menggunakan Gemini AI.",
+          headline: "FastMail AI Summarizer",
+          subheadline: "Solusi software cerdas & lisensi otomatis resmi.",
+          valueProps: [
+            "Aktivasi instan dan otomatis via email",
+            "Lisensi resmi terikat hardware / device",
+            "Update versi & dukungan pelanggan langsung",
+          ],
+        };
+      } else {
+        notFound.value = true;
+        return;
+      }
     }
 
     setProductData(loadedApp);

@@ -75,6 +75,26 @@ export async function handleCreateSession({ request, body, set }: any) {
       });
     }
 
+    if (
+      !app &&
+      (targetIdentifier === "app_fastmail_ai" ||
+        targetIdentifier === "fastmail-ai" ||
+        targetIdentifier === "devdocs-desktop")
+    ) {
+      try {
+        const { ensureDemoData } = await import("../../db/ensureDemo");
+        await ensureDemoData();
+        app = await db.query.apps.findFirst({
+          where: eq(apps.id, targetIdentifier),
+        });
+        if (!app) {
+          app = await db.query.apps.findFirst({
+            where: eq(apps.slug, targetIdentifier),
+          });
+        }
+      } catch {}
+    }
+
     if (!app) {
       set.status = 404;
       return { error: `Produk / Aplikasi "${targetIdentifier}" tidak ditemukan` };

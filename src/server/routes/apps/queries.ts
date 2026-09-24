@@ -228,9 +228,19 @@ export async function handleCheckSlug({ params: { slug } }: { params: { slug: st
  * Ambil detail publik aplikasi berdasarkan slug (URL /pay/:slug)
  */
 export async function handleGetBySlug({ params: { slug }, set }: SlugParamContext) {
-  const app = await db.query.apps.findFirst({
+  let app = await db.query.apps.findFirst({
     where: eq(apps.slug, slug),
   });
+
+  if (!app && (slug === "fastmail-ai" || slug === "devdocs-desktop")) {
+    try {
+      const { ensureDemoData } = await import("../../db/ensureDemo");
+      await ensureDemoData();
+      app = await db.query.apps.findFirst({
+        where: eq(apps.slug, slug),
+      });
+    } catch {}
+  }
 
   if (!app) {
     set.status = 404;
