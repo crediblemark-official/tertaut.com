@@ -48,6 +48,7 @@ export async function handleCreateSession({ request, body, set }: any) {
       paymentRail,
       preferredPaymentChannel,
       scenario,
+      demoMode,
       vaBank,
       bank,
       ewalletChannel,
@@ -55,8 +56,8 @@ export async function handleCreateSession({ request, body, set }: any) {
     } = body;
 
     // B8: Dukung preferredPaymentChannel (dari PayView) maupun paymentRail secara konsisten
-    const selectedRail = (paymentRail || preferredPaymentChannel || "ewallet") as
-      "qris" | "va" | "ewallet" | "card" | "retail";
+    const selectedRail = (paymentRail || preferredPaymentChannel || "") as
+      "qris" | "va" | "ewallet" | "card" | "retail" | "";
     const selectedBank = (vaBank || bank || "BCA").toUpperCase();
 
     // Baca preferensi mode checkout dari platformSettings (Super Admin Panel)
@@ -64,11 +65,6 @@ export async function handleCreateSession({ request, body, set }: any) {
       where: eq(platformSettings.key, "checkout_mode"),
     });
     const isHostedMode = checkoutModeRow?.value === "hosted";
-
-    // Jika mode di panel adalah 'hosted', paksa redirect ke checkout resmi gateway.
-    // Jika 'custom' (default), seluruh rail menggunakan scenario API (Custom UI di tertaut.com).
-    const defaultScenario = isHostedMode ? "REDIRECT" : "API";
-    const selectedScenario = isHostedMode ? "REDIRECT" : scenario || defaultScenario;
 
     const targetIdentifier = appId || appSlug || slug;
     if (!targetIdentifier) {
@@ -87,12 +83,20 @@ export async function handleCreateSession({ request, body, set }: any) {
       });
     }
 
-    if (
-      !app &&
-      (targetIdentifier === "app_fastmail_ai" ||
-        targetIdentifier === "fastmail-ai" ||
-        targetIdentifier === "devdocs-desktop")
-    ) {
+    const DEMO_IDENTIFIERS = [
+      "app_fastmail_ai",
+      "fastmail-ai",
+      "app_saas_starter_kit",
+      "saas-starter-kit",
+      "app_indoocr_api",
+      "indoocr-api",
+      "app_vibecoder_vip",
+      "vibecoder-vip",
+      "app_smartai_proxy",
+      "smartai-proxy",
+    ];
+
+    if (!app && DEMO_IDENTIFIERS.includes(targetIdentifier)) {
       try {
         const { ensureDemoData } = await import("../../db/ensureDemo");
         await ensureDemoData();
@@ -135,15 +139,10 @@ export async function handleCreateSession({ request, body, set }: any) {
     }
 
     const isSandboxApp = app.mode === "sandbox" || app.slug === "fastmail-ai";
-    // Hanya mock jika aplikasi mode sandbox, atau dalam unit test.
-    // Aplikasi mode Live TIDAK BOLEH dipaksa mock lewat body (BUG-1): forceMock dari
-    // klien anonim tidak boleh menimbulkan lisensi gratis pada aplikasi Live.
-    const isMockOrder = isSandboxApp
-      ? checkoutConfig.isTest ||
-        Boolean(body.forceMock) ||
-        !checkoutConfig.dana.clientId ||
-        !checkoutConfig.dana.privateKey
-      : checkoutConfig.isTest && isSandboxApp;
+    // Hanya mock jika aplikasi mode sandbox dan dipaksa (forceMock) atau dalam unit test otomatis.
+    // Mode demo dan sandbox normal menggunakan real sandbox gateway (bukan mock).
+    const isMockOrder =
+      isSandboxApp && (Boolean(body.forceMock) || (checkoutConfig.isTest && !demoMode));
 
     const email = (buyerEmail || customerEmail || "").trim().toLowerCase();
     if (!email || !email.includes("@")) {
@@ -380,6 +379,7 @@ export async function handleCreateSession({ request, body, set }: any) {
     // Resolve payment gateway: request body -> active setting from platformSettings -> default "dana"
     const activePlatformPg = await getActivePaymentGateway();
     let requestedPg = (body.paymentGateway || activePlatformPg || "dana").toLowerCase().trim();
+    if (requestedPg === "xenith") requestedPg = "xenithpay";
 
     // Channel yang tidak didukung oleh DANA SNAP (Kartu Kredit/Debit, Retail minimarket,
     // e-wallet non-DANA, atau bank tertentu) secara otomatis diarahkan ke adapter Xendit.
@@ -389,11 +389,23 @@ export async function handleCreateSession({ request, body, set }: any) {
       (selectedRail === "ewallet" && ewalletChannel && ewalletChannel.toLowerCase() !== "dana") ||
       (selectedRail === "va" && ["BJB", "SAHABAT_SAMPOERNA", "BSS"].includes(selectedBank));
 
-    if (isXenditExclusiveRail) {
+    if (activePlatformPg !== "xenithpay" && requestedPg !== "xenithpay" && isXenditExclusiveRail) {
       requestedPg = "xendit";
     }
 
-    const selectedGateway: "dana" | "xendit" = requestedPg === "xendit" ? "xendit" : "dana";
+    const selectedGateway: "dana" | "xendit" | "xenithpay" =
+      requestedPg === "xenithpay" || requestedPg === "xenith"
+        ? "xenithpay"
+        : requestedPg === "xendit"
+          ? "xendit"
+          : "dana";
+
+    const defaultScenario = isHostedMode ? "REDIRECT" : "API";
+    const selectedScenario = demoMode
+      ? "API"
+      : isHostedMode
+        ? "REDIRECT"
+        : scenario || defaultScenario;
 
     const gatewayAdapter = getGatewayAdapter(selectedGateway);
 
@@ -404,9 +416,15 @@ export async function handleCreateSession({ request, body, set }: any) {
     const externalId = `tt_${randomBytes(8).toString("hex")}`;
 
     const finishRedirectUrl =
-      selectedGateway === "xendit"
+      selectedGateway === "xendit" || selectedGateway === "xenithpay"
         ? `${requestOrigin}/checkout/success?externalId=${externalId}`
         : `${requestOrigin}/api/v1/checkout/dana/finish?externalId=${externalId}`;
+
+    const resolvedBank = (
+      vaBank ||
+      bank ||
+      (selectedGateway === "xenithpay" ? "BNI" : "BCA")
+    ).toUpperCase();
 
     const orderResult = await gatewayAdapter.createOrder({
       externalId,
@@ -417,9 +435,10 @@ export async function handleCreateSession({ request, body, set }: any) {
       finishRedirectUrl,
       forceMock: isMockOrder,
       allowMock: isSandboxApp,
+      demoMode,
       scenario: selectedScenario,
-      paymentRail: selectedRail,
-      vaBank: selectedBank,
+      paymentRail: selectedRail || undefined,
+      vaBank: resolvedBank,
     });
 
     // Sebuah transaksi HANYA ditandai mock bila aplikasinya benar-benar mode sandbox.
@@ -433,19 +452,21 @@ export async function handleCreateSession({ request, body, set }: any) {
 
     // Tentukan label paymentChannel yang disimpan
     const savedChannel =
-      orderResult.paymentRail === "va"
-        ? `VA_${orderResult.vaBank || selectedBank}`
-        : orderResult.paymentRail === "qris"
-          ? selectedGateway === "xendit"
-            ? "XENDIT_QRIS"
-            : "QRIS"
-          : orderResult.paymentRail === "card"
-            ? "CARD"
-            : orderResult.paymentRail === "retail"
-              ? "RETAIL"
-              : selectedGateway === "xendit"
-                ? "XENDIT"
-                : "DANA";
+      selectedGateway === "xenithpay"
+        ? "XENITHPAY"
+        : orderResult.paymentRail === "va"
+          ? `VA_${orderResult.vaBank || selectedBank}`
+          : orderResult.paymentRail === "qris"
+            ? selectedGateway === "xendit"
+              ? "XENDIT_QRIS"
+              : "QRIS"
+            : orderResult.paymentRail === "card"
+              ? "CARD"
+              : orderResult.paymentRail === "retail"
+                ? "RETAIL"
+                : selectedGateway === "xendit"
+                  ? "XENDIT"
+                  : "DANA";
 
     // Simpan transaksi di database
     const [newTx] = await db
@@ -494,7 +515,12 @@ export async function handleCreateSession({ request, body, set }: any) {
       }
     }
 
-    const gatewayLabel = selectedGateway === "xendit" ? "Xendit" : "DANA";
+    const gatewayLabel =
+      selectedGateway === "xenithpay"
+        ? "XenithPay"
+        : selectedGateway === "xendit"
+          ? "Xendit"
+          : "DANA";
 
     return {
       success: true,
@@ -561,6 +587,19 @@ export async function handleCreateSession({ request, body, set }: any) {
     ) {
       errorMsg =
         "Gateway pembayaran Xendit belum dikonfigurasi dengan benar di server atau Super Admin Panel.";
+      set.status = 502;
+    } else if (msg.includes("XenithPay") && msg.includes("belum dikonfigurasi")) {
+      errorMsg =
+        "Gateway pembayaran XenithPay belum dikonfigurasi di panel atau environment server.";
+      set.status = 502;
+    } else if (
+      msg.includes("XenithPay API error") &&
+      msg.toLowerCase().includes("ip address") &&
+      msg.toLowerCase().includes("unauthorized")
+    ) {
+      errorMsg =
+        "XenithPay menolak server ini: IP publik server belum diizinkan. " +
+        "Tambahkan IP publik server ke allowlist akun XenithPay lalu coba lagi.";
       set.status = 502;
     } else if (msg.toLowerCase().includes("timeout")) {
       errorMsg = "Gateway pembayaran tidak merespons tepat waktu. Silakan coba lagi beberapa saat.";

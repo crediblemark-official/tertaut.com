@@ -19,6 +19,7 @@ import { LicenseLeaseService } from "./services/licenseLease";
 import { AuditService } from "./services/audit";
 import { WebhookService } from "./services/webhooks";
 import { ensureDemoData } from "./db/ensureDemo";
+import { ensurePlatformSettings } from "./db/ensureSettings";
 import { randomBytes } from "crypto";
 
 const clientDistPath = resolve(import.meta.dir, "../../dist");
@@ -556,6 +557,7 @@ export const ensureFirstUserIsAdmin = ensurePlatformAdmin;
 if (!config.isTest) {
   await runAutoMigrations();
   await ensurePlatformAdmin();
+  await ensurePlatformSettings();
   if (!config.isProd) {
     await ensureDemoData();
   }

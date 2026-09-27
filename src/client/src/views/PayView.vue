@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { api } from "../lib/api";
 import { ShieldCheck, Lock, ArrowLeft, FlaskConical } from "lucide-vue-next";
 import PayOrderSummary from "../components/pay/PayOrderSummary.vue";
 import PayPaymentForm from "../components/pay/PayPaymentForm.vue";
 
 const route = useRoute();
+const router = useRouter();
 
 // Can be /pay/:slug or /pay?app_id=...&amount=...
 const slug = computed(
@@ -23,6 +24,24 @@ const queryGrantDays = computed(() =>
   route.query.grant_days ? Number(route.query.grant_days) : 30
 );
 const queryRedirectUrl = computed(() => (route.query.redirect_url as string) || "");
+const queryPaymentGateway = computed(() => {
+  const gateway = String(route.query.gateway || route.query.payment_gateway || "")
+    .toLowerCase()
+    .trim();
+  if (gateway === "xenith" || gateway === "xenithpay") return "xenithpay";
+  return gateway === "dana" || gateway === "xendit" ? gateway : "";
+});
+const isDemoCheckout = computed(() => route.path.startsWith("/demo/checkout"));
+const queryPaymentRail = computed(() => {
+  const rail = String(route.query.rail || route.query.payment_rail || "").toLowerCase();
+  return (["qris", "va", "ewallet", "card", "retail"].includes(rail) ? rail : "") as
+    "qris" | "va" | "ewallet" | "card" | "retail" | "";
+});
+const queryBank = computed(() =>
+  String(route.query.bank || route.query.va_bank || "").toUpperCase()
+);
+const queryEwallet = computed(() => String(route.query.ewallet || "").toUpperCase());
+const queryRetailOutlet = computed(() => String(route.query.outlet || "").toUpperCase());
 
 const product = ref<{
   id: string;
@@ -30,7 +49,7 @@ const product = ref<{
   slug: string;
   mode: "sandbox" | "live";
   checkoutMode?: "custom" | "hosted";
-  activePaymentGateway?: "dana" | "xendit";
+  activePaymentGateway?: "dana" | "xendit" | "xenithpay";
   targetPrice: number;
   description: string | null;
   headline: string | null;
@@ -50,10 +69,15 @@ const loading = ref(true);
 const notFound = ref(false);
 const isSubmitting = ref(false);
 const errorMessage = ref("");
-const selectedPaymentRail = ref<"qris" | "va" | "ewallet" | "card" | "retail">("qris");
-const selectedBank = ref("BCA");
-const selectedEwallet = ref("DANA");
-const selectedRetail = ref("ALFAMART");
+const selectedPaymentRail = ref<"qris" | "va" | "ewallet" | "card" | "retail">(
+  (queryPaymentRail.value || (queryPaymentGateway.value === "xenithpay" ? "va" : "qris")) as
+    "qris" | "va" | "ewallet" | "card" | "retail"
+);
+const selectedBank = ref(
+  queryBank.value || (queryPaymentGateway.value === "xenithpay" ? "BNI" : "BCA")
+);
+const selectedEwallet = ref(queryEwallet.value || "DANA");
+const selectedRetail = ref(queryRetailOutlet.value || "ALFAMART");
 const activeCustomOrder = ref<{
   transactionId: string;
   scenario?: string;
@@ -118,6 +142,17 @@ function startPolling(txId: string) {
   }, 2500);
 }
 
+function resetCheckoutOrder() {
+  activeCustomOrder.value = null;
+  isPaid.value = false;
+  paidResult.value = null;
+  stopPolling();
+  const query = { ...route.query };
+  delete query.externalId;
+  delete query.ticket;
+  router.replace({ query });
+}
+
 async function loadCheckoutData() {
   loading.value = true;
   errorMessage.value = "";
@@ -147,27 +182,8 @@ async function loadCheckoutData() {
     }
 
     if (!loadedApp) {
-      if (identifier === "fastmail-ai") {
-        loadedApp = {
-          id: "app_fastmail_ai",
-          name: "FastMail AI Summarizer",
-          slug: "fastmail-ai",
-          mode: "sandbox",
-          targetPrice: 49000,
-          description:
-            "Ekstensi Chrome & web app untuk merangkum email penting secara otomatis menggunakan Gemini AI.",
-          headline: "FastMail AI Summarizer",
-          subheadline: "Solusi software cerdas & lisensi otomatis resmi.",
-          valueProps: [
-            "Aktivasi instan dan otomatis via email",
-            "Lisensi resmi terikat hardware / device",
-            "Update versi & dukungan pelanggan langsung",
-          ],
-        };
-      } else {
-        notFound.value = true;
-        return;
-      }
+      notFound.value = true;
+      return;
     }
 
     setProductData(loadedApp);
@@ -284,7 +300,8 @@ async function handlePay(payload?: {
   try {
     const data = await api.createCheckoutSession({
       appId: product.value.id,
-      paymentGateway: product.value.activePaymentGateway || "dana",
+      paymentGateway: queryPaymentGateway.value || product.value.activePaymentGateway || "dana",
+      demoMode: isDemoCheckout.value,
       customerEmail: emailInput.value,
       amount: product.value.targetPrice,
       preferredPaymentChannel: rail,
@@ -493,8 +510,9 @@ onUnmounted(() => {
           >
             <PayPaymentForm
               :product="product"
-              :checkout-mode="product?.checkoutMode || 'custom'"
-              :active-gateway="product?.activePaymentGateway || 'dana'"
+              :checkout-mode="isDemoCheckout ? 'custom' : product?.checkoutMode || 'custom'"
+              :active-gateway="queryPaymentGateway || product?.activePaymentGateway || 'dana'"
+              :demo-mode="isDemoCheckout"
               :email-input="emailInput"
               :selected-payment-rail="selectedPaymentRail"
               :selected-bank="selectedBank"
@@ -510,10 +528,7 @@ onUnmounted(() => {
               @update:selected-bank="selectedBank = $event"
               @update:selected-ewallet="selectedEwallet = $event"
               @update:selected-retail="selectedRetail = $event"
-              @reset-order="
-                activeCustomOrder = null;
-                stopPolling();
-              "
+              @reset-order="resetCheckoutOrder"
               @pay="handlePay"
             />
           </div>

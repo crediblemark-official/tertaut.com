@@ -280,6 +280,7 @@ export const api = {
   async createCheckoutSession(data: {
     appId: string;
     paymentGateway?: "dana" | "xendit" | string;
+    demoMode?: boolean;
     amount: number;
     customerEmail: string;
     grantDays?: number;

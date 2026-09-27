@@ -322,7 +322,7 @@ export const config = {
     if (envUrl) return envUrl;
     if (dynamicAppUrl) return dynamicAppUrl;
     if (isProd) return "https://tertaut.com";
-    return `http://localhost:${resolvedPort}`;
+    return "http://localhost:5173";
   },
   set publicAppUrl(url: string) {
     dynamicAppUrl = url.replace(/\/+$/, "");
@@ -428,6 +428,17 @@ export const config = {
   xendit: {
     secretKey: getEnv("XENDIT_SECRET_KEY"),
     webhookToken: getEnv("XENDIT_WEBHOOK_VERIFICATION_TOKEN") || getEnv("XENDIT_WEBHOOK_TOKEN"),
+    platformFeePercent: 5,
+  },
+
+  xenithpay: {
+    accessKey: getEnv("XENITHPAY_ACCESS_KEY"),
+    secretKey: getEnv("XENITHPAY_SECRET_KEY"),
+    webhookSecret: getEnv("XENITHPAY_WEBHOOK_SECRET"),
+    sandboxMode: getEnv("XENITHPAY_SANDBOX_MODE", "true") === "true",
+    sandboxAccessKey: getEnv("XENITHPAY_SANDBOX_ACCESS_KEY"),
+    sandboxSecretKey: getEnv("XENITHPAY_SANDBOX_SECRET_KEY"),
+    sandboxWebhookSecret: getEnv("XENITHPAY_SANDBOX_WEBHOOK_SECRET"),
     platformFeePercent: 5,
   },
 

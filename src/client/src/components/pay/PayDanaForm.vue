@@ -48,7 +48,10 @@ const emit = defineEmits<{
 }>();
 
 const isHosted = computed(() => {
-  return props.checkoutMode === "hosted" || props.product?.checkoutMode === "hosted";
+  return (
+    props.checkoutMode === "hosted" ||
+    (props.checkoutMode !== "custom" && props.product?.checkoutMode === "hosted")
+  );
 });
 
 // Bank yang didukung oleh DANA SNAP Virtual Account

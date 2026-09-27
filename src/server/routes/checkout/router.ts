@@ -47,6 +47,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
       appSlug: t.Optional(t.String()),
       slug: t.Optional(t.String()),
       paymentGateway: t.Optional(t.String()),
+      demoMode: t.Optional(t.Boolean()),
       scenario: t.Optional(t.Union([t.Literal("API"), t.Literal("REDIRECT")])),
       paymentRail: t.Optional(
         t.Union([

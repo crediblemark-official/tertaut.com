@@ -213,13 +213,14 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
     },
   })
   /**
-   * Eksekusi Pencairan Otomatis (Disbursement 95% net) via Xendit
+   * Eksekusi Pencairan Otomatis (Disbursement 95% net) via gateway aktif
    */
   .post("/disburse/:transactionId", handleDisburse, {
     params: t.Object({ transactionId: t.String() }),
     detail: {
       tags: ["MoR Checkout"],
-      summary: "Trigger Xendit Automated Disbursement",
-      description: "Disburses 95% net revenue directly to builder bank or e-wallet account",
+      summary: "Trigger Automated Disbursement",
+      description:
+        "Disburses 95% net revenue through the active gateway to a builder bank or e-wallet account",
     },
   });

@@ -9,10 +9,13 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   announcement_banner: "",
   announcement_type: "info", // info | warning | alert
   payout_schedule_note: "Pencairan massal dieksekusi setiap hari Jumat pukul 17:00 WIB",
-  active_payment_gateway: "dana", // dana | xendit
-  sandbox_mode: "true", // true (Sandbox / Pengujian) | false (Production / Live)
+  active_payment_gateway: "dana", // dana | xendit | xenithpay
+  sandbox_mode: config.xenithpay.sandboxMode ? "true" : "false", // true (Sandbox / Pengujian) | false (Production / Live)
   xendit_secret_key: "",
   xendit_webhook_token: "",
+  xenithpay_sandbox_access_key: "",
+  xenithpay_sandbox_secret_key: "",
+  xenithpay_sandbox_webhook_secret: "",
   dana_sandbox_client_id: "",
   dana_sandbox_client_secret: "",
   dana_sandbox_merchant_id: "",
@@ -39,6 +42,18 @@ export async function handleGetPlatformSettings() {
       settingsMap.xendit_webhook_token =
         process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN || process.env.XENDIT_WEBHOOK_TOKEN || "";
     }
+    if (process.env.XENITHPAY_SANDBOX_ACCESS_KEY && !settingsMap.xenithpay_sandbox_access_key) {
+      settingsMap.xenithpay_sandbox_access_key = process.env.XENITHPAY_SANDBOX_ACCESS_KEY;
+    }
+    if (process.env.XENITHPAY_SANDBOX_SECRET_KEY && !settingsMap.xenithpay_sandbox_secret_key) {
+      settingsMap.xenithpay_sandbox_secret_key = process.env.XENITHPAY_SANDBOX_SECRET_KEY;
+    }
+    if (
+      process.env.XENITHPAY_SANDBOX_WEBHOOK_SECRET &&
+      !settingsMap.xenithpay_sandbox_webhook_secret
+    ) {
+      settingsMap.xenithpay_sandbox_webhook_secret = process.env.XENITHPAY_SANDBOX_WEBHOOK_SECRET;
+    }
     // DANA Sandbox defaults dari environment jika belum ada di database
     if (process.env.DANA_SANDBOX_CLIENT_ID && !settingsMap.dana_sandbox_client_id) {
       settingsMap.dana_sandbox_client_id = process.env.DANA_SANDBOX_CLIENT_ID;
@@ -59,6 +74,13 @@ export async function handleGetPlatformSettings() {
       process.env.DANA_CLIENT_ID ||
       process.env.DANA_SANDBOX_CLIENT_ID ||
       settingsMap.dana_sandbox_client_id
+    )
+  );
+  settingsMap.xenithpay_configured = String(
+    Boolean(
+      settingsMap.sandbox_mode === "false"
+        ? config.xenithpay.accessKey && config.xenithpay.secretKey
+        : settingsMap.xenithpay_sandbox_access_key && settingsMap.xenithpay_sandbox_secret_key
     )
   );
 
@@ -83,9 +105,12 @@ export async function handleUpdatePlatformSettings({ body, set }: any) {
   // Validasi active payment gateway
   if (updates.active_payment_gateway !== undefined) {
     const pg = String(updates.active_payment_gateway).toLowerCase().trim();
-    if (pg !== "dana" && pg !== "xendit") {
+    if (pg !== "dana" && pg !== "xendit" && pg !== "xenithpay") {
       set.status = 400;
-      return { success: false, error: "Gateway pembayaran harus bernilai 'dana' atau 'xendit'." };
+      return {
+        success: false,
+        error: "Gateway pembayaran harus bernilai 'dana', 'xendit', atau 'xenithpay'.",
+      };
     }
     updates.active_payment_gateway = pg;
   }

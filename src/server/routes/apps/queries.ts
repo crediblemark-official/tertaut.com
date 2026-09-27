@@ -232,7 +232,14 @@ export async function handleGetBySlug({ params: { slug }, set }: SlugParamContex
     where: eq(apps.slug, slug),
   });
 
-  if (!app && (slug === "fastmail-ai" || slug === "devdocs-desktop")) {
+  const DEMO_SLUGS = [
+    "fastmail-ai",
+    "saas-starter-kit",
+    "indoocr-api",
+    "vibecoder-vip",
+    "smartai-proxy",
+  ];
+  if (!app && DEMO_SLUGS.includes(slug)) {
     try {
       const { ensureDemoData } = await import("../../db/ensureDemo");
       await ensureDemoData();
@@ -257,14 +264,16 @@ export async function handleGetBySlug({ params: { slug }, set }: SlugParamContex
   const pgRow = await db.query.platformSettings.findFirst({
     where: eq(platformSettings.key, "active_payment_gateway"),
   });
-  const activePaymentGateway = (pgRow?.value === "xendit" ? "xendit" : "dana") as "dana" | "xendit";
+  const activePaymentGateway = (
+    pgRow?.value === "xendit" || pgRow?.value === "xenithpay" ? pgRow.value : "dana"
+  ) as "dana" | "xendit" | "xenithpay";
 
   return {
     id: app.id,
     name: app.name,
     slug: app.slug,
     mode: isDemoFastMail ? "sandbox" : app.mode,
-    checkoutMode,
+    checkoutMode: checkoutMode,
     activePaymentGateway,
     targetPrice: app.targetPrice,
     description: app.description,

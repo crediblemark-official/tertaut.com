@@ -1,11 +1,13 @@
 import type { PaymentGatewayAdapter } from "./types";
 import { danaGateway } from "./danaGateway";
 import { xenditGateway } from "./xenditGateway";
+import { xenithpayGateway } from "./xenithpayGateway";
 import { getActivePaymentGateway as getActivePgSetting } from "../paymentGateway";
 
 export * from "./types";
 export { danaGateway } from "./danaGateway";
 export { xenditGateway } from "./xenditGateway";
+export { xenithpayGateway } from "./xenithpayGateway";
 
 /**
  * Mendapatkan payment gateway adapter berdasarkan nama/provider
@@ -15,6 +17,9 @@ export function getPaymentGateway(provider?: string | null): PaymentGatewayAdapt
   const normalized = (provider || "dana").toLowerCase().trim();
   if (normalized === "xendit") {
     return xenditGateway;
+  }
+  if (normalized === "xenith" || normalized === "xenithpay") {
+    return xenithpayGateway;
   }
   return danaGateway;
 }

@@ -20,7 +20,13 @@ import { useClipboard } from "../composables/useClipboard";
 
 const route = useRoute();
 const router = useRouter();
-const txId = computed(() => (route.params.txId as string) || "");
+const txId = computed(
+  () =>
+    (route.params.txId as string) ||
+    (route.query.externalId as string) ||
+    (route.query.txId as string) ||
+    ""
+);
 const ticket = computed(() => (route.query.ticket as string) || "");
 
 const loading = ref(true);

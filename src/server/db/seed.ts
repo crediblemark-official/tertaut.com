@@ -17,10 +17,12 @@ import {
   aiProviderKeys,
   aiAppConfigs,
   aiUsageLogs,
+  platformSettings,
 } from "./schema";
 import { user } from "./schema/auth";
 import { auth } from "../auth";
 import { eq } from "drizzle-orm";
+import { ensurePlatformSettings } from "./ensureSettings";
 import { CryptoService } from "../services/crypto";
 import { LicenseService } from "../services/license";
 import { DanaService } from "../services/dana";
@@ -256,6 +258,40 @@ const AI_LOGS = [
 
 export async function seed() {
   console.log("🌱 Mulai seeding database PostgreSQL tertautv2...");
+
+  // 0. Safety Guard: Jangan pernah menghapus data di lingkungan production/live!
+  if (config.isProd && process.env.FORCE_RESET !== "true") {
+    console.warn("🛡️ [Safety Guard] seed.ts terdeteksi di lingkungan production.");
+    console.log(
+      "🌱 Menjalankan seeding aman non-destruktif (Hanya memastikan Admin & Platform Settings)..."
+    );
+
+    // Pastikan akun platform admin ada tanpa merusak data lain
+    let [adminUser] = await db.select().from(user).where(eq(user.email, ADMIN_CREDENTIALS.email));
+    if (!adminUser) {
+      await auth.api.signUpEmail({
+        body: {
+          email: ADMIN_CREDENTIALS.email,
+          password: ADMIN_CREDENTIALS.password,
+          name: ADMIN_CREDENTIALS.name,
+        },
+      });
+      [adminUser] = await db.select().from(user).where(eq(user.email, ADMIN_CREDENTIALS.email));
+    }
+    if (adminUser) {
+      await db
+        .update(user)
+        .set({ role: "admin", emailVerified: true })
+        .where(eq(user.id, adminUser.id));
+    }
+
+    // Pastikan platform settings ter-seed
+    await ensurePlatformSettings();
+    console.log(
+      "✅ Platform settings & akun Admin telah dipastikan secara aman tanpa menghapus data yang ada."
+    );
+    return;
+  }
 
   // 1. Bersihkan seluruh data tabel dalam urutan aman Foreign Key (Child -> Parent)
   console.log("🧹 Mengosongkan data lama...");
@@ -848,6 +884,10 @@ export async function seed() {
     },
   ]);
   console.log("✅ Kredensial AI Vault, Model Configs, & Log Penggunaan Token tersimpan.");
+
+  // 17. Platform Settings & Payment Gateway Sandbox Credentials
+  await ensurePlatformSettings();
+  console.log("✅ Platform settings & kredensial sandbox pembayaran ter-seed.");
 
   console.log("🎉 Seeding database Postgres selesai 100%!");
   if (process.env.NODE_ENV !== "production") {

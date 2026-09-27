@@ -14,6 +14,7 @@ import { formatRupiah } from "../../lib/utils";
 import { api } from "../../lib/api";
 import PayDanaForm from "./PayDanaForm.vue";
 import PayXenditForm from "./PayXenditForm.vue";
+import PayXenithForm from "./PayXenithForm.vue";
 
 interface ProductData {
   id: string;
@@ -21,14 +22,15 @@ interface ProductData {
   slug: string;
   mode: "sandbox" | "live";
   checkoutMode?: "custom" | "hosted";
-  activePaymentGateway?: "dana" | "xendit";
+  activePaymentGateway?: "dana" | "xendit" | "xenithpay";
   targetPrice: number;
 }
 
 const props = defineProps<{
   product: ProductData;
   checkoutMode?: "custom" | "hosted";
-  activeGateway?: "dana" | "xendit";
+  activeGateway?: "dana" | "xendit" | "xenithpay";
+  demoMode?: boolean;
   emailInput: string;
   selectedPaymentRail: "qris" | "va" | "ewallet" | "card" | "retail";
   selectedBank?: string;
@@ -66,7 +68,7 @@ const emit = defineEmits<{
   "update:selectedRetail": [value: string];
   pay: [
     payload?: {
-      paymentRail: "qris" | "va" | "ewallet" | "card" | "retail";
+      paymentRail?: "qris" | "va" | "ewallet" | "card" | "retail";
       vaBank: string;
       ewalletChannel: string;
       retailOutlet: string;
@@ -81,7 +83,7 @@ const emit = defineEmits<{
   resetOrder: [];
 }>();
 
-const effectiveGateway = computed<"dana" | "xendit">(() => {
+const effectiveGateway = computed<"dana" | "xendit" | "xenithpay">(() => {
   return props.activeGateway || props.product?.activePaymentGateway || "dana";
 });
 
@@ -508,6 +510,7 @@ async function handleSimulatePayment() {
         <!-- Opsi Buka Invoice Eksternal jika ada -->
         <div
           v-if="
+            !demoMode &&
             activeOrder.checkoutUrl &&
             activeOrder.paymentRail !== 'card' &&
             activeOrder.paymentRail !== 'ewallet'
@@ -562,10 +565,29 @@ async function handleSimulatePayment() {
         @pay="emit('pay', $event)"
       />
 
+      <!-- Gateway XENITHPAY -->
+      <PayXenithForm
+        v-else-if="effectiveGateway === 'xenithpay'"
+        :product="product"
+        :checkout-mode="checkoutMode"
+        :email-input="emailInput"
+        :selected-payment-rail="selectedPaymentRail"
+        :selected-bank="selectedBank"
+        :selected-ewallet="selectedEwallet"
+        :payable-amount="payableAmount"
+        :is-submitting="isSubmitting"
+        :error-message="errorMessage"
+        @update:selected-payment-rail="emit('update:selectedPaymentRail', $event)"
+        @update:selected-bank="emit('update:selectedBank', $event)"
+        @update:selected-ewallet="emit('update:selectedEwallet', $event)"
+        @pay="emit('pay', $event)"
+      />
+
       <!-- Gateway XENDIT -->
       <PayXenditForm
         v-else
         :product="product"
+        :active-gateway="'xendit'"
         :checkout-mode="checkoutMode"
         :email-input="emailInput"
         :selected-payment-rail="selectedPaymentRail"

@@ -2,9 +2,12 @@ import { db } from "../../db";
 import { apps, transactions, builders } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { resolveCurrentBuilder } from "./builder";
+import { getActiveGateway } from "../../services/gateways";
+import { DanaService } from "../../services/dana";
+import { config } from "../../config";
 
 /**
- * Eksekusi Pencairan Otomatis (Disbursement 95% net) via Xendit
+ * Eksekusi Pencairan Otomatis (Disbursement 95% net) via gateway aktif
  */
 export async function handleDisburse({
   params: { transactionId },
@@ -43,9 +46,15 @@ export async function handleDisburse({
     return { error: "Pencairan sudah selesai atau sedang dalam proses" };
   }
 
-  // Transaksi dari aplikasi sandbox hanyalah simulasi — tidak boleh dicairkan ke rekening asli.
+  const gateway = config.isTest
+    ? (await import("../../services/gateways")).getPaymentGateway("dana")
+    : await getActiveGateway();
+
+  // XenithPay menyediakan simulasi payout resmi di sandbox menggunakan akun 5555...;
+  // gateway lain tetap menolak payout dari aplikasi sandbox.
   const txApp = await db.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
-  if (txApp?.mode === "sandbox") {
+  const isXenithSandbox = gateway.id === "xenithpay" && config.xenithpay.sandboxMode;
+  if (txApp?.mode === "sandbox" && !isXenithSandbox) {
     set.status = 400;
     return {
       error: "Transaksi sandbox (simulasi) tidak dapat dicairkan. Cairkan hanya transaksi live.",
@@ -77,7 +86,6 @@ export async function handleDisburse({
     where: eq(builders.id, tx.builderId),
   });
 
-  const { DanaService } = await import("../../services/dana");
   const recipient = DanaService.resolveDisbursementAccount(builder);
 
   // Production TANPA rekening tersimpan → tolak pencairan (jangan pakai data palsu)
@@ -90,17 +98,20 @@ export async function handleDisburse({
   }
 
   try {
-    const payoutResult = await DanaService.createDisbursement({
+    const payoutRecipient = isXenithSandbox
+      ? { ...recipient, accountNumber: "5555123456789" }
+      : recipient;
+    const payoutResult = await gateway.createDisbursement({
       externalId: `disb_${tx.id}_${Date.now()}`,
       amount: tx.netAmount,
-      ...recipient,
-      description: `Pencairan 95% Net Transaksi ${tx.id} (DANA)`,
+      ...payoutRecipient,
+      description: `Pencairan 95% Net Transaksi ${tx.id} (${gateway.displayName})`,
     });
 
     const finalStatus =
-      payoutResult.status === "FAILED"
+      payoutResult.status.toUpperCase() === "FAILED"
         ? "FAILED"
-        : payoutResult.status === "PENDING"
+        : ["PENDING", "PROCESSING"].includes(payoutResult.status.toUpperCase())
           ? "PROCESSING"
           : "COMPLETED";
 
@@ -108,7 +119,7 @@ export async function handleDisburse({
       .update(transactions)
       .set({
         disbursementStatus: finalStatus,
-        disbursementId: payoutResult.external_id || payoutResult.id,
+        disbursementId: payoutResult.externalId || payoutResult.id,
         updatedAt: new Date(),
       })
       .where(eq(transactions.id, tx.id));

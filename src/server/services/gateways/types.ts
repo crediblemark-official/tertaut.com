@@ -19,6 +19,7 @@ export interface CreateGatewayOrderParams {
   paymentMethods?: string[];
   forceMock?: boolean;
   allowMock?: boolean;
+  demoMode?: boolean;
 }
 
 export interface GatewayOrderResponse {
@@ -69,7 +70,7 @@ export interface MorBreakdown {
 }
 
 export interface PaymentGatewayAdapter {
-  readonly id: "dana" | "xendit";
+  readonly id: "dana" | "xendit" | "xenithpay";
   readonly displayName: string;
 
   /**
@@ -93,7 +94,11 @@ export interface PaymentGatewayAdapter {
   /**
    * Verifikasi keamanan webhook callback
    */
-  verifyWebhook(headers: Record<string, string | undefined>, body?: any): Promise<boolean>;
+  verifyWebhook(
+    headers: Record<string, string | undefined>,
+    body?: any,
+    requestPath?: string
+  ): Promise<boolean>;
 
   /**
    * Eksekusi pencairan dana ke rekening bank builder

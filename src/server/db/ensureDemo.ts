@@ -1,26 +1,214 @@
 import { db } from "./index";
-import { user, builders, apps, coupons, type DeliveryConfig } from "./schema";
+import { user, builders, apps, coupons, type DeliveryConfig, type MeteringConfig } from "./schema";
 import { eq } from "drizzle-orm";
 import { auth } from "../auth";
 import { randomBytes } from "crypto";
 import { config } from "../config";
 
+export interface DemoAppSpec {
+  id: string;
+  name: string;
+  slug: string;
+  targetPrice: number;
+  pricingType: "one_time" | "subscription" | "free";
+  billingPeriod?: string;
+  headline: string;
+  subheadline: string;
+  description: string;
+  mediaUrl: string;
+  ctaText: string;
+  valueProps: string[];
+  deliveryConfig: DeliveryConfig;
+  meteringConfig?: MeteringConfig;
+}
+
+/**
+ * 5 Demo Produk Resmi tertaut.com merepresentasikan 5 jenis produk:
+ * 1. licenseKey      : FastMail AI Summarizer (Software License & Extension)
+ * 2. fileDownload     : Next.js SaaS Enterprise Boilerplate (Digital Asset / Source Code)
+ * 3. apiAccess        : IndoOCR Cloud Vision API (Developer API Access)
+ * 4. privateNote      : VibeCoder VIP Community & Mastermind (Private Community / Secret)
+ * 5. meteringConfig   : SmartAI LLM Proxy Gateway (Metered / Usage-Based Pricing)
+ */
+export const DEMO_APPS: DemoAppSpec[] = [
+  // 1. Jenis: Lisensi Software (licenseKey)
+  {
+    id: "app_fastmail_ai",
+    slug: "fastmail-ai",
+    name: "FastMail AI Summarizer",
+    targetPrice: 49000,
+    pricingType: "one_time",
+    headline: "FastMail AI Summarizer",
+    subheadline: "Lisensi universal software dengan aktivasi Ed25519 terikat hardware.",
+    description:
+      "Ekstensi Chrome cerdas untuk merangkum email panjang dan menyusun draft balasan otomatis bertenaga Gemini AI.",
+    mediaUrl:
+      "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80",
+    ctaText: "Beli Lisensi Sekarang",
+    valueProps: [
+      "Aktivasi lisensi resmi terikat hardware (HWID)",
+      "Masa berlaku 365 hari dengan offline grace token 30 hari",
+      "Pembaruan versi otomatis & dukungan teknis langsung",
+    ],
+    deliveryConfig: {
+      licenseKey: {
+        enabled: true,
+        description: "Lisensi Universal Tertaut (1 Seat / Perangkat)",
+        expiresInDays: 365,
+        maxSeats: 1,
+        offlineGraceDays: 30,
+      },
+    },
+  },
+
+  // 2. Jenis: Unduhan Berkas / File Digital (fileDownload)
+  {
+    id: "app_saas_starter_kit",
+    slug: "saas-starter-kit",
+    name: "Next.js SaaS Enterprise Boilerplate",
+    targetPrice: 149000,
+    pricingType: "one_time",
+    headline: "Next.js 15 SaaS Starter Kit (Full Source Code)",
+    subheadline: "Unduhan source code lengkap siap deploy dengan database & autentikasi.",
+    description:
+      "Arsitektur SaaS production-ready berbasis Next.js 15, Drizzle ORM PostgreSQL, Better Auth, Tailwind CSS, dan integrasi MoR payment.",
+    mediaUrl:
+      "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80",
+    ctaText: "Unduh Source Code ZIP",
+    valueProps: [
+      "Full source code ZIP siap deploy ke VPS / Dokploy / Vercel",
+      "Multi-tenancy, RBAC role admin/user, & billing terintegrasi",
+      "Termasuk dokumentasi panduan setup step-by-step",
+    ],
+    deliveryConfig: {
+      fileDownload: {
+        enabled: true,
+        title: "Next.js SaaS Production Package (Full Source Code)",
+        fileUrl: "https://dl.tertaut.com/releases/nextjs-saas-starter-v2.zip",
+        fileName: "nextjs-saas-starter-v2.4.0.zip",
+      },
+    },
+  },
+
+  // 3. Jenis: Akses API & Kredensial Pengembang (apiAccess)
+  {
+    id: "app_indoocr_api",
+    slug: "indoocr-api",
+    name: "IndoOCR Cloud Vision API",
+    targetPrice: 99000,
+    pricingType: "subscription",
+    billingPeriod: "monthly",
+    headline: "IndoOCR Cloud Vision API Developer Access",
+    subheadline: "Kredensial API instan untuk ekstraksi otomatis dokumen identitas Indonesia.",
+    description:
+      "API ekstraksi OCR presisi tinggi untuk KTP, SIM, NPWP, dan struk belanja Indonesia dengan latensi di bawah 200ms.",
+    mediaUrl:
+      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
+    ctaText: "Langganan Akses API",
+    valueProps: [
+      "Kredensial API token diterbitkan otomatis setelah pembayaran",
+      "Endpoint HTTPS aman dengan SLA uptime 99.9%",
+      "Termasuk SDK TypeScript/Node.js & Python",
+    ],
+    deliveryConfig: {
+      apiAccess: {
+        enabled: true,
+        endpointUrl: "https://api.indoocr.id/v1/extract",
+        scope: "ocr:read documents:extract batch:process",
+        instruction:
+          "Sertakan header `Authorization: Bearer <API_KEY>` pada setiap request. Dokumentasi lengkap: https://docs.indoocr.id",
+      },
+    },
+  },
+
+  // 4. Jenis: Catatan Rahasia & Komunitas VIP (privateNote)
+  {
+    id: "app_vibecoder_vip",
+    slug: "vibecoder-vip",
+    name: "VibeCoder VIP Community & Mastermind",
+    targetPrice: 75000,
+    pricingType: "one_time",
+    headline: "VibeCoder VIP Inner Circle & Mastermind",
+    subheadline: "Akses eksklusif komunitas builder, weekly office hours, & resource hub.",
+    description:
+      "Lingkaran dalam bagi para founder software indie dan vibe coder: review arsitektur aplikasi, strategi monetisasi, dan networking proyek.",
+    mediaUrl:
+      "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80",
+    ctaText: "Gabung Komunitas VIP",
+    valueProps: [
+      "Tautan undangan rahasia ke grup Telegram VIP Lounge",
+      "Akses penuh ke Notion Resource Hub & database boilerplate",
+      "Sesi konsultasi Weekly Office Hours setiap Kamis malam",
+    ],
+    deliveryConfig: {
+      privateNote: {
+        enabled: true,
+        title: "Undangan Komunitas VIP & Panduan Akses Inner Circle",
+        note:
+          "Selamat bergabung di VibeCoder VIP Inner Circle!\n\n" +
+          "1. Tautan Telegram Lounge: https://t.me/+VibeCoderVIPPrivateLounge\n" +
+          "2. Notion Resource Hub: https://notion.so/tertaut-vibecoder-inner-circle\n" +
+          "3. Jadwal Weekly Office Hours: Setiap Kamis pukul 20:00 WIB via Google Meet.\n\n" +
+          "Harap simpan catatan rahasia ini dan jangan bagikan tautan kepada publik.",
+      },
+    },
+  },
+
+  // 5. Jenis: Metered / Usage-Based Pricing (meteringConfig)
+  {
+    id: "app_smartai_proxy",
+    slug: "smartai-proxy",
+    name: "SmartAI Gateway (Pay-As-You-Go)",
+    targetPrice: 25000,
+    pricingType: "one_time",
+    headline: "SmartAI High-Performance LLM Proxy Gateway",
+    subheadline: "Unified AI proxy dengan penagihan fleksibel berbasis pemakaian token riil.",
+    description:
+      "Gerbang proxy terpadu kompatibel OpenAI untuk Gemini 2.0 Flash dan Claude 3.5 Sonnet. Bayar hanya sebesar token yang Anda konsumsi.",
+    mediaUrl:
+      "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=800&q=80",
+    ctaText: "Beli Kuota Awal",
+    valueProps: [
+      "Deposit kuota awal Rp 25.000 (Bonus 50.000 token gratis)",
+      "Tarif transparan Rp 150 per 10.000 token LLM",
+      "Dashboard audit log latensi & pemakaian token real-time",
+    ],
+    meteringConfig: {
+      enabled: true,
+      template: "llm_tokens",
+      name: "Token AI Gemini 2.0 Flash",
+      aggregation: "sum(tokens) on ai_usage",
+      metricUnit: "tokens",
+      unitLabel: "10K Token",
+      unitPrice: 150,
+      freeAllowance: 50000,
+    },
+    deliveryConfig: {
+      apiAccess: {
+        enabled: true,
+        endpointUrl: "https://proxy.tertaut.com/v1/chat/completions",
+        scope: "models:gemini-flash models:claude-3-5",
+        instruction:
+          "Ganti baseURL SDK OpenAI Anda ke `https://proxy.tertaut.com/v1` dan gunakan API key Anda pada header Authorization.",
+      },
+    },
+  },
+];
+
+/**
+ * Memastikan 5 demo produk standar tersedia di lingkungan development/sandbox:
+ * Otomatis dilewati saat production (config.isProd).
+ */
 export async function ensureDemoData(): Promise<void> {
-  // BUG A6: Data demo (aplikasi LIVE, rekening disbursement founder, kupon global)
-  // TIDAK boleh di-seed ke production. Kredensial admin tetap dijamin oleh
-  // ensurePlatformAdmin() di index.ts, sehingga skip di sini aman.
   if (config.isProd) {
     console.warn("[Demo] ensureDemoData dilewati di production.");
     return;
   }
-  try {
-    const adminEmail = (
-      config.admin.email ||
-      process.env.ADMIN_EMAIL ||
-      "platformtertaut@gmail.com"
-    ).toLowerCase();
 
-    // 1. Pastikan akun Super Admin resmi (platformtertaut@gmail.com) tersedia
+  try {
+    const adminEmail = config.admin.email;
+
+    // 1. Pastikan Akun Super Admin
     let adminUser = await db.query.user.findFirst({
       where: eq(user.email, adminEmail),
     });
@@ -41,13 +229,13 @@ export async function ensureDemoData(): Promise<void> {
         adminUser = await db.query.user.findFirst({
           where: eq(user.email, adminEmail),
         });
-        console.log(`[Demo] Akun Super Admin (${adminEmail}) berhasil dibuat.`);
+        console.log(`✅ [Demo] Akun Super Admin (${adminEmail}) berhasil dibuat.`);
       } catch (err: any) {
-        console.warn("[Demo] Gagal membuat akun platform otomatis:", err?.message || err);
+        console.warn("[Demo] Gagal membuat akun admin otomatis:", err?.message || err);
       }
     }
 
-    if (adminUser) {
+    if (adminUser && (adminUser.role !== "admin" || !adminUser.emailVerified)) {
       await db
         .update(user)
         .set({ role: "admin", emailVerified: true })
@@ -59,7 +247,7 @@ export async function ensureDemoData(): Promise<void> {
       return;
     }
 
-    // 2. Pastikan profil Builder Utama tersedia
+    // 2. Pastikan Profil Primary Builder
     let primaryBuilder = await db.query.builders.findFirst({
       where: eq(builders.userId, adminUser.id),
     });
@@ -81,6 +269,7 @@ export async function ensureDemoData(): Promise<void> {
         })
         .returning();
       primaryBuilder = newB;
+      console.log(`✅ [Demo] Primary Builder (${primaryBuilder.name}) berhasil disiapkan.`);
     }
 
     if (!primaryBuilder) {
@@ -88,104 +277,39 @@ export async function ensureDemoData(): Promise<void> {
       return;
     }
 
-    // 3. Pastikan Aplikasi Demo: FastMail AI Summarizer (fastmail-ai)
-    const existingFastMail = await db.query.apps.findFirst({
-      where: eq(apps.slug, "fastmail-ai"),
-    });
-
-    const fastMailDelivery: DeliveryConfig = {
-      licenseKey: {
-        enabled: true,
-        description: "Lisensi Universal Tertaut",
-        expiresInDays: 365,
-        maxSeats: 1,
-        offlineGraceDays: 30,
-      },
-    };
-
-    if (!existingFastMail) {
-      await db.insert(apps).values({
-        id: "app_fastmail_ai",
-        builderId: primaryBuilder.id,
-        apiKey: `tt_test_${randomBytes(16).toString("hex")}`,
-        name: "FastMail AI Summarizer",
-        slug: "fastmail-ai",
-        mode: "sandbox",
-        targetPrice: 49000,
-        pricingType: "one_time",
-        description:
-          "Ekstensi Chrome & web app untuk merangkum email penting secara otomatis menggunakan Gemini AI.",
-        headline: "FastMail AI Summarizer",
-        subheadline: "Solusi software cerdas & lisensi otomatis resmi.",
-        mediaUrl:
-          "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80",
-        valueProps: [
-          "Aktivasi instan dan otomatis via email",
-          "Lisensi resmi terikat hardware / device",
-          "Update versi & dukungan pelanggan langsung",
-        ],
-        ctaText: "Coba Demo Checkout",
-        deliveryConfig: fastMailDelivery,
+    // 3. Pastikan 5 Aplikasi Demo (1 untuk masing-masing jenis produk)
+    for (const spec of DEMO_APPS) {
+      const existing = await db.query.apps.findFirst({
+        where: eq(apps.slug, spec.slug),
       });
-      console.log(
-        "✅ [Demo] Aplikasi demo FastMail AI (fastmail-ai) berhasil disiapkan dalam mode Sandbox!"
-      );
-    } else if (existingFastMail.mode !== "sandbox") {
-      await db
-        .update(apps)
-        .set({ mode: "sandbox", ctaText: "Coba Demo Checkout" })
-        .where(eq(apps.id, existingFastMail.id));
-      console.log("✅ [Demo] Mode aplikasi demo FastMail AI dipindahkan ke Sandbox.");
+
+      if (!existing) {
+        await db.insert(apps).values({
+          id: spec.id,
+          builderId: primaryBuilder.id,
+          apiKey: `tt_test_${randomBytes(16).toString("hex")}`,
+          name: spec.name,
+          slug: spec.slug,
+          mode: "sandbox",
+          targetPrice: spec.targetPrice,
+          pricingType: spec.pricingType,
+          billingPeriod: spec.billingPeriod,
+          description: spec.description,
+          headline: spec.headline,
+          subheadline: spec.subheadline,
+          mediaUrl: spec.mediaUrl,
+          valueProps: spec.valueProps,
+          ctaText: spec.ctaText,
+          deliveryConfig: spec.deliveryConfig,
+          meteringConfig: spec.meteringConfig,
+        });
+        console.log(`✅ [Demo] Aplikasi demo (${spec.slug}) berhasil disiapkan.`);
+      } else if (existing.mode !== "sandbox") {
+        await db.update(apps).set({ mode: "sandbox" }).where(eq(apps.id, existing.id));
+      }
     }
 
-    // 4. Pastikan Aplikasi Demo: DevDocs Desktop Pro (devdocs-desktop)
-    const existingDevDocs = await db.query.apps.findFirst({
-      where: eq(apps.slug, "devdocs-desktop"),
-    });
-
-    const devdocsDelivery: DeliveryConfig = {
-      licenseKey: {
-        enabled: true,
-        description: "Lisensi Universal Tertaut",
-        expiresInDays: 365,
-        maxSeats: 3,
-        offlineGraceDays: 30,
-        floating: {
-          enabled: true,
-          leaseTtlSeconds: 300,
-          heartbeatIntervalSeconds: 60,
-        },
-      },
-    };
-
-    if (!existingDevDocs) {
-      await db.insert(apps).values({
-        id: "app_devdocs_pro",
-        builderId: primaryBuilder.id,
-        apiKey: `tt_live_${randomBytes(16).toString("hex")}`,
-        name: "DevDocs Desktop Pro",
-        slug: "devdocs-desktop",
-        mode: "live",
-        targetPrice: 149000,
-        pricingType: "one_time",
-        description:
-          "Aplikasi desktop offline-first untuk dokumentasi framework dengan pencarian instan dan lisensi seumur hidup.",
-        headline: "DevDocs Desktop Pro",
-        subheadline: "Dokumentasi offline super cepat untuk developer.",
-        mediaUrl:
-          "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80",
-        valueProps: [
-          "Akses 100+ dokumentasi framework offline",
-          "Pencarian instan berkecepatan tinggi",
-          "Lisensi seumur hidup tanpa biaya langganan",
-        ],
-        ctaText: "Beli Lisensi Pro",
-        deliveryConfig: devdocsDelivery,
-      });
-      console.log("✅ [Demo] Aplikasi demo DevDocs Desktop (devdocs-desktop) berhasil disiapkan!");
-    }
-
-    // 5. Pastikan Kupon Diskon Demo (LAUNCH2026)
+    // 4. Pastikan 1 Kupon Diskon Demo (LAUNCH2026 - Diskon 20%)
     const existingCoupon = await db.query.coupons.findFirst({
       where: eq(coupons.code, "LAUNCH2026"),
     });
@@ -200,7 +324,7 @@ export async function ensureDemoData(): Promise<void> {
         redemptionCount: 0,
         isActive: true,
       });
-      console.log("✅ [Demo] Kupon diskon demo LAUNCH2026 (20%) berhasil disiapkan!");
+      console.log("✅ [Demo] 1 Kupon demo LAUNCH2026 (20%) berhasil disiapkan.");
     }
   } catch (error: any) {
     console.warn("[Demo] Gagal inisialisasi demo data:", error?.message || error);

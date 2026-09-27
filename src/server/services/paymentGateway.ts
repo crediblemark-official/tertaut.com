@@ -3,11 +3,11 @@ import { platformSettings } from "../db/schema/settings";
 import { eq } from "drizzle-orm";
 import { config } from "../config";
 
-export type PaymentGatewayType = "dana" | "xendit";
+export type PaymentGatewayType = "dana" | "xendit" | "xenithpay";
 
 /**
  * Mengambil payment gateway aktif yang dipilih oleh Super Admin dari panel tertaut.com/panel.
- * Default: "dana", dapat diubah ke "xendit".
+ * Default: "dana", dapat diubah ke gateway yang didukung.
  */
 export async function getActivePaymentGateway(): Promise<PaymentGatewayType> {
   try {
@@ -16,7 +16,7 @@ export async function getActivePaymentGateway(): Promise<PaymentGatewayType> {
     });
 
     const val = row?.value?.toLowerCase()?.trim();
-    if (val === "xendit" || val === "dana") {
+    if (val === "xendit" || val === "dana" || val === "xenithpay") {
       return val;
     }
   } catch {
@@ -31,6 +31,7 @@ export async function getActivePaymentGateway(): Promise<PaymentGatewayType> {
     .toLowerCase()
     .trim();
   if (envPg === "xendit") return "xendit";
+  if (envPg === "xenithpay" || envPg === "xenith") return "xenithpay";
 
   return "dana";
 }

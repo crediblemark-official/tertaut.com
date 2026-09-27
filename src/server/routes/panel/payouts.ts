@@ -2,12 +2,14 @@ import { db } from "../../db";
 import { transactions, builders, apps } from "../../db/schema";
 import { eq, and, inArray, desc, sql } from "drizzle-orm";
 import { DanaService } from "../../services/dana";
+import { getActiveGateway } from "../../services/gateways";
 import { config } from "../../config";
 
 /**
  * Eksekusi Batch Payout Massal ke Seluruh Builder
  */
 export async function handleBatchPayout() {
+  const gateway = await getActiveGateway();
   // Hanya transaksi dari aplikasi mode LIVE yang boleh dicairkan.
   // Transaksi sandbox adalah simulasi dan tidak pernah dikirim ke Xendit.
   const liveAppRows = await db.select({ id: apps.id }).from(apps).where(eq(apps.mode, "live"));
@@ -93,17 +95,17 @@ export async function handleBatchPayout() {
     const lockedNet = lockedRows.reduce((sum, t) => sum + t.netAmount, 0);
     const externalId = `batch_disb_${builderId.substring(0, 8)}_${Date.now()}`;
     try {
-      const disb = await DanaService.createDisbursement({
+      const disb = await gateway.createDisbursement({
         externalId,
         amount: lockedNet,
         ...bankInfo,
-        description: `Batch Payout tertaut.com MoR (${lockedRows.length} txs via DANA)`,
+        description: `Batch Payout tertaut.com MoR (${lockedRows.length} txs via ${gateway.displayName})`,
       });
 
       const finalStatus =
-        disb.status === "FAILED"
+        disb.status.toUpperCase() === "FAILED"
           ? "FAILED"
-          : disb.status === "PENDING"
+          : ["PENDING", "PROCESSING"].includes(disb.status.toUpperCase())
             ? "PROCESSING"
             : "COMPLETED";
 
@@ -111,7 +113,7 @@ export async function handleBatchPayout() {
         .update(transactions)
         .set({
           disbursementStatus: finalStatus,
-          disbursementId: disb.external_id || disb.id,
+          disbursementId: disb.externalId || disb.id,
           updatedAt: new Date(),
         })
         .where(
@@ -126,7 +128,7 @@ export async function handleBatchPayout() {
         builderId,
         builderName: builder?.name,
         amount: lockedNet,
-        disbursementId: disb.id,
+        disbursementId: disb.externalId || disb.id,
         status: finalStatus === "FAILED" ? "FAILED" : "SUCCESS",
       });
     } catch (err: any) {

@@ -23,9 +23,11 @@ const emit = defineEmits<{
 const loading = ref(false);
 const saving = ref(false);
 const showXenditKey = ref(false);
+const showXenithSecret = ref(false);
 const showDanaSecret = ref(false);
 const copiedWebhook = ref(false);
 const copiedDanaWebhook = ref(false);
+const copiedXenithWebhook = ref(false);
 
 const form = ref({
   platform_fee_percent: "5",
@@ -35,6 +37,9 @@ const form = ref({
   active_payment_gateway: "dana",
   xendit_secret_key: "",
   xendit_webhook_token: "",
+  xenithpay_sandbox_access_key: "",
+  xenithpay_sandbox_secret_key: "",
+  xenithpay_sandbox_webhook_secret: "",
   dana_sandbox_client_id: "",
   dana_sandbox_client_secret: "",
   dana_sandbox_merchant_id: "",
@@ -66,6 +71,17 @@ function copyDanaWebhookUrl() {
   }, 2000);
 }
 
+function copyXenithWebhookUrl() {
+  const origin = window.location.origin.includes("localhost")
+    ? "https://tertaut.com"
+    : window.location.origin;
+  navigator.clipboard.writeText(`${origin}/api/v1/webhook/xenithpay`);
+  copiedXenithWebhook.value = true;
+  setTimeout(() => {
+    copiedXenithWebhook.value = false;
+  }, 2000);
+}
+
 async function loadSettings() {
   loading.value = true;
   try {
@@ -79,6 +95,9 @@ async function loadSettings() {
         active_payment_gateway: res.settings.active_payment_gateway || "dana",
         xendit_secret_key: res.settings.xendit_secret_key || "",
         xendit_webhook_token: res.settings.xendit_webhook_token || "",
+        xenithpay_sandbox_access_key: res.settings.xenithpay_sandbox_access_key || "",
+        xenithpay_sandbox_secret_key: res.settings.xenithpay_sandbox_secret_key || "",
+        xenithpay_sandbox_webhook_secret: res.settings.xenithpay_sandbox_webhook_secret || "",
         dana_sandbox_client_id: res.settings.dana_sandbox_client_id || "",
         dana_sandbox_client_secret: res.settings.dana_sandbox_client_secret || "",
         dana_sandbox_merchant_id: res.settings.dana_sandbox_merchant_id || "",
@@ -129,7 +148,7 @@ onMounted(() => {
       </div>
 
       <!-- 2-Option Radio Selection -->
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <label
           class="flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition select-none"
           :class="
@@ -164,6 +183,24 @@ onMounted(() => {
             class="text-blue-600 focus:ring-blue-500"
           />
           <span class="text-xs">Xendit</span>
+        </label>
+
+        <label
+          class="flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition select-none"
+          :class="
+            form.active_payment_gateway === 'xenithpay'
+              ? 'border-emerald-600 bg-emerald-50/50 text-jetblack font-bold'
+              : 'border-jetblack/15 bg-white text-jetblack/70 hover:border-jetblack/30'
+          "
+        >
+          <input
+            type="radio"
+            name="active_payment_gateway"
+            value="xenithpay"
+            v-model="form.active_payment_gateway"
+            class="text-emerald-600 focus:ring-emerald-500"
+          />
+          <span class="text-xs">XenithPay</span>
         </label>
       </div>
 
@@ -320,6 +357,82 @@ onMounted(() => {
                 type="password"
                 v-model="form.xendit_webhook_token"
                 placeholder="Token verifikasi webhook dari dashboard Xendit"
+                class="w-full h-9 px-3 rounded-lg border border-jetblack/15 bg-white text-xs font-mono text-jetblack focus:border-gold"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="form.active_payment_gateway === 'xenithpay'" class="space-y-3 pt-1">
+        <div
+          class="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-jetblack/5 border border-jetblack/10 text-xs"
+        >
+          <div class="font-mono text-jetblack/80 truncate">
+            <span class="text-jetblack/40 select-none mr-1">Webhook XenithPay:</span>
+            <span>https://tertaut.com/api/v1/webhook/xenithpay</span>
+          </div>
+          <button
+            type="button"
+            @click="copyXenithWebhookUrl"
+            class="px-2.5 py-1 rounded bg-jetblack hover:bg-jetblack/80 text-white text-[11px] font-bold transition shrink-0 cursor-pointer"
+          >
+            {{ copiedXenithWebhook ? "Tersalin!" : "Salin" }}
+          </button>
+        </div>
+
+        <div class="p-3.5 rounded-xl border border-emerald-600/20 bg-emerald-50/40 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold text-jetblack flex items-center gap-1.5">
+              <ShieldCheck class="w-3.5 h-3.5 text-emerald-700" />
+              <span>XenithPay Sandbox Credentials</span>
+            </h3>
+            <span class="text-[10px] text-emerald-700 font-bold uppercase tracking-wider"
+              >SANDBOX</span
+            >
+          </div>
+          <p class="text-[11px] text-jetblack/70 leading-relaxed">
+            Kredensial Production diambil dari environment server:
+            <code class="font-mono">XENITHPAY_ACCESS_KEY</code>,
+            <code class="font-mono">XENITHPAY_SECRET_KEY</code>, dan
+            <code class="font-mono">XENITHPAY_WEBHOOK_SECRET</code>.
+          </p>
+          <div class="space-y-2 pt-1">
+            <div class="space-y-1">
+              <label class="text-xs text-jetblack/70 block">Sandbox Access Key</label>
+              <input
+                v-model="form.xenithpay_sandbox_access_key"
+                type="password"
+                placeholder="Access key dari XenithPay Sandbox"
+                class="w-full h-9 px-3 rounded-lg border border-jetblack/15 bg-white text-xs font-mono text-jetblack focus:border-gold"
+              />
+            </div>
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <label class="text-xs text-jetblack/70 block">Sandbox Secret Key</label>
+                <button
+                  type="button"
+                  @click="showXenithSecret = !showXenithSecret"
+                  class="text-[11px] text-jetblack/50 hover:text-jetblack inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <Eye v-if="!showXenithSecret" class="w-3 h-3" />
+                  <EyeOff v-else class="w-3 h-3" />
+                  <span>{{ showXenithSecret ? "Sembunyikan" : "Tampilkan" }}</span>
+                </button>
+              </div>
+              <input
+                v-model="form.xenithpay_sandbox_secret_key"
+                :type="showXenithSecret ? 'text' : 'password'"
+                placeholder="Secret key dari XenithPay Sandbox"
+                class="w-full h-9 px-3 rounded-lg border border-jetblack/15 bg-white text-xs font-mono text-jetblack focus:border-gold"
+              />
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs text-jetblack/70 block">Sandbox Webhook Signature Secret</label>
+              <input
+                v-model="form.xenithpay_sandbox_webhook_secret"
+                type="password"
+                placeholder="Webhook signature secret dari XenithPay Sandbox"
                 class="w-full h-9 px-3 rounded-lg border border-jetblack/15 bg-white text-xs font-mono text-jetblack focus:border-gold"
               />
             </div>

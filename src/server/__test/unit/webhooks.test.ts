@@ -1,8 +1,10 @@
+import { createHmac } from "crypto";
 import { describe, it, expect } from "bun:test";
 import {
   handleDanaFinishPaymentWebhook,
   handleDanaDisburseNotifyWebhook,
 } from "../../routes/webhook/dana";
+import { handleXenithPayWebhook } from "../../routes/webhook/xendit";
 import { config } from "../../config";
 import { danaWebhookHeaders } from "../setup";
 
@@ -112,5 +114,42 @@ describe("Unit Tests - Webhook Handlers", () => {
 
     config.isSandbox = origSandbox;
     config.dana.publicKey = origPubKey;
+  });
+
+  it("should verify and acknowledge XenithPay webhook callbacks", async () => {
+    const origSandbox = config.isSandbox;
+    const origSecret = config.xenithpay.sandboxWebhookSecret;
+    const origProdSecret = config.xenithpay.webhookSecret;
+    config.isSandbox = true;
+    config.xenithpay.sandboxWebhookSecret = "xenith_test_secret";
+    config.xenithpay.webhookSecret = "xenith_test_secret";
+
+    const body = {
+      event: "payment.success",
+      referenceCode: "tt_xenith_test_001",
+      status: "PAID",
+      amount: 50000,
+    };
+    const timestamp = new Date().toISOString();
+    const payload = `POST\n/api/v1/webhook/xenithpay\n${JSON.stringify(body)}\n${timestamp}`;
+    const signature = createHmac("sha256", "xenith_test_secret").update(payload).digest("base64");
+
+    const set: any = {};
+    const res = await handleXenithPayWebhook({
+      request: { method: "POST", url: "https://example.com/api/v1/webhook/xenithpay" },
+      headers: {
+        "x-xenith-timestamp": timestamp,
+        "x-xenith-signature": signature,
+      },
+      body,
+      set,
+    });
+
+    expect(res.received).toBe(true);
+    expect(res.acknowledged).toBe(true);
+
+    config.isSandbox = origSandbox;
+    config.xenithpay.sandboxWebhookSecret = origSecret;
+    config.xenithpay.webhookSecret = origProdSecret;
   });
 });
