@@ -102,6 +102,17 @@ export async function ensurePlatformSettings(): Promise<void> {
       .insert(platformSettings)
       .values(DEFAULT_PLATFORM_SETTINGS)
       .onConflictDoNothing({ target: platformSettings.key });
+
+    const envGateway = (process.env.ACTIVE_PAYMENT_GATEWAY || process.env.PAYMENT_GATEWAY || "")
+      .toLowerCase()
+      .trim();
+    if (envGateway === "xenithpay" || envGateway === "xendit" || envGateway === "dana") {
+      const { eq } = await import("drizzle-orm");
+      await db
+        .update(platformSettings)
+        .set({ value: envGateway })
+        .where(eq(platformSettings.key, "active_payment_gateway"));
+    }
   } catch (err: any) {
     console.warn("[Settings] Gagal memastikan default platform settings:", err?.message || err);
   }
