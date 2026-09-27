@@ -1,34 +1,75 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api } from "../lib/api";
-import { ShieldCheck, Lock, ArrowLeft, FlaskConical } from "lucide-vue-next";
+import { Lock, ArrowLeft, FlaskConical, CheckCircle2 } from "lucide-vue-next";
 import PayOrderSummary from "../components/pay/PayOrderSummary.vue";
 import PayPaymentForm from "../components/pay/PayPaymentForm.vue";
 
 const route = useRoute();
 const router = useRouter();
 
-// Can be /pay/:slug or /pay?app_id=...&amount=...
+/** Slug produk demo (default: fastmail-ai jika tidak dispesifikasikan) */
 const slug = computed(
   () =>
     (route.params.slug as string) ||
     (route.query.app_slug as string) ||
     (route.query.slug as string) ||
-    ""
+    "fastmail-ai"
 );
+
 const queryAppId = computed(() => (route.query.app_id as string) || "");
 const queryAmount = computed(() => (route.query.amount ? Number(route.query.amount) : null));
 const queryProductName = computed(() => (route.query.product_name as string) || "");
-const queryGrantDays = computed(() =>
-  route.query.grant_days ? Number(route.query.grant_days) : 30
-);
 const queryRedirectUrl = computed(() => (route.query.redirect_url as string) || "");
+
+/** Resolusi Payment Gateway dari query parameter (?gateway=xenith | dana | xendit) */
+const queryPaymentGateway = computed<"xenithpay" | "dana" | "xendit">(() => {
+  const g = String(route.query.gateway || route.query.payment_gateway || "")
+    .toLowerCase()
+    .trim();
+  if (g === "xenith" || g === "xenithpay") return "xenithpay";
+  if (g === "xendit") return "xendit";
+  if (g === "dana") return "dana";
+  return "xenithpay"; // Default untuk pengajuan audit
+});
+
+const activeGateway = ref<"xenithpay" | "dana" | "xendit">(queryPaymentGateway.value);
+
+watch(queryPaymentGateway, (newG) => {
+  activeGateway.value = newG;
+  if (
+    newG === "xenithpay" &&
+    selectedPaymentRail.value !== "va" &&
+    selectedPaymentRail.value !== "qris"
+  ) {
+    selectedPaymentRail.value = "va";
+    selectedBank.value = "BNI";
+  }
+});
+
+function switchGateway(gw: "xenithpay" | "dana" | "xendit") {
+  activeGateway.value = gw;
+  const q = { ...route.query, gateway: gw === "xenithpay" ? "xenith" : gw };
+  router.replace({ query: q });
+  if (gw === "xenithpay") {
+    selectedPaymentRail.value = "va";
+    selectedBank.value = "BNI";
+  } else if (gw === "dana") {
+    selectedPaymentRail.value = "qris";
+    selectedEwallet.value = "DANA";
+  } else {
+    selectedPaymentRail.value = "va";
+    selectedBank.value = "BCA";
+  }
+}
+
 const queryPaymentRail = computed(() => {
   const rail = String(route.query.rail || route.query.payment_rail || "").toLowerCase();
   return (["qris", "va", "ewallet", "card", "retail"].includes(rail) ? rail : "") as
     "qris" | "va" | "ewallet" | "card" | "retail" | "";
 });
+
 const queryBank = computed(() =>
   String(route.query.bank || route.query.va_bank || "").toUpperCase()
 );
@@ -40,8 +81,8 @@ const product = ref<{
   name: string;
   slug: string;
   mode: "sandbox" | "live";
-  checkoutMode?: "custom" | "hosted";
-  activePaymentGateway?: "dana" | "xendit" | "xenithpay";
+  checkoutMode: "custom" | "hosted";
+  activePaymentGateway: "dana" | "xendit" | "xenithpay";
   targetPrice: number;
   description: string | null;
   headline: string | null;
@@ -51,7 +92,7 @@ const product = ref<{
   redirectUrl: string | null;
 } | null>(null);
 
-const emailInput = ref("");
+const emailInput = ref("auditor.mitra@xenithpay.com");
 const couponInput = ref("");
 const appliedCoupon = ref<{ code: string; discountPercent: number; discountAmount: number } | null>(
   null
@@ -61,12 +102,14 @@ const loading = ref(true);
 const notFound = ref(false);
 const isSubmitting = ref(false);
 const errorMessage = ref("");
+
 const selectedPaymentRail = ref<"qris" | "va" | "ewallet" | "card" | "retail">(
-  (queryPaymentRail.value || "qris") as "qris" | "va" | "ewallet" | "card" | "retail"
+  queryPaymentRail.value || (activeGateway.value === "xenithpay" ? "va" : "qris")
 );
-const selectedBank = ref(queryBank.value || "BCA");
+const selectedBank = ref(queryBank.value || (activeGateway.value === "xenithpay" ? "BNI" : "BCA"));
 const selectedEwallet = ref(queryEwallet.value || "DANA");
 const selectedRetail = ref(queryRetailOutlet.value || "ALFAMART");
+
 const activeCustomOrder = ref<{
   transactionId: string;
   scenario?: string;
@@ -76,29 +119,22 @@ const activeCustomOrder = ref<{
   vaBank?: string;
   ewalletChannel?: string;
   retailOutlet?: string;
-  cardDetails?: {
-    last4?: string;
-    brand?: string;
-  };
   amount?: number;
   checkoutUrl?: string;
   ticket?: string;
 } | null>(null);
+
 const isPaid = ref(false);
 const paidResult = ref<{ licenseKey?: string; message?: string } | null>(null);
 let pollTimer: any = null;
-
-// Poll ticket (BUG-5): bukti kepemilikan transaksi untuk polling status publik.
-// Diterima dari respons createCheckoutSession atau dari redirect finish (?ticket=...).
 let currentTicket = "";
-
 const isMobileOrderExpanded = ref(false);
 
-/** Estimasi diskon & total bayar untuk pratinjau langsung saat mengetik kupon. */
 const estimatedDiscount = computed(() => {
   if (!product.value || !appliedCoupon.value) return 0;
   return Math.min(appliedCoupon.value.discountAmount, product.value.targetPrice);
 });
+
 const payableAmount = computed(() =>
   product.value ? Math.max(0, product.value.targetPrice - estimatedDiscount.value) : 0
 );
@@ -120,7 +156,7 @@ function startPolling(txId: string) {
         isPaid.value = true;
         paidResult.value = {
           licenseKey: res.licenseKey || undefined,
-          message: "Pembayaran berhasil diverifikasi secara instan.",
+          message: "Pembayaran berhasil diverifikasi secara instan pada mode demo.",
         };
       } else if (res && (res.paymentStatus === "EXPIRED" || res.paymentStatus === "FAILED")) {
         stopPolling();
@@ -142,17 +178,36 @@ function resetCheckoutOrder() {
   router.replace({ query });
 }
 
+/** Fallback produk resmi FastMail AI untuk demo audit mandiri */
+const DEFAULT_DEMO_PRODUCT = {
+  id: "app_fastmail_ai",
+  name: "FastMail AI Summarizer",
+  slug: "fastmail-ai",
+  mode: "sandbox" as const,
+  checkoutMode: "custom" as const,
+  activePaymentGateway: activeGateway.value,
+  targetPrice: 49000,
+  description:
+    "Ekstensi Chrome & web app untuk merangkum email penting secara otomatis menggunakan Gemini AI.",
+  headline: "FastMail AI Summarizer",
+  subheadline: "Lisensi universal software dengan aktivasi Ed25519 terikat hardware.",
+  mediaUrl:
+    "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80",
+  valueProps: [
+    "Aktivasi lisensi resmi terikat hardware (HWID)",
+    "Masa berlaku 365 hari dengan offline grace token 30 hari",
+    "Pembaruan versi otomatis & dukungan teknis langsung",
+  ],
+  redirectUrl: null,
+};
+
 async function loadCheckoutData() {
   loading.value = true;
   errorMessage.value = "";
   try {
-    const identifier = slug.value || queryAppId.value;
-    if (!identifier) {
-      notFound.value = true;
-      return;
-    }
-
+    const identifier = slug.value || queryAppId.value || "fastmail-ai";
     let loadedApp: any = null;
+
     try {
       const data = await api.getAppBySlug(identifier);
       if (data && data.id) {
@@ -163,24 +218,20 @@ async function loadCheckoutData() {
         const json = await api.getApps();
         if (json.apps) {
           const found = json.apps.find((a: any) => a.slug === identifier || a.id === identifier);
-          if (found) {
-            loadedApp = found;
-          }
+          if (found) loadedApp = found;
         }
       } catch {}
     }
 
+    // Jika app tidak ada di database, gunakan default produk demo
     if (!loadedApp) {
-      notFound.value = true;
-      return;
+      loadedApp = { ...DEFAULT_DEMO_PRODUCT, slug: identifier };
     }
 
     setProductData(loadedApp);
 
-    // Cek jika halaman dibuka dengan parameter externalId (misal dari redirect finish / link transaksi)
     const externalIdParam = (route.query.externalId as string) || "";
     if (externalIdParam) {
-      // Ticket polling disematkan server saat redirect finish ke /pay (BUG-5)
       currentTicket = (route.query.ticket as string) || "";
       try {
         const statusRes = await api.getPaymentStatus(externalIdParam, currentTicket);
@@ -206,10 +257,31 @@ async function loadCheckoutData() {
       } catch {}
     }
   } catch (err: any) {
-    errorMessage.value = err.message || "Gagal memuat produk pembayaran";
+    errorMessage.value = err.message || "Gagal memuat produk demo";
   } finally {
     loading.value = false;
   }
+}
+
+function setProductData(app: any) {
+  product.value = {
+    id: app.id || "app_fastmail_ai",
+    name: queryProductName.value || app.name || "FastMail AI Summarizer",
+    slug: app.slug || "fastmail-ai",
+    mode: "sandbox",
+    checkoutMode: "custom",
+    activePaymentGateway: activeGateway.value,
+    targetPrice: queryAmount.value || app.targetPrice || 49000,
+    description: app.description || "Solusi software premium otomatis & berlisensi resmi.",
+    headline: app.headline || "FastMail AI Summarizer",
+    subheadline: app.subheadline || "Lisensi universal software dengan aktivasi Ed25519.",
+    mediaUrl: app.mediaUrl || DEFAULT_DEMO_PRODUCT.mediaUrl,
+    valueProps:
+      Array.isArray(app.valueProps) && app.valueProps.length > 0
+        ? app.valueProps
+        : DEFAULT_DEMO_PRODUCT.valueProps,
+    redirectUrl: queryRedirectUrl.value || app.redirectUrl || null,
+  };
 }
 
 async function applyCoupon() {
@@ -237,43 +309,11 @@ async function applyCoupon() {
   }
 }
 
-function setProductData(app: any) {
-  product.value = {
-    id: app.id,
-    name: queryProductName.value || app.name,
-    slug: app.slug || "",
-    mode: app.mode || "live",
-    checkoutMode: app.checkoutMode || "custom",
-    activePaymentGateway: app.activePaymentGateway || "dana",
-    targetPrice: queryAmount.value || app.targetPrice || 0,
-    description: app.description || "Solusi software premium otomatis & berlisensi resmi.",
-    headline: app.headline || null,
-    subheadline: app.subheadline || null,
-    mediaUrl: app.mediaUrl || null,
-    valueProps: Array.isArray(app.valueProps)
-      ? app.valueProps
-      : app.valueProps
-        ? JSON.parse(app.valueProps)
-        : [
-            "Aktivasi instan dan otomatis via email",
-            "Lisensi resmi terikat hardware / device",
-            "Update versi & dukungan pelanggan langsung",
-          ],
-    redirectUrl: queryRedirectUrl.value || app.redirectUrl || null,
-  };
-}
-
 async function handlePay(payload?: {
   paymentRail?: "qris" | "va" | "ewallet" | "card" | "retail";
   vaBank?: string;
   ewalletChannel?: string;
   retailOutlet?: string;
-  cardDetails?: {
-    cardNumber?: string;
-    cardExpiry?: string;
-    cardCvv?: string;
-    cardHolderName?: string;
-  };
 }) {
   if (!product.value || !emailInput.value) return;
   isSubmitting.value = true;
@@ -289,7 +329,8 @@ async function handlePay(payload?: {
   try {
     const data = await api.createCheckoutSession({
       appId: product.value.id,
-      paymentGateway: product.value.activePaymentGateway || "dana",
+      paymentGateway: activeGateway.value,
+      demoMode: true,
       customerEmail: emailInput.value,
       amount: product.value.targetPrice,
       preferredPaymentChannel: rail,
@@ -310,7 +351,7 @@ async function handlePay(payload?: {
             ? rawErr.message
             : typeof (data as any).message === "string"
               ? (data as any).message
-              : "Gagal menyiapkan sesi checkout";
+              : "Gagal menyiapkan sesi checkout demo";
       return;
     }
 
@@ -322,51 +363,30 @@ async function handlePay(payload?: {
       window.history.replaceState({}, "", currentUrl.toString());
     }
 
-    // Simpan ticket polling (BUG-5) supaya licenseKey tidak bocor ke pemegang txId saja.
     currentTicket = data.ticket || (data as any).data?.ticket || "";
 
-    // Full Custom Mode: scenario === "API" selalu menampilkan custom view di tertaut.com
-    if (data.scenario === "API") {
-      const rawCard = payload?.cardDetails?.cardNumber?.replace(/\D/g, "") || "";
-      const last4 = rawCard.slice(-4) || "2151";
-      const cardBrand = rawCard.startsWith("4")
-        ? "VISA"
-        : rawCard.startsWith("5")
-          ? "Mastercard"
-          : rawCard.startsWith("3")
-            ? "AMEX"
-            : rawCard.startsWith("35")
-              ? "JCB"
-              : "Kartu Kredit/Debit";
+    const orderResult = (data as any).data || data;
+    const txId = orderResult.transactionId || orderResult.externalId || data.transactionId;
 
-      activeCustomOrder.value = {
-        transactionId: data.transactionId || "",
-        scenario: data.scenario,
-        paymentRail: data.paymentRail || rail,
-        paymentCode: data.paymentCode,
-        qrDataUrl: data.qrDataUrl,
-        vaBank: data.vaBank || bank,
-        ewalletChannel: ewallet,
-        retailOutlet: retail,
-        cardDetails: {
-          last4,
-          brand: cardBrand,
-        },
-        amount: data.amount || payableAmount.value,
-        checkoutUrl: data.checkoutUrl,
-        ticket: currentTicket,
-      };
-      if (data.transactionId) {
-        startPolling(data.transactionId);
-      }
-    } else if (data.checkoutUrl) {
-      // Hosted Mode: dialihkan ke invoice resmi Xendit
-      window.location.href = data.checkoutUrl;
+    activeCustomOrder.value = {
+      transactionId: txId,
+      scenario: orderResult.scenario || "API",
+      paymentRail: rail,
+      paymentCode: orderResult.paymentCode || orderResult.externalId || txId,
+      qrDataUrl: orderResult.qrDataUrl,
+      vaBank: bank,
+      ewalletChannel: ewallet,
+      retailOutlet: retail,
+      amount: payableAmount.value,
+      checkoutUrl: orderResult.checkoutUrl,
+      ticket: currentTicket,
+    };
+
+    if (txId) {
+      startPolling(txId);
     }
   } catch (err: any) {
-    const rawMsg = err?.message || err?.error || err;
-    errorMessage.value =
-      typeof rawMsg === "string" ? rawMsg : "Terjadi kesalahan jaringan atau data tidak valid";
+    errorMessage.value = err.message || "Gagal menghubungkan ke payment gateway demo";
   } finally {
     isSubmitting.value = false;
   }
@@ -383,17 +403,12 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="relative min-h-screen lg:h-screen lg:max-h-screen bg-[#090A0C] text-white flex flex-col justify-start lg:justify-center items-center p-3 sm:p-5 lg:p-6 overflow-y-auto lg:overflow-hidden selection:bg-gold/30 selection:text-white py-4 sm:py-6"
+    class="min-h-screen w-full bg-[#0a0b0d] text-white flex flex-col items-center justify-start lg:justify-center p-3 sm:p-5 lg:p-6 relative overflow-x-hidden selection:bg-gold selection:text-black"
   >
-    <!-- Ambient Lighting & Developer Grid Background -->
-    <div class="fixed inset-0 pointer-events-none z-0">
-      <div
-        class="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px]"
-      ></div>
-      <div
-        class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[450px] bg-gradient-to-tr from-forest/20 via-gold/10 to-transparent rounded-full blur-[140px]"
-      ></div>
-    </div>
+    <!-- Background Radial Aura -->
+    <div
+      class="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(217,119,6,0.12),transparent_70%)]"
+    ></div>
 
     <!-- Loading State -->
     <div
@@ -401,9 +416,9 @@ onUnmounted(() => {
       class="relative z-10 flex flex-col items-center justify-center text-white/70 text-xs gap-3 p-8 my-auto"
     >
       <div
-        class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"
+        class="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"
       ></div>
-      <span class="font-mono text-[11px]">Menyiapkan sesi checkout aman tertaut.com...</span>
+      <span class="font-mono text-[11px]">Menyiapkan Sesi Demo Checkout Partner Audit...</span>
     </div>
 
     <!-- Not Found State -->
@@ -417,24 +432,21 @@ onUnmounted(() => {
         <Lock class="w-5 h-5" />
       </div>
       <div>
-        <h1 class="text-base font-bold text-white">Produk Pembayaran Tidak Ditemukan</h1>
-        <p class="text-xs text-white/50 mt-1 leading-relaxed">
-          Tautan checkout tidak valid, kedaluwarsa, atau produk belum diluncurkan.
-        </p>
+        <h1 class="text-base font-bold text-white">Produk Demo Tidak Ditemukan</h1>
       </div>
       <router-link
         to="/"
-        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gold text-black text-xs font-bold hover:bg-gold-muted transition"
+        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-400 text-black text-xs font-bold hover:bg-amber-300 transition"
       >
         <span>Kembali ke Beranda</span>
       </router-link>
     </div>
 
-    <!-- Active Checkout Master Container -->
+    <!-- Active Demo Checkout Master Container -->
     <template v-else-if="product">
-      <!-- Top Navigation Bar (Aligned with Master Card width) -->
+      <!-- Top Demo Banner & Partner Switcher Bar -->
       <div
-        class="relative z-10 w-full max-w-4xl mb-2 sm:mb-3 flex items-center justify-between px-1 shrink-0"
+        class="relative z-10 w-full max-w-4xl mb-3 flex flex-wrap items-center justify-between gap-3 px-1 shrink-0"
       >
         <router-link
           to="/"
@@ -444,31 +456,61 @@ onUnmounted(() => {
           <span>Kembali ke Beranda</span>
         </router-link>
 
-        <div class="flex items-center gap-3 text-xs">
-          <div
-            v-if="product.mode === 'sandbox'"
-            class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-[11px] font-mono"
+        <!-- Gateway Switcher Pills -->
+        <div
+          class="flex items-center gap-1.5 bg-white/5 border border-white/10 p-1 rounded-xl text-xs"
+        >
+          <span class="text-[11px] font-mono text-white/50 px-2 flex items-center gap-1">
+            <FlaskConical class="w-3.5 h-3.5 text-amber-400" />
+            Gateway:
+          </span>
+          <button
+            type="button"
+            @click="switchGateway('xenithpay')"
+            :class="[
+              'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition flex items-center gap-1.5',
+              activeGateway === 'xenithpay'
+                ? 'bg-amber-400 text-black shadow-sm'
+                : 'text-white/60 hover:text-white hover:bg-white/5',
+            ]"
           >
-            <FlaskConical class="w-3 h-3" />
-            <span>Sandbox Mode</span>
-          </div>
-          <div
-            v-else
-            class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[11px] font-mono"
+            <span>XenithPay</span>
+            <CheckCircle2 v-if="activeGateway === 'xenithpay'" class="w-3 h-3" />
+          </button>
+          <button
+            type="button"
+            @click="switchGateway('dana')"
+            :class="[
+              'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition flex items-center gap-1.5',
+              activeGateway === 'dana'
+                ? 'bg-blue-500 text-white shadow-sm'
+                : 'text-white/60 hover:text-white hover:bg-white/5',
+            ]"
           >
-            <ShieldCheck class="w-3 h-3" />
-            <span>MoR Secured</span>
-          </div>
-          <span class="w-1 h-1 rounded-full bg-white/20"></span>
-          <span class="text-[11px] text-white/40 font-mono">256-Bit MoR</span>
+            <span>DANA</span>
+            <CheckCircle2 v-if="activeGateway === 'dana'" class="w-3 h-3" />
+          </button>
+          <button
+            type="button"
+            @click="switchGateway('xendit')"
+            :class="[
+              'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition flex items-center gap-1.5',
+              activeGateway === 'xendit'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-white/60 hover:text-white hover:bg-white/5',
+            ]"
+          >
+            <span>Xendit</span>
+            <CheckCircle2 v-if="activeGateway === 'xendit'" class="w-3 h-3" />
+          </button>
         </div>
       </div>
 
-      <!-- Master Unified Luxury Card (50/50 Precision Split, High Contrast) -->
+      <!-- Master Unified Card -->
       <div
         class="relative z-10 w-full max-w-4xl h-auto lg:h-[560px] lg:max-h-[calc(100vh-4rem)] rounded-2xl border border-slate-200/90 bg-white text-slate-900 shadow-[0_25px_70px_rgba(0,0,0,0.6)] overflow-hidden grid grid-cols-1 lg:grid-cols-2 shrink-0 my-auto"
       >
-        <!-- LEFT PANE: Order Summary & Product Details (Desktop & Mobile) -->
+        <!-- LEFT PANE: Order Summary -->
         <PayOrderSummary
           :product="product"
           :email-input="emailInput"
@@ -498,9 +540,9 @@ onUnmounted(() => {
           >
             <PayPaymentForm
               :product="product"
-              :checkout-mode="product?.checkoutMode || 'custom'"
-              :active-gateway="product?.activePaymentGateway || 'dana'"
-              :demo-mode="false"
+              checkout-mode="custom"
+              :active-gateway="activeGateway"
+              :demo-mode="true"
               :email-input="emailInput"
               :selected-payment-rail="selectedPaymentRail"
               :selected-bank="selectedBank"
@@ -527,32 +569,14 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* Internal sleek scrollbar for container */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
-
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 9999px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
-}
-
-/* Light mode seamless autofill styling */
-.auth-input:-webkit-autofill,
-.auth-input:-webkit-autofill:hover,
-.auth-input:-webkit-autofill:focus,
-.auth-input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
-  -webkit-text-fill-color: #0f172a !important;
-  caret-color: #0f172a !important;
-  transition: background-color 5000s ease-in-out 0s;
 }
 </style>
