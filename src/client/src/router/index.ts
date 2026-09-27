@@ -105,6 +105,12 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
+    path: "/demo/checkout/:slug?",
+    name: "demo-checkout",
+    component: () => import("../views/PayView.vue"),
+    meta: { public: true },
+  },
+  {
     path: "/invoice/:txId",
     name: "invoice-page",
     component: () => import("../views/InvoiceView.vue"),

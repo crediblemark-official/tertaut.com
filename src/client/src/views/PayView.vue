@@ -182,8 +182,27 @@ async function loadCheckoutData() {
     }
 
     if (!loadedApp) {
-      notFound.value = true;
-      return;
+      if (identifier === "fastmail-ai" || isDemoCheckout.value) {
+        loadedApp = {
+          id: "app_fastmail_ai",
+          name: "FastMail AI Summarizer",
+          slug: "fastmail-ai",
+          mode: "sandbox",
+          targetPrice: 49000,
+          description:
+            "Ekstensi Chrome cerdas untuk merangkum email penting dan menyusun draft balasan otomatis menggunakan Gemini AI.",
+          headline: "FastMail AI Summarizer",
+          subheadline: "Lisensi universal software dengan aktivasi Ed25519 terikat hardware.",
+          valueProps: [
+            "Aktivasi lisensi resmi terikat hardware (HWID)",
+            "Masa berlaku 365 hari dengan offline grace token 30 hari",
+            "Pembaruan versi otomatis & dukungan teknis langsung",
+          ],
+        };
+      } else {
+        notFound.value = true;
+        return;
+      }
     }
 
     setProductData(loadedApp);
@@ -255,7 +274,7 @@ function setProductData(app: any) {
     slug: app.slug || "",
     mode: app.mode || "live",
     checkoutMode: app.checkoutMode || "custom",
-    activePaymentGateway: app.activePaymentGateway || "dana",
+    activePaymentGateway: queryPaymentGateway.value || app.activePaymentGateway || "dana",
     targetPrice: queryAmount.value || app.targetPrice || 0,
     description: app.description || "Solusi software premium otomatis & berlisensi resmi.",
     headline: app.headline || null,
