@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from "vue";
+import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api } from "../lib/api";
-import { Lock, ArrowLeft, FlaskConical, CheckCircle2 } from "lucide-vue-next";
+import { Lock, ArrowLeft, FlaskConical } from "lucide-vue-next";
 import PayOrderSummary from "../components/pay/PayOrderSummary.vue";
 import PayPaymentForm from "../components/pay/PayPaymentForm.vue";
 
@@ -34,35 +34,7 @@ const queryPaymentGateway = computed<"xenithpay" | "dana" | "xendit">(() => {
   return "xenithpay"; // Default untuk pengajuan audit
 });
 
-const activeGateway = ref<"xenithpay" | "dana" | "xendit">(queryPaymentGateway.value);
-
-watch(queryPaymentGateway, (newG) => {
-  activeGateway.value = newG;
-  if (
-    newG === "xenithpay" &&
-    selectedPaymentRail.value !== "va" &&
-    selectedPaymentRail.value !== "qris"
-  ) {
-    selectedPaymentRail.value = "va";
-    selectedBank.value = "BNI";
-  }
-});
-
-function switchGateway(gw: "xenithpay" | "dana" | "xendit") {
-  activeGateway.value = gw;
-  const q = { ...route.query, gateway: gw === "xenithpay" ? "xenith" : gw };
-  router.replace({ query: q });
-  if (gw === "xenithpay") {
-    selectedPaymentRail.value = "va";
-    selectedBank.value = "BNI";
-  } else if (gw === "dana") {
-    selectedPaymentRail.value = "qris";
-    selectedEwallet.value = "DANA";
-  } else {
-    selectedPaymentRail.value = "va";
-    selectedBank.value = "BCA";
-  }
-}
+const activeGateway = computed<"xenithpay" | "dana" | "xendit">(() => queryPaymentGateway.value);
 
 const queryPaymentRail = computed(() => {
   const rail = String(route.query.rail || route.query.payment_rail || "").toLowerCase();
@@ -92,7 +64,7 @@ const product = ref<{
   redirectUrl: string | null;
 } | null>(null);
 
-const emailInput = ref("auditor.mitra@xenithpay.com");
+const emailInput = ref("");
 const couponInput = ref("");
 const appliedCoupon = ref<{ code: string; discountPercent: number; discountAmount: number } | null>(
   null
@@ -444,9 +416,9 @@ onUnmounted(() => {
 
     <!-- Active Demo Checkout Master Container -->
     <template v-else-if="product">
-      <!-- Top Demo Banner & Partner Switcher Bar -->
+      <!-- Top Demo Banner Bar -->
       <div
-        class="relative z-10 w-full max-w-4xl mb-3 flex flex-wrap items-center justify-between gap-3 px-1 shrink-0"
+        class="relative z-10 w-full max-w-4xl mb-2 sm:mb-3 flex items-center justify-between px-1 shrink-0"
       >
         <router-link
           to="/"
@@ -456,53 +428,15 @@ onUnmounted(() => {
           <span>Kembali ke Beranda</span>
         </router-link>
 
-        <!-- Gateway Switcher Pills -->
-        <div
-          class="flex items-center gap-1.5 bg-white/5 border border-white/10 p-1 rounded-xl text-xs"
-        >
-          <span class="text-[11px] font-mono text-white/50 px-2 flex items-center gap-1">
-            <FlaskConical class="w-3.5 h-3.5 text-amber-400" />
-            Gateway:
-          </span>
-          <button
-            type="button"
-            @click="switchGateway('xenithpay')"
-            :class="[
-              'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition flex items-center gap-1.5',
-              activeGateway === 'xenithpay'
-                ? 'bg-amber-400 text-black shadow-sm'
-                : 'text-white/60 hover:text-white hover:bg-white/5',
-            ]"
+        <div class="flex items-center gap-3 text-xs">
+          <div
+            class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 text-[11px] font-mono"
           >
-            <span>XenithPay</span>
-            <CheckCircle2 v-if="activeGateway === 'xenithpay'" class="w-3 h-3" />
-          </button>
-          <button
-            type="button"
-            @click="switchGateway('dana')"
-            :class="[
-              'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition flex items-center gap-1.5',
-              activeGateway === 'dana'
-                ? 'bg-blue-500 text-white shadow-sm'
-                : 'text-white/60 hover:text-white hover:bg-white/5',
-            ]"
-          >
-            <span>DANA</span>
-            <CheckCircle2 v-if="activeGateway === 'dana'" class="w-3 h-3" />
-          </button>
-          <button
-            type="button"
-            @click="switchGateway('xendit')"
-            :class="[
-              'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition flex items-center gap-1.5',
-              activeGateway === 'xendit'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-white/60 hover:text-white hover:bg-white/5',
-            ]"
-          >
-            <span>Xendit</span>
-            <CheckCircle2 v-if="activeGateway === 'xendit'" class="w-3 h-3" />
-          </button>
+            <FlaskConical class="w-3 h-3" />
+            <span>Sandbox Mode</span>
+          </div>
+          <span class="w-1 h-1 rounded-full bg-white/20"></span>
+          <span class="text-[11px] text-white/40 font-mono">256-Bit MoR</span>
         </div>
       </div>
 
