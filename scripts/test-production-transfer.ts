@@ -44,14 +44,18 @@ function cleanPem(b64OrPem: string): string {
   }
 }
 
-const envPath = resolve(process.cwd(), ".env.production");
-const env = loadEnvFile(envPath);
+const prodEnv = loadEnvFile(resolve(process.cwd(), ".env.production"));
+const defaultEnv = loadEnvFile(resolve(process.cwd(), ".env"));
+const env = { ...defaultEnv, ...prodEnv };
 
 // ─── Kredensial Production ─────────────────────────────────────────────────────
 const CLIENT_ID = env["DANA_CLIENT_ID"] || "";
 const CLIENT_SECRET = env["DANA_CLIENT_SECRET"] || "";
 const PRIVATE_KEY = cleanPem(env["DANA_PRIVATE_KEY_BASE64"] || "");
-const CUSTOMER_NUMBER = env["DANA_CUSTOMER_NUMBER"] || ""; // akun DANA merchant (628xxx)
+const rawCustomerNumber = env["DANA_CUSTOMER_NUMBER"] || "6285183131249";
+const CUSTOMER_NUMBER = rawCustomerNumber.startsWith("0")
+  ? `62${rawCustomerNumber.slice(1)}`
+  : rawCustomerNumber;
 const ORIGIN = env["PUBLIC_APP_URL"] || "https://tertaut.com";
 
 // ─── Validasi ──────────────────────────────────────────────────────────────────
@@ -85,21 +89,17 @@ const dana = new Dana({
 });
 
 // ─── Parameter Transfer ────────────────────────────────────────────────────────
-// Jumlah minimum: IDR 1.000 (jumlah terkecil yang valid untuk test)
-const TRANSFER_AMOUNT = 1000; // IDR
+// Jumlah minimum transfer bank: IDR 10.000 (atau lewat argumen CLI: bun script.ts 10000)
+const cliAmount = process.argv[2] ? parseInt(process.argv[2], 10) : 10000;
+const TRANSFER_AMOUNT = isNaN(cliAmount) ? 10000 : cliAmount;
 const EXTERNAL_ID = `test-prod-transfer-${Date.now()}`;
 
-// ⬇️  GANTI dengan rekening bank milikmu sendiri untuk menerima transfer test
-const BENEFICIARY_BANK_CODE = "BCA"; // Kode bank (BCA/BRI/BNI/MANDIRI/dll)
-const BENEFICIARY_ACCOUNT_NO = "1234567890"; // ← GANTI nomor rekening tujuan
-const BENEFICIARY_ACCOUNT_NAME = "Nama Pemilik"; // ← GANTI nama pemilik rekening
-
-// ─── Guard: cegah jalankan dengan placeholder ─────────────────────────────────
-if (BENEFICIARY_ACCOUNT_NO === "1234567890") {
-  console.warn("⚠️  PERHATIAN: Nomor rekening masih placeholder!");
-  console.warn("   Edit baris BENEFICIARY_ACCOUNT_NO dengan nomor rekening nyata.\n");
-  process.exit(1);
-}
+// Rekening Bank Tujuan (PT Retas Lintas Batas - Bank OCBC)
+// Kode Bank Indonesia / SNAP BI untuk Bank OCBC / OCBC NISP adalah '028'
+const cliBankCode = process.argv[3] || "028";
+const BENEFICIARY_BANK_CODE = cliBankCode;
+const BENEFICIARY_ACCOUNT_NO = "693800120448";
+const BENEFICIARY_ACCOUNT_NAME = "PT Retas Lintas Batas";
 
 // ─── Jalankan Transfer ────────────────────────────────────────────────────────
 console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -116,6 +116,7 @@ try {
   const response = await dana.disbursementApi.transferToBank({
     partnerReferenceNo: EXTERNAL_ID,
     customerNumber: CUSTOMER_NUMBER,
+    accountType: "MERCHANT_DEPOSIT_ACCOUNT",
     beneficiaryAccountNumber: BENEFICIARY_ACCOUNT_NO,
     beneficiaryBankCode: BENEFICIARY_BANK_CODE,
     amount: {
@@ -123,10 +124,10 @@ try {
       value: `${TRANSFER_AMOUNT.toFixed(2)}`,
     },
     additionalInfo: {
-      fundType: "1",
-      beneficiaryName: BENEFICIARY_ACCOUNT_NAME,
-      remark: "Production Testing - Transfer to Bank",
-    } as any,
+      fundType: "MERCHANT_WITHDRAW_FOR_CORPORATE",
+      beneficiaryAccountName: BENEFICIARY_ACCOUNT_NAME,
+      needNotify: false,
+    },
   });
 
   const responseCode = (response as any)?.responseCode;
@@ -147,8 +148,23 @@ try {
 } catch (err: unknown) {
   const message = err instanceof Error ? err.message : String(err);
   console.error("❌ Transfer gagal:", message);
-  if (err instanceof Error && (err as any).response) {
-    console.error("   Response:", JSON.stringify((err as any).response?.data, null, 2));
+  if (err && typeof err === "object") {
+    if ("response" in err && (err as any).response) {
+      try {
+        const resp = (err as any).response;
+        if (typeof resp.text === "function") {
+          const text = await resp.text();
+          console.error("   Response Body:", text);
+        } else if (typeof resp.json === "function") {
+          const json = await resp.json();
+          console.error("   Response JSON:", JSON.stringify(json, null, 2));
+        } else {
+          console.error("   Response Object:", resp);
+        }
+      } catch (readErr) {
+        console.error("   Could not read response body:", readErr);
+      }
+    }
   }
   process.exit(1);
 }
