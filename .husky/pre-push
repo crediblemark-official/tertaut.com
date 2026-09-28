@@ -1,1 +1,27 @@
+#!/bin/sh
+# Pastikan DB lokal up sebelum test. Jika belum jalan, start otomatis.
+
+DB_CONTAINER="tertaut_db_dev"
+COMPOSE_FILE="docker-compose.dev.yml"
+
+# Cek apakah DB container sudah running
+if ! docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${DB_CONTAINER}$"; then
+  echo "⟳ DB lokal belum up — menjalankan docker compose..."
+  docker compose -f "$COMPOSE_FILE" up -d db
+
+  # Tunggu DB siap (maks 30 detik)
+  echo "⟳ Menunggu PostgreSQL siap..."
+  for i in $(seq 1 30); do
+    if docker exec "$DB_CONTAINER" pg_isready -U tertautuser -d tertautname -q 2>/dev/null; then
+      echo "✔ DB siap."
+      break
+    fi
+    sleep 1
+  done
+fi
+
+# Jalankan migrasi jika diperlukan (idempotent)
+bun run db:push --force 2>/dev/null || true
+
+# Jalankan full test suite
 bun test --parallel=1
