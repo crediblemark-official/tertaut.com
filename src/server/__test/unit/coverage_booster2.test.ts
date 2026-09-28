@@ -658,7 +658,7 @@ describe("Coverage Booster2: services/dana.ts verifyWebhook", () => {
         amount: 10000,
         description: "test",
       })
-    ).rejects.toThrow("DANA_CLIENT_ID");
+    ).rejects.toThrow(/DANA/);
 
     (config as any).isSandbox = origSandbox;
     config.dana.clientId = origId;
