@@ -20,8 +20,5 @@ if ! docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${DB_CONTAINER}$"; 
   done
 fi
 
-# Jalankan migrasi jika diperlukan (idempotent)
-bun run db:push --force 2>/dev/null || true
-
 # Jalankan full test suite
 bun test --parallel=1
