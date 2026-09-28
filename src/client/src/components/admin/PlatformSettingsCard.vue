@@ -14,6 +14,7 @@ import {
   EyeOff,
   Copy,
   Check,
+  ExternalLink,
 } from "lucide-vue-next";
 
 const emit = defineEmits<{
@@ -28,6 +29,36 @@ const showDanaSecret = ref(false);
 const copiedWebhook = ref(false);
 const copiedDanaWebhook = ref(false);
 const copiedXenithWebhook = ref(false);
+const copiedXenithDemo = ref(false);
+const copiedDanaDemo = ref(false);
+const copiedXenditDemo = ref(false);
+
+function getAppOrigin() {
+  return window.location.origin.includes("localhost")
+    ? window.location.origin
+    : "https://tertaut.com";
+}
+
+function copyDanaDemoUrl() {
+  const url = `${getAppOrigin()}/demo/checkout/fastmail-ai?gateway=dana`;
+  navigator.clipboard.writeText(url);
+  copiedDanaDemo.value = true;
+  setTimeout(() => (copiedDanaDemo.value = false), 2000);
+}
+
+function copyXenditDemoUrl() {
+  const url = `${getAppOrigin()}/demo/checkout/fastmail-ai?gateway=xendit`;
+  navigator.clipboard.writeText(url);
+  copiedXenditDemo.value = true;
+  setTimeout(() => (copiedXenditDemo.value = false), 2000);
+}
+
+function copyXenithDemoUrl() {
+  const url = `${getAppOrigin()}/demo/checkout/fastmail-ai?gateway=xenith`;
+  navigator.clipboard.writeText(url);
+  copiedXenithDemo.value = true;
+  setTimeout(() => (copiedXenithDemo.value = false), 2000);
+}
 
 const form = ref({
   platform_fee_percent: "5",
@@ -223,6 +254,33 @@ onMounted(() => {
           </button>
         </div>
 
+        <!-- DANA Demo Checkout Route Path Copy -->
+        <div
+          class="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-forest/5 border border-forest/20 text-xs"
+        >
+          <div class="font-mono text-jetblack/80 truncate">
+            <span class="text-forest font-bold select-none mr-1">Route Path Demo:</span>
+            <span>/demo/checkout/fastmail-ai?gateway=dana</span>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              @click="copyDanaDemoUrl"
+              class="px-2.5 py-1 rounded bg-jetblack hover:bg-jetblack/80 text-white text-[11px] font-bold transition cursor-pointer"
+            >
+              {{ copiedDanaDemo ? "Tersalin!" : "Salin URL" }}
+            </button>
+            <a
+              href="/demo/checkout/fastmail-ai?gateway=dana"
+              target="_blank"
+              class="px-2.5 py-1 rounded border border-jetblack/20 hover:bg-white text-jetblack text-[11px] font-bold transition inline-flex items-center gap-1 cursor-pointer"
+            >
+              <span>Buka</span>
+              <ExternalLink class="w-3 h-3" />
+            </a>
+          </div>
+        </div>
+
         <div class="p-3.5 rounded-xl border border-forest/20 bg-forest/5 space-y-3">
           <div class="flex items-center justify-between">
             <h3 class="text-xs font-bold text-jetblack flex items-center gap-1.5">
@@ -305,6 +363,33 @@ onMounted(() => {
           </button>
         </div>
 
+        <!-- Xendit Demo Checkout Route Path Copy -->
+        <div
+          class="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-blue-50/70 border border-blue-500/20 text-xs"
+        >
+          <div class="font-mono text-jetblack/80 truncate">
+            <span class="text-blue-600 font-bold select-none mr-1">Route Path Demo:</span>
+            <span>/demo/checkout/fastmail-ai?gateway=xendit</span>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              @click="copyXenditDemoUrl"
+              class="px-2.5 py-1 rounded bg-jetblack hover:bg-jetblack/80 text-white text-[11px] font-bold transition cursor-pointer"
+            >
+              {{ copiedXenditDemo ? "Tersalin!" : "Salin URL" }}
+            </button>
+            <a
+              href="/demo/checkout/fastmail-ai?gateway=xendit"
+              target="_blank"
+              class="px-2.5 py-1 rounded border border-jetblack/20 hover:bg-white text-jetblack text-[11px] font-bold transition inline-flex items-center gap-1 cursor-pointer"
+            >
+              <span>Buka</span>
+              <ExternalLink class="w-3 h-3" />
+            </a>
+          </div>
+        </div>
+
         <div class="p-3.5 rounded-xl border border-blue-600/20 bg-blue-50/50 space-y-3">
           <div class="flex items-center justify-between">
             <h3 class="text-xs font-bold text-jetblack flex items-center gap-1.5">
@@ -379,6 +464,33 @@ onMounted(() => {
           >
             {{ copiedXenithWebhook ? "Tersalin!" : "Salin" }}
           </button>
+        </div>
+
+        <!-- XenithPay Demo Checkout Route Path Copy -->
+        <div
+          class="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-500/20 text-xs"
+        >
+          <div class="font-mono text-jetblack/80 truncate">
+            <span class="text-emerald-700 font-bold select-none mr-1">Route Path Demo:</span>
+            <span>/demo/checkout/fastmail-ai?gateway=xenith</span>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              @click="copyXenithDemoUrl"
+              class="px-2.5 py-1 rounded bg-jetblack hover:bg-jetblack/80 text-white text-[11px] font-bold transition cursor-pointer"
+            >
+              {{ copiedXenithDemo ? "Tersalin!" : "Salin URL" }}
+            </button>
+            <a
+              href="/demo/checkout/fastmail-ai?gateway=xenith"
+              target="_blank"
+              class="px-2.5 py-1 rounded border border-jetblack/20 hover:bg-white text-jetblack text-[11px] font-bold transition inline-flex items-center gap-1 cursor-pointer"
+            >
+              <span>Buka</span>
+              <ExternalLink class="w-3 h-3" />
+            </a>
+          </div>
         </div>
 
         <div class="p-3.5 rounded-xl border border-emerald-600/20 bg-emerald-50/40 space-y-3">

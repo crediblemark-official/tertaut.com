@@ -117,7 +117,7 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true, standalone: true },
   },
   {
-    path: "/panel",
+    path: "/panel/:tab?",
     name: "admin-panel",
     component: () => import("../views/AdminPanelView.vue"),
     meta: { requiresAuth: true, standalone: true },

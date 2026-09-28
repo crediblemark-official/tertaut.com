@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { api } from "../lib/api";
 import type { PanelStats, PanelBuilderItem, PanelTransactionItem } from "../types/panel";
 import { authClient } from "../lib/auth";
@@ -27,6 +27,7 @@ import GlobalLedgerTable from "../components/admin/GlobalLedgerTable.vue";
 import SystemTelemetryCard from "../components/admin/SystemTelemetryCard.vue";
 import PlatformSettingsCard from "../components/admin/PlatformSettingsCard.vue";
 
+const route = useRoute();
 const router = useRouter();
 const session = authClient.useSession();
 const adminName = computed(() => session.value?.data?.user?.name || "Administrator");
@@ -38,7 +39,22 @@ const builders = ref<PanelBuilderItem[]>([]);
 const transactions = ref<PanelTransactionItem[]>([]);
 const loading = ref(true);
 const refreshing = ref(false);
-const activeTab = ref<"overview" | "builders" | "ledger" | "system" | "settings">("overview");
+
+const VALID_TABS = ["overview", "builders", "ledger", "system", "settings"] as const;
+type TabType = (typeof VALID_TABS)[number];
+
+const activeTab = computed<TabType>({
+  get() {
+    const t = String(route.params.tab || "").toLowerCase() as TabType;
+    return VALID_TABS.includes(t) ? t : "overview";
+  },
+  set(newTab) {
+    const target = newTab === "overview" ? "/panel" : `/panel/${newTab}`;
+    if (route.path !== target) {
+      router.push(target);
+    }
+  },
+});
 
 // Search & Filters
 const txStatusFilter = ref<string>("");
