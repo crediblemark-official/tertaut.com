@@ -4,9 +4,9 @@ import { app } from "../../index";
 import { db } from "../../db";
 import { apps, transactions, licenses, platformSettings, builders } from "../../db/schema";
 import { eq } from "drizzle-orm";
-import { XenditService } from "../../services/xendit";
-import { getActivePaymentGateway } from "../../services/paymentGateway";
-import { xenditGateway } from "../../services/gateways/xenditGateway";
+import { XenditService } from "../../services/payments/xendit";
+import { getActivePaymentGateway } from "../../services/payments/paymentGateway";
+import { xenditGateway } from "../../services/payments/gateways/xenditGateway";
 
 describe("Multi-Payment Gateway Integration (DANA & Xendit)", () => {
   setupTestAuth();

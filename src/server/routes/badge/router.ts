@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { db } from "../../db";
 import { apps, licenses } from "../../db/schema";
 import { eq } from "drizzle-orm";
-import { LaunchService } from "../../services/launchService";
+import { LaunchService } from "../../services/monetization/launchService";
 
 export const badgeRoutes = new Elysia({ prefix: "/badge" })
   /**

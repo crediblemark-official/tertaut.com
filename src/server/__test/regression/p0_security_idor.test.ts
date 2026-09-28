@@ -5,7 +5,7 @@ import { db } from "../../db";
 import { apps, builders, licenses, coupons } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
-import { LicenseService } from "../../services/license";
+import { LicenseService } from "../../services/licensing/license";
 import { createPollTicket } from "../../utils/pollTicket";
 
 describe("P0 Security & IDOR Regression Tests", () => {

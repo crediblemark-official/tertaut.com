@@ -9,7 +9,7 @@ import {
   type KeyObject,
 } from "crypto";
 import { existsSync, writeFileSync, mkdirSync } from "fs";
-import { config, cleanPemKey } from "../config";
+import { config, cleanPemKey } from "../../config";
 
 export interface LicenseTokenClaims {
   typ: "license";

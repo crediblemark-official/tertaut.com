@@ -1,8 +1,8 @@
 import { describe, it, expect, spyOn } from "bun:test";
-import { CryptoService } from "../../services/crypto";
-import { LicenseService } from "../../services/license";
-import { LicenseTokenService } from "../../services/licenseToken";
-import { DanaService } from "../../services/dana";
+import { CryptoService } from "../../services/security/crypto";
+import { LicenseService } from "../../services/licensing/license";
+import { LicenseTokenService } from "../../services/licensing/licenseToken";
+import { DanaService } from "../../services/payments/dana/dana";
 
 describe("CryptoService (AES-256-GCM & JWT Tokens)", () => {
   it("should encrypt and decrypt string accurately using AES-256-GCM", () => {

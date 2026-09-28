@@ -24,9 +24,9 @@ import {
   creditLedger,
 } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
-import { LicenseService } from "../../services/license";
-import { LicenseTokenService } from "../../services/licenseToken";
-import { CreditService } from "../../services/credits";
+import { LicenseService } from "../../services/licensing/license";
+import { LicenseTokenService } from "../../services/licensing/licenseToken";
+import { CreditService } from "../../services/monetization/credits";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
 import {
   handleActivateLicense,
@@ -35,9 +35,9 @@ import {
 } from "../../routes/licensing/device";
 import { fulfillPaymentTransaction } from "../../routes/webhook/fulfill";
 import { handleDisburse } from "../../routes/apps/disburse";
-import { DanaService } from "../../services/dana";
+import { DanaService } from "../../services/payments/dana/dana";
 import { config } from "../../config";
-import { danaGateway } from "../../services/gateways/danaGateway";
+import { danaGateway } from "../../services/payments/gateways/danaGateway";
 
 setupTestAuth();
 
@@ -451,7 +451,7 @@ describe("Regression #6: handleListSeats leaseActive konsisten dengan status lea
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Regression #7: acquire() dengan lookupHashes mengenali lease legacy (tanpa duplikat)", () => {
   it("lease legacy di-update, bukan dibuat baris kedua", async () => {
-    const { LicenseLeaseService } = await import("../../services/licenseLease");
+    const { LicenseLeaseService } = await import("../../services/licensing/licenseLease");
     const { app: a } = await seedBuilderApp();
     const issued = await LicenseService.issueDirect({
       appId: a.id,

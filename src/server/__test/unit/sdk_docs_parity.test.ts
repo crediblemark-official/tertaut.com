@@ -146,9 +146,9 @@ describe("Docs parity: @tertaut/sdk ↔ docs/sdk.md", () => {
       GATEWAY_IDS,
       GATEWAY_REGISTRY,
       GATEWAY_LIST,
-    } = require("../../../../src/server/services/gateways/registry");
+    } = require("../../../../src/server/services/payments/gateways/registry");
     const doc = readFileSync(SDK_DOC, "utf8");
-    const adapterModule = require("../../../../src/server/services/gateways/index");
+    const adapterModule = require("../../../../src/server/services/payments/gateways/index");
 
     expect(GATEWAY_IDS.length).toBeGreaterThan(0);
     for (const id of GATEWAY_IDS) {

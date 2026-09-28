@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { CryptoService } from "../../services/crypto";
+import { CryptoService } from "../../services/security/crypto";
 
 describe("Unit Tests - CryptoService", () => {
   it("should handle key derivation branches properly", () => {

@@ -2,7 +2,7 @@ import { db } from "../../db";
 import { webhookEndpoints, webhookDeliveries, builders } from "../../db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
-import { WebhookService, WEBHOOK_EVENTS } from "../../services/webhooks";
+import { WebhookService, WEBHOOK_EVENTS } from "../../services/notifications/webhooks";
 import { resolveCurrentBuilder } from "../apps/builder";
 
 /**

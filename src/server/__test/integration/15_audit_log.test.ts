@@ -2,8 +2,8 @@ import { describe, it, expect } from "bun:test";
 import { setupTestAuth } from "../setup";
 import { db } from "../../db";
 import { apps, builders } from "../../db/schema";
-import { LicenseService } from "../../services/license";
-import { AuditService } from "../../services/audit";
+import { LicenseService } from "../../services/licensing/license";
+import { AuditService } from "../../services/security/audit";
 import { generateBuilderSecretApiKey, generateAppApiKey } from "../../routes/apps/api-key";
 
 setupTestAuth();

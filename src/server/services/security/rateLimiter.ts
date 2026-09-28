@@ -1,4 +1,4 @@
-import { getClientIp } from "../lib/ip";
+import { getClientIp } from "../../lib/ip";
 
 /**
  * Rate limiter sederhana berbasis in-memory sliding window.

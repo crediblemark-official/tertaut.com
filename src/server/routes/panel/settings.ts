@@ -7,7 +7,7 @@ import {
   GATEWAY_IDS,
   allCredentialKeys,
   normalizeGatewayId,
-} from "../../services/gateways/registry";
+} from "../../services/payments/gateways/registry";
 
 const DEFAULT_SETTINGS: Record<string, string> = {
   platform_fee_percent: "5",

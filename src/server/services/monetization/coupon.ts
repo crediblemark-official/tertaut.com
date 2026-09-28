@@ -1,5 +1,5 @@
-import { db } from "../db";
-import { coupons, type Coupon } from "../db/schema";
+import { db } from "../../db";
+import { coupons, type Coupon } from "../../db/schema";
 import { and, eq, isNull, sql } from "drizzle-orm";
 
 export interface CouponValidationResult {

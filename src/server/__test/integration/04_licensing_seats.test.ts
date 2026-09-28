@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { setupTestAuth } from "../setup";
-import { LicenseService } from "../../services/license";
-import { LicenseTokenService } from "../../services/licenseToken";
+import { LicenseService } from "../../services/licensing/license";
+import { LicenseTokenService } from "../../services/licensing/licenseToken";
 import { Tertaut } from "../../../../packages/sdk/src/index";
 import { db } from "../../db";
 import { licenses, licenseActivations, revokedTokens } from "../../db/schema";

@@ -2,8 +2,8 @@ import { randomBytes } from "crypto";
 import { db } from "../../db";
 import { transactions, licenses, revokedTokens, apps, licenseEvents } from "../../db/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { LicenseService } from "../../services/license";
-import { NotifierService } from "../../services/notifier";
+import { LicenseService } from "../../services/licensing/license";
+import { NotifierService } from "../../services/notifications/notifier";
 
 /**
  * Endpoint Admin: Memproses Pengembalian Dana (Refund) dan Auto-Revoke Lisensi

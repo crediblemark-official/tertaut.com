@@ -9,7 +9,7 @@ import {
   handleGetBySlug,
 } from "../../routes/apps/queries";
 import { resolveCurrentBuilder, seedSandboxBuilderIfNeeded } from "../../routes/apps/builder";
-import { DanaService } from "../../services/dana";
+import { DanaService } from "../../services/payments/dana/dana";
 import { db } from "../../db";
 import { apps, builders, transactions, coupons } from "../../db/schema";
 import { eq } from "drizzle-orm";

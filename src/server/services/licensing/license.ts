@@ -1,13 +1,13 @@
 import { randomBytes, createHash, createHmac } from "crypto";
-import { db } from "../db";
-import { licenses, apps, revokedTokens } from "../db/schema";
+import { db } from "../../db";
+import { licenses, apps, revokedTokens } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { LicenseTokenService } from "./licenseToken";
-import { EmailService } from "./email";
-import { CreditService } from "./credits";
-import { AuditService } from "./audit";
-import { WebhookService } from "./webhooks";
-import { config } from "../config";
+import { EmailService } from "../notifications/email";
+import { CreditService } from "../monetization/credits";
+import { AuditService } from "../security/audit";
+import { WebhookService } from "../notifications/webhooks";
+import { config } from "../../config";
 
 /** Prefix penanda hash HWID versi salted (HMAC). Data lama tanpa prefix = legacy. */
 const HWID_SECURE_PREFIX = "hw2:";

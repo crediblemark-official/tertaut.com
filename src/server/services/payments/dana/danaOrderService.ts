@@ -1,8 +1,8 @@
-import { config, cleanPemKey } from "../config";
+import { config, cleanPemKey } from "../../../config";
 import { randomBytes } from "crypto";
 import QRCode from "qrcode";
-import { db } from "../db";
-import { platformSettings } from "../db/schema/settings";
+import { db } from "../../../db";
+import { platformSettings } from "../../../db/schema/settings";
 import { inArray } from "drizzle-orm";
 import {
   getDanaPaymentGateway,

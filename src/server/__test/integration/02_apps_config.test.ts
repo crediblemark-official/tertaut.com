@@ -1,8 +1,8 @@
 import { describe, it, expect } from "bun:test";
 import { setupTestAuth } from "../setup";
-import { DanaService } from "../../services/dana";
-import { LicenseService } from "../../services/license";
-import { LicenseTokenService } from "../../services/licenseToken";
+import { DanaService } from "../../services/payments/dana/dana";
+import { LicenseService } from "../../services/licensing/license";
+import { LicenseTokenService } from "../../services/licensing/licenseToken";
 
 setupTestAuth();
 

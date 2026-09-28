@@ -11,7 +11,7 @@
 import { db } from "../../db";
 import { transactions } from "../../db/schema";
 import { eq } from "drizzle-orm";
-import { enforceRateLimit } from "../../services/rateLimiter";
+import { enforceRateLimit } from "../../services/security/rateLimiter";
 import { fulfillPaymentTransaction } from "./fulfill";
 
 /**
@@ -33,7 +33,7 @@ export async function handleXenithPayWebhook({ request, headers, body, set }: an
   const timestamp = headers["x-xenith-timestamp"] || headers["X-XENITH-TIMESTAMP"];
   const signature = headers["x-xenith-signature"] || headers["X-XENITH-SIGNATURE"];
 
-  const gateway = await import("../../services/gateways").then((m) => m.xenithpayGateway);
+  const gateway = await import("../../services/payments/gateways").then((m) => m.xenithpayGateway);
   const isValid = await gateway.verifyWebhook(
     { "x-xenith-timestamp": timestamp, "x-xenith-signature": signature },
     reqBody,

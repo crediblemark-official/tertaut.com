@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import { AiGatewayService } from "../../services/aiGateway";
-import { CryptoService } from "../../services/crypto";
+import { AiGatewayService } from "../../services/ai/aiGateway";
+import { CryptoService } from "../../services/security/crypto";
 import { db } from "../../db";
 import {
   apps,

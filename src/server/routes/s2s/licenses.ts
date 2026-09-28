@@ -1,10 +1,10 @@
 import { db } from "../../db";
 import { apps, licenses, licenseActivations, licenseLeases } from "../../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { LicenseService } from "../../services/license";
-import { LicenseLeaseService, resolveFloatingConfig } from "../../services/licenseLease";
-import { AuditService } from "../../services/audit";
-import { WebhookService } from "../../services/webhooks";
+import { LicenseService } from "../../services/licensing/license";
+import { LicenseLeaseService, resolveFloatingConfig } from "../../services/licensing/licenseLease";
+import { AuditService } from "../../services/security/audit";
+import { WebhookService } from "../../services/notifications/webhooks";
 import { ownedLicense, ownedApp } from "./helpers";
 
 /**

@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { transactions, builders, apps } from "../../db/schema";
+import { transactions, builders, apps, licenses } from "../../db/schema";
 import { eq, inArray, desc } from "drizzle-orm";
 
 function escapeCsvField(val: unknown): string {
@@ -169,6 +169,128 @@ export async function handleExportBuilders({ set }: any) {
   const dateStr = new Date().toISOString().split("T")[0];
   set.headers["Content-Type"] = "text/csv; charset=utf-8";
   set.headers["Content-Disposition"] = `attachment; filename="tertaut-builders-${dateStr}.csv"`;
+
+  return csv;
+}
+
+/**
+ * Ekspor Direktori Seluruh Software/Aplikasi ke format CSV (RFC 4180 + UTF-8 BOM)
+ */
+export async function handleExportApps({ set }: any) {
+  const allApps = await db.query.apps.findMany({
+    orderBy: [desc(apps.createdAt)],
+  });
+
+  const builderIds = [...new Set(allApps.map((a) => a.builderId))];
+  const builderRows = builderIds.length
+    ? await db.query.builders.findMany({
+        where: inArray(builders.id, builderIds),
+      })
+    : [];
+
+  const builderEmailMap = new Map(builderRows.map((b) => [b.id, b.email]));
+  const builderNameMap = new Map(builderRows.map((b) => [b.id, b.name]));
+
+  const headers = [
+    "ID Software",
+    "Nama Software",
+    "Slug",
+    "Builder",
+    "Email Builder",
+    "Mode",
+    "Status",
+    "Tipe Harga",
+    "Harga (IDR)",
+    "Metode Delivery",
+    "Waktu Dibuat",
+  ];
+
+  let csv = "\uFEFF" + toCsvRow(headers);
+
+  for (const a of allApps) {
+    const delivery = a.deliveryConfig?.licenseKey?.enabled
+      ? "License Key"
+      : a.deliveryConfig?.fileDownload?.enabled
+        ? "File Download"
+        : a.deliveryConfig?.apiAccess?.enabled
+          ? "API Access"
+          : "Other";
+
+    csv += toCsvRow([
+      a.id,
+      a.name,
+      a.slug,
+      builderNameMap.get(a.builderId) || "-",
+      builderEmailMap.get(a.builderId) || "-",
+      a.mode,
+      a.isSuspended ? "SUSPENDED" : "ACTIVE",
+      a.pricingType,
+      a.targetPrice,
+      delivery,
+      a.createdAt.toISOString(),
+    ]);
+  }
+
+  const dateStr = new Date().toISOString().split("T")[0];
+  set.headers["Content-Type"] = "text/csv; charset=utf-8";
+  set.headers["Content-Disposition"] = `attachment; filename="tertaut-apps-${dateStr}.csv"`;
+
+  return csv;
+}
+
+/**
+ * Ekspor Daftar Seluruh Lisensi ke format CSV (RFC 4180 + UTF-8 BOM)
+ */
+export async function handleExportLicenses({ set }: any) {
+  const allLicenses = await db.query.licenses.findMany({
+    orderBy: [desc(licenses.createdAt)],
+    limit: 10000,
+  });
+
+  const appIds = [...new Set(allLicenses.map((l) => l.appId))];
+  const appRows = appIds.length
+    ? await db.query.apps.findMany({
+        where: inArray(apps.id, appIds),
+      })
+    : [];
+
+  const appNameMap = new Map(appRows.map((a) => [a.id, a.name]));
+
+  const headers = [
+    "ID Lisensi",
+    "License Key",
+    "Software",
+    "Email Pelanggan",
+    "Status",
+    "Max Seats",
+    "Platform",
+    "Hardware ID",
+    "Offline Grace Token",
+    "Kedaluwarsa",
+    "Waktu Dibuat",
+  ];
+
+  let csv = "\uFEFF" + toCsvRow(headers);
+
+  for (const l of allLicenses) {
+    csv += toCsvRow([
+      l.id,
+      l.licenseKey,
+      appNameMap.get(l.appId) || l.appId,
+      l.customerEmail,
+      l.status,
+      l.maxSeats,
+      l.platform || "general",
+      l.hardwareId || "-",
+      l.offlineJwtGraceToken ? "Ada (30 Hari)" : "Tidak Ada",
+      l.expiresAt ? l.expiresAt.toISOString() : "Seumur Hidup (Lifetime)",
+      l.createdAt.toISOString(),
+    ]);
+  }
+
+  const dateStr = new Date().toISOString().split("T")[0];
+  set.headers["Content-Type"] = "text/csv; charset=utf-8";
+  set.headers["Content-Disposition"] = `attachment; filename="tertaut-licenses-${dateStr}.csv"`;
 
   return csv;
 }

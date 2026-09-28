@@ -1,7 +1,7 @@
 import { db } from "../../db";
 import { aiVaultCredentials, apps } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
-import { CryptoService } from "../../services/crypto";
+import { CryptoService } from "../../services/security/crypto";
 import { resolveCurrentBuilder } from "../apps/builder";
 import { verifyOwnedApp } from "../../lib/ownership";
 

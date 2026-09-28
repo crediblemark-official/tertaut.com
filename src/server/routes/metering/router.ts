@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { db } from "../../db";
 import { licenses, apps, creditLedger } from "../../db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { CreditService } from "../../services/credits";
+import { CreditService } from "../../services/monetization/credits";
 import { resolveCurrentBuilder } from "../apps/builder";
 import { authorizeLicense } from "../licensing/credits";
 

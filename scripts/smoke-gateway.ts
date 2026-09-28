@@ -25,7 +25,7 @@
  *   bun run smoke:gateway dana xendit  # subset
  */
 
-import { getPaymentGateway } from "../src/server/services/gateways";
+import { getPaymentGateway } from "../src/server/services/payments/gateways";
 import { config } from "../src/server/config";
 import { db } from "../src/server/db";
 import { platformSettings } from "../src/server/db/schema/settings";
@@ -33,7 +33,7 @@ import { eq } from "drizzle-orm";
 import type {
   PaymentGatewayAdapter,
   CreateGatewayOrderParams,
-} from "../src/server/services/gateways/types";
+} from "../src/server/services/payments/gateways/types";
 
 // Alat ini wajib melaporkan apa adanya. Di non-produksi, DANA normally
 // memfallback ke order MOCK saat ditolak (kenyamanan developer yang belum

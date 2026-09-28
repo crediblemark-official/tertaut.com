@@ -1,9 +1,9 @@
 import { db } from "../../db";
 import { transactions } from "../../db/schema";
 import { eq, and, or, inArray } from "drizzle-orm";
-import { DanaService } from "../../services/dana";
+import { DanaService } from "../../services/payments/dana/dana";
 import { config } from "../../config";
-import { enforceRateLimit } from "../../services/rateLimiter";
+import { enforceRateLimit } from "../../services/security/rateLimiter";
 import { fulfillPaymentTransaction } from "./fulfill";
 
 /**
@@ -201,7 +201,7 @@ export async function handleDanaFinishPaymentWebhook({ request, headers, body, s
 
     // Jangan menurunkan transaksi yang sudah PAID (webhook telat/duplikat).
     if (tx.couponCode) {
-      const { CouponService } = await import("../../services/coupon");
+      const { CouponService } = await import("../../services/monetization/coupon");
       await CouponService.rollback(tx.couponCode);
     }
 

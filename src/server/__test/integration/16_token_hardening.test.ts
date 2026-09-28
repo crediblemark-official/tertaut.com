@@ -6,8 +6,11 @@ import { db } from "../../db";
 import { apps, builders, revokedTokens } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { config } from "../../config";
-import { LicenseService } from "../../services/license";
-import { LicenseTokenService, CLOCK_SKEW_LEEWAY_SECONDS } from "../../services/licenseToken";
+import { LicenseService } from "../../services/licensing/license";
+import {
+  LicenseTokenService,
+  CLOCK_SKEW_LEEWAY_SECONDS,
+} from "../../services/licensing/licenseToken";
 import { generateAppApiKey } from "../../routes/apps/api-key";
 
 setupTestAuth();

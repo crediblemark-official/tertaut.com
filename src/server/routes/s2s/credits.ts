@@ -1,4 +1,4 @@
-import { CreditService } from "../../services/credits";
+import { CreditService } from "../../services/monetization/credits";
 import { ownedLicense } from "./helpers";
 
 /**

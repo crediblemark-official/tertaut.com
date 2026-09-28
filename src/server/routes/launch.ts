@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { LaunchService } from "../services/launchService";
+import { LaunchService } from "../services/monetization/launchService";
 import { authenticate } from "../middleware/auth";
 import { resolveCurrentBuilder } from "./apps/builder";
 

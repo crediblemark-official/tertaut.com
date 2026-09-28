@@ -1,15 +1,15 @@
 import { db } from "../../db";
 import { apps, transactions, licenses, builders } from "../../db/schema";
 import { eq, inArray, or, and, sql } from "drizzle-orm";
-import { LicenseService } from "../../services/license";
-import { CreditService } from "../../services/credits";
-import { CouponService } from "../../services/coupon";
+import { LicenseService } from "../../services/licensing/license";
+import { CreditService } from "../../services/monetization/credits";
+import { CouponService } from "../../services/monetization/coupon";
 import { config as checkoutConfig, resolveRequestOrigin } from "../../config";
 import QRCode from "qrcode";
 import { randomBytes } from "crypto";
 import { resolveCurrentBuilder } from "../apps/builder";
 import { handleDisburse } from "../apps/disburse";
-import { enforceRateLimit } from "../../services/rateLimiter";
+import { enforceRateLimit } from "../../services/security/rateLimiter";
 import { createPollTicket, verifyPollTicket } from "../../utils/pollTicket";
 import { parsePagination, paginationEnvelope } from "../../lib/pagination";
 
@@ -141,7 +141,7 @@ export async function handleGetPaymentStatus({ params, query, request, set }: an
   if (tx.paymentStatus === "PENDING" && shouldSyncRemote) {
     gatewaySyncThrottleMap.set(tx.id, nowMs);
     try {
-      const { getPaymentGateway } = await import("../../services/gateways");
+      const { getPaymentGateway } = await import("../../services/payments/gateways");
       const gateway = getPaymentGateway(tx.paymentProvider);
       const queryRes = await gateway.queryOrderStatus({
         externalId: tx.xenditExternalId,
@@ -264,7 +264,7 @@ export async function handleConsultPay({ query, request, set }: any) {
     return { error: "Terlalu banyak permintaan. Coba lagi sebentar lagi." };
   }
 
-  const { DanaService } = await import("../../services/dana");
+  const { DanaService } = await import("../../services/payments/dana/dana");
   const amount = Number(query?.amount) || 10000;
   const result = await DanaService.consultPay(amount);
   return {

@@ -2,23 +2,23 @@ import { db } from "../../db";
 import { apps, transactions, licenses, builders } from "../../db/schema";
 import { platformSettings } from "../../db/schema/settings";
 import { eq, and } from "drizzle-orm";
-import { DanaService } from "../../services/dana";
-import { XenditService } from "../../services/xendit";
-import { getActivePaymentGateway } from "../../services/paymentGateway";
-import { getPaymentGateway as getGatewayAdapter } from "../../services/gateways";
+import { DanaService } from "../../services/payments/dana/dana";
+import { XenditService } from "../../services/payments/xendit";
+import { getActivePaymentGateway } from "../../services/payments/paymentGateway";
+import { getPaymentGateway as getGatewayAdapter } from "../../services/payments/gateways";
 import {
   gatewaySupportsRail,
   getGatewayDescriptor as gatewayDescriptor,
   normalizeGatewayId,
   resolveGatewayForRail,
   type GatewayId,
-} from "../../services/gateways/registry";
-import { CouponService } from "../../services/coupon";
-import { LicenseService } from "../../services/license";
-import { CreditService } from "../../services/credits";
-import { EmailService } from "../../services/email";
+} from "../../services/payments/gateways/registry";
+import { CouponService } from "../../services/monetization/coupon";
+import { LicenseService } from "../../services/licensing/license";
+import { CreditService } from "../../services/monetization/credits";
+import { EmailService } from "../../services/notifications/email";
 import { config as checkoutConfig, resolveRequestOrigin } from "../../config";
-import { enforceRateLimit } from "../../services/rateLimiter";
+import { enforceRateLimit } from "../../services/security/rateLimiter";
 import { createPollTicket } from "../../utils/pollTicket";
 import { randomBytes } from "crypto";
 

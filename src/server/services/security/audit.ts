@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto";
-import { db } from "../db";
-import { licenseEvents } from "../db/schema";
+import { db } from "../../db";
+import { licenseEvents } from "../../db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 
 export type AuditActorType = "ADMIN" | "BUILDER" | "S2S" | "SYSTEM" | "CLIENT";

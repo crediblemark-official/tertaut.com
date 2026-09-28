@@ -2,11 +2,26 @@ import { Elysia, t } from "elysia";
 import { authenticate } from "../../middleware/auth";
 import { handlePanelStats } from "./stats";
 import { handlePanelBuilders } from "./builders";
+import { handlePanelApps } from "./apps";
+import { handlePanelLicenses, handleRevokeLicense, handleReactivateLicense } from "./licenses";
+import {
+  handlePanelCoupons,
+  handleCreateGlobalCoupon,
+  handleToggleCoupon,
+  handleDeleteCoupon,
+} from "./coupons";
+import { handlePanelAuditLogs } from "./audit";
+import { handlePanelUsers, handleUpdateUserRole, handleToggleUserBan } from "./users";
 import { handlePanelTransactions } from "./transactions";
 import { handleBatchPayout } from "./payouts";
 import { handleRefundTransaction } from "./refund";
 import { handleToggleSuspendBuilder, handleToggleSuspendApp } from "./moderation";
-import { handleExportTransactions, handleExportBuilders } from "./export";
+import {
+  handleExportTransactions,
+  handleExportBuilders,
+  handleExportApps,
+  handleExportLicenses,
+} from "./export";
 import { handleGetPlatformSettings, handleUpdatePlatformSettings } from "./settings";
 
 export const panelRoutes = new Elysia({ prefix: "/panel" })
@@ -34,6 +49,136 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
       summary: "List Builders & Bank Accounts",
       description:
         "Returns all registered builders, their apps count, bank disbursement accounts, and earnings",
+    },
+  })
+
+  /**
+   * Direktori Semua Software / Aplikasi
+   */
+  .get("/apps", handlePanelApps, {
+    query: t.Object({
+      limit: t.Optional(t.Numeric({ default: 100 })),
+      mode: t.Optional(t.String()),
+      status: t.Optional(t.String()),
+    }),
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "List All Software / Applications",
+    },
+  })
+
+  /**
+   * Manajemen Lisensi Global
+   */
+  .get("/licenses", handlePanelLicenses, {
+    query: t.Object({
+      limit: t.Optional(t.Numeric({ default: 100 })),
+      status: t.Optional(t.String()),
+      search: t.Optional(t.String()),
+    }),
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "List All Software Licenses",
+    },
+  })
+  .post("/licenses/:id/revoke", handleRevokeLicense, {
+    body: t.Optional(
+      t.Object({
+        reason: t.Optional(t.String()),
+      })
+    ),
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Revoke Software License",
+    },
+  })
+  .post("/licenses/:id/reactivate", handleReactivateLicense, {
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Reactivate Revoked License",
+    },
+  })
+
+  /**
+   * Kupon Diskon Global & Platform
+   */
+  .get("/coupons", handlePanelCoupons, {
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "List All Discount Coupons",
+    },
+  })
+  .post("/coupons", handleCreateGlobalCoupon, {
+    body: t.Object({
+      code: t.String(),
+      discountPercent: t.Numeric(),
+      maxRedemptions: t.Optional(t.Numeric()),
+      expiresAt: t.Optional(t.String()),
+      appId: t.Optional(t.Nullable(t.String())),
+    }),
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Create Global Platform Discount Coupon",
+    },
+  })
+  .patch("/coupons/:id/toggle", handleToggleCoupon, {
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Toggle Coupon Active State",
+    },
+  })
+  .delete("/coupons/:id", handleDeleteCoupon, {
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Delete Discount Coupon",
+    },
+  })
+
+  /**
+   * Audit Trail & System Event Logs
+   */
+  .get("/audit-logs", handlePanelAuditLogs, {
+    query: t.Object({
+      limit: t.Optional(t.Numeric({ default: 100 })),
+      actorType: t.Optional(t.String()),
+      event: t.Optional(t.String()),
+    }),
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Platform Security & Operations Audit Logs",
+    },
+  })
+
+  /**
+   * Manajemen Pengguna & Hak Akses
+   */
+  .get("/users", handlePanelUsers, {
+    query: t.Object({
+      limit: t.Optional(t.Numeric({ default: 100 })),
+    }),
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "List All Registered Platform Users",
+    },
+  })
+  .post("/users/:userId/role", handleUpdateUserRole, {
+    body: t.Object({
+      role: t.String(),
+    }),
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Update User Role (Admin / Builder / User)",
+    },
+  })
+  .post("/users/:userId/toggle-ban", handleToggleUserBan, {
+    body: t.Optional(
+      t.Object({
+        reason: t.Optional(t.String()),
+      })
+    ),
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Toggle Ban / Unban User Account",
     },
   })
 
@@ -113,6 +258,26 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
     detail: {
       tags: ["Admin Panel"],
       summary: "Export Builders Directory to CSV",
+    },
+  })
+
+  /**
+   * Ekspor CSV: Direktori Software
+   */
+  .get("/export/apps", handleExportApps, {
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Export Apps Directory to CSV",
+    },
+  })
+
+  /**
+   * Ekspor CSV: Daftar Lisensi
+   */
+  .get("/export/licenses", handleExportLicenses, {
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Export Licenses to CSV",
     },
   })
 

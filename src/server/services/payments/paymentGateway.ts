@@ -1,5 +1,5 @@
-import { db } from "../db";
-import { platformSettings } from "../db/schema/settings";
+import { db } from "../../db";
+import { platformSettings } from "../../db/schema/settings";
 import { eq } from "drizzle-orm";
 import { DEFAULT_GATEWAY_ID, normalizeGatewayId, type GatewayId } from "./gateways/registry";
 

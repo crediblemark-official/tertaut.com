@@ -7,7 +7,7 @@ import type {
   GatewayDisbursementResponse,
   MorBreakdown,
 } from "./types";
-import { DanaService } from "../dana";
+import { DanaService } from "../dana/dana";
 
 /**
  * DANA Gateway Adapter

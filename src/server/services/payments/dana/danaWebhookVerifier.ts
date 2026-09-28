@@ -1,4 +1,4 @@
-import { config } from "../config";
+import { config } from "../../../config";
 import crypto from "crypto";
 import { WebhookParser } from "dana-node/webhook/v1";
 

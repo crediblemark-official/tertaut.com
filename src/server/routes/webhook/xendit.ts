@@ -1,8 +1,8 @@
 import { db } from "../../db";
 import { transactions, licenses } from "../../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { XenditService } from "../../services/xendit";
-import { enforceRateLimit } from "../../services/rateLimiter";
+import { XenditService } from "../../services/payments/xendit";
+import { enforceRateLimit } from "../../services/security/rateLimiter";
 import { fulfillPaymentTransaction } from "./fulfill";
 
 /**
@@ -135,7 +135,7 @@ export async function handleXenditInvoiceWebhook({ request, headers, body, set }
         .where(and(eq(licenses.transactionId, tx.id), eq(licenses.status, "ACTIVE")));
 
       if (tx.couponCode) {
-        const { CouponService } = await import("../../services/coupon");
+        const { CouponService } = await import("../../services/monetization/coupon");
         await CouponService.rollback(tx.couponCode);
       }
     }

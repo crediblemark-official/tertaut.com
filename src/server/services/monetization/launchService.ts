@@ -1,8 +1,8 @@
-import { db } from "../db";
-import { apps, licenses, coupons } from "../db/schema";
+import { db } from "../../db";
+import { apps, licenses, coupons } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { randomBytes } from "crypto";
-import { config } from "../config";
+import { config } from "../../config";
 
 export interface ConvertToLiveParams {
   campaignId: string;

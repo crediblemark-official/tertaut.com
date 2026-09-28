@@ -15,7 +15,7 @@
  */
 
 import { config } from "../src/server/config";
-import { getDanaPaymentGateway } from "../src/server/services/danaClient";
+import { getDanaPaymentGateway } from "../src/server/services/payments/dana/danaClient";
 import crypto from "crypto";
 
 console.log("\n========================================================");

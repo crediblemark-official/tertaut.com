@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { db } from "../../db";
 import { webhookDeliveries } from "../../db/schema";
-import { WebhookService, WEBHOOK_EVENTS } from "../../services/webhooks";
+import { WebhookService, WEBHOOK_EVENTS } from "../../services/notifications/webhooks";
 
 /**
  * Fase 3 — Kelola webhook endpoint lifecycle lisensi via S2S.

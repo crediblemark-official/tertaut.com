@@ -1,4 +1,4 @@
-import { config, cleanPemKey } from "../config";
+import { config, cleanPemKey } from "../../../config";
 import Dana from "dana-node";
 import { PaymentGatewayApi } from "dana-node/payment_gateway/v1";
 import { DisbursementApi } from "dana-node/disbursement/v1";

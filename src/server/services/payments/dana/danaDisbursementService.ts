@@ -1,5 +1,5 @@
-import { config } from "../config";
-import { calculateMor } from "../utils/payment";
+import { config } from "../../../config";
+import { calculateMor } from "../../../utils/payment";
 import { getDanaDisbursementApi } from "./danaClient";
 
 /**

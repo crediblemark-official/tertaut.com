@@ -3,9 +3,9 @@ import { setupTestAuth } from "../setup";
 import { db } from "../../db";
 import { builders, apps, aiVaultCredentials, aiAppConfigs } from "../../db/schema";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
-import { LicenseService } from "../../services/license";
-import { CryptoService } from "../../services/crypto";
-import { AiGatewayService } from "../../services/aiGateway";
+import { LicenseService } from "../../services/licensing/license";
+import { CryptoService } from "../../services/security/crypto";
+import { AiGatewayService } from "../../services/ai/aiGateway";
 import { handleAiChat } from "../../routes/aiproxy/chat";
 import { eq } from "drizzle-orm";
 

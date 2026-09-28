@@ -1,4 +1,4 @@
-import { AiGatewayService } from "../../services/aiGateway";
+import { AiGatewayService } from "../../services/ai/aiGateway";
 
 /**
  * Cek Status Kuota Penggunaan Token Harian

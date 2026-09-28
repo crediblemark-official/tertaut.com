@@ -1,10 +1,10 @@
 import { randomBytes, createHmac } from "crypto";
-import { db } from "../db";
-import { webhookEndpoints, webhookDeliveries, apps } from "../db/schema";
+import { db } from "../../db";
+import { webhookEndpoints, webhookDeliveries, apps } from "../../db/schema";
 import { eq, and, inArray, lte } from "drizzle-orm";
-import { config } from "../config";
-import type { License } from "../db/schema/licenses";
-import type { App } from "../db/schema/apps";
+import { config } from "../../config";
+import type { License } from "../../db/schema/licenses";
+import type { App } from "../../db/schema/apps";
 
 /**
  * Daftar peristiwa lifecycle lisensi yang dikirimkan ke webhook builder.

@@ -10,7 +10,7 @@
  */
 
 import { config } from "../src/server/config";
-import { getDanaDisbursementApi } from "../src/server/services/danaClient";
+import { getDanaDisbursementApi } from "../src/server/services/payments/dana/danaClient";
 import { v4 as uuidv4 } from "uuid";
 
 console.log("\n========================================================");

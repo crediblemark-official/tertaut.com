@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach } from "bun:test";
-import { resetRateLimits } from "../services/rateLimiter";
+import { resetRateLimits } from "../services/security/rateLimiter";
 import { auth } from "../auth";
 import { createSign } from "crypto";
 import { config, DEFAULT_TEST_SANDBOX_PRIVATE_KEY } from "../config";
@@ -8,7 +8,7 @@ import {
   GATEWAY_IDS,
   normalizeGatewayId,
   type GatewayId,
-} from "../services/gateways/registry";
+} from "../services/payments/gateways/registry";
 
 /**
  * Tanda tangani payload webhook DANA dengan private key yang dikonfigurasi

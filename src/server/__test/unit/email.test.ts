@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { EmailService } from "../../services/email";
+import { EmailService } from "../../services/notifications/email";
 import { config } from "../../config";
 
 describe("Unit Tests - EmailService", () => {

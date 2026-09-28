@@ -1,11 +1,11 @@
 import { db } from "../../db";
 import { transactions, licenses, apps } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
-import { LicenseService } from "../../services/license";
-import { EmailService } from "../../services/email";
-import { CreditService } from "../../services/credits";
-import { WebhookService } from "../../services/webhooks";
-import { AuditService } from "../../services/audit";
+import { LicenseService } from "../../services/licensing/license";
+import { EmailService } from "../../services/notifications/email";
+import { CreditService } from "../../services/monetization/credits";
+import { WebhookService } from "../../services/notifications/webhooks";
+import { AuditService } from "../../services/security/audit";
 import { randomBytes } from "crypto";
 
 async function sendLicenseIssuedEmail(result: any): Promise<void> {
@@ -157,7 +157,7 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
     if (result?.newlyFulfilled) {
       await sendLicenseIssuedEmail(result);
       const app = await db.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
-      const { NotifierService } = await import("../../services/notifier");
+      const { NotifierService } = await import("../../services/notifications/notifier");
       NotifierService.notifyPaymentSuccess({
         transactionId: tx.id,
         appName: app?.name || tx.appId,

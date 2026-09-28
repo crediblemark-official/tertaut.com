@@ -11,7 +11,16 @@ import type {
   WebhookEndpointItem,
 } from "../types/licensing";
 import type { VaultCredentialItem, AiProxyLogItem, AiQuotaStatus } from "../types/aiproxy";
-import type { PanelStats, PanelBuilderItem, PanelTransactionItem } from "../types/panel";
+import type {
+  PanelStats,
+  PanelBuilderItem,
+  PanelTransactionItem,
+  PanelAppItem,
+  PanelLicenseItem,
+  PanelCouponItem,
+  PanelAuditLogItem,
+  PanelUserItem,
+} from "../types/panel";
 import type { CouponItem } from "../types/coupon";
 export type {
   AppItem,
@@ -882,6 +891,195 @@ export const api = {
     const res = await apiFetch(`/api/v1/panel/apps/${appId}/toggle-suspend`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+    });
+    return parseJson(res);
+  },
+
+  async getPanelApps(
+    limit = 100,
+    mode?: string,
+    status?: string
+  ): Promise<{
+    success: boolean;
+    total: number;
+    apps: PanelAppItem[];
+    error?: string;
+  }> {
+    const query = new URLSearchParams();
+    if (limit) query.append("limit", limit.toString());
+    if (mode) query.append("mode", mode);
+    if (status) query.append("status", status);
+    const res = await apiFetch(`/api/v1/panel/apps?${query.toString()}`);
+    return parseJson(res);
+  },
+
+  async getPanelLicenses(
+    limit = 100,
+    status?: string,
+    search?: string
+  ): Promise<{
+    success: boolean;
+    total: number;
+    licenses: PanelLicenseItem[];
+    error?: string;
+  }> {
+    const query = new URLSearchParams();
+    if (limit) query.append("limit", limit.toString());
+    if (status) query.append("status", status);
+    if (search) query.append("search", search);
+    const res = await apiFetch(`/api/v1/panel/licenses?${query.toString()}`);
+    return parseJson(res);
+  },
+
+  async revokePanelLicense(
+    licenseId: string,
+    reason?: string
+  ): Promise<{
+    success: boolean;
+    licenseId: string;
+    status: string;
+    message: string;
+    error?: string;
+  }> {
+    const res = await apiFetch(`/api/v1/panel/licenses/${licenseId}/revoke`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    });
+    return parseJson(res);
+  },
+
+  async reactivatePanelLicense(licenseId: string): Promise<{
+    success: boolean;
+    licenseId: string;
+    status: string;
+    message: string;
+    error?: string;
+  }> {
+    const res = await apiFetch(`/api/v1/panel/licenses/${licenseId}/reactivate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    return parseJson(res);
+  },
+
+  async getPanelCoupons(): Promise<{
+    success: boolean;
+    total: number;
+    coupons: PanelCouponItem[];
+    error?: string;
+  }> {
+    const res = await apiFetch("/api/v1/panel/coupons");
+    return parseJson(res);
+  },
+
+  async createGlobalCoupon(data: {
+    code: string;
+    discountPercent: number;
+    maxRedemptions?: number;
+    expiresAt?: string;
+    appId?: string | null;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    coupon?: PanelCouponItem;
+    error?: string;
+  }> {
+    const res = await apiFetch("/api/v1/panel/coupons", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return parseJson(res);
+  },
+
+  async togglePanelCoupon(couponId: string): Promise<{
+    success: boolean;
+    isActive: boolean;
+    message: string;
+    error?: string;
+  }> {
+    const res = await apiFetch(`/api/v1/panel/coupons/${couponId}/toggle`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+    });
+    return parseJson(res);
+  },
+
+  async deletePanelCoupon(couponId: string): Promise<{
+    success: boolean;
+    message: string;
+    error?: string;
+  }> {
+    const res = await apiFetch(`/api/v1/panel/coupons/${couponId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+    });
+    return parseJson(res);
+  },
+
+  async getPanelAuditLogs(
+    limit = 100,
+    actorType?: string,
+    event?: string
+  ): Promise<{
+    success: boolean;
+    total: number;
+    logs: PanelAuditLogItem[];
+    error?: string;
+  }> {
+    const query = new URLSearchParams();
+    if (limit) query.append("limit", limit.toString());
+    if (actorType) query.append("actorType", actorType);
+    if (event) query.append("event", event);
+    const res = await apiFetch(`/api/v1/panel/audit-logs?${query.toString()}`);
+    return parseJson(res);
+  },
+
+  async getPanelUsers(limit = 100): Promise<{
+    success: boolean;
+    total: number;
+    users: PanelUserItem[];
+    error?: string;
+  }> {
+    const query = new URLSearchParams();
+    if (limit) query.append("limit", limit.toString());
+    const res = await apiFetch(`/api/v1/panel/users?${query.toString()}`);
+    return parseJson(res);
+  },
+
+  async updateUserRole(
+    userId: string,
+    role: string
+  ): Promise<{
+    success: boolean;
+    userId: string;
+    role: string;
+    message: string;
+    error?: string;
+  }> {
+    const res = await apiFetch(`/api/v1/panel/users/${userId}/role`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    });
+    return parseJson(res);
+  },
+
+  async toggleUserBan(
+    userId: string,
+    reason?: string
+  ): Promise<{
+    success: boolean;
+    userId: string;
+    banned: boolean;
+    message: string;
+    error?: string;
+  }> {
+    const res = await apiFetch(`/api/v1/panel/users/${userId}/toggle-ban`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
     });
     return parseJson(res);
   },

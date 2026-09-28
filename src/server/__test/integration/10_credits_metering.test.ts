@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { setupTestAuth, authCookie } from "../setup";
-import { CreditService } from "../../services/credits";
-import { LicenseService } from "../../services/license";
+import { CreditService } from "../../services/monetization/credits";
+import { LicenseService } from "../../services/licensing/license";
 import { db } from "../../db";
 import { apps, licenses, transactions, creditLedger } from "../../db/schema";
 import { eq } from "drizzle-orm";

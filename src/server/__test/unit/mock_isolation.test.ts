@@ -15,7 +15,7 @@
 
 import { describe, it, expect, afterEach } from "bun:test";
 import { readFileSync } from "fs";
-import { DanaService } from "../../services/dana";
+import { DanaService } from "../../services/payments/dana/dana";
 import { config, DEFAULT_TEST_SANDBOX_PRIVATE_KEY } from "../../config";
 
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;

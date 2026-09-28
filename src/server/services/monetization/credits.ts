@@ -1,7 +1,7 @@
 import { eq, and, desc, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
-import { db } from "../db";
-import { creditLedger, licenses } from "../db/schema";
+import { db } from "../../db";
+import { creditLedger, licenses } from "../../db/schema";
 
 export interface CreditContext {
   licenseId: string;

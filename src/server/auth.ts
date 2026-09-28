@@ -4,7 +4,7 @@ import { admin } from "better-auth/plugins";
 import { db } from "./db";
 import { config } from "./config";
 import { user, session, account, verification } from "./db/schema";
-import { EmailService } from "./services/email";
+import { EmailService } from "./services/notifications/email";
 
 const trustedOrigins = [
   "http://localhost:5173",

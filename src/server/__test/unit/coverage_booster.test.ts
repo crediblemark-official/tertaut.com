@@ -15,10 +15,10 @@ import {
 import { resolveCurrentBuilder, seedSandboxBuilderIfNeeded } from "../../routes/apps/builder";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
 import { auth } from "../../auth";
-import { enforceRateLimit, resetRateLimits } from "../../services/rateLimiter";
-import { LicenseLeaseService } from "../../services/licenseLease";
-import { LicenseService } from "../../services/license";
-import { DanaService } from "../../services/dana";
+import { enforceRateLimit, resetRateLimits } from "../../services/security/rateLimiter";
+import { LicenseLeaseService } from "../../services/licensing/licenseLease";
+import { LicenseService } from "../../services/licensing/license";
+import { DanaService } from "../../services/payments/dana/dana";
 import {
   handleListSeats,
   handleHeartbeat,

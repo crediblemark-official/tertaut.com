@@ -6,7 +6,7 @@ import {
   createHash,
   timingSafeEqual,
 } from "crypto";
-import { config } from "../config";
+import { config } from "../../config";
 
 /**
  * Service enkripsi & keamanan tertaut.com

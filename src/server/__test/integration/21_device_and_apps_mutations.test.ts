@@ -15,7 +15,7 @@ import {
   handleHeartbeat,
 } from "../../routes/licensing/device";
 import { handleAiChat } from "../../routes/aiproxy/chat";
-import { LicenseService } from "../../services/license";
+import { LicenseService } from "../../services/licensing/license";
 import { db } from "../../db";
 import { apps, builders, licenses, aiVaultCredentials, aiAppConfigs } from "../../db/schema";
 import { eq } from "drizzle-orm";
@@ -283,7 +283,7 @@ describe("Device Seat Ops, App Mutations, and AI Chat Guardrails", () => {
     expect(killSwitchRes.error).toBe("AI_KILL_SWITCH_ACTIVE");
 
     // 3. Deactivate kill switch and test successful chat in sandbox
-    const { CryptoService } = await import("../../services/crypto");
+    const { CryptoService } = await import("../../services/security/crypto");
     const enc = CryptoService.encrypt("mock-openai-key");
     await db
       .update(aiVaultCredentials)

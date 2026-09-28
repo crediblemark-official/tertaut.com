@@ -1,5 +1,5 @@
 import { xenditGateway } from "./gateways/xenditGateway";
-import { config } from "../config";
+import { config } from "../../config";
 
 export interface CreateXenditOrderParams {
   externalId: string;

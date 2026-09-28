@@ -3,8 +3,8 @@ import { setupTestAuth } from "../setup";
 import { db } from "../../db";
 import { apps, licenses, builders } from "../../db/schema";
 import { eq } from "drizzle-orm";
-import { LicenseService } from "../../services/license";
-import { LicenseTokenService } from "../../services/licenseToken";
+import { LicenseService } from "../../services/licensing/license";
+import { LicenseTokenService } from "../../services/licensing/licenseToken";
 import { Tertaut } from "../../../../packages/sdk/src";
 
 setupTestAuth();

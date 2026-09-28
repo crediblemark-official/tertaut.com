@@ -1,8 +1,8 @@
 import { db } from "../../db";
 import { transactions, builders, apps } from "../../db/schema";
 import { eq, and, inArray, desc, sql } from "drizzle-orm";
-import { DanaService } from "../../services/dana";
-import { getActiveGateway } from "../../services/gateways";
+import { DanaService } from "../../services/payments/dana/dana";
+import { getActiveGateway } from "../../services/payments/gateways";
 import { config } from "../../config";
 
 /**
@@ -159,7 +159,7 @@ export async function handleBatchPayout() {
 
   const successfulCount = results.filter((r) => r.status === "SUCCESS").length;
   if (totalDisbursedAmount > 0) {
-    const { NotifierService } = await import("../../services/notifier");
+    const { NotifierService } = await import("../../services/notifications/notifier");
     NotifierService.notifyBatchPayout({
       builderCount: successfulCount,
       transactionCount: results.reduce((acc, r) => acc + (r.status === "SUCCESS" ? 1 : 0), 0),

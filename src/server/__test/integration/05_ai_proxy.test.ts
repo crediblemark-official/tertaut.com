@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { setupTestAuth } from "../setup";
-import { CryptoService } from "../../services/crypto";
-import { AiGatewayService } from "../../services/aiGateway";
+import { CryptoService } from "../../services/security/crypto";
+import { AiGatewayService } from "../../services/ai/aiGateway";
 import { db } from "../../db";
 import { licenses, aiAppConfigs, aiUsageLogs, aiVaultCredentials } from "../../db/schema";
 import { eq, inArray } from "drizzle-orm";

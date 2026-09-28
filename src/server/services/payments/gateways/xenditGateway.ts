@@ -8,9 +8,9 @@ import type {
   GatewayDisbursementResponse,
   MorBreakdown,
 } from "./types";
-import { config } from "../../config";
-import { db } from "../../db";
-import { platformSettings } from "../../db/schema/settings";
+import { config } from "../../../config";
+import { db } from "../../../db";
+import { platformSettings } from "../../../db/schema/settings";
 import { eq } from "drizzle-orm";
 
 /**
@@ -74,7 +74,7 @@ function toXenditPayoutChannel(bankCode: string): { code: string; isEWallet: boo
   return { code: ID_PAYOUT_PREFIX + bare, isEWallet: ID_EWALLETS.has(bare) };
 }
 import QRCode from "qrcode";
-import { calculateMor } from "../../utils/payment";
+import { calculateMor } from "../../../utils/payment";
 
 /**
  * Xendit Gateway Adapter

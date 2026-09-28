@@ -61,6 +61,7 @@ export async function handlePanelBuilders() {
       id: b.id,
       name: b.name,
       email: b.email,
+      isSuspended: b.isSuspended,
       disbursementAccount: b.disbursementAccount || null,
       bankAccount: b.disbursementAccount
         ? {

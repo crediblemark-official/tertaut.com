@@ -86,3 +86,79 @@ export interface PlatformSettingsFormData {
   checkout_mode: string;
   sandbox_mode: string;
 }
+
+export interface PanelAppItem {
+  id: string;
+  name: string;
+  slug: string;
+  builderId: string;
+  builderName: string;
+  builderEmail: string;
+  mode: "sandbox" | "live" | string;
+  isSuspended: boolean;
+  targetPrice: number;
+  pricingType: string;
+  licenseCount: number;
+  totalGMV: number;
+  deliveryType: string;
+  createdAt: string;
+}
+
+export interface PanelLicenseItem {
+  id: string;
+  licenseKey: string;
+  appId: string;
+  appName: string;
+  appSlug: string;
+  builderName: string;
+  builderEmail: string;
+  customerEmail: string;
+  status: "ACTIVE" | "REVOKED" | "EXPIRED" | string;
+  maxSeats: number;
+  usedSeats: number;
+  platform: string;
+  hardwareId: string | null;
+  hasOfflineToken: boolean;
+  expiresAt: string | null;
+  lastValidatedAt: string | null;
+  createdAt: string;
+}
+
+export interface PanelCouponItem {
+  id: string;
+  code: string;
+  appId: string | null;
+  appName: string;
+  appSlug: string | null;
+  isGlobal: boolean;
+  discountPercent: number;
+  maxRedemptions: number;
+  redemptionCount: number;
+  isActive: boolean;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface PanelAuditLogItem {
+  id: string;
+  licenseId: string | null;
+  licenseKey: string | null;
+  appId: string | null;
+  event: string;
+  actorType: "ADMIN" | "BUILDER" | "S2S" | "SYSTEM" | "CLIENT" | string;
+  actorId: string | null;
+  payload: Record<string, any>;
+  ipAddress: string | null;
+  createdAt: string;
+}
+
+export interface PanelUserItem {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  emailVerified: boolean;
+  banned: boolean;
+  banReason: string | null;
+  createdAt: string;
+}

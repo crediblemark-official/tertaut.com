@@ -1,8 +1,8 @@
 import { db } from "../../db";
 import { licenses, revokedTokens } from "../../db/schema";
 import { eq } from "drizzle-orm";
-import { LicenseTokenService } from "../../services/licenseToken";
-import { enforceRateLimit } from "../../services/rateLimiter";
+import { LicenseTokenService } from "../../services/licensing/licenseToken";
+import { enforceRateLimit } from "../../services/security/rateLimiter";
 
 export async function handleVerifyOfflineToken({ body, set, request }: any) {
   const { token } = body;

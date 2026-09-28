@@ -1,8 +1,8 @@
 import { db } from "../../db";
 import { apps, aiVaultCredentials, aiProviderKeys, aiAppConfigs } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
-import { CryptoService } from "../../services/crypto";
-import { AiGatewayService } from "../../services/aiGateway";
+import { CryptoService } from "../../services/security/crypto";
+import { AiGatewayService } from "../../services/ai/aiGateway";
 import { config } from "../../config";
 import { isMockApiKey, callUpstreamNonStreaming, callUpstreamStreamingChunks } from "./upstream";
 

@@ -3,7 +3,7 @@ import { setupTestAuth } from "../setup";
 import { db } from "../../db";
 import { apps, coupons, transactions } from "../../db/schema";
 import { eq } from "drizzle-orm";
-import { danaGateway } from "../../services/gateways/danaGateway";
+import { danaGateway } from "../../services/payments/gateways/danaGateway";
 
 setupTestAuth();
 

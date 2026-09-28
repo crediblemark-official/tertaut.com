@@ -4,8 +4,8 @@ import { db } from "../../db";
 import { builders, apps, licenses, creditLedger, user } from "../../db/schema";
 import { resolveCurrentBuilder, seedSandboxBuilderIfNeeded } from "../../routes/apps/builder";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
-import { LicenseService } from "../../services/license";
-import { CreditService } from "../../services/credits";
+import { LicenseService } from "../../services/licensing/license";
+import { CreditService } from "../../services/monetization/credits";
 import { app } from "../../index";
 import { eq } from "drizzle-orm";
 

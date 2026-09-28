@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { DanaService } from "../../services/dana";
+import { DanaService } from "../../services/payments/dana/dana";
 import { config } from "../../config";
 import { generateKeyPairSync, createSign } from "crypto";
 

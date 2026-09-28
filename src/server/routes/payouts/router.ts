@@ -2,8 +2,8 @@ import { Elysia, t } from "elysia";
 import { db } from "../../db";
 import { transactions, builders, apps } from "../../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { DanaService } from "../../services/dana";
-import { getActiveGateway } from "../../services/gateways";
+import { DanaService } from "../../services/payments/dana/dana";
+import { getActiveGateway } from "../../services/payments/gateways";
 import { config } from "../../config";
 import { authenticate, isAdminUser } from "../../middleware/auth";
 

@@ -33,9 +33,12 @@ import {
 
 const { copied: copiedSdk, copy: writeClipboard } = useClipboard();
 const isMobileMenuOpen = ref(false);
-const router = useRouter();
 const authSession = authClient.useSession();
 const isLoggedIn = computed(() => !!authSession.value?.data?.user);
+const isAdmin = computed(() => {
+  const role = (authSession.value?.data?.user as { role?: string })?.role;
+  return role === "admin";
+});
 
 // Hero Interactive Tabs
 const activeDemoTab = ref<"checkout" | "license" | "ai" | "badge">("checkout");
@@ -1391,7 +1394,7 @@ function copySdkInstall() {
                   >Dashboard Builder</router-link
                 >
               </li>
-              <li>
+              <li v-if="isAdmin">
                 <router-link to="/panel" class="hover:text-jetblack transition"
                   >Admin Panel</router-link
                 >

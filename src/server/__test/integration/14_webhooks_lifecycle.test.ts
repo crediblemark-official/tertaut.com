@@ -4,8 +4,8 @@ import { setupTestAuth } from "../setup";
 import { db } from "../../db";
 import { apps, builders, webhookDeliveries, webhookEndpoints } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
-import { LicenseService } from "../../services/license";
-import { WebhookService } from "../../services/webhooks";
+import { LicenseService } from "../../services/licensing/license";
+import { WebhookService } from "../../services/notifications/webhooks";
 import { generateAppApiKey } from "../../routes/apps/api-key";
 
 setupTestAuth();

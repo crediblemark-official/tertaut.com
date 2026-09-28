@@ -3,7 +3,7 @@ import { apps, transactions, licenses, platformSettings } from "../../db/schema"
 import { eq, desc, count, sql, and, inArray } from "drizzle-orm";
 import { config as appConfig } from "../../config";
 import { resolveCurrentBuilder, seedSandboxBuilderIfNeeded } from "./builder";
-import { getActivePaymentGateway } from "../../services/paymentGateway";
+import { getActivePaymentGateway } from "../../services/payments/paymentGateway";
 
 interface RequestHeadersContext {
   request: { headers: Headers };

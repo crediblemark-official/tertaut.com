@@ -42,6 +42,14 @@ const emit = defineEmits<{
   logout: [];
 }>();
 
+import { authClient } from "../../lib/auth";
+
+const authSession = authClient.useSession();
+const isAdmin = computed(() => {
+  const role = (authSession.value?.data?.user as { role?: string })?.role;
+  return role === "admin";
+});
+
 const route = useRoute();
 const env = dashboardEnv;
 
@@ -100,6 +108,7 @@ const moreBadgeCount = computed(() => props.activeCouponCount);
           <span>{{ env === "sandbox" ? "Sandbox" : "Live" }}</span>
         </button>
         <router-link
+          v-if="isAdmin"
           to="/panel"
           class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-jetblack/5 hover:bg-jetblack/10 text-jetblack text-xs flex items-center justify-center transition"
           title="Super Admin Panel"
@@ -345,6 +354,7 @@ const moreBadgeCount = computed(() => props.activeCouponCount);
           </div>
         </router-link>
         <router-link
+          v-if="isAdmin"
           to="/panel"
           @click="emit('close-more')"
           class="flex items-center gap-2.5 p-3 rounded-xl border border-jetblack/10 bg-jetblack/[0.02] text-jetblack/80 hover:bg-jetblack/5 transition text-left cursor-pointer active:scale-95"

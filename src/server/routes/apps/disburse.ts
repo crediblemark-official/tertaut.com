@@ -2,12 +2,12 @@ import { db } from "../../db";
 import { apps, transactions, builders } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { resolveCurrentBuilder } from "./builder";
-import { getActiveGateway } from "../../services/gateways";
+import { getActiveGateway } from "../../services/payments/gateways";
 import {
   DEFAULT_GATEWAY_ID,
   getGatewayDescriptor as gatewayDescriptor,
-} from "../../services/gateways/registry";
-import { DanaService } from "../../services/dana";
+} from "../../services/payments/gateways/registry";
+import { DanaService } from "../../services/payments/dana/dana";
 import { config } from "../../config";
 
 /**
@@ -53,7 +53,7 @@ export async function handleDisburse({
   // Di test kita kunci ke gateway default agar deterministik; nama gateway
   // diambil dari registry, bukan ditulis literal.
   const gateway = config.isTest
-    ? (await import("../../services/gateways")).getPaymentGateway(DEFAULT_GATEWAY_ID)
+    ? (await import("../../services/payments/gateways")).getPaymentGateway(DEFAULT_GATEWAY_ID)
     : await getActiveGateway();
 
   // Hanya gateway yang mendeklarasikan `sandboxPayoutAccountNumber` yang

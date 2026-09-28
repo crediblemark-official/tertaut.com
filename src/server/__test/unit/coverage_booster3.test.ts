@@ -11,7 +11,7 @@ import {
   licenseLeases,
 } from "../../db/schema";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
-import { LicenseService } from "../../services/license";
+import { LicenseService } from "../../services/licensing/license";
 import {
   handleDanaFinishPaymentWebhook,
   handleDanaDisburseNotifyWebhook,
@@ -24,7 +24,7 @@ import {
   handleValidateLicense,
   handleVerifyLicense,
 } from "../../routes/licensing/device";
-import { enforceRateLimit, resetRateLimits } from "../../services/rateLimiter";
+import { enforceRateLimit, resetRateLimits } from "../../services/security/rateLimiter";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -818,7 +818,7 @@ describe("Coverage Booster3: services/license.ts", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster3: services/crypto.ts", () => {
   it("CryptoService encrypt/decrypt roundtrip", async () => {
-    const { CryptoService } = await import("../../services/crypto");
+    const { CryptoService } = await import("../../services/security/crypto");
     const plaintext = "super secret value 12345";
     const result = CryptoService.encrypt(plaintext);
     expect(result.cipherText).toBeDefined();
@@ -829,7 +829,7 @@ describe("Coverage Booster3: services/crypto.ts", () => {
   });
 
   it("CryptoService createSignedToken and verifySignedToken roundtrip", async () => {
-    const { CryptoService } = await import("../../services/crypto");
+    const { CryptoService } = await import("../../services/security/crypto");
     const payload = { userId: "user_123", role: "admin" };
     const token = CryptoService.createSignedToken(payload, 3600);
     expect(typeof token).toBe("string");
@@ -839,7 +839,7 @@ describe("Coverage Booster3: services/crypto.ts", () => {
   });
 
   it("CryptoService verifySignedToken: invalid token returns null", async () => {
-    const { CryptoService } = await import("../../services/crypto");
+    const { CryptoService } = await import("../../services/security/crypto");
     const result = CryptoService.verifySignedToken("invalid.token.here");
     expect(result).toBeNull();
   });
@@ -850,7 +850,7 @@ describe("Coverage Booster3: services/crypto.ts", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster3: services/webhooks.ts", () => {
   it("WebhookService.emit: no endpoints registered, completes without error", async () => {
-    const { WebhookService } = await import("../../services/webhooks");
+    const { WebhookService } = await import("../../services/notifications/webhooks");
     // Emit event for an app with no webhooks registered — verify no delivery rows are created
     const { db } = await import("../../db");
     const { webhookDeliveries } = await import("../../db/schema");
@@ -873,7 +873,7 @@ describe("Coverage Booster3: services/webhooks.ts", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster3: services/coupon.ts", () => {
   it("CouponService.validate: returns invalid for unknown coupon code", async () => {
-    const { CouponService } = await import("../../services/coupon");
+    const { CouponService } = await import("../../services/monetization/coupon");
     const result = await CouponService.validate("NONEXISTENT_COUPON_XYZ", "app_fake", 100000);
     expect(result.valid).toBe(false);
     expect(result.errorCode).toBe("COUPON_NOT_FOUND");
@@ -885,7 +885,7 @@ describe("Coverage Booster3: services/coupon.ts", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster3: services/credits.ts", () => {
   it("CreditService.debit: returns INSUFFICIENT_CREDITS for zero balance", async () => {
-    const { CreditService } = await import("../../services/credits");
+    const { CreditService } = await import("../../services/monetization/credits");
     const { app: a } = await seedBuilderApp();
     const issueRes = await issueLicense(a.id);
     // Debit more than available (0 balance)

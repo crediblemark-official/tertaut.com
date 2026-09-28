@@ -5,7 +5,7 @@ import { db } from "../../db";
 import { builders, apps, transactions, user } from "../../db/schema";
 import { resolveCurrentBuilder, seedSandboxBuilderIfNeeded } from "../../routes/apps/builder";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
-import { enforceRateLimit, resetRateLimits } from "../../services/rateLimiter";
+import { enforceRateLimit, resetRateLimits } from "../../services/security/rateLimiter";
 import { handleBatchPayout } from "../../routes/panel/payouts";
 import { auth } from "../../auth";
 import { eq } from "drizzle-orm";

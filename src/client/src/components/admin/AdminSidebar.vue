@@ -9,6 +9,8 @@ import {
   LogOut,
 } from "lucide-vue-next";
 
+import { computed } from "vue";
+
 interface AdminNavItem {
   key: string;
   name: string;
@@ -17,7 +19,7 @@ interface AdminNavItem {
   category: string;
 }
 
-defineProps<{
+const props = defineProps<{
   activeTab: string;
   adminNavItems: AdminNavItem[];
   adminName: string;
@@ -29,15 +31,28 @@ const emit = defineEmits<{
   "update:activeTab": [tab: string];
   logout: [];
 }>();
+
+const categorizedNav = computed(() => {
+  const groups: { name: string; items: AdminNavItem[] }[] = [];
+  for (const item of props.adminNavItems) {
+    let g = groups.find((x) => x.name === item.category);
+    if (!g) {
+      g = { name: item.category, items: [] };
+      groups.push(g);
+    }
+    g.items.push(item);
+  }
+  return groups;
+});
 </script>
 
 <template>
   <aside
-    class="hidden md:flex w-56 flex-col justify-between p-4 border-r border-jetblack/10 bg-white sticky top-0 h-screen shrink-0 z-30"
+    class="hidden md:flex w-60 flex-col justify-between p-3.5 border-r border-jetblack/10 bg-white sticky top-0 h-screen shrink-0 z-30"
   >
-    <div class="space-y-5">
+    <div class="space-y-4 flex-1 flex flex-col min-h-0">
       <!-- Brand Header with Super Admin Tag -->
-      <router-link to="/panel" class="flex items-center gap-2.5 px-2 py-1 group">
+      <router-link to="/panel" class="flex items-center gap-2.5 px-2 py-1 group shrink-0">
         <img
           :src="logoUrl"
           alt="tertaut.com"
@@ -58,7 +73,7 @@ const emit = defineEmits<{
 
       <!-- Access Scope Pill -->
       <div
-        class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-jetblack/5 border border-jetblack/10 text-xs"
+        class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-jetblack/5 border border-jetblack/10 text-xs shrink-0"
       >
         <span class="text-[10px] font-bold uppercase tracking-wider text-jetblack/60"
           >Hak Akses</span
@@ -70,46 +85,51 @@ const emit = defineEmits<{
         </span>
       </div>
 
-      <!-- Dedicated Navigation Menu -->
-      <nav class="space-y-1">
-        <button
-          v-for="item in adminNavItems"
-          :key="item.key"
-          @click="emit('update:activeTab', item.key)"
-          type="button"
-          :class="[
-            'w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition duration-150 cursor-pointer',
-            activeTab === item.key
-              ? 'bg-jetblack text-white shadow-sm'
-              : 'text-jetblack/75 hover:text-jetblack hover:bg-jetblack/5',
-          ]"
-        >
-          <div class="flex items-center gap-2.5">
-            <component
-              :is="item.icon"
-              class="w-4 h-4 shrink-0"
-              :class="activeTab === item.key ? 'text-gold' : 'text-jetblack/50'"
-            />
-            <span>{{ item.name }}</span>
+      <!-- Dedicated Navigation Menu Grouped by Category -->
+      <nav class="space-y-3 flex-1 overflow-y-auto pr-1 select-none">
+        <div v-for="group in categorizedNav" :key="group.name" class="space-y-1">
+          <div class="text-[9.5px] font-bold uppercase tracking-wider text-jetblack/40 px-2.5 pt-1">
+            {{ group.name }}
           </div>
-          <div class="flex items-center gap-1.5">
-            <span
-              v-if="item.badge !== undefined"
-              :class="[
-                'px-1.5 py-0.2 rounded-full text-[10px] font-bold',
-                activeTab === item.key
-                  ? 'bg-white/20 text-white'
-                  : 'bg-jetblack/5 text-jetblack/60',
-              ]"
-            >
-              {{ item.badge }}
-            </span>
-            <span
-              v-if="activeTab === item.key"
-              class="w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_8px_#D4AF37]"
-            ></span>
-          </div>
-        </button>
+          <button
+            v-for="item in group.items"
+            :key="item.key"
+            @click="emit('update:activeTab', item.key)"
+            type="button"
+            :class="[
+              'w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition duration-150 cursor-pointer',
+              activeTab === item.key
+                ? 'bg-jetblack text-white shadow-sm'
+                : 'text-jetblack/75 hover:text-jetblack hover:bg-jetblack/5',
+            ]"
+          >
+            <div class="flex items-center gap-2 min-w-0">
+              <component
+                :is="item.icon"
+                class="w-3.5 h-3.5 shrink-0"
+                :class="activeTab === item.key ? 'text-gold' : 'text-jetblack/50'"
+              />
+              <span class="truncate">{{ item.name }}</span>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span
+                v-if="item.badge !== undefined"
+                :class="[
+                  'px-1.5 py-0.2 rounded-full text-[9.5px] font-bold',
+                  activeTab === item.key
+                    ? 'bg-white/20 text-white'
+                    : 'bg-jetblack/5 text-jetblack/60',
+                ]"
+              >
+                {{ item.badge }}
+              </span>
+              <span
+                v-if="activeTab === item.key"
+                class="w-1.5 h-1.5 rounded-full bg-gold shadow-[0_0_8px_#D4AF37]"
+              ></span>
+            </div>
+          </button>
+        </div>
       </nav>
     </div>
 

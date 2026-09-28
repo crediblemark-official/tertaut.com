@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { enforceRateLimit, resetRateLimits } from "../../services/rateLimiter";
+import { enforceRateLimit, resetRateLimits } from "../../services/security/rateLimiter";
 
 describe("Unit Tests - RateLimiter Service", () => {
   beforeEach(() => {

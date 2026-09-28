@@ -9,10 +9,10 @@ import {
 } from "../../db/schema";
 import { eq, inArray, and, sql, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
-import { LicenseService } from "../../services/license";
-import { CreditService } from "../../services/credits";
-import { AuditService } from "../../services/audit";
-import { WebhookService, WEBHOOK_EVENTS } from "../../services/webhooks";
+import { LicenseService } from "../../services/licensing/license";
+import { CreditService } from "../../services/monetization/credits";
+import { AuditService } from "../../services/security/audit";
+import { WebhookService, WEBHOOK_EVENTS } from "../../services/notifications/webhooks";
 import { resolveCurrentBuilder } from "../apps/builder";
 import { verifyOwnedApp, verifyOwnedLicense } from "../../lib/ownership";
 import { parsePagination, paginationEnvelope } from "../../lib/pagination";

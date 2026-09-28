@@ -1,4 +1,4 @@
-import { db } from "../db";
+import { db } from "../../db";
 import {
   aiAppConfigs,
   aiProviderKeys,
@@ -8,9 +8,9 @@ import {
   licenses,
   apps,
   type License,
-} from "../db/schema";
+} from "../../db/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
-import { CryptoService } from "./crypto";
+import { CryptoService } from "../security/crypto";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";

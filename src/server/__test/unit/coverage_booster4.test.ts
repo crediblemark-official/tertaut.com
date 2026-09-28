@@ -11,7 +11,7 @@ import {
   creditLedger,
 } from "../../db/schema";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
-import { LicenseService } from "../../services/license";
+import { LicenseService } from "../../services/licensing/license";
 import {
   handleActivateLicense,
   handleValidateLicense,
@@ -23,11 +23,11 @@ import {
   handleCreditBalance,
   handleCreditHistory,
 } from "../../routes/licensing/credits";
-import { CreditService } from "../../services/credits";
-import { enforceRateLimit, resetRateLimits } from "../../services/rateLimiter";
+import { CreditService } from "../../services/monetization/credits";
+import { enforceRateLimit, resetRateLimits } from "../../services/security/rateLimiter";
 import { eq, and } from "drizzle-orm";
 import { config } from "../../config";
-import { DanaService } from "../../services/dana";
+import { DanaService } from "../../services/payments/dana/dana";
 
 setupTestAuth();
 
@@ -80,7 +80,7 @@ async function issueLicense(appId: string, extras: Record<string, any> = {}) {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster4: services/crypto.ts key branches", () => {
   it("CryptoService: covers getKeyBuffer branches via encrypt/decrypt", async () => {
-    const { CryptoService } = await import("../../services/crypto");
+    const { CryptoService } = await import("../../services/security/crypto");
 
     // Test normal encrypt/decrypt to execute getKeyBuffer
     const result = CryptoService.encrypt("test payload 123");
@@ -90,7 +90,7 @@ describe("Coverage Booster4: services/crypto.ts key branches", () => {
   });
 
   it("CryptoService: covers hex key branch (64-char hex key)", async () => {
-    const { CryptoService } = await import("../../services/crypto");
+    const { CryptoService } = await import("../../services/security/crypto");
     const origKey = config.security.vaultEncryptionKey;
 
     // 64 hex chars = 32 bytes → hits the `key.length === 64` branch (lines 12-16)
@@ -104,7 +104,7 @@ describe("Coverage Booster4: services/crypto.ts key branches", () => {
   });
 
   it("CryptoService: covers 32-byte utf8 key branch (lines 17-19)", async () => {
-    const { CryptoService } = await import("../../services/crypto");
+    const { CryptoService } = await import("../../services/security/crypto");
     const origKey = config.security.vaultEncryptionKey;
 
     // Exactly 32 ASCII chars (32 utf8 bytes) → hits the `byteLength === 32` branch
@@ -492,7 +492,7 @@ describe("Coverage Booster4: services/dana.ts additional branches", () => {
   });
 
   it("DanaService.verifyWebhook: SNAP BI format with x-signature header", async () => {
-    const { DanaService } = await import("../../services/dana");
+    const { DanaService } = await import("../../services/payments/dana/dana");
     (config as any).isSandbox = true; // sandbox bypass
     config.dana.publicKey = "";
     config.dana.clientSecret = "";
@@ -503,7 +503,7 @@ describe("Coverage Booster4: services/dana.ts additional branches", () => {
   });
 
   it("DanaService.createOrder: throws in production with invalid private key", async () => {
-    const { DanaService } = await import("../../services/dana");
+    const { DanaService } = await import("../../services/payments/dana/dana");
     (config as any).isSandbox = false;
     config.dana.clientId = "test_client";
     config.dana.privateKey = "INVALID_PRIVATE_KEY_NOT_PEM";
@@ -519,7 +519,7 @@ describe("Coverage Booster4: services/dana.ts additional branches", () => {
   });
 
   it("DanaService.verifyWebhook: throws in production with no keys", async () => {
-    const { DanaService } = await import("../../services/dana");
+    const { DanaService } = await import("../../services/payments/dana/dana");
     (config as any).isSandbox = false;
     config.dana.clientId = "";
 
@@ -592,7 +592,7 @@ describe("Coverage Booster4: apps/mutations.ts additional branches", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster4: service edge cases", () => {
   it("CouponService.validate: empty code → COUPON_NOT_FOUND (line 32)", async () => {
-    const { CouponService } = await import("../../services/coupon");
+    const { CouponService } = await import("../../services/monetization/coupon");
     const result = await CouponService.validate("", "app_fake", 100000);
     expect(result.valid).toBe(false);
     expect(result.errorCode).toBe("COUPON_NOT_FOUND");

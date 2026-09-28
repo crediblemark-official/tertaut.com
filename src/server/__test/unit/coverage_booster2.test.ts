@@ -12,9 +12,9 @@ import {
   licenseLeases,
 } from "../../db/schema";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
-import { LicenseService } from "../../services/license";
-import { DanaService } from "../../services/dana";
-import { LaunchService } from "../../services/launchService";
+import { LicenseService } from "../../services/licensing/license";
+import { DanaService } from "../../services/payments/dana/dana";
+import { LaunchService } from "../../services/monetization/launchService";
 import { handleDisburse } from "../../routes/apps/disburse";
 import { handleVerifyOfflineToken } from "../../routes/licensing/token";
 import {
@@ -36,7 +36,7 @@ import {
 } from "../../routes/licensing/device";
 import { handleListWebhooks, handleCreateWebhook } from "../../routes/licensing/adminWebhooks";
 import { authenticate, authenticateSecretApiKey } from "../../middleware/auth";
-import { LicenseTokenService } from "../../services/licenseToken";
+import { LicenseTokenService } from "../../services/licensing/licenseToken";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -244,7 +244,8 @@ describe("Coverage Booster2: licensing/token.ts", () => {
   });
 
   it("handleVerifyOfflineToken: rate limited returns 429", async () => {
-    const { enforceRateLimit, resetRateLimits } = await import("../../services/rateLimiter");
+    const { enforceRateLimit, resetRateLimits } =
+      await import("../../services/security/rateLimiter");
     const req = new Request("http://localhost", { headers: { "x-real-ip": "5.5.5.5" } });
     // Exhaust limit first
     for (let i = 0; i < 121; i++) enforceRateLimit(req, "licensing:verify-offline", 120, 60_000);
@@ -334,10 +335,10 @@ describe("Coverage Booster2: licensing/credits.ts authorizeLicense", () => {
   });
 
   it("handleCreditBalance: rate limited returns 429", async () => {
-    const { resetRateLimits } = await import("../../services/rateLimiter");
+    const { resetRateLimits } = await import("../../services/security/rateLimiter");
     resetRateLimits();
     const req = new Request("http://localhost", { headers: { "x-real-ip": "6.6.6.6" } });
-    const { enforceRateLimit } = await import("../../services/rateLimiter");
+    const { enforceRateLimit } = await import("../../services/security/rateLimiter");
     for (let i = 0; i < 121; i++) enforceRateLimit(req, "licensing:credits:balance", 120, 60_000);
     const set: any = {};
     const res = await handleCreditBalance({ body: { licenseKey: "TT-X" }, set, request: req });
@@ -346,10 +347,10 @@ describe("Coverage Booster2: licensing/credits.ts authorizeLicense", () => {
   });
 
   it("handleCreditHistory: rate limited returns 429", async () => {
-    const { resetRateLimits } = await import("../../services/rateLimiter");
+    const { resetRateLimits } = await import("../../services/security/rateLimiter");
     resetRateLimits();
     const req = new Request("http://localhost", { headers: { "x-real-ip": "7.7.7.7" } });
-    const { enforceRateLimit } = await import("../../services/rateLimiter");
+    const { enforceRateLimit } = await import("../../services/security/rateLimiter");
     for (let i = 0; i < 61; i++) enforceRateLimit(req, "licensing:credits:history", 60, 60_000);
     const set: any = {};
     const res = await handleCreditHistory({ body: { licenseKey: "TT-X" }, set, request: req });
@@ -363,10 +364,10 @@ describe("Coverage Booster2: licensing/credits.ts authorizeLicense", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster2: webhook/dana.ts", () => {
   it("handleDanaFinishPaymentWebhook: rate limited returns 429", async () => {
-    const { resetRateLimits } = await import("../../services/rateLimiter");
+    const { resetRateLimits } = await import("../../services/security/rateLimiter");
     resetRateLimits();
     const req = new Request("http://localhost", { headers: { "x-real-ip": "8.8.8.8" } });
-    const { enforceRateLimit } = await import("../../services/rateLimiter");
+    const { enforceRateLimit } = await import("../../services/security/rateLimiter");
     for (let i = 0; i < 121; i++) enforceRateLimit(req, "webhook:dana:finish", 120, 60_000);
     const set: any = {};
     const res = await handleDanaFinishPaymentWebhook({ request: req, headers: {}, body: {}, set });
@@ -415,10 +416,10 @@ describe("Coverage Booster2: webhook/dana.ts", () => {
   });
 
   it("handleDanaDisburseNotifyWebhook: rate limited returns 429", async () => {
-    const { resetRateLimits } = await import("../../services/rateLimiter");
+    const { resetRateLimits } = await import("../../services/security/rateLimiter");
     resetRateLimits();
     const req = new Request("http://localhost", { headers: { "x-real-ip": "9.9.9.9" } });
-    const { enforceRateLimit } = await import("../../services/rateLimiter");
+    const { enforceRateLimit } = await import("../../services/security/rateLimiter");
     for (let i = 0; i < 121; i++) enforceRateLimit(req, "webhook:dana:disburse", 120, 60_000);
     const set: any = {};
     const res = await handleDanaDisburseNotifyWebhook({ request: req, headers: {}, body: {}, set });

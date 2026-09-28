@@ -3,7 +3,7 @@ import { setupTestAuth } from "../setup";
 import { db } from "../../db";
 import { builders, apps, licenses, licenseLeases } from "../../db/schema";
 import { generateBuilderSecretApiKey, generateAppApiKey } from "../../routes/apps/api-key";
-import { LicenseService } from "../../services/license";
+import { LicenseService } from "../../services/licensing/license";
 import { eq } from "drizzle-orm";
 import { isVersionOlder } from "../../lib/semver";
 

@@ -1,6 +1,10 @@
 import { db } from "./index";
 import { platformSettings } from "./schema/settings";
-import { GATEWAY_IDS, GATEWAY_LIST, normalizeGatewayId } from "../services/gateways/registry";
+import {
+  GATEWAY_IDS,
+  GATEWAY_LIST,
+  normalizeGatewayId,
+} from "../services/payments/gateways/registry";
 
 /**
  * Pengaturan Platform non-kredensial.

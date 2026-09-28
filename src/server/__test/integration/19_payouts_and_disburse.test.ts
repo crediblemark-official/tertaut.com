@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, spyOn } from "bun:test";
 import { setupTestAuth, authCookie } from "../setup";
 import { handleBatchPayout } from "../../routes/panel/payouts";
 import { handleDisburse } from "../../routes/apps/disburse";
-import { DanaService } from "../../services/dana";
+import { DanaService } from "../../services/payments/dana/dana";
 import {
   handleDanaFinish,
   handlePreviewCoupon,

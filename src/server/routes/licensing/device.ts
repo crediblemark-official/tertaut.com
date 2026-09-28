@@ -1,17 +1,17 @@
 import { db } from "../../db";
 import { licenses, licenseActivations, licenseLeases, revokedTokens, apps } from "../../db/schema";
 import { eq, and, inArray, sql, desc, gt } from "drizzle-orm";
-import { LicenseService } from "../../services/license";
-import { LicenseTokenService } from "../../services/licenseToken";
-import { CreditService } from "../../services/credits";
+import { LicenseService } from "../../services/licensing/license";
+import { LicenseTokenService } from "../../services/licensing/licenseToken";
+import { CreditService } from "../../services/monetization/credits";
 import {
   LicenseLeaseService,
   resolveFloatingConfig,
   DEFAULT_LEASE_TTL_SECONDS,
-} from "../../services/licenseLease";
-import { AuditService } from "../../services/audit";
-import { WebhookService } from "../../services/webhooks";
-import { enforceRateLimit } from "../../services/rateLimiter";
+} from "../../services/licensing/licenseLease";
+import { AuditService } from "../../services/security/audit";
+import { WebhookService } from "../../services/notifications/webhooks";
+import { enforceRateLimit } from "../../services/security/rateLimiter";
 import { randomBytes } from "crypto";
 import { resolveCurrentBuilder } from "../apps/builder";
 import { verifyOwnedLicense } from "../../lib/ownership";

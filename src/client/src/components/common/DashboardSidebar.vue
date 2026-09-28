@@ -37,6 +37,14 @@ const props = defineProps<{
   activeLicenseCount: number;
 }>();
 
+import { authClient } from "../../lib/auth";
+
+const authSession = authClient.useSession();
+const isAdmin = computed(() => {
+  const role = (authSession.value?.data?.user as { role?: string })?.role;
+  return role === "admin";
+});
+
 const route = useRoute();
 const env = dashboardEnv;
 
@@ -186,6 +194,7 @@ const emit = defineEmits<{ "switch-env": [target: DashboardEnv] }>();
     <!-- Bottom Card & Status -->
     <div class="space-y-1.5 pt-3 border-t border-jetblack/10">
       <router-link
+        v-if="isAdmin"
         to="/panel"
         class="flex items-center justify-between px-3 py-1.5 rounded-lg bg-jetblack/5 hover:bg-jetblack/10 text-xs font-semibold text-jetblack transition border border-jetblack/10"
       >

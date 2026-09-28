@@ -1,11 +1,11 @@
 import { db } from "../../db";
 import { licenses, licenseActivations } from "../../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { LicenseService } from "../../services/license";
-import { CreditService } from "../../services/credits";
-import { AuditService } from "../../services/audit";
-import { WebhookService } from "../../services/webhooks";
-import { enforceRateLimit } from "../../services/rateLimiter";
+import { LicenseService } from "../../services/licensing/license";
+import { CreditService } from "../../services/monetization/credits";
+import { AuditService } from "../../services/security/audit";
+import { WebhookService } from "../../services/notifications/webhooks";
+import { enforceRateLimit } from "../../services/security/rateLimiter";
 import { getClientIp } from "../../lib/ip";
 
 export type LicenseAuthResult =

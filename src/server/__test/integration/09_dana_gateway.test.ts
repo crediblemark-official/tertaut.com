@@ -1,10 +1,10 @@
 import { describe, it, expect, spyOn } from "bun:test";
 import { setupTestAuth, danaWebhookHeaders } from "../setup";
-import { DanaService } from "../../services/dana";
+import { DanaService } from "../../services/payments/dana/dana";
 import { db } from "../../db";
 import { apps, licenses, transactions } from "../../db/schema";
 import { eq } from "drizzle-orm";
-import { danaGateway } from "../../services/gateways/danaGateway";
+import { danaGateway } from "../../services/payments/gateways/danaGateway";
 
 setupTestAuth();
 

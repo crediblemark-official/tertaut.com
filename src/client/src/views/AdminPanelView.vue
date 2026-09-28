@@ -2,7 +2,16 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { api } from "../lib/api";
-import type { PanelStats, PanelBuilderItem, PanelTransactionItem } from "../types/panel";
+import type {
+  PanelStats,
+  PanelBuilderItem,
+  PanelTransactionItem,
+  PanelAppItem,
+  PanelLicenseItem,
+  PanelCouponItem,
+  PanelAuditLogItem,
+  PanelUserItem,
+} from "../types/panel";
 import { authClient } from "../lib/auth";
 import {
   ShieldAlert,
@@ -13,6 +22,11 @@ import {
   CheckCircle2,
   AlertTriangle,
   Sliders,
+  AppWindow,
+  Key,
+  Ticket,
+  Activity,
+  Users,
 } from "lucide-vue-next";
 import AdminSidebar from "../components/admin/AdminSidebar.vue";
 import AdminTopHeader from "../components/admin/AdminTopHeader.vue";
@@ -23,7 +37,12 @@ import OverviewPreviews from "../components/admin/OverviewPreviews.vue";
 import { useConfirm } from "../composables/useConfirm";
 
 import BuilderDirectoryTable from "../components/admin/BuilderDirectoryTable.vue";
+import AppsDirectoryTable from "../components/admin/AppsDirectoryTable.vue";
+import GlobalLicensesTable from "../components/admin/GlobalLicensesTable.vue";
 import GlobalLedgerTable from "../components/admin/GlobalLedgerTable.vue";
+import GlobalCouponsTable from "../components/admin/GlobalCouponsTable.vue";
+import AuditLogsTable from "../components/admin/AuditLogsTable.vue";
+import UsersDirectoryTable from "../components/admin/UsersDirectoryTable.vue";
 import SystemTelemetryCard from "../components/admin/SystemTelemetryCard.vue";
 import PlatformSettingsCard from "../components/admin/PlatformSettingsCard.vue";
 
@@ -36,11 +55,28 @@ const adminInitial = computed(() => (adminName.value[0] || "A").toUpperCase());
 
 const stats = ref<PanelStats | null>(null);
 const builders = ref<PanelBuilderItem[]>([]);
+const apps = ref<PanelAppItem[]>([]);
+const licenses = ref<PanelLicenseItem[]>([]);
 const transactions = ref<PanelTransactionItem[]>([]);
+const coupons = ref<PanelCouponItem[]>([]);
+const auditLogs = ref<PanelAuditLogItem[]>([]);
+const users = ref<PanelUserItem[]>([]);
+
 const loading = ref(true);
 const refreshing = ref(false);
 
-const VALID_TABS = ["overview", "builders", "ledger", "system", "settings"] as const;
+const VALID_TABS = [
+  "overview",
+  "builders",
+  "apps",
+  "licenses",
+  "ledger",
+  "coupons",
+  "audit",
+  "users",
+  "system",
+  "settings",
+] as const;
 type TabType = (typeof VALID_TABS)[number];
 
 const activeTab = computed<TabType>({
@@ -85,11 +121,17 @@ onUnmounted(() => {
 async function loadAllData() {
   refreshing.value = true;
   try {
-    const [statsRes, buildersRes, txRes] = await Promise.all([
-      api.getPanelStats(),
-      api.getPanelBuilders(),
-      api.getPanelTransactions(100, txStatusFilter.value || undefined),
-    ]);
+    const [statsRes, buildersRes, appsRes, licRes, txRes, cpnRes, auditRes, usersRes] =
+      await Promise.all([
+        api.getPanelStats(),
+        api.getPanelBuilders(),
+        api.getPanelApps(250),
+        api.getPanelLicenses(250),
+        api.getPanelTransactions(150, txStatusFilter.value || undefined),
+        api.getPanelCoupons(),
+        api.getPanelAuditLogs(150),
+        api.getPanelUsers(200),
+      ]);
 
     if (statsRes.success) {
       stats.value = statsRes.data;
@@ -97,8 +139,23 @@ async function loadAllData() {
     if (buildersRes.success) {
       builders.value = buildersRes.builders;
     }
+    if (appsRes.success) {
+      apps.value = appsRes.apps;
+    }
+    if (licRes.success) {
+      licenses.value = licRes.licenses;
+    }
     if (txRes.success) {
       transactions.value = txRes.transactions;
+    }
+    if (cpnRes.success) {
+      coupons.value = cpnRes.coupons;
+    }
+    if (auditRes.success) {
+      auditLogs.value = auditRes.logs;
+    }
+    if (usersRes.success) {
+      users.value = usersRes.users;
     }
   } catch (err: any) {
     showAlert("error", err.message || "Gagal memuat data Super Admin Panel.");
@@ -195,38 +252,223 @@ async function handleToggleSuspendBuilder(builderId: string) {
   }
 }
 
+async function handleToggleSuspendApp(appId: string) {
+  const target = apps.value.find((a) => a.id === appId);
+  const actionName = target?.isSuspended ? "mengaktifkan kembali" : "membekukan";
+  const confirmed = await confirmDialog({
+    title: target?.isSuspended ? "Aktifkan Software" : "Bekukan Software",
+    message: `Apakah Anda yakin ingin ${actionName} software ${target?.name || appId}? Pembelian baru akan ${target?.isSuspended ? "diizinkan" : "ditolak"}.`,
+    confirmText: target?.isSuspended ? "Ya, Aktifkan" : "Ya, Bekukan",
+    variant: target?.isSuspended ? "info" : "warning",
+  });
+  if (!confirmed) return;
+
+  try {
+    const res = await api.toggleAppSuspend(appId);
+    if (res.success) {
+      showAlert("success", res.message);
+      await loadAllData();
+    } else {
+      showAlert("error", res.error || "Gagal mengubah status software.");
+    }
+  } catch (err: any) {
+    showAlert("error", err.message || "Terjadi kesalahan saat mengubah status software.");
+  }
+}
+
+async function handleRevokeLicense(lic: PanelLicenseItem) {
+  const confirmed = await confirmDialog({
+    title: "Cabut Lisensi Software",
+    message: `Apakah Anda yakin ingin mencabut lisensi ${lic.licenseKey} milik ${lic.customerEmail}? Token offline akan otomatis di-denylist.`,
+    confirmText: "Ya, Cabut Lisensi",
+    variant: "danger",
+  });
+  if (!confirmed) return;
+
+  try {
+    const res = await api.revokePanelLicense(lic.id, "Pencabutan manual dari Super Admin Panel");
+    if (res.success) {
+      showAlert("success", res.message);
+      await loadAllData();
+    } else {
+      showAlert("error", res.error || "Gagal mencabut lisensi.");
+    }
+  } catch (err: any) {
+    showAlert("error", err.message || "Terjadi kesalahan saat mencabut lisensi.");
+  }
+}
+
+async function handleReactivateLicense(lic: PanelLicenseItem) {
+  const confirmed = await confirmDialog({
+    title: "Aktifkan Kembali Lisensi",
+    message: `Aktifkan kembali lisensi ${lic.licenseKey} untuk ${lic.customerEmail}?`,
+    confirmText: "Ya, Aktifkan",
+    variant: "info",
+  });
+  if (!confirmed) return;
+
+  try {
+    const res = await api.reactivatePanelLicense(lic.id);
+    if (res.success) {
+      showAlert("success", res.message);
+      await loadAllData();
+    } else {
+      showAlert("error", res.error || "Gagal mengaktifkan lisensi.");
+    }
+  } catch (err: any) {
+    showAlert("error", err.message || "Terjadi kesalahan saat mengaktifkan lisensi.");
+  }
+}
+
+async function handleCreateCoupon(payload: {
+  code: string;
+  discountPercent: number;
+  maxRedemptions: number;
+  expiresAt?: string;
+}) {
+  try {
+    const res = await api.createGlobalCoupon(payload);
+    if (res.success) {
+      showAlert("success", res.message);
+      await loadAllData();
+    } else {
+      showAlert("error", res.error || "Gagal membuat kupon global.");
+    }
+  } catch (err: any) {
+    showAlert("error", err.message || "Terjadi kesalahan saat membuat kupon.");
+  }
+}
+
+async function handleToggleCoupon(couponId: string) {
+  try {
+    const res = await api.togglePanelCoupon(couponId);
+    if (res.success) {
+      showAlert("success", res.message);
+      await loadAllData();
+    } else {
+      showAlert("error", res.error || "Gagal mengubah status kupon.");
+    }
+  } catch (err: any) {
+    showAlert("error", err.message || "Terjadi kesalahan saat mengubah status kupon.");
+  }
+}
+
+async function handleDeleteCoupon(couponId: string) {
+  const confirmed = await confirmDialog({
+    title: "Hapus Kupon Diskon",
+    message: "Apakah Anda yakin ingin menghapus kupon diskon ini secara permanen?",
+    confirmText: "Ya, Hapus Kupon",
+    variant: "danger",
+  });
+  if (!confirmed) return;
+
+  try {
+    const res = await api.deletePanelCoupon(couponId);
+    if (res.success) {
+      showAlert("success", res.message || "Kupon diskon berhasil dihapus.");
+      await loadAllData();
+    } else {
+      showAlert("error", res.error || "Gagal menghapus kupon.");
+    }
+  } catch (err: any) {
+    showAlert("error", err.message || "Terjadi kesalahan saat menghapus kupon.");
+  }
+}
+
+async function handleUpdateUserRole(userId: string, role: string) {
+  try {
+    const res = await api.updateUserRole(userId, role);
+    if (res.success) {
+      showAlert("success", res.message);
+      await loadAllData();
+    } else {
+      showAlert("error", res.error || "Gagal memperbarui role pengguna.");
+    }
+  } catch (err: any) {
+    showAlert("error", err.message || "Terjadi kesalahan saat memperbarui role.");
+  }
+}
+
+async function handleToggleUserBan(userId: string) {
+  try {
+    const res = await api.toggleUserBan(userId);
+    if (res.success) {
+      showAlert("success", res.message);
+      await loadAllData();
+    } else {
+      showAlert("error", res.error || "Gagal mengubah status blokir pengguna.");
+    }
+  } catch (err: any) {
+    showAlert("error", err.message || "Terjadi kesalahan saat memproses blokir.");
+  }
+}
+
 const adminNavItems = computed(() => [
   {
     key: "overview",
     name: "Ringkasan Platform",
     icon: TrendingUp,
-    category: "Overview",
+    category: "Ringkasan",
   },
   {
     key: "builders",
     name: "Direktori Builder",
     icon: Building2,
     badge: builders.value.length,
-    category: "Direktori",
+    category: "Direktori & Katalog",
+  },
+  {
+    key: "apps",
+    name: "Direktori Software",
+    icon: AppWindow,
+    badge: apps.value.length,
+    category: "Direktori & Katalog",
+  },
+  {
+    key: "users",
+    name: "Pengguna & Akses",
+    icon: Users,
+    badge: users.value.length,
+    category: "Direktori & Katalog",
   },
   {
     key: "ledger",
     name: "Ledger Transaksi",
     icon: Receipt,
     badge: transactions.value.length,
-    category: "Ledger Global",
+    category: "Operasional & Lisensi",
+  },
+  {
+    key: "licenses",
+    name: "Lisensi Software",
+    icon: Key,
+    badge: licenses.value.length,
+    category: "Operasional & Lisensi",
+  },
+  {
+    key: "coupons",
+    name: "Kupon Diskon",
+    icon: Ticket,
+    badge: coupons.value.length,
+    category: "Operasional & Lisensi",
+  },
+  {
+    key: "audit",
+    name: "Audit Trail & Log",
+    icon: Activity,
+    category: "Keamanan & Sistem",
   },
   {
     key: "system",
     name: "System & Telemetri",
     icon: Server,
-    category: "Infrastructure",
+    category: "Keamanan & Sistem",
   },
   {
     key: "settings",
     name: "Pengaturan Platform",
     icon: Sliders,
-    category: "Konfigurasi",
+    category: "Keamanan & Sistem",
   },
 ]);
 
@@ -305,7 +547,7 @@ onMounted(() => {
                 </span>
               </div>
               <span class="text-xs text-jetblack/50 font-mono"
-                >DANA Enterprise Rail • 5% Platform MoR Cut</span
+                >Multi-Gateway MoR • 5% Platform Fee Cut</span
               >
             </div>
 
@@ -342,7 +584,37 @@ onMounted(() => {
             />
           </div>
 
-          <!-- TAB 3: GLOBAL LEDGER -->
+          <!-- TAB 3: APPS DIRECTORY -->
+          <div v-else-if="activeTab === 'apps'" class="space-y-4">
+            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
+              <h1 class="text-base font-extrabold text-jetblack">
+                Direktori Seluruh Software &amp; Aplikasi
+              </h1>
+              <span class="text-xs text-jetblack/50 font-mono"
+                >{{ apps.length }} Software Tercatat</span
+              >
+            </div>
+            <AppsDirectoryTable :apps="apps" @toggle-suspend="handleToggleSuspendApp" />
+          </div>
+
+          <!-- TAB 4: GLOBAL LICENSES -->
+          <div v-else-if="activeTab === 'licenses'" class="space-y-4">
+            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
+              <h1 class="text-base font-extrabold text-jetblack">
+                Manajemen Lisensi Global &amp; Anti-Piracy
+              </h1>
+              <span class="text-xs text-jetblack/50 font-mono"
+                >{{ licenses.length }} Lisensi Terdaftar</span
+              >
+            </div>
+            <GlobalLicensesTable
+              :licenses="licenses"
+              @revoke="handleRevokeLicense"
+              @reactivate="handleReactivateLicense"
+            />
+          </div>
+
+          <!-- TAB 5: GLOBAL LEDGER -->
           <div v-else-if="activeTab === 'ledger'" class="space-y-4">
             <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
               <h1 class="text-base font-extrabold text-jetblack">Ledger Transaksi Global</h1>
@@ -359,7 +631,56 @@ onMounted(() => {
             />
           </div>
 
-          <!-- TAB 4: SYSTEM TELEMETRY -->
+          <!-- TAB 6: GLOBAL COUPONS -->
+          <div v-else-if="activeTab === 'coupons'" class="space-y-4">
+            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
+              <h1 class="text-base font-extrabold text-jetblack">
+                Kupon Diskon Global &amp; Promosi Platform
+              </h1>
+              <span class="text-xs text-jetblack/50 font-mono"
+                >{{ coupons.length }} Kupon Aktif</span
+              >
+            </div>
+            <GlobalCouponsTable
+              :coupons="coupons"
+              @create="handleCreateCoupon"
+              @toggle="handleToggleCoupon"
+              @delete="handleDeleteCoupon"
+            />
+          </div>
+
+          <!-- TAB 7: AUDIT LOGS -->
+          <div v-else-if="activeTab === 'audit'" class="space-y-4">
+            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
+              <h1 class="text-base font-extrabold text-jetblack">
+                Audit Trail &amp; Log Keamanan Sistem
+              </h1>
+              <span class="text-xs text-jetblack/50 font-mono"
+                >{{ auditLogs.length }} Aktivitas Terekam</span
+              >
+            </div>
+            <AuditLogsTable :logs="auditLogs" @refresh="loadAllData" />
+          </div>
+
+          <!-- TAB 8: USERS DIRECTORY -->
+          <div v-else-if="activeTab === 'users'" class="space-y-4">
+            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
+              <h1 class="text-base font-extrabold text-jetblack">
+                Manajemen Pengguna &amp; Hak Akses
+              </h1>
+              <span class="text-xs text-jetblack/50 font-mono"
+                >{{ users.length }} Pengguna Terdaftar</span
+              >
+            </div>
+            <UsersDirectoryTable
+              :users="users"
+              :current-admin-email="adminEmail"
+              @update-role="handleUpdateUserRole"
+              @toggle-ban="handleToggleUserBan"
+            />
+          </div>
+
+          <!-- TAB 9: SYSTEM TELEMETRY -->
           <div v-else-if="activeTab === 'system'" class="space-y-4">
             <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
               <h1 class="text-base font-extrabold text-jetblack">
@@ -373,7 +694,7 @@ onMounted(() => {
             <SystemTelemetryCard :stats="stats" />
           </div>
 
-          <!-- TAB 5: PLATFORM SETTINGS & MODERATION -->
+          <!-- TAB 10: PLATFORM SETTINGS & MODERATION -->
           <div v-else-if="activeTab === 'settings'" class="space-y-4">
             <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
               <h1 class="text-base font-extrabold text-jetblack">

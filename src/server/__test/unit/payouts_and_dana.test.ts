@@ -4,7 +4,7 @@ import { db } from "../../db";
 import { builders, apps, transactions } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
-import { DanaService } from "../../services/dana";
+import { DanaService } from "../../services/payments/dana/dana";
 import { config } from "../../config";
 import crypto from "crypto";
 
