@@ -473,7 +473,6 @@ export async function seed() {
       paymentStatus: t.status,
       disbursementStatus: t.disbursementStatus,
       disbursementId: t.status === "PAID" ? `disb_dana_${t.id.slice(3)}` : null,
-      mockOrder: false,
       grantDays: t.grantDays,
       ...DanaService.calculateMorBreakdown(t.amount),
       paidAt: t.paidAt,

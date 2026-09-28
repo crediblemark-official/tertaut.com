@@ -1,8 +1,10 @@
 /**
- * Modul Kredit: saldo, konsumsi idempoten, dan riwayat ledger lisensi.
+ * Modul Kredit: saldo, konsumsi idempoten, riwayat ledger lisensi,
+ * serta pelaporan pemakaian terukur (metered usage).
  */
 
 import type {
+  TertautExecutor,
   CreditBalanceOptions,
   CreditBalanceResult,
   CreditConsumeOptions,
@@ -11,16 +13,13 @@ import type {
   CreditHistoryResult,
 } from "../types";
 
-export interface CreditsExecutor {
-  request: (path: string, init?: RequestInit) => Promise<Response>;
-  apiKey?: string;
-}
+export interface CreditsExecutor extends TertautExecutor {}
 
 export class CreditsModule {
   constructor(private ctx: CreditsExecutor) {}
 
   public async balance(options: CreditBalanceOptions): Promise<CreditBalanceResult> {
-    const res = await this.ctx.request("/api/v1/licensing/credits/balance", {
+    return this.ctx.requestJson<CreditBalanceResult>("/api/v1/licensing/credits/balance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -28,11 +27,10 @@ export class CreditsModule {
         hwid: options.hwid,
       }),
     });
-    return res.json();
   }
 
   public async consume(options: CreditConsumeOptions): Promise<CreditConsumeResult> {
-    const res = await this.ctx.request("/api/v1/licensing/credits/consume", {
+    return this.ctx.requestJson<CreditConsumeResult>("/api/v1/licensing/credits/consume", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -43,11 +41,10 @@ export class CreditsModule {
         reference: options.reference,
       }),
     });
-    return res.json();
   }
 
   public async history(options: CreditHistoryOptions): Promise<CreditHistoryResult> {
-    const res = await this.ctx.request("/api/v1/licensing/credits/history", {
+    return this.ctx.requestJson<CreditHistoryResult>("/api/v1/licensing/credits/history", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -56,13 +53,12 @@ export class CreditsModule {
         limit: options.limit,
       }),
     });
-    return res.json();
   }
 
   /**
    * Kirim event penggunaan kredit terukur (metered usage event).
-   * Wajib bukti kepemilikan (BUG A5): SDK mengirim `x-api-key` aplikasi secara
-   * otomatis; integrasi manual harus menyertakan hwid perangkat teraktivasi.
+   * Bukti kepemilikan: SDK mengirim `x-api-key` aplikasi secara otomatis.
+   * Endpoint ini juga menerima `hwid` perangkat yang sudah teraktivasi.
    */
   public async reportUsage(options: {
     licenseKey: string;
@@ -73,22 +69,22 @@ export class CreditsModule {
     hwid?: string;
   }): Promise<any> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (this.ctx.apiKey) headers["x-api-key"] = this.ctx.apiKey;
-    const res = await this.ctx.request("/api/v1/metering/events", {
+    // Hanya publishable key yang dikenali endpoint ini. `tt_secret_` hanya sah
+    // untuk Authorization header pada S2S, jadi jangan dikirim sebagai x-api-key.
+    if (this.ctx.apiKey && !this.ctx.apiKey.startsWith("tt_secret_")) {
+      headers["x-api-key"] = this.ctx.apiKey;
+    }
+    return this.ctx.requestJson("/api/v1/metering/events", {
       method: "POST",
       headers,
       body: JSON.stringify(options),
     });
-    return res.json();
   }
 
   /**
    * Ambil ringkasan penggunaan metered usage untuk lisensi.
    */
   public async getUsage(licenseKey: string): Promise<any> {
-    const res = await this.ctx.request(
-      `/api/v1/metering/usage/${encodeURIComponent(licenseKey.trim())}`
-    );
-    return res.json();
+    return this.ctx.requestJson(`/api/v1/metering/usage/${encodeURIComponent(licenseKey.trim())}`);
   }
 }

@@ -1,10 +1,7 @@
 import { Elysia } from "elysia";
 import { handleDanaFinishPaymentWebhook, handleDanaDisburseNotifyWebhook } from "./dana";
-import {
-  handleXenithPayWebhook,
-  handleXenditInvoiceWebhook,
-  handleXenditDisbursementWebhook,
-} from "./xendit";
+import { handleXenditInvoiceWebhook, handleXenditDisbursementWebhook } from "./xendit";
+import { handleXenithPayWebhook } from "./xenithpay";
 import { danaWebhookSchema, danaDisburseWebhookSchema } from "./schemas";
 
 export const webhookRoutes = new Elysia({ prefix: "/webhook" })

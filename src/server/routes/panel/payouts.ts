@@ -65,6 +65,7 @@ export async function handleBatchPayout() {
         builderId,
         builderName: builder?.name,
         amount: totalNet,
+        status: "SKIPPED",
         error: "Builder belum menyimpan rekening penerima disbursement.",
       });
       continue;

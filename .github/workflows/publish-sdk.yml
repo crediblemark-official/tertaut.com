@@ -1,0 +1,63 @@
+name: Publish SDK to NPM
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "packages/sdk/**"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Build & Publish @tertaut/sdk
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install SDK Dependencies
+        working-directory: packages/sdk
+        run: bun install
+
+      - name: Typecheck SDK
+        working-directory: packages/sdk
+        run: bun run typecheck
+
+      - name: Build SDK Bundle
+        working-directory: packages/sdk
+        run: bun run build
+
+      - name: Check NPM Version
+        id: check_version
+        working-directory: packages/sdk
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "Current SDK version: $CURRENT_VERSION"
+          if npm view "@tertaut/sdk@$CURRENT_VERSION" version --json 2>/dev/null | grep -q "$CURRENT_VERSION"; then
+            echo "Version $CURRENT_VERSION already exists on npm. Skipping publish."
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+          else
+            echo "Version $CURRENT_VERSION is new. Proceeding to publish."
+            echo "should_publish=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish to NPM
+        if: steps.check_version.outputs.should_publish == 'true'
+        working-directory: packages/sdk
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public

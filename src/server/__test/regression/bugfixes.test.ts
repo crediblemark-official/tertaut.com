@@ -11,7 +11,7 @@
  * 8. simulate-paid tidak meng-grant credits / features / offline token
  * 9. handleDisburse lolos otorisasi saat authBuilder null
  */
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import { setupTestAuth } from "../setup";
 import { app } from "../../index";
 import { db } from "../../db";
@@ -33,10 +33,11 @@ import {
   handleValidateLicense,
   handleListSeats,
 } from "../../routes/licensing/device";
-import { handleSimulatePaid } from "../../routes/checkout/handlers";
+import { fulfillPaymentTransaction } from "../../routes/webhook/fulfill";
 import { handleDisburse } from "../../routes/apps/disburse";
 import { DanaService } from "../../services/dana";
 import { config } from "../../config";
+import { danaGateway } from "../../services/gateways/danaGateway";
 
 setupTestAuth();
 
@@ -94,6 +95,20 @@ async function createTx(builderId: string, appId: string, extras: Record<string,
 // Bug #1: grantCredits dari body publik /checkout/session
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Regression #1: /checkout/session tidak lagi menerima grantCredits dari client", () => {
+  let danaSpy: any;
+
+  beforeEach(() => {
+    danaSpy = spyOn(danaGateway, "createOrder").mockImplementation(async (params) => ({
+      orderId: `dana_order_${Date.now()}`,
+      checkoutUrl: `https://link.dana.id/pay/test?externalId=${params.externalId}`,
+      paymentRail: params.paymentRail,
+    }));
+  });
+
+  afterEach(() => {
+    danaSpy?.mockRestore?.();
+  });
+
   it("schema menolak field grantCredits (client tidak bisa mengirim kredit)", async () => {
     const { app: a } = await seedBuilderApp();
     const res = await app.handle(
@@ -244,18 +259,26 @@ describe("Regression #2: /validate mengembalikan tepat token yang tersimpan di D
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Bug #3: checkoutUrl mock DANA memakai param yang salah
+// Bug #3: checkoutUrl DANA memakai param externalId (bukan orderId)
 // ─────────────────────────────────────────────────────────────────────────────
-describe("Regression #3: checkoutUrl mock DANA memakai param externalId", () => {
+describe("Regression #3: checkoutUrl DANA memakai param externalId", () => {
   it("URL memuat externalId (bukan orderId=...)", async () => {
     const externalId = `tt_${suffix()}`;
-    const order = await DanaService.createOrder({
-      externalId,
-      amount: 50000,
-      payerEmail: `mock_${suffix()}@test.com`,
-      description: "Regression mock",
-      forceMock: true,
-    });
+    const stubGateway = {
+      createOrder: async () => ({
+        referenceNo: `dana_ref_${Date.now()}`,
+        webRedirectUrl: `http://localhost:3001/checkout/dana/finish?externalId=${externalId}`,
+      }),
+    };
+    const order = await DanaService.createOrder(
+      {
+        externalId,
+        amount: 50000,
+        payerEmail: `buyer_${suffix()}@test.com`,
+        description: "Regression order",
+      },
+      stubGateway
+    );
     expect(order.checkoutUrl).toContain(`externalId=${externalId}`);
     expect(order.checkoutUrl).not.toContain("orderId=");
 
@@ -469,9 +492,9 @@ describe("Regression #7: acquire() dengan lookupHashes mengenali lease legacy (t
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Bug #8: simulate-paid tidak setara fulfillment webhook
+// Bug #8: fulfillment pembayaran menerbitkan lisensi lengkap
 // ─────────────────────────────────────────────────────────────────────────────
-describe("Regression #8: simulate-paid menerbitkan lisensi lengkap", () => {
+describe("Regression #8: fulfillment pembayaran menerbitkan lisensi lengkap", () => {
   it("offline token, features, dan grantCredits sesuai konfigurasi produk", async () => {
     const { builder, app: a } = await seedBuilderApp({
       licenseKey: {
@@ -496,10 +519,9 @@ describe("Regression #8: simulate-paid menerbitkan lisensi lengkap", () => {
       .where(eq(apps.id, a.id));
 
     const tx = await createTx(builder.id, a.id, { grantCredits: 250 });
-    const set: any = {};
-    const res: any = await handleSimulatePaid({ params: { txId: tx.id }, set });
+    const res: any = await fulfillPaymentTransaction(tx);
 
-    expect(res.success).toBe(true);
+    expect(res.status).toBe("success");
     expect(res.creditBalance).toBe(250);
 
     const lic = await db.query.licenses.findFirst({ where: eq(licenses.transactionId, tx.id) });
@@ -520,9 +542,8 @@ describe("Regression #8: simulate-paid menerbitkan lisensi lengkap", () => {
   it("tetap idempotent untuk transaksi yang sudah PAID", async () => {
     const { builder, app: a } = await seedBuilderApp();
     const tx = await createTx(builder.id, a.id, { paymentStatus: "PAID" });
-    const set: any = {};
-    const res: any = await handleSimulatePaid({ params: { txId: tx.id }, set });
-    expect(res.success).toBe(true);
+    const res: any = await fulfillPaymentTransaction(tx);
+    expect(res.status).toBe("success");
     expect(res.licenseKey).toBeUndefined();
   });
 });

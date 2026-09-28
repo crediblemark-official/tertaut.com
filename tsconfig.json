@@ -14,5 +14,6 @@
     "isolatedModules": true,
     "types": ["bun-types", "node"]
   },
-  "include": ["src/server/**/*", "drizzle.config.ts", "scripts/**/*.ts"]
+  "include": ["src/server/**/*", "drizzle.config.ts", "scripts/**/*.ts"],
+  "exclude": ["scripts/dana-uat/**/*", "node_modules"]
 }

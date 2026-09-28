@@ -71,7 +71,6 @@ describe("Super Admin Operations & MoR Business Engine", () => {
         paymentStatus: "PAID",
         disbursementStatus: "PENDING",
         xenditExternalId: `ext_${txId}`,
-        mockOrder: true,
         grantDays: 60,
       })
       .returning();

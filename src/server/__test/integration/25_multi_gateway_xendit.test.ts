@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from "bun:test";
+import { describe, it, expect, beforeAll, beforeEach, afterAll, spyOn } from "bun:test";
 import { setupTestAuth, authCookie } from "../setup";
 import { app } from "../../index";
 import { db } from "../../db";
@@ -6,12 +6,32 @@ import { apps, transactions, licenses, platformSettings, builders } from "../../
 import { eq } from "drizzle-orm";
 import { XenditService } from "../../services/xendit";
 import { getActivePaymentGateway } from "../../services/paymentGateway";
+import { xenditGateway } from "../../services/gateways/xenditGateway";
 
 describe("Multi-Payment Gateway Integration (DANA & Xendit)", () => {
   setupTestAuth();
 
   let testAppId: string;
   let testBuilderId: string;
+
+  // Kredensial asli sebelum file ini menimpanya. Test menimpa
+  // `xendit_secret_key` / `xendit_webhook_token` dengan dummy (lihat test
+  // "should update and retrieve active_payment_gateway"). Tanpa restore, dummy
+  // itu bocor ke seluruh suite berikutnya — dan ke `bun run smoke:gateway`,
+  // yang lalu melaporkan "401 Unauthorized" padahal kredensial aslinya valid.
+  let originalXenditSecret: string | null = null;
+  let originalXenditWebhookToken: string | null = null;
+
+  beforeAll(async () => {
+    const readKey = async (key: string) => {
+      const row = await db.query.platformSettings.findFirst({
+        where: eq(platformSettings.key, key),
+      });
+      return row?.value ?? null;
+    };
+    originalXenditSecret = await readKey("xendit_secret_key");
+    originalXenditWebhookToken = await readKey("xendit_webhook_token");
+  });
 
   beforeEach(async () => {
     // Reset active payment gateway setting
@@ -60,37 +80,26 @@ describe("Multi-Payment Gateway Integration (DANA & Xendit)", () => {
     expect(breakdown.netAmount).toBe(95000);
   });
 
-  it("should create mock Xendit order when in sandbox or forced mock", async () => {
+  it("should create Xendit order via gateway adapter", async () => {
+    const extId = `tt_test_${Date.now()}`;
+    const spy = spyOn(xenditGateway, "createOrder").mockResolvedValueOnce({
+      orderId: `xnd_inv_${Date.now()}`,
+      checkoutUrl: `https://checkout.xendit.co/web/xnd_inv_${Date.now()}`,
+      paymentRail: "qris",
+    });
+
     const order = await XenditService.createOrder({
-      externalId: `tt_test_${Date.now()}`,
+      externalId: extId,
       amount: 49000,
       payerEmail: "tester@tertaut.com",
       description: "Test Xendit Order",
-      forceMock: true,
       paymentRail: "qris",
     });
 
     expect(order.orderId).toContain("xnd_inv_");
     expect(order.checkoutUrl).toContain("checkout.xendit.co");
-    expect(order.mock).toBe(true);
     expect(order.paymentRail).toBe("qris");
-    expect(order.qrDataUrl).toBeDefined();
-  });
-
-  it("should create mock Xendit VA with valid bank prefix", async () => {
-    const order = await XenditService.createOrder({
-      externalId: `tt_test_va_${Date.now()}`,
-      amount: 75000,
-      payerEmail: "va_tester@tertaut.com",
-      description: "Test Xendit VA Order",
-      forceMock: true,
-      paymentRail: "va",
-      vaBank: "BCA",
-    });
-
-    expect(order.paymentRail).toBe("va");
-    expect(order.vaBank).toBe("BCA");
-    expect(order.paymentCode?.startsWith("3901")).toBe(true);
+    spy.mockRestore();
   });
 
   it("should update and retrieve active_payment_gateway from Super Admin panel settings", async () => {
@@ -131,6 +140,12 @@ describe("Multi-Payment Gateway Integration (DANA & Xendit)", () => {
   });
 
   it("should route checkout session to Xendit when active_payment_gateway is xendit", async () => {
+    const spy = spyOn(xenditGateway, "createOrder").mockResolvedValueOnce({
+      orderId: `xnd_inv_${Date.now()}`,
+      checkoutUrl: `https://checkout.xendit.co/web/xnd_inv_${Date.now()}`,
+      paymentRail: "qris",
+    });
+
     // Set active PG ke xendit
     await db
       .update(platformSettings)
@@ -162,6 +177,7 @@ describe("Multi-Payment Gateway Integration (DANA & Xendit)", () => {
     expect(tx).toBeDefined();
     expect(tx?.paymentProvider).toBe("xendit");
     expect(tx?.customerEmail).toBe("buyer-xendit@test.com");
+    spy.mockRestore();
   });
 
   it("should process Xendit webhook callback and fulfill license issuance", async () => {
@@ -243,7 +259,6 @@ describe("Multi-Payment Gateway Integration (DANA & Xendit)", () => {
       disbursementStatus: "PENDING",
       grantDays: 30,
       grantCredits: 0,
-      mockOrder: false,
       xenditExternalId: extId,
     });
 
@@ -293,5 +308,22 @@ describe("Multi-Payment Gateway Integration (DANA & Xendit)", () => {
         target: platformSettings.key,
         set: { value: "dana", updatedAt: new Date() },
       });
+
+    // Pulihkan kredensial Xendit asli yang sempat ditimpa dummy.
+    const restore = async (key: string, value: string | null) => {
+      if (value === null) {
+        await db.delete(platformSettings).where(eq(platformSettings.key, key));
+        return;
+      }
+      await db
+        .insert(platformSettings)
+        .values({ key, value, updatedAt: new Date() })
+        .onConflictDoUpdate({
+          target: platformSettings.key,
+          set: { value, updatedAt: new Date() },
+        });
+    };
+    await restore("xendit_secret_key", originalXenditSecret);
+    await restore("xendit_webhook_token", originalXenditWebhookToken);
   });
 });

@@ -4,7 +4,7 @@ import {
   handleDanaFinishPaymentWebhook,
   handleDanaDisburseNotifyWebhook,
 } from "../../routes/webhook/dana";
-import { handleXenithPayWebhook } from "../../routes/webhook/xendit";
+import { handleXenithPayWebhook } from "../../routes/webhook/xenithpay";
 import { config } from "../../config";
 import { danaWebhookHeaders } from "../setup";
 

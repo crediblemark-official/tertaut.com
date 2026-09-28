@@ -29,8 +29,6 @@ export class DanaGatewayAdapter implements PaymentGatewayAdapter {
       description: params.description,
       returnUrl: params.returnUrl,
       finishRedirectUrl: params.finishRedirectUrl,
-      forceMock: params.forceMock,
-      allowMock: params.allowMock,
       scenario: params.scenario,
       paymentRail: params.paymentRail as any,
       vaBank: params.vaBank,

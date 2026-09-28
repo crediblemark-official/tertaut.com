@@ -3,6 +3,7 @@ import { setupTestAuth } from "../setup";
 import { db } from "../../db";
 import { apps, licenses, transactions } from "../../db/schema";
 import { eq } from "drizzle-orm";
+import { fulfillPaymentTransaction } from "../../routes/webhook/fulfill";
 
 setupTestAuth();
 
@@ -149,56 +150,49 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
     }
   });
 
-  it("should mark checkout session as sandbox and simulate payment to issue license", async () => {
+  it("should fulfill payment transaction and issue license in sandbox app", async () => {
     const testApp = await createSandboxTestApp();
 
     try {
-      // 1. Buat sesi checkout → invoice mock karena app mode sandbox
-      const sessionRes = await fetch("http://localhost:3001/api/v1/checkout/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          appId: testApp.id,
-          amount: 50000,
-          customerEmail: `sandbox_${Date.now()}@test.local`,
-        }),
+      // 1. Buat transaksi sandbox
+      const txId = `tx_sb_${Date.now()}`;
+      const builder = await db.query.builders.findFirst();
+      await db.insert(transactions).values({
+        id: txId,
+        appId: testApp.id,
+        builderId: builder!.id,
+        paymentProvider: "dana",
+        customerEmail: `sandbox_${Date.now()}@test.local`,
+        grossAmount: 50000,
+        platformFee: 2500,
+        netAmount: 47500,
+        paymentStatus: "PENDING",
+        disbursementStatus: "PENDING",
+        xenditExternalId: `ext_${txId}`,
+        grantDays: 365,
       });
-      const sessionData: any = await sessionRes.json();
-      expect(sessionRes.status).toBe(200);
-      expect(sessionData.success).toBe(true);
-      expect(sessionData.data.isSandbox).toBe(true);
-      expect(sessionData.data.xenditInvoiceUrl).toContain("mock");
 
-      const txId = sessionData.data.sessionId;
-
-      // 2. Simulasikan pembayaran
-      const simRes = await fetch(`http://localhost:3001/api/v1/checkout/simulate-paid/${txId}`, {
-        method: "POST",
-      });
-      const simData: any = await simRes.json();
-      expect(simRes.status).toBe(200);
-      expect(simData.success).toBe(true);
-      expect(simData.licenseKey).toMatch(/^TT-/);
+      // 2. Fulfill pembayaran via fulfillment service
+      const tx = await db.query.transactions.findFirst({ where: eq(transactions.id, txId) });
+      const fulfillRes = await fulfillPaymentTransaction(tx);
+      expect(fulfillRes.status).toBe("success");
+      expect(fulfillRes.licenseKey).toMatch(/^TT-/);
 
       // 3. Transaksi berstatus PAID
-      const tx = await db.query.transactions.findFirst({ where: eq(transactions.id, txId) });
-      expect(tx?.paymentStatus).toBe("PAID");
+      const paidTx = await db.query.transactions.findFirst({ where: eq(transactions.id, txId) });
+      expect(paidTx?.paymentStatus).toBe("PAID");
 
-      // 4. Pencairan harus DITOLAK untuk transaksi sandbox
+      // 4. Pencairan harus DITOLAK untuk transaksi sandbox (hanya app live yang boleh disburse)
       const disbRes = await fetch(`http://localhost:3001/api/v1/checkout/disburse/${txId}`, {
         method: "POST",
       });
       expect(disbRes.status).toBe(400);
 
-      // 5. Simulate-paid untuk app yang sudah LIVE harus selalu ditolak (403) demi keamanan (B5)
-      await db.update(apps).set({ mode: "live" }).where(eq(apps.id, testApp.id));
-      const simLiveRes = await fetch(
-        `http://localhost:3001/api/v1/checkout/simulate-paid/${txId}`,
-        {
-          method: "POST",
-        }
-      );
-      expect(simLiveRes.status).toBe(403);
+      // 5. Endpoint simulate-paid telah dihapus (404)
+      const simRes = await fetch(`http://localhost:3001/api/v1/checkout/simulate-paid/${txId}`, {
+        method: "POST",
+      });
+      expect(simRes.status).toBe(404);
     } finally {
       await db.delete(licenses).where(eq(licenses.appId, testApp.id));
       await db.delete(transactions).where(eq(transactions.appId, testApp.id));

@@ -1,12 +1,15 @@
 import { db } from "./index";
 import { platformSettings } from "./schema/settings";
+import { GATEWAY_IDS, GATEWAY_LIST, normalizeGatewayId } from "../services/gateways/registry";
 
 /**
- * Pengaturan Platform & Kredensial Gateway Default
+ * Pengaturan Platform non-kredensial.
+ *
  * Di-seed secara non-destruktif (onConflictDoNothing), sehingga aman dijalankan
- * setiap kali server startup atau deploy tanpa menghapus atau menimpa data yang ada.
+ * setiap kali server startup atau deploy tanpa menghapus atau menimpa data yang
+ * sudah diatur admin.
  */
-export const DEFAULT_PLATFORM_SETTINGS = [
+const BASE_PLATFORM_SETTINGS: Array<{ key: string; value: string; description: string }> = [
   {
     key: "platform_fee_percent",
     value: "5",
@@ -28,11 +31,6 @@ export const DEFAULT_PLATFORM_SETTINGS = [
     description: "Tipe banner pengumuman (info, warning, success)",
   },
   {
-    key: "active_payment_gateway",
-    value: "xenithpay",
-    description: "Gateway pembayaran aktif default",
-  },
-  {
     key: "sandbox_mode",
     value: "true",
     description: "Mode sandbox pembayaran (true/false)",
@@ -42,59 +40,71 @@ export const DEFAULT_PLATFORM_SETTINGS = [
     value: "hosted",
     description: "Mode checkout default (custom/hosted)",
   },
-  // XenithPay Sandbox Credentials
-  {
-    key: "xenithpay_sandbox_access_key",
-    value: "ak-6aeedc57464fc85638ebee9ef121add6cf0a876da3dd5f47a4bf867ff7dab701",
-    description: "XenithPay Sandbox Access Key",
-  },
-  {
-    key: "xenithpay_sandbox_secret_key",
-    value:
-      "sk-80b0eddf8ee0fddaecb00deba46bf423fbc9fcaebe3b019e2f0a1fec7eed23cd70d752df9123d9089aac398cd48c849e66c0d2f5896433c40996ae9d0972ed6c",
-    description: "XenithPay Sandbox Secret Key",
-  },
-  {
-    key: "xenithpay_sandbox_webhook_secret",
-    value: "bNhIQPhTEOWhdS8-ukYPBIpvVITadn51jlshccNG33IqdYmed3GgeyzbsQZB0y3o",
-    description: "XenithPay Sandbox Webhook Secret",
-  },
-  // Xendit Development Credentials
-  {
-    key: "xendit_secret_key",
-    value: "xnd_development_T8pyD9ZQrhXNKDwLwAakFWOclcmk2m6Z8VRvdA1ZejgHS2jqX7yAUWNRra",
-    description: "Xendit Development Secret Key",
-  },
-  {
-    key: "xendit_public_key",
-    value: "xnd_public_development_mbk6iKJSkIbUbuBw0AFooGoLrOVGaWwVuWGHxPfK2tCicZ8Ynkct1ClMAejYnKo",
-    description: "Xendit Development Public Key",
-  },
-  {
-    key: "xendit_webhook_token",
-    value: "k7ioh5IKLXqTFI0iWetVQDaTJx1akOnAy8u3rCzzrU1z4BVK",
-    description: "Xendit Webhook Verification Token",
-  },
-  // DANA Sandbox Credentials
-  {
-    key: "dana_sandbox_client_id",
-    value: "2026091703024650623472",
-    description: "DANA Sandbox Client ID",
-  },
-  {
-    key: "dana_sandbox_client_secret",
-    value: "0417e2553e17413056f7f7bdf18b5020c9e0eef9dec11b32ec58480bbcf452d3",
-    description: "DANA Sandbox Client Secret",
-  },
-  {
-    key: "dana_sandbox_merchant_id",
-    value: "216620090015052037410",
-    description: "DANA Sandbox Merchant ID",
-  },
 ];
 
+/** Deskripsi kolom kredensial, ditulis dari nama gateway di registry. */
+function describeCredential(key: string): string {
+  const pretty = key
+    .replace(/^xendit_/, "")
+    .replace(/^xenithpay_/, "")
+    .replace(/^dana_/, "")
+    .replace(/_/g, " ")
+    .trim();
+  return pretty ? `${pretty.charAt(0).toUpperCase()}${pretty.slice(1)}` : key;
+}
+
 /**
- * Memastikan default platform settings terisi tanpa menimpa data yang sudah diatur admin.
+ * Kredensial gateway — key-nya diambil dari registry, nilainya SELALU kosong.
+ *
+ * Nilai sandbox Xendit/XenithPay/DANA pernah ditulis literal di file ini sehingga
+ * ikut ter-commit ke repo. Sekarang key tetap dibuat (agar panel menampilkan
+ * kolomnya) tapi isinya datang dari environment — lihat `seedGatewayCredentialsFromEnv`.
+ *
+ * Menghapus gateway dari registry otomatis menghapus key kredensialnya di sini.
+ */
+const CREDENTIAL_PLATFORM_SETTINGS = GATEWAY_LIST.flatMap((gateway) =>
+  Object.keys(gateway.credentials).map((key) => ({
+    key,
+    value: "",
+    description: describeCredential(key),
+  }))
+);
+
+const DEFAULT_PLATFORM_SETTINGS = [...BASE_PLATFORM_SETTINGS, ...CREDENTIAL_PLATFORM_SETTINGS];
+
+/**
+ * Isi kredensial gateway dari environment bila tersedia.
+ *
+ * Nilai yang sudah diisi admin lewat dashboard tidak ditimpa. Key yang masih
+ * kosong diisi dari env — itu berarti "belum dikonfigurasi".
+ */
+async function seedGatewayCredentialsFromEnv(): Promise<void> {
+  const { eq } = await import("drizzle-orm");
+
+  for (const gateway of GATEWAY_LIST) {
+    for (const [key, envKeys] of Object.entries(gateway.credentials)) {
+      const fromEnv = envKeys.map((e) => (process.env[e] || "").trim()).find(Boolean);
+      if (!fromEnv) continue;
+
+      const existing = await db.query.platformSettings.findFirst({
+        where: eq(platformSettings.key, key),
+      });
+      if (existing && existing.value.trim() !== "") continue; // sudah diisi admin
+
+      await db
+        .insert(platformSettings)
+        .values({ key, value: fromEnv, updatedAt: new Date() })
+        .onConflictDoUpdate({
+          target: platformSettings.key,
+          set: { value: fromEnv, updatedAt: new Date() },
+        });
+    }
+  }
+}
+
+/**
+ * Memastikan default platform settings terisi tanpa menimpa data yang sudah
+ * diatur admin.
  */
 export async function ensurePlatformSettings(): Promise<void> {
   try {
@@ -103,10 +113,13 @@ export async function ensurePlatformSettings(): Promise<void> {
       .values(DEFAULT_PLATFORM_SETTINGS)
       .onConflictDoNothing({ target: platformSettings.key });
 
-    const envGateway = (process.env.ACTIVE_PAYMENT_GATEWAY || process.env.PAYMENT_GATEWAY || "")
-      .toLowerCase()
-      .trim();
-    if (envGateway === "xenithpay" || envGateway === "xendit" || envGateway === "dana") {
+    await seedGatewayCredentialsFromEnv();
+
+    // Gateway aktif dari env — divalidasi lewat registry, bukan daftar literal.
+    const envGateway = normalizeGatewayId(
+      process.env.ACTIVE_PAYMENT_GATEWAY || process.env.PAYMENT_GATEWAY
+    );
+    if (envGateway && (GATEWAY_IDS as readonly string[]).includes(envGateway)) {
       const { eq } = await import("drizzle-orm");
       await db
         .update(platformSettings)

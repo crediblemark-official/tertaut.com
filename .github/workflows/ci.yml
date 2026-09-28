@@ -55,6 +55,11 @@ jobs:
       BETTER_AUTH_SECRET: super_secret_better_auth_key_at_least_32_chars
       VAULT_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       PAYMENT_GATEWAY: dana
+      # WAJIB eksplisit: `db:seed` menulis default `active_payment_gateway=xenithpay`
+      # dan `ensureSettings` memberi prioritas pada ACTIVE_PAYMENT_GATEWAY. Tanpa
+      # baris ini CI hanya hijau karena kebetulan repo tidak punya file `.env`;
+      # developer dengan `.env` lokal akan melihat test payout & checkout gagal.
+      ACTIVE_PAYMENT_GATEWAY: dana
       DANA_ENV: sandbox
       DANA_CLIENT_ID: 2026092111025202221544
       DANA_CLIENT_SECRET: 00b18d19398bcd9ddad4b0792a0bdeaf5f2d70ee65c8359d4066a933515a5

@@ -3,6 +3,10 @@ import { apps, transactions, builders } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { resolveCurrentBuilder } from "./builder";
 import { getActiveGateway } from "../../services/gateways";
+import {
+  DEFAULT_GATEWAY_ID,
+  getGatewayDescriptor as gatewayDescriptor,
+} from "../../services/gateways/registry";
 import { DanaService } from "../../services/dana";
 import { config } from "../../config";
 
@@ -46,15 +50,18 @@ export async function handleDisburse({
     return { error: "Pencairan sudah selesai atau sedang dalam proses" };
   }
 
+  // Di test kita kunci ke gateway default agar deterministik; nama gateway
+  // diambil dari registry, bukan ditulis literal.
   const gateway = config.isTest
-    ? (await import("../../services/gateways")).getPaymentGateway("dana")
+    ? (await import("../../services/gateways")).getPaymentGateway(DEFAULT_GATEWAY_ID)
     : await getActiveGateway();
 
-  // XenithPay menyediakan simulasi payout resmi di sandbox menggunakan akun 5555...;
-  // gateway lain tetap menolak payout dari aplikasi sandbox.
+  // Hanya gateway yang mendeklarasikan `sandboxPayoutAccountNumber` yang
+  // mengizinkan pencairan dari aplikasi mode sandbox (XenithPay punya simulasi
+  // resmi; DANA & Xendit tidak). Dulu ini ditulis `gateway.id === "xenithpay"`.
   const txApp = await db.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
-  const isXenithSandbox = gateway.id === "xenithpay" && config.xenithpay.sandboxMode;
-  if (txApp?.mode === "sandbox" && !isXenithSandbox) {
+  const sandboxPayoutAccount = gatewayDescriptor(gateway.id)?.sandboxPayoutAccountNumber;
+  if (txApp?.mode === "sandbox" && !sandboxPayoutAccount) {
     set.status = 400;
     return {
       error: "Transaksi sandbox (simulasi) tidak dapat dicairkan. Cairkan hanya transaksi live.",
@@ -98,8 +105,8 @@ export async function handleDisburse({
   }
 
   try {
-    const payoutRecipient = isXenithSandbox
-      ? { ...recipient, accountNumber: "5555123456789" }
+    const payoutRecipient = sandboxPayoutAccount
+      ? { ...recipient, accountNumber: sandboxPayoutAccount }
       : recipient;
     const payoutResult = await gateway.createDisbursement({
       externalId: `disb_${tx.id}_${Date.now()}`,

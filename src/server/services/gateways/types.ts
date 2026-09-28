@@ -1,3 +1,5 @@
+import type { GatewayId } from "./registry";
+
 /**
  * Unified Payment Gateway Interface
  * Mendefinisikan kontrak seragam untuk seluruh payment gateway (DANA, Xendit, dll.)
@@ -17,8 +19,6 @@ export interface CreateGatewayOrderParams {
   retailOutlet?: "ALFAMART" | "INDOMARET" | string;
   scenario?: "API" | "REDIRECT";
   paymentMethods?: string[];
-  forceMock?: boolean;
-  allowMock?: boolean;
   demoMode?: boolean;
 }
 
@@ -32,7 +32,6 @@ export interface GatewayOrderResponse {
   qrDataUrl?: string;
   vaBank?: string;
   retailOutlet?: string;
-  mock?: boolean;
 }
 
 export interface GatewayStatusResponse {
@@ -70,7 +69,8 @@ export interface MorBreakdown {
 }
 
 export interface PaymentGatewayAdapter {
-  readonly id: "dana" | "xendit" | "xenithpay";
+  /** Id gateway — diturunkan dari registry (`./registry`), bukan union literal. */
+  readonly id: GatewayId;
   readonly displayName: string;
 
   /**

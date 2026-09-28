@@ -1,9 +1,10 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, spyOn } from "bun:test";
 import { setupTestAuth, danaWebhookHeaders } from "../setup";
 import { DanaService } from "../../services/dana";
 import { db } from "../../db";
 import { apps, licenses, transactions } from "../../db/schema";
 import { eq } from "drizzle-orm";
+import { danaGateway } from "../../services/gateways/danaGateway";
 
 setupTestAuth();
 
@@ -37,15 +38,23 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
     expect(grossAmount).toBe(platformFee + netAmount);
   });
 
-  it("should create DANA order with mock response in sandbox mode", async () => {
+  it("should create DANA order via gateway in sandbox mode", async () => {
     const externalId = `dana_ext_${Date.now()}`;
-    const order = await DanaService.createOrder({
-      externalId,
-      amount: 75000,
-      payerEmail: "buyer_dana@test.local",
-      description: "Lisensi Test DANA",
-      forceMock: true,
-    });
+    const stubGateway = {
+      createOrder: async () => ({
+        referenceNo: `dana_ref_${Date.now()}`,
+        webRedirectUrl: `http://localhost:3001/checkout/dana/finish?externalId=${externalId}`,
+      }),
+    };
+    const order = await DanaService.createOrder(
+      {
+        externalId,
+        amount: 75000,
+        payerEmail: "buyer_dana@test.local",
+        description: "Lisensi Test DANA",
+      },
+      stubGateway
+    );
 
     expect(order.externalId).toBe(externalId);
     expect(order.amount).toBe(75000);
@@ -65,6 +74,12 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
     if (!existingApp) return;
 
     const email = `dana_checkout_${Date.now()}@test.local`;
+    const spy = spyOn(danaGateway, "createOrder").mockImplementation(async (params) => ({
+      orderId: `dana_order_${Date.now()}`,
+      checkoutUrl: `https://api.sandbox.dana.id/checkout/dana/finish?externalId=${params.externalId}`,
+      paymentRail: params.paymentRail,
+    }));
+
     const res = await fetch("http://localhost:3001/api/v1/checkout/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -94,6 +109,7 @@ describe("DANA Enterprise Payment Gateway & Multi-PG Integration", () => {
     expect(tx?.grossAmount).toBe(
       existingApp.targetPrice && existingApp.targetPrice > 0 ? existingApp.targetPrice : 80000
     );
+    spy.mockRestore();
 
     // Clean up
     await db.delete(transactions).where(eq(transactions.id, body.transactionId));

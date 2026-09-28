@@ -48,9 +48,6 @@ export const transactions = pgTable(
     grantDays: integer("grant_days").default(30),
     // Jumlah kredit yang ditambahkan ke ledger lisensi saat pembayaran terkonfirmasi.
     grantCredits: integer("grant_credits").default(0),
-    // Flag order mock (sandbox/forceMock): hanya transaksi mock yang boleh di-fulfill
-    // lewat ?mock=true pada finish redirect. Aplikasi Live TIDAK boleh di-fulfill via mock.
-    mockOrder: boolean("mock_order").default(false).notNull(),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

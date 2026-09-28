@@ -3,6 +3,7 @@ import { apps, transactions, licenses, platformSettings } from "../../db/schema"
 import { eq, desc, count, sql, and, inArray } from "drizzle-orm";
 import { config as appConfig } from "../../config";
 import { resolveCurrentBuilder, seedSandboxBuilderIfNeeded } from "./builder";
+import { getActivePaymentGateway } from "../../services/paymentGateway";
 
 interface RequestHeadersContext {
   request: { headers: Headers };
@@ -261,12 +262,9 @@ export async function handleGetBySlug({ params: { slug }, set }: SlugParamContex
   });
   const checkoutMode = checkoutModeRow?.value === "hosted" ? "hosted" : "custom";
 
-  const pgRow = await db.query.platformSettings.findFirst({
-    where: eq(platformSettings.key, "active_payment_gateway"),
-  });
-  const activePaymentGateway = (
-    pgRow?.value === "xendit" || pgRow?.value === "xenithpay" ? pgRow.value : "dana"
-  ) as "dana" | "xendit" | "xenithpay";
+  // Gateway aktif dibaca lewat helper tunggal, bukan ternary inline yang
+  // hardcode nama gateway (dulu duplikat dari `paymentGateway.ts`).
+  const activePaymentGateway = await getActivePaymentGateway();
 
   return {
     id: app.id,

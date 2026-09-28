@@ -59,8 +59,6 @@ const selectedAppId = ref<string>("ALL");
 
 const selectedTx = ref<TransactionItem | null>(null);
 const isDetailModalOpen = ref(false);
-const isSimulating = ref(false);
-const simulateMsg = ref<string | null>(null);
 
 const disburseLoading = ref<string | null>(null);
 const disburseAlert = ref<string | null>(null);
@@ -155,34 +153,12 @@ const kpiStats = computed(() => {
 
 function openDetail(tx: TransactionItem) {
   selectedTx.value = tx;
-  simulateMsg.value = null;
   isDetailModalOpen.value = true;
 }
 
 function closeDetail() {
   isDetailModalOpen.value = false;
   selectedTx.value = null;
-}
-
-async function handleSimulate(txId: string) {
-  isSimulating.value = true;
-  simulateMsg.value = null;
-  try {
-    const res = await api.simulatePayment(txId);
-    if (res.success) {
-      simulateMsg.value = "Pembayaran berhasil disimulasikan lunas!";
-      disburseAlert.value = `Berhasil! Pembayaran ${txId} disimulasikan lunas. Lisensi ${res.licenseKey || ""} diterbitkan.`;
-      await loadData();
-      const updated = transactions.value.find((t) => t.id === txId);
-      if (updated) selectedTx.value = updated;
-    } else {
-      simulateMsg.value = res.message || "Gagal simulasi";
-    }
-  } catch (err: any) {
-    simulateMsg.value = err?.message || "Error simulasi";
-  } finally {
-    isSimulating.value = false;
-  }
 }
 
 function getAppName(appId: string): string {
@@ -520,21 +496,9 @@ defineExpose({
             </td>
             <td class="py-3 pl-2.5 pr-3.5 sm:pr-4 md:pr-6 text-right" @click.stop>
               <div class="flex items-center justify-end gap-1.5">
-                <!-- Sandbox Simulator button for pending tx -->
-                <button
-                  v-if="tx.paymentStatus === 'PENDING' && env === 'sandbox'"
-                  @click="handleSimulate(tx.id)"
-                  :disabled="isSimulating"
-                  title="Simulasikan Pembayaran Lunas (Sandbox)"
-                  class="px-2 py-0.5 rounded bg-gold hover:bg-gold/90 text-jetblack text-[10.5px] font-bold transition inline-flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95 disabled:opacity-50"
-                >
-                  <Zap class="w-2.5 h-2.5 fill-current" />
-                  <span>{{ isSimulating && selectedTx?.id === tx.id ? "..." : "Simulasi" }}</span>
-                </button>
-
-                <!-- Direct Link to Customer Checkout Invoice for live pending tx -->
+                <!-- Direct Link to Customer Checkout Invoice for pending tx -->
                 <a
-                  v-if="tx.xenditInvoiceUrl && tx.paymentStatus === 'PENDING' && env !== 'sandbox'"
+                  v-if="tx.xenditInvoiceUrl && tx.paymentStatus === 'PENDING'"
                   :href="tx.xenditInvoiceUrl"
                   target="_blank"
                   title="Buka Tautan Kasir / Invoice Pembeli"
@@ -756,33 +720,28 @@ defineExpose({
             </div>
           </div>
 
-          <!-- Sandbox Simulator Action Inside Modal -->
+          <!-- Sandbox Real Gateway Testing box -->
           <div
             v-if="env === 'sandbox' && selectedTx.paymentStatus === 'PENDING'"
             class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-2"
           >
             <div class="flex items-center gap-1.5 text-xs font-bold text-amber-900">
               <Zap class="w-3.5 h-3.5 text-amber-600" />
-              <span>Sandbox Payment Simulator (Uji Coba Pembeli)</span>
+              <span>Sandbox Gateway Testing</span>
             </div>
             <p class="text-[11px] text-amber-800/80">
-              Uji coba konfirmasi pembayaran klien Anda tanpa dana nyata untuk otomatis menerbitkan
-              lisensi dan memverifikasi webhook.
+              Transaksi ini berada di mode Sandbox. Buka tautan kasir / invoice gateway resmi untuk
+              menyelesaikan simulasi pembayaran langsung melalui simulator resmi Payment Gateway.
             </p>
-            <button
-              type="button"
-              @click="handleSimulate(selectedTx.id)"
-              :disabled="isSimulating"
-              class="w-full py-2 btn-gold rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+            <a
+              v-if="selectedTx.xenditInvoiceUrl"
+              :href="selectedTx.xenditInvoiceUrl"
+              target="_blank"
+              class="w-full py-2 btn-gold rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-center block"
             >
-              <RefreshCw v-if="isSimulating" class="w-3.5 h-3.5 animate-spin" />
-              <span>{{
-                isSimulating ? "Memproses Simulasi..." : "Simulasikan Pembayaran Lunas"
-              }}</span>
-            </button>
-            <div v-if="simulateMsg" class="text-xs font-bold text-forest text-center pt-1">
-              {{ simulateMsg }}
-            </div>
+              <ExternalLink class="w-3.5 h-3.5" />
+              <span>Buka Halaman Kasir Sandbox</span>
+            </a>
           </div>
         </div>
 

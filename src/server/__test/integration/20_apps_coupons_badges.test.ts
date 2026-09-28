@@ -244,14 +244,22 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
     expect(mor.platformFee).toBe(5000);
     expect(mor.netAmount).toBe(95000);
 
-    // 2. createOrder (forceMock)
-    const order = await DanaService.createOrder({
-      externalId: `dana_order_${Date.now()}`,
-      amount: 75000,
-      payerEmail: "buyer@dana.com",
-      description: "Test Order",
-      forceMock: true,
-    });
+    // 2. createOrder via gateway
+    const stubGateway = {
+      createOrder: async () => ({
+        referenceNo: `dana_order_${Date.now()}`,
+        webRedirectUrl: "http://localhost:3001/checkout/dana/finish?externalId=test",
+      }),
+    };
+    const order = await DanaService.createOrder(
+      {
+        externalId: `dana_order_${Date.now()}`,
+        amount: 75000,
+        payerEmail: "buyer@dana.com",
+        description: "Test Order",
+      },
+      stubGateway
+    );
     expect(order.orderId).toBeDefined();
     expect(order.checkoutUrl).toContain("checkout/dana/finish");
 
@@ -266,10 +274,15 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async (url: any, init: any) => {
       const urlStr = typeof url === "string" ? url : url?.url || "";
-      if (urlStr.includes("dana/v1/disbursement")) {
-        return new Response(JSON.stringify({ acquirementId: "dana_disb_mock_123" }), {
-          status: 200,
-        });
+      if (urlStr.includes("transfer-bank") || urlStr.includes("dana/v1/disbursement")) {
+        return new Response(
+          JSON.stringify({
+            responseCode: "2004300",
+            responseMessage: "Successful",
+            referenceNo: "dana_disb_mock_123",
+          }),
+          { status: 200 }
+        );
       }
       return originalFetch(url, init);
     }) as any;

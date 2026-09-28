@@ -1,3 +1,4 @@
 [test]
+root = "src"
 coverageReporter = ["text", "lcov"]
 coverageDir = "coverage"

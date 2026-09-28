@@ -57,3 +57,7 @@ keys/
 *.zip
 pilot_testing/
 coverage/
+.vitepress/cache/
+docs/.vitepress/cache/
+scripts/dana-uat/
+

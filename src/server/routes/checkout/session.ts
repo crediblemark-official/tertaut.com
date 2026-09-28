@@ -6,6 +6,13 @@ import { DanaService } from "../../services/dana";
 import { XenditService } from "../../services/xendit";
 import { getActivePaymentGateway } from "../../services/paymentGateway";
 import { getPaymentGateway as getGatewayAdapter } from "../../services/gateways";
+import {
+  gatewaySupportsRail,
+  getGatewayDescriptor as gatewayDescriptor,
+  normalizeGatewayId,
+  resolveGatewayForRail,
+  type GatewayId,
+} from "../../services/gateways/registry";
 import { CouponService } from "../../services/coupon";
 import { LicenseService } from "../../services/license";
 import { CreditService } from "../../services/credits";
@@ -139,11 +146,6 @@ export async function handleCreateSession({ request, body, set }: any) {
     }
 
     const isSandboxApp = app.mode === "sandbox" || app.slug === "fastmail-ai";
-    // Hanya mock jika aplikasi mode sandbox dan dipaksa (forceMock) atau dalam unit test otomatis.
-    // Mode demo dan sandbox normal menggunakan real sandbox gateway (bukan mock).
-    const isMockOrder =
-      isSandboxApp && (Boolean(body.forceMock) || (checkoutConfig.isTest && !demoMode));
-
     const email = (buyerEmail || customerEmail || "").trim().toLowerCase();
     if (!email || !email.includes("@")) {
       set.status = 400;
@@ -376,31 +378,30 @@ export async function handleCreateSession({ request, body, set }: any) {
       };
     }
 
-    // Resolve payment gateway: request body -> active setting from platformSettings -> default "dana"
+    // Resolve payment gateway: request body -> setting platform -> gateway default.
+    // Semua normalisasi nama (alias, allowlist)diurus registry.
     const activePlatformPg = await getActivePaymentGateway();
-    let requestedPg = (body.paymentGateway || activePlatformPg || "dana").toLowerCase().trim();
-    if (requestedPg === "xenith") requestedPg = "xenithpay";
+    let selectedGateway: GatewayId = normalizeGatewayId(body.paymentGateway) ?? activePlatformPg;
 
-    // Channel yang tidak didukung oleh DANA SNAP (Kartu Kredit/Debit, Retail minimarket,
-    // e-wallet non-DANA, atau bank tertentu) secara otomatis diarahkan ke adapter Xendit.
-    const isXenditExclusiveRail =
-      selectedRail === "card" ||
-      selectedRail === "retail" ||
-      (selectedRail === "ewallet" && ewalletChannel && ewalletChannel.toLowerCase() !== "dana") ||
-      (selectedRail === "va" && ["BJB", "SAHABAT_SAMPOERNA", "BSS"].includes(selectedBank));
-
-    if (activePlatformPg !== "xenithpay" && requestedPg !== "xenithpay" && isXenditExclusiveRail) {
-      requestedPg = "xendit";
+    // Rail yang tidak didukung gateway terpilih dialihkan ke gateway TERDAFTAR
+    // lain yang mendukungnya.
+    //
+    // Sebelumnya logikanya ditulis sebagai daftar "Xendit-exclusive rail"
+    // hardcode (card/retail/e-wallet non-DANA/bank tertentu → paksa Xendit).
+    // Sekarang pertanyaannya generik: "gateway mana yang bisa lays down rail ini?"
+    const railCtx = {
+      rail: selectedRail,
+      ewalletChannel: ewalletChannel ?? undefined,
+      bankCode: vaBank || bank || undefined,
+    };
+    if (!gatewaySupportsRail(selectedGateway, railCtx)) {
+      const alternative = resolveGatewayForRail(railCtx);
+      if (alternative && alternative !== selectedGateway) {
+        selectedGateway = alternative;
+      }
     }
 
-    const selectedGateway: "dana" | "xendit" | "xenithpay" =
-      requestedPg === "xenithpay" || requestedPg === "xenith"
-        ? "xenithpay"
-        : requestedPg === "xendit"
-          ? "xendit"
-          : "dana";
-
-    const defaultScenario = isHostedMode ? "REDIRECT" : "API";
+    const defaultScenario = isHostedMode ? "REDIRECT" : selectedRail ? "API" : "REDIRECT";
     const selectedScenario = demoMode
       ? "API"
       : isHostedMode
@@ -415,15 +416,17 @@ export async function handleCreateSession({ request, body, set }: any) {
     const txId = `tx_${randomBytes(8).toString("hex")}`;
     const externalId = `tt_${randomBytes(8).toString("hex")}`;
 
-    const finishRedirectUrl =
-      selectedGateway === "xendit" || selectedGateway === "xenithpay"
-        ? `${requestOrigin}/checkout/success?externalId=${externalId}`
-        : `${requestOrigin}/api/v1/checkout/dana/finish?externalId=${externalId}`;
+    // Path finish diambil dari registry, bukan dari `if (gateway === "xendit")`.
+    // `selectedGateway` selalu hasil `normalizeGatewayId` atau fallback registry,
+    // jadi descriptor-nya pasti ada; `DEFAULT_FINISH_PATH` hanya jaga-jaga.
+    const finishPath = gatewayDescriptor(selectedGateway)?.finishPath ?? "/checkout/success";
+    const finishRedirectUrl = `${requestOrigin}${finishPath}?externalId=${externalId}`;
 
     const resolvedBank = (
       vaBank ||
       bank ||
-      (selectedGateway === "xenithpay" ? "BNI" : "BCA")
+      gatewayDescriptor(selectedGateway)?.defaultVaBank ||
+      "BCA"
     ).toUpperCase();
 
     const orderResult = await gatewayAdapter.createOrder({
@@ -433,40 +436,32 @@ export async function handleCreateSession({ request, body, set }: any) {
       description: `Lisensi ${app.name} (${grantDays} hari)`,
       returnUrl: redirectUrl || app.redirectUrl || undefined,
       finishRedirectUrl,
-      forceMock: isMockOrder,
-      allowMock: isSandboxApp,
       demoMode,
       scenario: selectedScenario,
       paymentRail: selectedRail || undefined,
       vaBank: resolvedBank,
     });
 
-    // Sebuah transaksi HANYA ditandai mock bila aplikasinya benar-benar mode sandbox.
-    // Aplikasi Live tidak pernah mockOrder=true, apapun respons createOrder (GUARD ganda:
-    // createOrder menolak mock untuk allowMock=false; di sini tetap dijaga eksplisit).
-    const mockOrder = isSandboxApp && (isMockOrder || orderResult.mock === true);
     const invoiceUrl = orderResult.checkoutUrl;
     const invoiceId = orderResult.orderId;
     const expiryDate = orderResult.expiryDate;
     const hostedPayUrl = `${requestOrigin}/pay/${app.slug || targetIdentifier}?externalId=${externalId}`;
 
-    // Tentukan label paymentChannel yang disimpan
+    // Label paymentChannel disusun dari nama gateway di registry, bukan rantai
+    // `if (selectedGateway === ...)`. Label khusus rail (VA/QRIS/CARD/RETAIL)
+    // tetap dipertahankan karena sudah dipakai di filter ledger.
+    const gatewayDescriptorForTx = gatewayDescriptor(selectedGateway);
+    const gatewaySlug = selectedGateway.replace(/[^a-z0-9]/gi, "").toUpperCase();
     const savedChannel =
-      selectedGateway === "xenithpay"
-        ? "XENITHPAY"
-        : orderResult.paymentRail === "va"
-          ? `VA_${orderResult.vaBank || selectedBank}`
-          : orderResult.paymentRail === "qris"
-            ? selectedGateway === "xendit"
-              ? "XENDIT_QRIS"
-              : "QRIS"
-            : orderResult.paymentRail === "card"
-              ? "CARD"
-              : orderResult.paymentRail === "retail"
-                ? "RETAIL"
-                : selectedGateway === "xendit"
-                  ? "XENDIT"
-                  : "DANA";
+      orderResult.paymentRail === "va"
+        ? `VA_${orderResult.vaBank || selectedBank}`
+        : orderResult.paymentRail === "qris"
+          ? (gatewayDescriptorForTx?.qrChannelLabel ?? "QRIS")
+          : orderResult.paymentRail === "card"
+            ? "CARD"
+            : orderResult.paymentRail === "retail"
+              ? "RETAIL"
+              : gatewaySlug;
 
     // Simpan transaksi di database
     const [newTx] = await db
@@ -491,7 +486,6 @@ export async function handleCreateSession({ request, body, set }: any) {
         disbursementStatus: "PENDING",
         grantDays,
         grantCredits,
-        mockOrder,
       })
       .returning();
 
@@ -515,12 +509,7 @@ export async function handleCreateSession({ request, body, set }: any) {
       }
     }
 
-    const gatewayLabel =
-      selectedGateway === "xenithpay"
-        ? "XenithPay"
-        : selectedGateway === "xendit"
-          ? "Xendit"
-          : "DANA";
+    const gatewayLabel = gatewayDescriptorForTx?.displayName ?? selectedGateway;
 
     return {
       success: true,

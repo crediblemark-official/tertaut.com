@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "bun:test";
+import { describe, it, expect, beforeEach, spyOn } from "bun:test";
 import { setupTestAuth } from "../setup";
 import { db } from "../../db";
 import { builders, apps, transactions } from "../../db/schema";
@@ -164,15 +164,28 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
       paymentChannel: "QRIS",
     });
 
-    const res = await fetch("http://localhost:3001/api/v1/payouts/trigger", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ builderId }),
+    const spyDisb = spyOn(DanaService, "createDisbursement").mockResolvedValueOnce({
+      id: `dana_disb_${suffix()}`,
+      external_id: `ext_${suffix()}`,
+      amount: 95000,
+      bank_code: "014",
+      account_holder_name: "Payout Builder",
+      status: "COMPLETED",
     });
-    const data = (await res.json()) as any;
-    expect(res.status).toBe(200);
-    expect(data.success).toBe(true);
-    expect(["COMPLETED", "PROCESSING"]).toContain(data.data.status);
+
+    try {
+      const res = await fetch("http://localhost:3001/api/v1/payouts/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ builderId }),
+      });
+      const data = (await res.json()) as any;
+      expect(res.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(["COMPLETED", "PROCESSING"]).toContain(data.data.status);
+    } finally {
+      spyDisb.mockRestore();
+    }
   });
 
   it("GET & POST /payouts/account: update dan get rekening", async () => {
@@ -221,20 +234,20 @@ describe("Coverage: DanaService verifyWebhook & createDisbursement", () => {
     }
   });
 
-  it("createDisbursement: mock mode sandbox", async () => {
+  it("createDisbursement: throws when credentials missing", async () => {
     const origClient = config.dana.clientId;
     try {
       config.dana.clientId = "";
-      const disb = await DanaService.createDisbursement({
-        externalId: `dana_${suffix()}`,
-        amount: 50000,
-        bankCode: "BCA",
-        accountHolderName: "John Doe",
-        accountNumber: "12345678",
-        description: "Payout test",
-      });
-      expect(disb.status).toBe("COMPLETED");
-      expect(disb.amount).toBe(50000);
+      expect(
+        DanaService.createDisbursement({
+          externalId: `dana_${suffix()}`,
+          amount: 50000,
+          bankCode: "BCA",
+          accountHolderName: "John Doe",
+          accountNumber: "12345678",
+          description: "Payout test",
+        })
+      ).rejects.toThrow();
     } finally {
       config.dana.clientId = origClient;
     }

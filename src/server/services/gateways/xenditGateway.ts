@@ -12,6 +12,67 @@ import { config } from "../../config";
 import { db } from "../../db";
 import { platformSettings } from "../../db/schema/settings";
 import { eq } from "drizzle-orm";
+
+/**
+ * Channel code untuk payout Xendit di Indonesia SELALU berawalan `ID_`
+ * (mis. `ID_BCA`, `ID_MANDIRI`). Mengirim kode bank telanjang seperti `BCA`
+ * ditolak Xendit dengan `CHANNEL_CODE_NOT_SUPPORTED`, sehingga pencairan ke bank
+ * Indonesia tidak pernah berhasil. Daftar di bawah diverifikasi langsung
+ * terhadap `GET /payouts/channels` Xendit sandbox.
+ */
+const ID_PAYOUT_CHANNELS = new Set([
+  "BCA",
+  "BNI",
+  "BRI",
+  "MANDIRI",
+  "PERMATA",
+  "BSI",
+  "CIMB",
+  "BNC",
+  "MEGA",
+  "BJB",
+  "BTPN",
+  "BTPN_SYARIAH",
+  "MANDIRI_SYR",
+  "MANDIRI_TASPEN",
+  "SAHABAT_SAMPOERNA",
+  "ARTAJASA",
+  "PV",
+  "CCB",
+  "CITIBANK",
+  "DANA",
+  "GOPAY",
+  "OVO",
+  "LINKAJA",
+  "SHOPEEPAY",
+]);
+
+const ID_PAYOUT_PREFIX = "ID_";
+
+/** E-wallet memakai kategori EWALLET, bukan BANK, tapi nama channel-nya sama. */
+const ID_EWALLETS = new Set(["DANA", "GOPAY", "OVO", "LINKAJA", "SHOPEEPAY"]);
+
+/**
+ * Terjemahkan kode bank Indonesia ke `channel_code` Xendit.
+ * Menerima `BCA`, `bca`, `ID_BCA`, atau `BCA_UUS` (rekening giro).
+ */
+function toXenditPayoutChannel(bankCode: string): { code: string; isEWallet: boolean } {
+  const raw = (bankCode || "").trim().toUpperCase();
+  if (!raw) {
+    throw new Error("Xendit Payout Failed: kode bank wajib diisi.");
+  }
+  const bare = raw.startsWith(ID_PAYOUT_PREFIX)
+    ? raw.slice(ID_PAYOUT_PREFIX.length)
+    : raw.replace(/_UUS$/, "");
+
+  if (!ID_PAYOUT_CHANNELS.has(bare)) {
+    throw new Error(
+      `Xendit Payout Failed: bank "${bankCode}" tidak didukung untuk payout Xendit Indonesia. ` +
+        `Yang didukung: ${[...ID_PAYOUT_CHANNELS].join(", ")}.`
+    );
+  }
+  return { code: ID_PAYOUT_PREFIX + bare, isEWallet: ID_EWALLETS.has(bare) };
+}
 import QRCode from "qrcode";
 import { calculateMor } from "../../utils/payment";
 
@@ -107,69 +168,8 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
   async createOrder(params: CreateGatewayOrderParams): Promise<GatewayOrderResponse> {
     const { secretKey } = await this.getCredentials();
 
-    const buildMockResponse = async (): Promise<GatewayOrderResponse> => {
-      const rail = params.paymentRail || "qris";
-      const bank = (params.vaBank || "BCA").toUpperCase();
-
-      let paymentCode: string | undefined;
-      let qrDataUrl: string | undefined;
-
-      if (rail === "va") {
-        const bankPrefixMap: Record<string, string> = {
-          BCA: "3901",
-          MANDIRI: "88888",
-          BNI: "8808",
-          BRI: "12800",
-          BSI: "900",
-          PERMATA: "8528",
-          CIMB: "5919",
-          BJB: "014",
-          SAHABAT_SAMPOERNA: "522",
-        };
-        const prefix = bankPrefixMap[bank] || "88888";
-        const randomNum = Math.floor(10000000 + Math.random() * 90000000).toString();
-        paymentCode = `${prefix}${randomNum}`;
-      } else if (rail === "retail") {
-        paymentCode = `RET${Math.floor(1000000000 + Math.random() * 9000000000)}`;
-      } else {
-        paymentCode = `00020101021226540014ID.XENDIT.WWW011893600911000000000002152026092100000000303UMI51440014ID.XENDIT.WWW0215202609210000000520457325303360540${Number(params.amount).toFixed(2)}5802ID5911Tertaut MoR6007Jakarta61051234062330114${params.externalId}6304ABCD`;
-        try {
-          qrDataUrl = await QRCode.toDataURL(paymentCode, { width: 320, margin: 2 });
-        } catch {}
-      }
-
-      return {
-        orderId: `xnd_inv_mock_${Date.now()}`,
-        checkoutUrl:
-          params.finishRedirectUrl || `https://checkout.xendit.co/web/mock_${params.externalId}`,
-        expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        scenario: params.scenario || "REDIRECT",
-        paymentRail: rail,
-        paymentCode,
-        qrDataUrl,
-        vaBank: bank,
-        mock: true,
-      };
-    };
-
-    const isDummyKey =
-      !secretKey ||
-      secretKey.includes("sample_key") ||
-      secretKey.includes("dummy") ||
-      secretKey.includes("test_");
-
-    const mockEnabled =
-      Boolean(params.forceMock) || (params.allowMock && (isDummyKey || config.isTest));
-
-    if (mockEnabled) {
-      return buildMockResponse();
-    }
-
     const xendit = await this.getClient();
     if (!xendit) {
-      if (params.allowMock) {
-        return buildMockResponse();
-      }
       throw new Error("Xendit Invoice Creation Failed: XENDIT_SECRET_KEY belum dikonfigurasi.");
     }
 
@@ -293,16 +293,8 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
         paymentCode: directPaymentCode,
         qrDataUrl: directQrDataUrl,
         vaBank: params.vaBank,
-        mock: false,
       };
     } catch (sdkErr: any) {
-      if (params.allowMock) {
-        console.warn(
-          "[XenditGateway] Error calling Xendit SDK in sandbox mode. Fallback to mock:",
-          sdkErr?.message
-        );
-        return buildMockResponse();
-      }
       throw sdkErr;
     }
   }
@@ -363,24 +355,21 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
   async createDisbursement(
     params: GatewayDisbursementParams
   ): Promise<GatewayDisbursementResponse> {
-    const { secretKey } = await this.getCredentials();
-    const mockEnabled =
-      config.isSandbox && (!secretKey || secretKey.includes("sample_key") || config.isTest);
-
-    if (mockEnabled) {
-      return {
-        id: `disb_xnd_mock_${Date.now()}`,
-        externalId: params.externalId,
-        amount: params.amount,
-        bankCode: params.bankCode,
-        accountHolderName: params.accountHolderName,
-        status: "COMPLETED",
-      };
-    }
-
     const xendit = await this.getClient();
     if (!xendit) {
       throw new Error("Xendit Payout Failed: Secret key Xendit belum dikonfigurasi.");
+    }
+
+    const channel = toXenditPayoutChannel(params.bankCode);
+
+    // E-wallet menerima nomor HP, bukan nomor rekening. Menangkapnya di sini
+    // memberi pesan jelas, bukan `RECIPIENT_ACCOUNT_NUMBER_ERROR` dari Xendit.
+    const accountDigits = (params.accountNumber || "").replace(/[^0-9]/g, "");
+    if (channel.isEWallet && !/^62\d{8,13}$/.test(accountDigits)) {
+      throw new Error(
+        `Xendit Payout Failed: channel e-wallet ${channel.code} memerlukan nomor HP ` +
+          `berformat 62xxx (mis. 6281234567890), bukan nomor rekening.`
+      );
     }
 
     // Panggil official Xendit SDK Payout API
@@ -388,7 +377,7 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
       idempotencyKey: `idemp_${params.externalId}`,
       data: {
         referenceId: params.externalId,
-        channelCode: `${params.bankCode.toUpperCase()}`,
+        channelCode: channel.code,
         channelProperties: {
           accountNumber: params.accountNumber,
           accountHolderName: params.accountHolderName,

@@ -156,7 +156,6 @@ export const app = new Elysia()
         // Operasi uang & dashboard checkout (bukan konsumen external)
         /^\/api\/v1\/checkout\/transactions/,
         /^\/api\/v1\/checkout\/disburse/,
-        /^\/api\/v1\/checkout\/simulate-paid/,
         /^\/api\/v1\/payouts/,
         // Manajemen kupon via dashboard
         /^\/api\/v1\/coupons/,

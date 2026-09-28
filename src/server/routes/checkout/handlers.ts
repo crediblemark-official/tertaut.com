@@ -54,24 +54,6 @@ export async function handleDanaFinish({ query, request, set }: any) {
     where: eq(apps.id, tx.appId),
   });
 
-  // Jika simulasi mock (?mock=true) dan transaksi masih PENDING, tandai lunas otomatis & terbitkan lisensi.
-  // BUG-1: fulfillment mock HANYA boleh untuk transaksi yang benar-benar mock (mockOrder=true)
-  // PADA aplikasi mode sandbox. Transaksi aplikasi Live TIDAK boleh di-fulfill lewat ?mock=true,
-  // bahkan bila kolom mockOrder sempat terisi true oleh versi sebelumnya (guard ganda).
-  if (
-    mock === "true" &&
-    tx.paymentStatus === "PENDING" &&
-    tx.mockOrder === true &&
-    app?.mode === "sandbox"
-  ) {
-    const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
-    await fulfillPaymentTransaction(tx, tx.paymentChannel || "DANA");
-    const updated = await db.query.transactions.findFirst({
-      where: eq(transactions.id, tx.id),
-    });
-    if (updated) tx = updated;
-  }
-
   // Ambil lisensi yang diterbitkan
   const lic = await db.query.licenses.findFirst({
     where: eq(licenses.transactionId, tx.id),
@@ -156,7 +138,7 @@ export async function handleGetPaymentStatus({ params, query, request, set }: an
   const isExplicitSync = (query as any)?.sync === "true" || (query as any)?.refresh === "true";
   const shouldSyncRemote = isExplicitSync || checkoutConfig.isTest || nowMs - lastSync > 15_000;
 
-  if (tx.paymentStatus === "PENDING" && !tx.mockOrder && shouldSyncRemote) {
+  if (tx.paymentStatus === "PENDING" && shouldSyncRemote) {
     gatewaySyncThrottleMap.set(tx.id, nowMs);
     try {
       const { getPaymentGateway } = await import("../../services/gateways");
@@ -182,7 +164,7 @@ export async function handleGetPaymentStatus({ params, query, request, set }: an
             tx,
             queryRes.paymentChannel ||
               tx.paymentChannel ||
-              (tx.paymentProvider === "xendit" ? "XENDIT" : "DANA")
+              (tx.paymentProvider || "DANA").replace(/[^a-z0-9]/gi, "").toUpperCase()
           );
           const refreshed = await db.query.transactions.findFirst({
             where: eq(transactions.id, tx.id),
@@ -388,93 +370,6 @@ export async function handleDisburseTx(ctx: any) {
     set: ctx.set,
     request: ctx.request,
   });
-}
-
-/**
- * One-Click Local Payment Simulator for Developers (Hanya Sandbox)
- */
-export async function handleSimulatePaid({ params: { txId }, query, body, request, set }: any) {
-  // BUG-4: simulasi pembayaran dilindungi dengan otorisasi ganda:
-  // 1. Sesi checkout publik yang membawa cryptographic poll ticket (HMAC) bukti kepemilikan sesi sandbox
-  // 2. Dashboard admin (super) atau builder pemilik aplikasi
-  const ticket = (
-    query?.ticket ||
-    body?.ticket ||
-    (request?.url ? new URL(request.url).searchParams.get("ticket") : "") ||
-    ""
-  ).trim();
-
-  const { builder, isAdmin } = request?.headers
-    ? await resolveCurrentBuilder(request.headers)
-    : { builder: null, isAdmin: true };
-
-  // Jika tanpa ticket dan tanpa login builder/admin -> 401 Unauthorized
-  if (!ticket && !builder && !isAdmin) {
-    set.status = 401;
-    return { error: "Autentikasi diperlukan untuk simulasi pembayaran." };
-  }
-
-  const tx = await db.query.transactions.findFirst({
-    where: eq(transactions.id, txId),
-  });
-
-  if (!tx) {
-    set.status = 404;
-    return { error: "Transaksi tidak ditemukan" };
-  }
-
-  // Simulasi pembayaran hanya boleh untuk aplikasi yang sedang dalam mode sandbox.
-  const txApp = await db.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
-  if (txApp?.mode !== "sandbox") {
-    set.status = 403;
-    return { error: "Simulate paid hanya tersedia untuk aplikasi dalam mode sandbox." };
-  }
-
-  // Jika membawa ticket, verifikasi keabsahan HMAC ticket atas txId
-  const isTicketValid = ticket ? verifyPollTicket(tx.id, ticket) : false;
-
-  if (!isTicketValid) {
-    if (!isAdmin) {
-      if (!builder) {
-        set.status = 401;
-        return { error: "Autentikasi atau ticket valid diperlukan untuk simulasi pembayaran." };
-      }
-      if (builder.id !== tx.builderId) {
-        set.status = 403;
-        return { error: "Anda tidak berhak mensimulasikan pembayaran transaksi ini." };
-      }
-    }
-  }
-
-  if (tx.paymentStatus === "PAID") {
-    const existingLic = await db.query.licenses.findFirst({
-      where: eq(licenses.transactionId, tx.id),
-    });
-    return {
-      success: true,
-      message: "Transaksi sudah berstatus PAID sebelumnya.",
-      licenseKey: existingLic?.licenseKey,
-    };
-  }
-
-  // Simulator kini menggunakan jalur fulfillPaymentTransaction terpadu (atomik, row-locked, idempotensi tinggi).
-  const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
-  await fulfillPaymentTransaction(tx, "SIMULATOR_QRIS");
-
-  const newLic = await db.query.licenses.findFirst({
-    where: eq(licenses.transactionId, tx.id),
-  });
-  const grantedCredits = tx.grantCredits || 0;
-  const creditBalance = newLic ? await CreditService.getBalance(newLic.id) : 0;
-
-  return {
-    success: true,
-    message: "Simulasi pembayaran sukses! Lisensi diterbitkan.",
-    transactionId: tx.id,
-    licenseKey: newLic?.licenseKey || null,
-    grantedCredits,
-    creditBalance,
-  };
 }
 
 /**

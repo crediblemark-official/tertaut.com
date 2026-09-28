@@ -335,25 +335,6 @@ export const api = {
     return parseJson(res);
   },
 
-  async simulatePaid(
-    txId: string,
-    ticket?: string
-  ): Promise<{
-    success: boolean;
-    message?: string;
-    licenseKey?: string;
-    error?: string;
-  }> {
-    const sep = ticket ? (txId.includes("?") ? "&" : "?") : "";
-    const qs = ticket ? `${sep}ticket=${encodeURIComponent(ticket)}` : "";
-    const res = await apiFetch(`/api/v1/checkout/simulate-paid/${txId}${qs}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticket }),
-    });
-    return parseJson(res);
-  },
-
   async getConsultPay(amount: number): Promise<{
     success: boolean;
     data: any;
@@ -390,15 +371,6 @@ export const api = {
 
   async disburseTransaction(txId: string) {
     const res = await apiFetch(`/api/v1/checkout/disburse/${txId}`, {
-      method: "POST",
-    });
-    return parseJson(res);
-  },
-
-  async simulatePayment(
-    txId: string
-  ): Promise<{ success: boolean; message: string; licenseKey?: string }> {
-    const res = await apiFetch(`/api/v1/checkout/simulate-paid/${txId}`, {
       method: "POST",
     });
     return parseJson(res);

@@ -144,80 +144,6 @@ export class XenithPayGatewayAdapter implements PaymentGatewayAdapter {
       params.returnUrl ||
       `${config.publicAppUrl}/checkout/success?externalId=${encodeURIComponent(params.externalId)}`;
 
-    if (
-      params.forceMock ||
-      (params.allowMock && (!credentials.accessKey || !credentials.secretKey))
-    ) {
-      if (params.paymentRail === "va") {
-        const paymentCode = `8808${Math.floor(10000000 + Math.random() * 90000000)}`;
-        return {
-          orderId: `xenith_mock_${Date.now()}`,
-          checkoutUrl: "",
-          expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          scenario: "API",
-          paymentRail: "va",
-          paymentCode,
-          vaBank: params.vaBank || "BCA",
-          mock: true,
-        };
-      }
-      if (params.paymentRail === "qris") {
-        const paymentCode = `xenith_demo_${params.externalId}`;
-        return {
-          orderId: `xenith_mock_${Date.now()}`,
-          checkoutUrl: "",
-          expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          scenario: "API",
-          paymentRail: "qris",
-          paymentCode,
-          qrDataUrl: await QRCode.toDataURL(paymentCode),
-          mock: true,
-        };
-      }
-      if (params.paymentRail === "ewallet") {
-        return {
-          orderId: `xenith_mock_${Date.now()}`,
-          checkoutUrl: "",
-          expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          scenario: "API",
-          paymentRail: "ewallet",
-          mock: true,
-        };
-      }
-      if (params.paymentRail === "retail") {
-        return {
-          orderId: `xenith_mock_${Date.now()}`,
-          checkoutUrl: "",
-          expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          scenario: "API",
-          paymentRail: "retail",
-          paymentCode: `9908${Math.floor(10000000 + Math.random() * 90000000)}`,
-          mock: true,
-        };
-      }
-      if (params.paymentRail === "card") {
-        return {
-          orderId: `xenith_mock_${Date.now()}`,
-          checkoutUrl: "",
-          expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          scenario: "API",
-          paymentRail: "card",
-          mock: true,
-        };
-      }
-
-      const mockCheckoutUrl = returnUrl.includes("?")
-        ? `${returnUrl}&mock_xenith_gateway=true`
-        : `${returnUrl}?mock_xenith_gateway=true`;
-      return {
-        orderId: `xenith_mock_${Date.now()}`,
-        checkoutUrl: mockCheckoutUrl,
-        expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        scenario: "REDIRECT",
-        mock: true,
-      };
-    }
-
     const callbackUrl = `${config.publicAppUrl.replace(/\/$/, "")}/api/v1/webhook/xenithpay`;
     const payinChannel = this.resolvePayinChannel(params);
 
@@ -397,6 +323,7 @@ export class XenithPayGatewayAdapter implements PaymentGatewayAdapter {
   ): Promise<GatewayDisbursementResponse> {
     const credentials = await this.getCredentials();
     const bank = params.bankCode.toUpperCase();
+
     const destinationPayoutChannel = PAYOUT_CHANNELS[bank];
     if (!destinationPayoutChannel) {
       throw new Error(`Kode bank ${bank} belum dipetakan ke channel payout XenithPay.`);

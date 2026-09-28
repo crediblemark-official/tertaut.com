@@ -1,6 +1,6 @@
 # tertaut.com — Headless Developer Infrastructure Engine
 
-> **Versi 2.3** • Single Container Architecture Blueprint
+> **Versi 2.2.3** • Single Container Architecture Blueprint
 > **Status**: Semua fase F0–F6 **SELESAI** (387/387 test passing, 42 files, build client & server bersih)
 > **Peran Sistem**: Headless Developer Infrastructure Engine (Monetization, Universal Licensing, AI API Protection, Fake Door Validation & Launch Kit)
 > **Model Bisnis**: Merchant of Record (MoR) dengan Platform Fee 5% per transaksi via Xendit Infrastructure
@@ -14,7 +14,7 @@
 - **Database & ORM**: PostgreSQL 16 (Local Docker) via [Drizzle ORM](https://orm.drizzle.team/) & `postgres.js`
 - **Payment & MoR Partner**: Xendit Payment Request / Invoice, DANA Enterprise Gateway & Disbursement API (95% net payout to builders)
 - **Security & Enkripsi**: AES-256-GCM Vault untuk API Key AI, Ed25519 (Asymmetric) & HMAC JWT untuk lisensi offline
-- **Client SDK**: `@tertaut/sdk` (Ultra lightweight, **6.2 KB** minified, zero dependency, target < 15 KB)
+- **Client SDK**: `@tertaut/sdk` (Ultra lightweight, **~16 KB** minified / **~5 KB** gzipped, zero dependency, typed error classes)
 - **Verifikasi**: `bun test --parallel=1` = 387 pass / 0 fail (1501 assertions across 42 files); `bun run build:client` + `bun run build:server` bersih
 
 ---

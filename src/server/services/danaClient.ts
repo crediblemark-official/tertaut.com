@@ -15,17 +15,6 @@ export interface CreateDanaOrderParams {
   description: string;
   returnUrl?: string;
   finishRedirectUrl?: string;
-  forceMock?: boolean;
-  /**
-   * true = caller mengizinkan order mock (aplikasi mode sandbox).
-   * Default = config.isSandbox (deployment sandbox) untuk menjaga perilaku
-   * pemanggil lama; session selalu mengirim `app.mode === "sandbox"` secara
-   * eksplisit. Aplikasi Live di produksi TIDAK PERNAH menghasilkan mock
-   * (guard forceMock + fallback nonaktif); di deployment non-produksi app Live
-   * hanya boleh mendapat invoice DEMO (mock:true, dicatat mockOrder=false oleh
-   * session sehingga tidak pernah mem-fulfill lisensi).
-   */
-  allowMock?: boolean;
   scenario?: "API" | "REDIRECT";
   paymentRail?: DanaPaymentRail;
   vaBank?: DanaVaBank | string;
@@ -47,8 +36,6 @@ export interface DanaOrderResponse {
   qrDataUrl?: string;
   vaBank?: string;
   bankName?: string;
-  /** true jika order dibuat sebagai mock (sandbox/forceMock). */
-  mock: boolean;
 }
 
 // ─── SDK Instance Factory ────────────────────────────────────────────────────
@@ -61,8 +48,64 @@ export interface DanaRuntimeConfig {
   clientSecret?: string;
 }
 
+/**
+ * Workaround bug `dana-node@2.2.2` (runtime.js ~161-165):
+ *
+ * ```js
+ * try { errorResponse = await response.json(); }
+ * catch (e) { errorResponse = await response.text(); }   // body sudah terkonsumsi
+ * ```
+ *
+ * Untuk respons non-2xx yang body-nya bukan JSON valid, `json()` sudah
+ * menghabiskan stream sebelum melempar, sehingga `text()` gagal dengan
+ * `TypeError: Body already used`. Akibatnya error asli dari DANA (mis.
+ * `404 Invalid Merchant`) hilang dan yang muncul hanya "Body already used" —
+ * smoke test pun jadi tidak bisa dipakai untuk diagnosa.
+ *
+ * `dana-node@2.2.2` adalah versi terbaru di npm, jadi perbaikan harus di sisi
+ * kita: pada respons error, buffer body sekali lalu sajikan `json()`/`text()`
+ * yang bisa dipanggil berulang. Respons sukses tidak diubah (dibaca satu kali).
+ */
+function patchDanaErrorBody(api: any): void {
+  // `Configuration` hanya mengekspos getter (basePath/fetchApi/middleware/…)
+  // yang meneruskan ke `this.configuration` — objek biasa di dalamnya. Yang
+  // perlu dimutasi adalah `.configuration.configuration`.
+  const configuration = api?.configuration?.configuration;
+  if (!configuration || configuration.__tertautBodyPatched) return;
+  configuration.__tertautBodyPatched = true;
+
+  const inner = configuration.fetchApi || fetch;
+  configuration.fetchApi = async (url: any, init: any) => {
+    const res = await inner(url, init);
+    if (res.status >= 200 && res.status < 300) return res;
+
+    let buffer: ArrayBuffer;
+    try {
+      buffer = await res.arrayBuffer();
+    } catch {
+      return res; // body tidak terbaca (mis. stream error) — biarkan apa adanya
+    }
+    const rebuild = () =>
+      new Response(buffer, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: res.headers,
+      });
+
+    return new Proxy(res, {
+      get(target, prop) {
+        if (prop === "json") return () => rebuild().json();
+        if (prop === "text") return () => rebuild().text();
+        if (prop === "arrayBuffer") return () => rebuild().arrayBuffer();
+        const value = Reflect.get(target, prop, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+  };
+}
+
 export function getDanaInstance(overrides?: Partial<DanaRuntimeConfig>): Dana {
-  return new Dana({
+  const instance = new Dana({
     partnerId: overrides?.partnerId || config.dana.clientId || "MOCK_PARTNER_ID",
     privateKey: cleanPemKey(overrides?.privateKey || config.dana.privateKey || "MOCK_PRIVATE_KEY"),
     origin: overrides?.origin || config.dana.origin,
@@ -70,6 +113,13 @@ export function getDanaInstance(overrides?: Partial<DanaRuntimeConfig>): Dana {
     clientSecret:
       overrides?.clientSecret !== undefined ? overrides.clientSecret : config.dana.clientSecret,
   });
+
+  patchDanaErrorBody(instance.paymentGatewayApi);
+  patchDanaErrorBody(instance.disbursementApi);
+  patchDanaErrorBody(instance.widgetApi);
+  patchDanaErrorBody(instance.merchantManagementApi);
+
+  return instance;
 }
 
 export function getDanaPaymentGateway(overrides?: Partial<DanaRuntimeConfig>): PaymentGatewayApi {

@@ -3,7 +3,9 @@
  */
 
 import { verifyEd25519OfflineToken } from "../utils/crypto";
+import { HeartbeatLeaseError, TertautError } from "../errors";
 import type {
+  TertautExecutor,
   LicenseValidateOptions,
   LicenseValidateResult,
   LicenseVerifyOptions,
@@ -11,6 +13,7 @@ import type {
   LicenseActivateOptions,
   LicenseActivateResult,
   LicenseDeactivateOptions,
+  LicenseDeactivateResult,
   LicenseHeartbeatOptions,
   LicenseHeartbeatResult,
   LicenseEntitlementsResult,
@@ -19,13 +22,10 @@ import type {
   LicenseCheckOptions,
   LicenseCheckResult,
   OfflineTokenVerifyResult,
+  OnlineOfflineTokenVerifyResult,
 } from "../types";
 
-export interface LicensingExecutor {
-  request: (path: string, init?: RequestInit) => Promise<Response>;
-  appId: string;
-  baseUrl: string;
-}
+export interface LicensingExecutor extends TertautExecutor {}
 
 export function createFeatureHelpers(entitlements: Record<string, any> = {}) {
   return {
@@ -38,11 +38,19 @@ export function createFeatureHelpers(entitlements: Record<string, any> = {}) {
   };
 }
 
+/** Kode lease yang menandakan seat sudah tidak lagi milik perangkat ini. */
+const LEASE_LOST_CODES = new Set([
+  "LEASE_MISMATCH",
+  "LEASE_STALE",
+  "LEASE_EXPIRED",
+  "LEASE_INVALID",
+]);
+
 export class LicensingModule {
   constructor(private ctx: LicensingExecutor) {}
 
   public async validate(options: LicenseValidateOptions): Promise<LicenseValidateResult> {
-    const res = await this.ctx.request("/api/v1/licensing/validate", {
+    return this.ctx.requestJson<LicenseValidateResult>("/api/v1/licensing/validate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -53,11 +61,10 @@ export class LicensingModule {
         platform: options.platform,
       }),
     });
-    return res.json();
   }
 
   public async verify(options: LicenseVerifyOptions): Promise<LicenseVerifyResult> {
-    const res = await this.ctx.request("/api/v1/licensing/verify", {
+    return this.ctx.requestJson<LicenseVerifyResult>("/api/v1/licensing/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -66,7 +73,6 @@ export class LicensingModule {
         appVersion: options.appVersion,
       }),
     });
-    return res.json();
   }
 
   public async entitlements(options: {
@@ -74,7 +80,7 @@ export class LicensingModule {
     hwid?: string;
     appVersion?: string;
   }): Promise<LicenseEntitlementsResult> {
-    const res = await this.ctx.request("/api/v1/licensing/verify", {
+    const data = await this.ctx.requestJson<any>("/api/v1/licensing/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -83,7 +89,6 @@ export class LicensingModule {
         appVersion: options.appVersion,
       }),
     });
-    const data = await res.json();
     const feats = (data.entitlements || {}) as Record<string, any>;
     const helpers = createFeatureHelpers(feats);
     return {
@@ -99,7 +104,7 @@ export class LicensingModule {
   }
 
   public async activate(options: LicenseActivateOptions): Promise<LicenseActivateResult> {
-    const res = await this.ctx.request("/api/v1/licensing/activate", {
+    return this.ctx.requestJson<LicenseActivateResult>("/api/v1/licensing/activate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -109,13 +114,10 @@ export class LicensingModule {
         deviceName: options.deviceName || "UserDevice",
       }),
     });
-    return res.json();
   }
 
-  public async deactivate(
-    options: LicenseDeactivateOptions
-  ): Promise<{ success: boolean; deactivated?: boolean }> {
-    const res = await this.ctx.request("/api/v1/licensing/deactivate", {
+  public async deactivate(options: LicenseDeactivateOptions): Promise<LicenseDeactivateResult> {
+    return this.ctx.requestJson<LicenseDeactivateResult>("/api/v1/licensing/deactivate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -123,22 +125,24 @@ export class LicensingModule {
         hwid: options.hwid,
       }),
     });
-    return res.json();
   }
 
   public async heartbeat(options: LicenseHeartbeatOptions): Promise<LicenseHeartbeatResult> {
-    const res = await this.ctx.request("/api/v1/licensing/heartbeat", {
+    const res = await this.ctx.requestJson<any>("/api/v1/licensing/heartbeat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        appId: this.ctx.appId,
+        appId: this.ctx.appId || undefined,
         licenseKey: options.licenseKey,
         hwid: options.hwid,
         leaseKey: options.leaseKey,
         deviceName: options.deviceName,
       }),
     });
-    return res.json();
+
+    // Server mengirim `leaseExpiresAt`; normalisasi ke `expiresAt` agar konsumen
+    // lama yang membaca `expiresAt` tetap bekerja.
+    return res?.success ? { ...res, expiresAt: res.expiresAt ?? res.leaseExpiresAt } : res;
   }
 
   public startHeartbeatSession(options: HeartbeatSessionOptions): HeartbeatSession {
@@ -146,48 +150,47 @@ export class LicensingModule {
     let active = true;
     const intervalMs = (options.intervalSeconds || 60) * 1000;
 
+    /** Seat yang hilang berarti loop harus berhenti, bukan error selamanya. */
+    const handleFailure = (err: any) => {
+      const code = err instanceof TertautError ? err.code : undefined;
+      if (err instanceof HeartbeatLeaseError || (code && LEASE_LOST_CODES.has(code))) {
+        active = false;
+        options.onLeaseExpired?.(err);
+      }
+      options.onError?.(err);
+    };
+
     const beat = async (): Promise<LicenseHeartbeatResult> => {
       if (!active) throw new Error("Heartbeat session has stopped");
+
+      let res: LicenseHeartbeatResult;
       try {
-        const res = await this.heartbeat({
+        res = await this.heartbeat({
           licenseKey: options.licenseKey,
           hwid: options.hwid,
           leaseKey: currentLeaseKey,
           deviceName: options.deviceName,
         });
-
-        if (!res.success) {
-          const err = new Error(res.error || "Heartbeat failed");
-          // BUG C3: server mengembalikan { success:false, reason:"LEASE_MISMATCH" } (HTTP 409),
-          // bukan errorCode LEASE_EXPIRED/LEASE_INVALID seperti yang dideklarasikan type.
-          // Tangani kedua bentuk agar onLeaseExpired benar-benar terpicu dan loop
-          // onError tidak berjalan selamanya.
-          const leaseLost =
-            res.reason === "LEASE_MISMATCH" ||
-            res.reason === "LEASE_EXPIRED" ||
-            res.reason === "LEASE_INVALID" ||
-            res.errorCode === "LEASE_EXPIRED" ||
-            res.errorCode === "LEASE_INVALID";
-          if (leaseLost) {
-            active = false;
-            options.onLeaseExpired?.(err);
-          }
-          options.onError?.(err);
-          return res;
-        }
-
-        // Normalisasi backward-compat: konsumen lama membaca res.expiresAt padahal
-        // server mengembalikan leaseExpiresAt.
-        const normalized: LicenseHeartbeatResult = {
-          ...res,
-          expiresAt: res.expiresAt ?? res.leaseExpiresAt,
-        };
-        options.onSuccess?.(normalized);
-        return normalized;
       } catch (err: any) {
-        options.onError?.(err);
+        // `requestJson` sudah melempar error bertipe untuk status >= 400
+        // (lease hilang dibalas 409 + `reason: "LEASE_MISMATCH"`).
+        handleFailure(err);
         throw err;
       }
+
+      // Toleransi: endpoint yang dibungkus proxy dapat membalas 200 dengan
+      // `success:false`. Perlakukan sama supaya loop tetap berhenti.
+      if (res?.success === false) {
+        const err = new HeartbeatLeaseError(
+          res.error || "Heartbeat failed",
+          res.reason || res.errorCode || "LEASE_EXPIRED"
+        );
+        handleFailure(err);
+        throw err;
+      }
+
+      options.onSuccess?.(res);
+      return res;
     };
 
     const timer = setInterval(() => {
@@ -231,12 +234,6 @@ export class LicensingModule {
           expiresAt: onlineRes.expiresAt,
           entitlements: feats,
           licenseVersion: onlineRes.licenseVersion || 1,
-          seatsUsed: onlineRes.seatsUsed,
-          maxSeats: onlineRes.maxSeats,
-          // BUG C4: server /validate mengembalikan offlineGraceToken (bukan licenseToken).
-          // Token hasil rotasi inilah yang harus dipegang client agar token lama yang
-          // sudah didenylist tidak dipakai terus.
-          token: (onlineRes as any).offlineGraceToken ?? (onlineRes as any).licenseToken,
           reason: onlineRes.reason,
           message: onlineRes.message,
           hasFeature: helpers.hasFeature,
@@ -267,7 +264,6 @@ export class LicensingModule {
         expiresAt: expIso,
         entitlements: feats,
         licenseVersion: 1,
-        token: options.offlineToken,
         reason: off.reason,
         hasFeature: helpers.hasFeature,
         getFeature: helpers.getFeature,
@@ -289,10 +285,13 @@ export class LicensingModule {
   }
 
   public async getJwks(): Promise<{ keys: JsonWebKey[] }> {
-    const res = await this.ctx.request("/.well-known/jwks.json");
-    return res.json();
+    return this.ctx.requestJson("/.well-known/jwks.json");
   }
 
+  /**
+   * Verifikasi offline token secara lokal (Ed25519 / Web Crypto).
+   * Tidak menghubungi server, sehingga tidak bisa mendeteksi revoke terbaru.
+   */
   public async verifyOfflineToken(
     token: string,
     options?: { publicKeyJwk?: JsonWebKey; jwksUrl?: string; appVersion?: string }
@@ -301,6 +300,22 @@ export class LicensingModule {
       baseUrl: this.ctx.baseUrl,
       ...options,
     });
+  }
+
+  /**
+   * Verifikasi offline token secara online. Tidak seperti `verifyOfflineToken`,
+   * endpoint ini mengecek JTI denylist dan status lisensi terkini di server,
+   * sehingga dapat menangkap token yang sudah dicabut.
+   */
+  public async verifyOfflineTokenOnline(token: string): Promise<OnlineOfflineTokenVerifyResult> {
+    return this.ctx.requestJson<OnlineOfflineTokenVerifyResult>(
+      "/api/v1/licensing/verify-offline-token",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      }
+    );
   }
 
   public hasFeature(entitlements: Record<string, any>, featureName: string): boolean {
@@ -321,11 +336,10 @@ export class LicensingModule {
    * Verifikasi customer API key yang diterbitkan otomatis saat checkout.
    */
   public async verifyApiKey(apiKey: string): Promise<any> {
-    const res = await this.ctx.request("/api/v1/licensing/api-key/verify", {
+    return this.ctx.requestJson("/api/v1/licensing/api-key/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ apiKey }),
     });
-    return res.json();
   }
 }

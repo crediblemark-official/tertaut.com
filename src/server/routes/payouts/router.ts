@@ -189,7 +189,8 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
 
       try {
         const gateway = await getActiveGateway();
-        const gatewayLabel = gateway.displayName || (gateway.id === "xendit" ? "Xendit" : "DANA");
+        // `displayName` wajib ada di PaymentGatewayAdapter — tidak perlu fallback by-nama.
+        const gatewayLabel = gateway.displayName;
         const disbResult = await gateway.createDisbursement({
           externalId,
           amount: disburseAmount,

@@ -562,11 +562,19 @@ describe("Coverage Booster2: services/launchService.ts", () => {
 //  services/xendit.ts — verifyWebhook (lines 135-136, 210-211)
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster2: services/dana.ts resolveDisbursementAccount", () => {
-  it("resolveDisbursementAccount: returns sandbox fallback in test env (not null)", async () => {
-    // In test (sandbox) mode, resolveDisbursementAccount returns a mock account
-    const account = DanaService.resolveDisbursementAccount(undefined);
+  it("resolveDisbursementAccount: returns null when unconfigured and returns account when configured", async () => {
+    expect(DanaService.resolveDisbursementAccount(undefined)).toBeNull();
+    const account = DanaService.resolveDisbursementAccount({
+      name: "Builder Test",
+      disbursementAccount: {
+        bankCode: "BCA",
+        accountNumber: "12345678",
+        accountHolderName: "Builder Test",
+      },
+    });
     expect(account).toBeDefined();
     expect(account?.bankCode).toBe("BCA");
+    expect(account?.accountNumber).toBe("12345678");
   });
 
   it("resolveDisbursementAccount: returns null in production when no account", async () => {

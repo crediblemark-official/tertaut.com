@@ -5,6 +5,7 @@
 
 import { verifyWebhookSignature } from "../utils/crypto";
 import type {
+  TertautExecutor,
   S2SIssueOptions,
   S2SIssueBatchOptions,
   S2SRevokeOptions,
@@ -13,11 +14,9 @@ import type {
   S2SWebhookCreateOptions,
 } from "../types";
 
-export interface S2SExecutor {
-  request: (path: string, init?: RequestInit) => Promise<Response>;
-  apiKey: string;
-  appId?: string;
-}
+export interface S2SExecutor extends TertautExecutor {}
+
+const enc = encodeURIComponent;
 
 export class S2SModule {
   constructor(private ctx: S2SExecutor) {}
@@ -30,17 +29,15 @@ export class S2SModule {
   }
 
   private async get(path: string): Promise<any> {
-    const res = await this.ctx.request(path, { headers: this.authHeaders() });
-    return res.json();
+    return this.ctx.requestJson(path, { headers: this.authHeaders() });
   }
 
   private async post(path: string, body?: any, method = "POST"): Promise<any> {
-    const res = await this.ctx.request(path, {
+    return this.ctx.requestJson(path, {
       method,
       headers: this.authHeaders(),
       body: body ? JSON.stringify(body) : undefined,
     });
-    return res.json();
   }
 
   /** Ambil profil builder pemilik secret key. */
@@ -52,7 +49,7 @@ export class S2SModule {
   public apps = {
     list: async (mode?: "live" | "sandbox"): Promise<any> =>
       this.get(`/api/v1/s2s/apps${mode ? `?mode=${mode}` : ""}`),
-    get: async (appId: string): Promise<any> => this.get(`/api/v1/s2s/apps/${appId}`),
+    get: async (appId: string): Promise<any> => this.get(`/api/v1/s2s/apps/${enc(appId)}`),
   };
 
   /** Operasi Lisensi Server-to-Server. */
@@ -89,7 +86,7 @@ export class S2SModule {
       this.post("/api/v1/s2s/licenses/revoke-batch", options),
 
     seats: async (licenseKey: string): Promise<any> =>
-      this.get(`/api/v1/s2s/licenses/seats?licenseKey=${encodeURIComponent(licenseKey)}`),
+      this.get(`/api/v1/s2s/licenses/seats?licenseKey=${enc(licenseKey)}`),
 
     releaseSeat: async (options: { licenseKey: string; hwid: string }): Promise<any> =>
       this.post("/api/v1/s2s/licenses/seat/release", options),
@@ -120,7 +117,7 @@ export class S2SModule {
   /** Operasi Saldo & Kredit S2S. */
   public credits = {
     balance: async (licenseKey: string): Promise<any> =>
-      this.get(`/api/v1/s2s/credits/balance?licenseKey=${encodeURIComponent(licenseKey)}`),
+      this.get(`/api/v1/s2s/credits/balance?licenseKey=${enc(licenseKey)}`),
     consume: async (options: {
       licenseKey: string;
       amount: number;
@@ -135,12 +132,12 @@ export class S2SModule {
     create: async (options: S2SWebhookCreateOptions): Promise<any> =>
       this.post("/api/v1/s2s/webhooks", options),
     update: async (id: string, patch: Partial<S2SWebhookCreateOptions>): Promise<any> =>
-      this.post(`/api/v1/s2s/webhooks/${id}`, patch, "PATCH"),
+      this.post(`/api/v1/s2s/webhooks/${enc(id)}`, patch, "PATCH"),
     delete: async (id: string): Promise<any> =>
-      this.post(`/api/v1/s2s/webhooks/${id}`, undefined, "DELETE"),
+      this.post(`/api/v1/s2s/webhooks/${enc(id)}`, undefined, "DELETE"),
     rotateSecret: async (id: string): Promise<any> =>
-      this.post(`/api/v1/s2s/webhooks/${id}/rotate-secret`),
-    test: async (id: string): Promise<any> => this.post(`/api/v1/s2s/webhooks/${id}/test`),
+      this.post(`/api/v1/s2s/webhooks/${enc(id)}/rotate-secret`),
+    test: async (id: string): Promise<any> => this.post(`/api/v1/s2s/webhooks/${enc(id)}/test`),
     verifySignature: (rawBody: string, signature: string, secret: string): Promise<boolean> =>
       verifyWebhookSignature(rawBody, signature, secret),
   };

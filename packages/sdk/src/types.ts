@@ -2,10 +2,13 @@
  * @tertaut/sdk Types & Interfaces
  */
 
+/** Diturunkan dari prefiks `apiKey`: `tt_live_` → production, `tt_test_` → sandbox, `tt_secret_` → server. */
+export type TertautEnvironment = "production" | "sandbox" | "server";
+
 export interface TertautConfig {
   /** Publishable API key (`tt_live_...` / `tt_test_...`) atau Secret key (`tt_secret_...`). */
   apiKey: string;
-  /** Base URL server tertaut, mis. `https://tertaut.com` atau `http://localhost:3001`. Wajib diisi. */
+  /** Base URL server tertaut, mis. `https://tertaut.com` atau `http://localhost:8081`. Wajib diisi. */
   baseUrl: string;
   /** ID aplikasi tertaut. Wajib diisi untuk operasi client/licensing; opsional untuk S2S. */
   appId?: string;
@@ -13,16 +16,85 @@ export interface TertautConfig {
   timeoutMs?: number;
 }
 
+/**
+ * Kontrak internal yang dipakai seluruh modul SDK.
+ * - `request` mengembalikan `Response` mentah (dipakai SSE streaming).
+ * - `requestJson` mem-parse body dan melempar `TertautError` bertipe saat HTTP error.
+ */
+export interface TertautExecutor {
+  request: (path: string, init?: RequestInit) => Promise<Response>;
+  requestJson: <T = any>(path: string, init?: RequestInit) => Promise<T>;
+  appId: string;
+  baseUrl: string;
+  apiKey: string;
+}
+
 export interface CheckoutOptions {
-  amount: number;
-  grantDays?: number;
-  grantCredits?: number;
-  customerEmail?: string;
+  /** Nominal dalam rupiah. Opsional — server memakai harga produk sebagai nilai otoritatif. */
+  amount?: number;
+  customerEmail: string;
   redirectUrl?: string;
   couponCode?: string;
-  paymentRail?: "qris" | "va" | "ewallet";
+  /** Alias dari `customerEmail`; dipakai bila `customerEmail` tidak diisi. */
+  buyerEmail?: string;
+  grantDays?: number;
+  /** Referensi produk via slug, sebagai alternatif dari `appId` yang diambil dari konstruktor. */
+  appSlug?: string;
+  slug?: string;
+  /** Paksa payment rail tertentu, mis. meniru perilaku tombol pembayaran di dashboard. */
+  paymentGateway?: string;
+  /**
+   * Rail pembayaran. Ketersediaan bergantung gateway aktif:
+   * - `qris` | `va` | `ewallet` → semua gateway
+   * - `card` | `retail`           → Xendit & XenithPay saja
+   * - `balance`                   → DANA saja
+   *
+   * Mengirim rail yang tidak didukung gateway aktif akan ditolak gateway itu.
+   * Bila dikosongkan, server memakai rail default dari produk.
+   */
+  paymentRail?: "qris" | "va" | "ewallet" | "card" | "retail";
+  /** Alias dari `paymentRail`; dipakai bila `paymentRail` tidak diisi. */
+  preferredPaymentChannel?: string;
   vaBank?: string;
+  bank?: string;
+  ewalletChannel?: string;
+  retailOutlet?: string;
+  /** Nominal kustom (hanya untuk produk yang mengizinkan harga bebas). */
   customAmount?: number;
+  /** Aktifkan free trial bila produk punya `trialPeriodDays > 0`. */
+  startTrial?: boolean;
+  isTrial?: boolean;
+}
+
+/** Hasil `POST /api/v1/checkout/session`. Pada cabang free trial, lisensi terbit langsung. */
+export interface CheckoutResult {
+  checkoutUrl: string;
+  transactionId: string;
+  success?: boolean;
+  message?: string;
+  /** Ticket HMAC berumur 45 menit — wajib disimpan untuk polling status & invoice. */
+  ticket?: string;
+  hostedPayUrl?: string;
+  paymentGateway?: string;
+  paymentRail?: string;
+  paymentCode?: string;
+  qrDataUrl?: string;
+  vaBank?: string;
+  scenario?: string;
+  amount?: number;
+  listPrice?: number;
+  discountAmount?: number;
+  discountPercent?: number;
+  grantDays?: number;
+  couponCode?: string;
+  platformFee?: number;
+  netDisbursementAmount?: number;
+  expiresAt?: string;
+  // Cabang free trial
+  isTrial?: boolean;
+  trialPeriodDays?: number;
+  licenseKey?: string;
+  redirectUrl?: string;
 }
 
 export interface LicenseValidateOptions {
@@ -65,7 +137,7 @@ export interface HeartbeatSessionOptions {
   intervalSeconds?: number;
   /** Callback saat heartbeat berhasil diperpanjang. */
   onSuccess?: (res: LicenseHeartbeatResult) => void;
-  /** Callback saat lease telah hangus atau kedaluwarsa (403/409). */
+  /** Callback saat lease telah hangus atau kedaluwarsa (dilempar sebagai `HeartbeatLeaseError`). */
   onLeaseExpired?: (err: Error) => void;
   /** Callback saat terjadi error jaringan atau HTTP error lainnya. */
   onError?: (err: Error) => void;
@@ -98,9 +170,6 @@ export interface LicenseCheckResult {
   expiresAt: string | null;
   entitlements: Record<string, any>;
   licenseVersion: number;
-  seatsUsed?: number;
-  maxSeats?: number;
-  token?: string;
   reason?: string;
   message?: string;
   /** Helper untuk mengecek apakah suatu feature flag aktif. */
@@ -109,23 +178,41 @@ export interface LicenseCheckResult {
   getFeature: <T = any>(featureName: string, defaultValue?: T) => T;
 }
 
+/**
+ * Respons `POST /api/v1/licensing/validate`.
+ * Catatan: endpoint ini tidak mengembalikan `seatsUsed`/`maxSeats`/`credits`;
+ * token offline untuk verifikasi lokal ada di `offlineGraceToken`.
+ */
 export interface LicenseValidateResult {
   valid: boolean;
+  licenseKey?: string;
   status: string;
   expiresAt: string | null;
-  seatsUsed: number;
-  maxSeats: number;
+  /** Token offline Ed25519 hasil rotasi. Simpan token ini; token sebelumnya masuk JTI denylist. */
+  offlineGraceToken?: string;
   entitlements?: Record<string, any>;
   licenseVersion?: number;
-  licenseToken?: string;
-  gracePeriodRemainingDays?: number;
-  credits?: { balance: number };
   reason?: string;
   message?: string;
   error?: string;
+  minVersion?: string;
+  currentVersion?: string;
 }
 
-export type LicenseVerifyResult = LicenseValidateResult;
+/**
+ * Respons `POST /api/v1/licensing/verify`.
+ * `credits` adalah angka biasa (saldo), bukan objek.
+ * Endpoint ini tidak mengembalikan seatsUsed/maxSeats.
+ */
+export interface LicenseVerifyResult {
+  valid: boolean;
+  status: string;
+  gracePeriodRemainingDays: number | null;
+  credits?: number;
+  entitlements?: Record<string, any>;
+  licenseVersion?: number;
+  message?: string;
+}
 
 export interface LicenseActivateResult {
   success: boolean;
@@ -136,11 +223,14 @@ export interface LicenseActivateResult {
     expiresAt: string | null;
     seatsUsed: number;
     maxSeats: number;
+    floating?: boolean;
     entitlements: Record<string, any>;
     licenseVersion: number;
+    /** Hanya ada untuk lisensi floating. */
     leaseKey?: string;
-    leaseExpiresAt?: string;
+    /** Hanya ada untuk lisensi floating: masa berlaku lease dalam detik. */
     leaseTtlSeconds?: number;
+    /** Hanya ada untuk lisensi floating: interval heartbeat yang direkomendasikan. */
     heartbeatIntervalSeconds?: number;
   };
   activated?: boolean;
@@ -148,21 +238,28 @@ export interface LicenseActivateResult {
   errorCode?: string;
 }
 
+export interface LicenseDeactivateResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Respons `POST /api/v1/licensing/heartbeat`.
+ * Server mengirim `leaseExpiresAt`; SDK menormalisasi ulang ke `expiresAt`
+ * demi kompatibilitas konsumen lama.
+ */
 export interface LicenseHeartbeatResult {
   success: boolean;
   status?: string;
   expiresAt?: string;
-  // BUG C3: server mengembalikan leaseExpiresAt (bukan expiresAt) pada success,
-  // dan reason:"LEASE_MISMATCH" pada kegagalan lease (HTTP 409).
   leaseExpiresAt?: string;
   leaseKey?: string;
   lastHeartbeatAt?: string;
   seatsUsed?: number;
   floating?: boolean;
+  message?: string;
   reason?: string;
-  leaseTtlSeconds?: number;
-  heartbeatIntervalSeconds?: number;
-  gracePeriodRemainingDays?: number;
   error?: string;
   errorCode?: string;
 }
@@ -188,6 +285,11 @@ export interface AiChatOptions {
   licenseToken?: string;
   prompt?: string;
   messages?: ChatMessage[];
+  /**
+   * Alias model yang dikonfigurasi builder di dashboard. Default-nya `"default"`,
+   * yang wajib sama persis dengan nilai yang dipakai server agar guardrail
+   * (rate limit per menit & kuota token harian) ikut diterapkan.
+   */
   modelAlias?: string;
   provider?: "openai" | "anthropic" | "gemini" | "deepseek" | "custom";
   model?: string;
@@ -198,6 +300,7 @@ export interface AiStreamChunk {
   text: string;
 }
 
+/** Hasil verifikasi offline token secara lokal (tanpa request ke server). */
 export interface OfflineTokenVerifyResult {
   valid: boolean;
   reason?: string;
@@ -214,6 +317,21 @@ export interface OfflineTokenVerifyResult {
     iat?: number;
     exp?: number;
   };
+}
+
+/**
+ * Hasil verifikasi offline token secara online. Berbeda dari verifikasi lokal:
+ * endpoint ini mengecek JTI denylist dan status lisensi terkini di server.
+ */
+export interface OnlineOfflineTokenVerifyResult {
+  valid: boolean;
+  licenseKey?: string;
+  appId?: string;
+  hardwareHash?: string;
+  seats?: number;
+  expiresAt?: string | null;
+  mode?: string;
+  reason?: string;
 }
 
 export interface CreditBalanceOptions {
@@ -275,9 +393,10 @@ export interface S2SIssueOptions {
   customerEmail: string;
   grantDays?: number;
   maxSeats?: number;
-  platform?: string;
+  platform?: "web" | "desktop" | "chrome_extension" | "android" | "general";
   grantCredits?: number;
   features?: Record<string, any>;
+  licenseVersion?: number;
 }
 
 export interface S2SIssueBatchOptions {
@@ -286,7 +405,7 @@ export interface S2SIssueBatchOptions {
     customerEmail: string;
     grantDays?: number;
     maxSeats?: number;
-    platform?: string;
+    platform?: "web" | "desktop" | "chrome_extension" | "android" | "general";
     grantCredits?: number;
     features?: Record<string, any>;
   }>;

@@ -105,27 +105,6 @@ function copyToClipboard(text: string, isLicense = false) {
     }, 2500);
   }
 }
-
-// Sandbox Simulation State & Action
-const isSimulating = ref(false);
-const simulationError = ref("");
-const sandboxOtp = ref("123456");
-
-async function handleSimulatePayment() {
-  if (!props.activeOrder?.transactionId) return;
-  isSimulating.value = true;
-  simulationError.value = "";
-  try {
-    const res = await api.simulatePaid(props.activeOrder.transactionId, props.activeOrder.ticket);
-    if (!res.success) {
-      simulationError.value = res.error || "Gagal mensimulasikan pembayaran.";
-    }
-  } catch (err: any) {
-    simulationError.value = err?.message || "Terjadi kesalahan saat simulasi pembayaran.";
-  } finally {
-    isSimulating.value = false;
-  }
-}
 </script>
 
 <template>
@@ -241,22 +220,26 @@ async function handleSimulatePayment() {
             </p>
           </div>
 
-          <!-- Simulator sandbox (jika mode sandbox) -->
-          <div v-if="product.mode === 'sandbox'" class="pt-1.5">
-            <button
-              @click="handleSimulatePayment"
-              :disabled="isSimulating"
-              type="button"
-              class="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-xs"
+          <!-- Sandbox guidance -->
+          <div v-if="product.mode === 'sandbox'" class="pt-1.5 space-y-2">
+            <a
+              v-if="activeOrder.checkoutUrl"
+              :href="activeOrder.checkoutUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs"
             >
-              <FlaskConical class="w-4 h-4 text-white" />
-              <span>{{
-                isSimulating ? "Memproses Pembayaran..." : "Simulasi Bayar QRIS (Sandbox)"
-              }}</span>
-            </button>
-            <p v-if="simulationError" class="text-[11px] font-bold text-red-600 mt-1">
-              {{ simulationError }}
-            </p>
+              <ExternalLink class="w-4 h-4 text-emerald-400" />
+              <span>Buka Halaman Kasir Sandbox</span>
+            </a>
+            <div
+              class="p-2.5 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-800 flex items-center gap-2"
+            >
+              <FlaskConical class="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span
+                >Mode Sandbox: Selesaikan pembayaran via simulator PG atau aplikasi sandbox.</span
+              >
+            </div>
           </div>
         </div>
 
@@ -318,22 +301,24 @@ async function handleSimulatePayment() {
             </div>
           </div>
 
-          <!-- Simulator sandbox VA -->
-          <div v-if="product.mode === 'sandbox'" class="pt-1.5">
-            <button
-              @click="handleSimulatePayment"
-              :disabled="isSimulating"
-              type="button"
-              class="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-xs"
+          <!-- Sandbox guidance VA -->
+          <div v-if="product.mode === 'sandbox'" class="pt-1.5 space-y-2">
+            <a
+              v-if="activeOrder.checkoutUrl"
+              :href="activeOrder.checkoutUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs"
             >
-              <FlaskConical class="w-4 h-4 text-white" />
-              <span>{{
-                isSimulating ? "Memproses Pembayaran..." : "Simulasi Bayar VA (Sandbox)"
-              }}</span>
-            </button>
-            <p v-if="simulationError" class="text-[11px] font-bold text-red-600 mt-1">
-              {{ simulationError }}
-            </p>
+              <ExternalLink class="w-4 h-4 text-emerald-400" />
+              <span>Buka Halaman Kasir Sandbox</span>
+            </a>
+            <div
+              class="p-2.5 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-800 flex items-center gap-2"
+            >
+              <FlaskConical class="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>Mode Sandbox: Selesaikan transfer via simulator VA PG.</span>
+            </div>
           </div>
         </div>
 
@@ -395,22 +380,24 @@ async function handleSimulatePayment() {
             </div>
           </div>
 
-          <!-- Simulator sandbox Retail -->
-          <div v-if="product.mode === 'sandbox'" class="pt-1.5">
-            <button
-              @click="handleSimulatePayment"
-              :disabled="isSimulating"
-              type="button"
-              class="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-xs"
+          <!-- Sandbox guidance Retail -->
+          <div v-if="product.mode === 'sandbox'" class="pt-1.5 space-y-2">
+            <a
+              v-if="activeOrder.checkoutUrl"
+              :href="activeOrder.checkoutUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs"
             >
-              <FlaskConical class="w-4 h-4 text-white" />
-              <span>{{
-                isSimulating ? "Memproses Pembayaran..." : "Simulasi Bayar Kasir (Sandbox)"
-              }}</span>
-            </button>
-            <p v-if="simulationError" class="text-[11px] font-bold text-red-600 mt-1">
-              {{ simulationError }}
-            </p>
+              <ExternalLink class="w-4 h-4 text-emerald-400" />
+              <span>Buka Halaman Kasir Sandbox</span>
+            </a>
+            <div
+              class="p-2.5 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-800 flex items-center gap-2"
+            >
+              <FlaskConical class="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>Mode Sandbox: Selesaikan pembayaran via simulator kasir PG.</span>
+            </div>
           </div>
         </div>
 
@@ -441,22 +428,24 @@ async function handleSimulatePayment() {
             </p>
           </div>
 
-          <!-- Simulator sandbox E-Wallet -->
-          <div v-if="product.mode === 'sandbox'" class="pt-1.5">
-            <button
-              @click="handleSimulatePayment"
-              :disabled="isSimulating"
-              type="button"
-              class="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-xs"
+          <!-- Sandbox guidance E-Wallet -->
+          <div v-if="product.mode === 'sandbox'" class="pt-1.5 space-y-2">
+            <a
+              v-if="activeOrder.checkoutUrl"
+              :href="activeOrder.checkoutUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs"
             >
-              <FlaskConical class="w-4 h-4 text-white" />
-              <span>{{
-                isSimulating ? "Memproses Pembayaran..." : "Simulasi Bayar E-Wallet (Sandbox)"
-              }}</span>
-            </button>
-            <p v-if="simulationError" class="text-[11px] font-bold text-red-600 mt-1">
-              {{ simulationError }}
-            </p>
+              <ExternalLink class="w-4 h-4 text-emerald-400" />
+              <span>Buka Halaman Kasir Sandbox</span>
+            </a>
+            <div
+              class="p-2.5 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-800 flex items-center gap-2"
+            >
+              <FlaskConical class="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>Mode Sandbox: Selesaikan pembayaran via simulator e-wallet PG.</span>
+            </div>
           </div>
         </div>
       </div>

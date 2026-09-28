@@ -60,8 +60,11 @@ export class DanaService {
   }
 
   /** Buat Order / Checkout Payment DANA */
-  static async createOrder(params: Parameters<typeof DanaOrderService.createOrder>[0]) {
-    return DanaOrderService.createOrder(params, this.paymentGateway);
+  static async createOrder(
+    params: Parameters<typeof DanaOrderService.createOrder>[0],
+    gateway?: Parameters<typeof DanaOrderService.createOrder>[1]
+  ) {
+    return DanaOrderService.createOrder(params, gateway ?? this.paymentGateway);
   }
 
   /** Cek status pembayaran ke gateway DANA */

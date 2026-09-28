@@ -2,56 +2,56 @@
  * Modul Checkout: Dynamic Checkout Session & Redirect (MoR Engine).
  */
 
-import type { CheckoutOptions } from "../types";
+import type { TertautExecutor, CheckoutOptions, CheckoutResult } from "../types";
 
-export interface RequestExecutor {
-  request: (path: string, init?: RequestInit) => Promise<Response>;
-  appId: string;
-}
+type RequestExecutor = TertautExecutor;
 
 export async function executeCheckout(
   executor: RequestExecutor,
   options: CheckoutOptions
-): Promise<{ checkoutUrl: string; transactionId: string }> {
-  if (!options.customerEmail) {
+): Promise<CheckoutResult> {
+  if (!options.customerEmail && !options.buyerEmail) {
     throw new Error("[Tertaut SDK] customerEmail is required for checkout.");
   }
-  if (!executor.appId) {
+  if (!executor.appId && !options.appSlug && !options.slug) {
     throw new Error("[Tertaut SDK] appId is required for checkout session.");
   }
 
-  const res = await executor.request("/api/v1/checkout/session", {
+  // Catatan: `grantCredits` sengaja TIDAK pernah dikirim dari klien. Server
+  // mengambilnya dari `meteringConfig.freeAllowance` produk sebagai nilai
+  // otoritatif, dan mengabaikan nilai kiriman klien demi mencegah pencetakan
+  // kredit gratis. Opsi ini dihapus dari tipe agar tidak menyesatkan.
+  const data = await executor.requestJson<CheckoutResult>("/api/v1/checkout/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      appId: executor.appId,
+      appId: executor.appId || undefined,
+      appSlug: options.appSlug,
+      slug: options.slug,
       amount: options.amount,
-      grantDays: options.grantDays ?? 30,
-      grantCredits: options.grantCredits ?? 0,
       customerEmail: options.customerEmail,
+      buyerEmail: options.buyerEmail,
+      grantDays: options.grantDays ?? 30,
       redirectUrl: options.redirectUrl,
       couponCode: options.couponCode,
+      paymentGateway: options.paymentGateway,
       paymentRail: options.paymentRail,
+      preferredPaymentChannel: options.preferredPaymentChannel,
       vaBank: options.vaBank,
+      bank: options.bank,
+      ewalletChannel: options.ewalletChannel,
+      retailOutlet: options.retailOutlet,
       customAmount: options.customAmount,
+      startTrial: options.startTrial,
+      isTrial: options.isTrial,
     }),
   });
 
-  if (!res.ok) {
-    throw new Error(`Checkout session failed: ${res.statusText}`);
-  }
-
-  const data = (await res.json()) as any;
   const checkoutUrl = data.checkoutUrl || data.redirectUrl || "";
-  const result = {
-    checkoutUrl,
-    transactionId: data.transactionId,
-    ...data,
-  };
   if (typeof window !== "undefined" && checkoutUrl) {
     window.location.href = checkoutUrl;
   }
-  return result;
+  return { ...data, checkoutUrl };
 }
 
 export async function getPaymentStatus(
@@ -59,11 +59,10 @@ export async function getPaymentStatus(
   transactionId: string,
   ticket?: string
 ): Promise<any> {
-  // BUG A1: server hanya mendefinisikan GET /checkout/status/:txId (path param),
-  // bukan query param txId. Perbaiki agar method ini benar-benar bekerja.
+  // Server mendefinisikan GET /checkout/status/:txId (path param),
+  // bukan query param txId.
   const query = ticket ? `?ticket=${encodeURIComponent(ticket)}` : "";
-  const res = await executor.request(
+  return executor.requestJson(
     `/api/v1/checkout/status/${encodeURIComponent(transactionId)}${query}`
   );
-  return res.json();
 }

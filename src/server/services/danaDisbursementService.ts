@@ -42,14 +42,6 @@ export function resolveDisbursementAccount(
     };
   }
 
-  if (config.isSandbox) {
-    return {
-      bankCode: "BCA",
-      accountNumber: "1234567890000",
-      accountHolderName: builder?.name || "Sandbox Builder",
-    };
-  }
-
   return null;
 }
 
@@ -60,7 +52,6 @@ export interface CreateDisbursementParams {
   accountHolderName: string;
   accountNumber: string;
   description: string;
-  forceMock?: boolean;
 }
 
 export interface DisbursementResult {
@@ -77,21 +68,6 @@ export interface DisbursementResult {
  */
 export class DanaDisbursementService {
   static async createDisbursement(params: CreateDisbursementParams): Promise<DisbursementResult> {
-    const mockEnabled =
-      params.forceMock ||
-      (config.isSandbox && (config.isTest || !config.dana.clientId || !config.dana.clientSecret));
-
-    if (mockEnabled) {
-      return {
-        id: `dana_disb_mock_${Date.now()}`,
-        external_id: params.externalId,
-        amount: params.amount,
-        bank_code: params.bankCode,
-        account_holder_name: params.accountHolderName,
-        status: "COMPLETED",
-      };
-    }
-
     if (!config.dana.clientId || !config.dana.clientSecret) {
       throw new Error("DANA Disbursement Failed: Kredensial DANA tidak dikonfigurasi.");
     }
@@ -107,12 +83,26 @@ export class DanaDisbursementService {
     }
 
     try {
+      const isSandboxEnv = config.dana.env === "sandbox" || config.isSandbox;
+      const bankCodeMap: Record<string, string> = {
+        BCA: "014",
+        MANDIRI: "008",
+        BNI: "009",
+        BRI: "002",
+        PERMATA: "013",
+        CIMB: "022",
+      };
+      const beneficiaryBankCode = isSandboxEnv
+        ? "014"
+        : bankCodeMap[params.bankCode.toUpperCase()] || params.bankCode;
+      const beneficiaryAccountNumber = isSandboxEnv ? "2460888509" : params.accountNumber;
+
       const disbursementApi = getDanaDisbursementApi();
       const response = await disbursementApi.transferToBank({
         partnerReferenceNo: params.externalId,
         customerNumber,
-        beneficiaryAccountNumber: params.accountNumber,
-        beneficiaryBankCode: params.bankCode,
+        beneficiaryAccountNumber,
+        beneficiaryBankCode,
         amount: {
           currency: "IDR",
           value: `${params.amount.toFixed(2)}`,

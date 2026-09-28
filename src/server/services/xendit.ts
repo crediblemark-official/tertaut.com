@@ -8,8 +8,6 @@ export interface CreateXenditOrderParams {
   description: string;
   returnUrl?: string;
   finishRedirectUrl?: string;
-  forceMock?: boolean;
-  allowMock?: boolean;
   scenario?: "API" | "REDIRECT";
   paymentRail?: "qris" | "va" | "ewallet";
   vaBank?: string;
@@ -25,7 +23,6 @@ export interface XenditOrderResponse {
   paymentCode?: string;
   qrDataUrl?: string;
   vaBank?: string;
-  mock?: boolean;
 }
 
 /**

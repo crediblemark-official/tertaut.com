@@ -1,8 +1,7 @@
 /**
  * @tertaut/sdk
- * Comprehensive Multi-Platform Developer SDK (< 15KB)
+ * Comprehensive Multi-Platform Developer SDK (~16 KB minified, ~5 KB gzipped, zero dependency)
  * Multi-Platform: Browser, Chrome Extension, Desktop (Tauri/Electron), Node.js, Bun, React Native
- * Zero Heavy Third-Party Dependencies
  */
 
 import { executeCheckout, getPaymentStatus } from "./modules/checkout";
@@ -11,8 +10,15 @@ import { CreditsModule } from "./modules/credits";
 import { AiProxyModule } from "./modules/aiproxy";
 import { S2SModule } from "./modules/s2s";
 import { verifyWebhookSignature } from "./utils/crypto";
+import { createTertautError } from "./errors";
 
-import type { TertautConfig, CheckoutOptions } from "./types";
+import type {
+  TertautConfig,
+  TertautEnvironment,
+  TertautExecutor,
+  CheckoutOptions,
+  CheckoutResult,
+} from "./types";
 
 export * from "./types";
 export * from "./errors";
@@ -21,7 +27,7 @@ export class Tertaut {
   public apiKey: string;
   public appId: string;
   public baseUrl: string;
-  public environment: "production" | "sandbox";
+  public environment: TertautEnvironment;
   public timeoutMs: number;
 
   public licensing: LicensingModule;
@@ -48,20 +54,17 @@ export class Tertaut {
     this.apiKey = config.apiKey;
     this.appId = config.appId || "";
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
-    this.environment = config.apiKey.startsWith("tt_live_") ? "production" : "sandbox";
+    this.environment = isSecretKey
+      ? "server"
+      : config.apiKey.startsWith("tt_live_")
+        ? "production"
+        : "sandbox";
     this.timeoutMs = config.timeoutMs || 15_000;
 
-    const requestExecutor = {
-      request: this.request.bind(this),
-      appId: this.appId,
-      baseUrl: this.baseUrl,
-      apiKey: this.apiKey,
-    };
-
-    this.licensing = new LicensingModule(requestExecutor);
-    this.credits = new CreditsModule(requestExecutor);
-    this.aiProxy = new AiProxyModule(requestExecutor);
-    this.s2s = new S2SModule(requestExecutor);
+    this.licensing = new LicensingModule(this.executor());
+    this.credits = new CreditsModule(this.executor());
+    this.aiProxy = new AiProxyModule(this.executor());
+    this.s2s = new S2SModule(this.executor());
   }
 
   /**
@@ -78,6 +81,7 @@ export class Tertaut {
 
   /**
    * Helper internal untuk HTTP request dengan batas timeout.
+   * Mengembalikan `Response` mentah — dipakai modul yang butuh akses stream (SSE).
    */
   private async request(path: string, init?: RequestInit): Promise<Response> {
     const controller = new AbortController();
@@ -94,32 +98,58 @@ export class Tertaut {
   }
 
   /**
+   * HTTP request + parse JSON. Melempar subclass `TertautError` yang sesuai
+   * bila server merespons status >= 400, sehingga consumer bisa melakukan
+   * branching via `instanceof` alih-alih memeriksa bentuk payload manual.
+   *
+   * Respons 2xx tetap dikembalikan apa adanya, termasuk yang berisi
+   * `valid:false` atau `success:false` — status tersebut adalah jawaban
+   * bisnis yang sah, bukan kegagalan transport.
+   */
+  private async requestJson<T = any>(path: string, init?: RequestInit): Promise<T> {
+    const res = await this.request(path, init);
+
+    let payload: any;
+    try {
+      const text = await res.text();
+      payload = text ? JSON.parse(text) : undefined;
+    } catch {
+      payload = undefined;
+    }
+
+    if (!res.ok) {
+      throw createTertautError(res.status, payload, { path, statusText: res.statusText });
+    }
+    return payload as T;
+  }
+
+  /**
+   * Paket kontekstual yang dibagi ke seluruh modul.
+   * Dibuat ulang per modul karena setiap modul menambah header sendiri
+   * (mis. `Authorization` untuk S2S, `x-api-key` untuk metering).
+   */
+  private executor(): TertautExecutor {
+    return {
+      request: this.request.bind(this),
+      requestJson: this.requestJson.bind(this),
+      appId: this.appId,
+      baseUrl: this.baseUrl,
+      apiKey: this.apiKey,
+    };
+  }
+
+  /**
    * Modul Checkout: MoR Engine Dynamic Checkout Session & Redirect.
    */
-  public async checkout(
-    options: CheckoutOptions
-  ): Promise<{ checkoutUrl: string; transactionId: string }> {
-    return executeCheckout(
-      {
-        request: this.request.bind(this),
-        appId: this.appId,
-      },
-      options
-    );
+  public async checkout(options: CheckoutOptions): Promise<CheckoutResult> {
+    return executeCheckout(this.executor(), options);
   }
 
   /**
    * Cek status pembayaran transaksi MoR dengan atau tanpa ticket HMAC.
    */
   public async getPaymentStatus(transactionId: string, ticket?: string): Promise<any> {
-    return getPaymentStatus(
-      {
-        request: this.request.bind(this),
-        appId: this.appId,
-      },
-      transactionId,
-      ticket
-    );
+    return getPaymentStatus(this.executor(), transactionId, ticket);
   }
 }
 

@@ -10,7 +10,6 @@ import {
   handlePreviewCoupon,
   handleListTransactions,
   handleDisburseTx,
-  handleSimulatePaid,
   handleGetInvoiceData,
 } from "./handlers";
 
@@ -23,7 +22,6 @@ const PUBLIC_CHECKOUT_PATHS = [
   "/status",
   "consult-pay",
   "/invoice",
-  "simulate-paid",
 ];
 
 export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
@@ -187,25 +185,6 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
       tags: ["MoR Checkout"],
       summary: "Trigger Xendit Disbursement",
       description: "Memicu pencairan saldo instan untuk transaksi tertentu.",
-    },
-  })
-  /**
-   * One-Click Local Payment Simulator for Developers (Hanya Sandbox)
-   */
-  .post("/simulate-paid/:txId", handleSimulatePaid, {
-    params: t.Object({ txId: t.String() }),
-    query: t.Optional(
-      t.Object({
-        ticket: t.Optional(
-          t.String({ description: "HMAC poll ticket bukti kepemilikan sesi sandbox" })
-        ),
-      })
-    ),
-    detail: {
-      tags: ["MoR Checkout"],
-      summary: "Simulate Successful Payment (Local Developer Sandbox)",
-      description:
-        "Simulasi pembayaran sukses instan untuk pengujian di lingkungan sandbox tanpa perlu melakukan transfer uang nyata.",
     },
   })
   /**

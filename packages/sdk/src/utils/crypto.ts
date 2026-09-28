@@ -13,7 +13,22 @@ export function base64urlToBytes(input: string): Uint8Array {
 }
 
 /**
+ * Perbandingan string tahan timing-attack.
+ * Panjang berbeda langsung ditolak (signature hex selalu 64 char), lalu
+ * selisih byte di-XOR seluruhnya tanpa short-circuit.
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+/**
  * Verifikasi signature webhook HMAC-SHA256.
+ * Header diterima dalam format `hmac-sha256=<hex>` maupun hex polos.
  */
 export async function verifyWebhookSignature(
   rawBody: string,
@@ -34,7 +49,7 @@ export async function verifyWebhookSignature(
     const hex = Array.from(new Uint8Array(signatureBuf))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
-    return hex.toLowerCase() === normalizedHeader.toLowerCase();
+    return timingSafeEqual(hex, normalizedHeader.toLowerCase());
   } catch (err) {
     return false;
   }

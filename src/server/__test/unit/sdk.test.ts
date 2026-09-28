@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { Tertaut } from "../../../../packages/sdk/src/index";
+import { HeartbeatLeaseError } from "../../../../packages/sdk/src/errors";
 
 describe("Unit Tests - Tertaut SDK", () => {
   it("should enforce constructor validations and derive environment from apiKey", () => {
@@ -98,7 +99,10 @@ describe("Unit Tests - Tertaut SDK", () => {
         return new Response(JSON.stringify({ activated: true }), { status: 200 });
       }
       if (url.endsWith("/licensing/deactivate")) {
-        return new Response(JSON.stringify({ deactivated: true }), { status: 200 });
+        return new Response(
+          JSON.stringify({ success: true, message: "Device seat released successfully" }),
+          { status: 200 }
+        );
       }
       if (url.endsWith("/jwks.json")) {
         return new Response(JSON.stringify({ keys: [] }), { status: 200 });
@@ -120,7 +124,8 @@ describe("Unit Tests - Tertaut SDK", () => {
     expect(act.activated).toBe(true);
 
     const deact = await sdk.licensing.deactivate({ licenseKey: "TT-123", hwid: "HW-1" });
-    expect(deact.deactivated).toBe(true);
+    expect(deact.success).toBe(true);
+    expect(deact.message).toContain("released successfully");
 
     const jwks = await sdk.licensing.getJwks();
     expect(jwks.keys).toBeDefined();
@@ -520,46 +525,86 @@ describe("Unit Tests - Tertaut SDK", () => {
 
   it("should test checkout error cases and browser redirect simulation", async () => {
     const { executeCheckout } = require("../../../../packages/sdk/src/modules/checkout");
+    const { createTertautError } = require("../../../../packages/sdk/src/errors");
+
+    /** Executor palsu: `requestJson` meniru pipeline error SDK yang sebenarnya. */
+    const fakeExecutor = (appId: string, respond: () => Response) =>
+      ({
+        appId,
+        request: async () => respond(),
+        requestJson: async (path: string) => {
+          const res = respond();
+          let payload: any;
+          try {
+            const text = await res.text();
+            payload = text ? JSON.parse(text) : undefined;
+          } catch {
+            payload = undefined; // body non-JSON, sama seperti requestJson asli
+          }
+          if (!res.ok) {
+            throw createTertautError(res.status, payload, { path, statusText: res.statusText });
+          }
+          return payload;
+        },
+      }) as any;
 
     // 1. Missing customerEmail
     await expect(
-      executeCheckout({ request: async () => new Response("{}"), appId: "app_1" }, {
-        amount: 100,
-      } as any)
+      executeCheckout(
+        fakeExecutor("app_1", () => new Response("{}")),
+        {
+          amount: 100,
+        } as any
+      )
     ).rejects.toThrow("customerEmail is required");
 
-    // 2. Missing appId
+    // 2. Missing appId (dan tidak ada slug pengganti)
     await expect(
       executeCheckout(
-        { request: async () => new Response("{}"), appId: "" },
+        fakeExecutor("", () => new Response("{}")),
         { amount: 100, customerEmail: "test@x.com" }
       )
     ).rejects.toThrow("appId is required");
 
-    // 3. Failed HTTP response
-    await expect(
-      executeCheckout(
-        {
-          request: async () =>
-            new Response("Bad Request", { status: 400, statusText: "Bad Request" }),
-          appId: "app_1",
-        },
+    // 3. Failed HTTP response → TertautError bertipe, bukan Error polos
+    let caught: any;
+    try {
+      await executeCheckout(
+        fakeExecutor("app_1", () => new Response("Bad Request", { status: 400 })),
         { amount: 100, customerEmail: "test@x.com" }
-      )
-    ).rejects.toThrow("Checkout session failed: Bad Request");
+      );
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught.name).toBe("TertautError");
+    expect(caught.status).toBe(400);
+
+    // 3b. appSlug menggantikan kewajiban appId
+    const slugRes = await executeCheckout(
+      fakeExecutor(
+        "",
+        () =>
+          new Response(
+            JSON.stringify({ checkoutUrl: "https://pay.example.com", transactionId: "tx_s" })
+          )
+      ),
+      { customerEmail: "test@x.com", appSlug: "my-product" }
+    );
+    expect(slugRes.checkoutUrl).toBe("https://pay.example.com");
 
     // 4. Browser window redirect simulation
     const originalWindow = (globalThis as any).window;
     (globalThis as any).window = { location: { href: "" } };
 
     const res = await executeCheckout(
-      {
-        request: async () =>
+      fakeExecutor(
+        "app_1",
+        () =>
           new Response(
             JSON.stringify({ checkoutUrl: "https://pay.example.com", transactionId: "tx_1" })
-          ),
-        appId: "app_1",
-      },
+          )
+      ),
       { amount: 100, customerEmail: "test@x.com" }
     );
     expect(res.checkoutUrl).toBe("https://pay.example.com");
@@ -585,7 +630,8 @@ describe("Unit Tests - Tertaut SDK", () => {
     expect(sdk.licensing.getFeature({ limit: 100 }, "limit", 10)).toBe(100);
     expect(sdk.licensing.getFeature({}, "limit", 10)).toBe(10);
 
-    // 2. startHeartbeatSession - lease expired callback
+    // 2. startHeartbeatSession - lease hilang dibalas 409 + reason LEASE_MISMATCH.
+    // `requestJson` melempar HeartbeatLeaseError sehingga session berhenti sendiri.
     let leaseExpiredCalled = false;
     let errorCalled = false;
     const originalFetch = globalThis.fetch;
@@ -594,10 +640,10 @@ describe("Unit Tests - Tertaut SDK", () => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Seat lease expired",
-          errorCode: "LEASE_EXPIRED",
+          error: "Lease tidak ditemukan atau leaseKey tidak valid untuk perangkat ini.",
+          reason: "LEASE_MISMATCH",
         }),
-        { status: 200 }
+        { status: 409 }
       );
     }) as any;
 
@@ -606,22 +652,45 @@ describe("Unit Tests - Tertaut SDK", () => {
       hwid: "HW-EXP",
       leaseKey: "lease_exp_1",
       intervalSeconds: 999,
-      onLeaseExpired: () => {
+      onLeaseExpired: (err) => {
         leaseExpiredCalled = true;
+        expect(err).toBeInstanceOf(HeartbeatLeaseError);
+        expect((err as HeartbeatLeaseError).code).toBe("LEASE_MISMATCH");
       },
       onError: () => {
         errorCalled = true;
       },
     });
 
-    const res = await session.beatNow();
-    expect(res.success).toBe(false);
+    await expect(session.beatNow()).rejects.toBeInstanceOf(HeartbeatLeaseError);
     expect(leaseExpiredCalled).toBe(true);
     expect(errorCalled).toBe(true);
     expect(session.isActive()).toBe(false);
 
     // beatNow on stopped session throws
     await expect(session.beatNow()).rejects.toThrow("Heartbeat session has stopped");
+
+    // 2b. Toleransi 200 + success:false — perlakukan sama seperti lease hilang
+    let leaseExpiredOn200 = false;
+    globalThis.fetch = (async () => {
+      return new Response(
+        JSON.stringify({ success: false, error: "Seat lease expired", errorCode: "LEASE_EXPIRED" }),
+        { status: 200 }
+      );
+    }) as any;
+
+    const session200 = sdk.licensing.startHeartbeatSession({
+      licenseKey: "TT-EXP200",
+      hwid: "HW-EXP200",
+      leaseKey: "lease_exp_200",
+      intervalSeconds: 999,
+      onLeaseExpired: () => {
+        leaseExpiredOn200 = true;
+      },
+    });
+    await expect(session200.beatNow()).rejects.toBeInstanceOf(HeartbeatLeaseError);
+    expect(leaseExpiredOn200).toBe(true);
+    expect(session200.isActive()).toBe(false);
 
     // 3. startHeartbeatSession - network exception in beatNow
     globalThis.fetch = (async () => {

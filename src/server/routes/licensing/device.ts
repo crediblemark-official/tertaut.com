@@ -70,6 +70,8 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
     return {
       success: false,
       error: `Terlalu banyak percobaan aktivasi. Coba lagi dalam ${rl.retryAfter} detik.`,
+      errorCode: "RATE_LIMITED",
+      retryAfter: rl.retryAfter,
     };
   }
 
@@ -79,23 +81,39 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
 
   if (!lic) {
     set.status = 404;
-    return { success: false, error: "License key not found" };
+    return {
+      success: false,
+      error: "License key not found",
+      errorCode: "LICENSE_NOT_FOUND",
+    };
   }
 
   if (lic.appId !== appId) {
     set.status = 403;
-    return { success: false, error: "App mismatch for this license key" };
+    return {
+      success: false,
+      error: "App mismatch for this license key",
+      errorCode: "APP_MISMATCH",
+    };
   }
 
   if (lic.status !== "ACTIVE") {
     set.status = 403;
-    return { success: false, error: `License is ${lic.status}` };
+    return {
+      success: false,
+      error: `License is ${lic.status}`,
+      errorCode: `LICENSE_${lic.status}`,
+    };
   }
 
   const now = new Date();
   if (await LicenseService.checkAndMarkExpired(lic)) {
     set.status = 403;
-    return { success: false, error: "License has expired" };
+    return {
+      success: false,
+      error: "License has expired",
+      errorCode: "LICENSE_EXPIRED",
+    };
   }
 
   const hwidHash = LicenseService.hashHardwareIdSecure(hwid);
@@ -326,7 +344,13 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
         );
       }
       set.status = 403;
-      return { success: false, error: outcome.error };
+      // `errorCode` agar klien SDK bisa melempar SeatLimitExceededError bertipe
+      // alih-alih harus membaca teks pesan.
+      return {
+        success: false,
+        error: outcome.error,
+        ...(outcome.seatFull ? { errorCode: "SEAT_FULL" } : {}),
+      };
     }
 
     await AuditService.record(
@@ -350,6 +374,13 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
       payload: { deviceName, seatsUsed: outcome.seatsUsed },
     });
 
+    // Klien butuh TTL lease & interval heartbeat untuk menjalankan sesi
+    // heartbeat-nya sendiri. Sebelumnya nilai ini hanya tersedia di endpoint
+    // dashboard/S2S, sehingga SDK tidak pernah bisa membacanya.
+    const floatingConfig = resolveFloatingConfig(
+      await db.query.apps.findFirst({ where: eq(apps.id, lic.appId) })
+    );
+
     return {
       success: true,
       message: "Device activated successfully",
@@ -364,6 +395,12 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
         maxSeats,
         floating: outcome.floating === true,
         ...(outcome.leaseKey ? { leaseKey: outcome.leaseKey } : {}),
+        ...(outcome.floating === true
+          ? {
+              leaseTtlSeconds: floatingConfig.leaseTtlSeconds,
+              heartbeatIntervalSeconds: floatingConfig.heartbeatIntervalSeconds,
+            }
+          : {}),
         entitlements: lic.features || {},
         licenseVersion: lic.licenseVersion || 1,
       },
@@ -404,6 +441,12 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
           maxSeats,
           floating: floating.enabled,
           ...(leaseKey ? { leaseKey } : {}),
+          ...(floating.enabled
+            ? {
+                leaseTtlSeconds: floating.leaseTtlSeconds,
+                heartbeatIntervalSeconds: floating.heartbeatIntervalSeconds,
+              }
+            : {}),
           entitlements: lic.features || {},
           licenseVersion: lic.licenseVersion || 1,
         },

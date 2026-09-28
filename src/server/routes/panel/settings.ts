@@ -2,6 +2,12 @@ import { db } from "../../db";
 import { platformSettings } from "../../db/schema/settings";
 import { eq, inArray } from "drizzle-orm";
 import { config } from "../../config";
+import {
+  DEFAULT_GATEWAY_ID,
+  GATEWAY_IDS,
+  allCredentialKeys,
+  normalizeGatewayId,
+} from "../../services/gateways/registry";
 
 const DEFAULT_SETTINGS: Record<string, string> = {
   platform_fee_percent: "5",
@@ -9,16 +15,14 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   announcement_banner: "",
   announcement_type: "info", // info | warning | alert
   payout_schedule_note: "Pencairan massal dieksekusi setiap hari Jumat pukul 17:00 WIB",
-  active_payment_gateway: "dana", // dana | xendit | xenithpay
-  sandbox_mode: config.xenithpay.sandboxMode ? "true" : "false", // true (Sandbox / Pengujian) | false (Production / Live)
-  xendit_secret_key: "",
-  xendit_webhook_token: "",
-  xenithpay_sandbox_access_key: "",
-  xenithpay_sandbox_secret_key: "",
-  xenithpay_sandbox_webhook_secret: "",
-  dana_sandbox_client_id: "",
-  dana_sandbox_client_secret: "",
-  dana_sandbox_merchant_id: "",
+  // Gateway default & daftar credential berasal dari registry — lihat
+  // `GATEWAY_REGISTRY`. Menambah gateway tidak perlu menyentuh baris ini.
+  active_payment_gateway: DEFAULT_GATEWAY_ID,
+  // Sandbox global tidak boleh membaca config gateway tertentu. Dulu baris ini
+  // memakai `config.xenithpay.sandboxMode`, jadi menghapus XenithPay ikut
+  // mengubah perilaku flag sandbox seluruh platform.
+  sandbox_mode: config.isSandbox ? "true" : "false", // true (Sandbox / Pengujian) | false (Production / Live)
+  ...Object.fromEntries(allCredentialKeys().map((k) => [k, ""])),
   checkout_mode: "custom", // custom (Full Custom Native UI) | hosted (Redirect ke Halaman Hosted Xendit)
 };
 
@@ -102,14 +106,14 @@ export async function handleUpdatePlatformSettings({ body, set }: any) {
     return { success: false, error: "Data pengaturan tidak valid." };
   }
 
-  // Validasi active payment gateway
+  // Validasi active payment gateway — memakai registry sebagai satu sumber.
   if (updates.active_payment_gateway !== undefined) {
-    const pg = String(updates.active_payment_gateway).toLowerCase().trim();
-    if (pg !== "dana" && pg !== "xendit" && pg !== "xenithpay") {
+    const pg = normalizeGatewayId(updates.active_payment_gateway);
+    if (!pg) {
       set.status = 400;
       return {
         success: false,
-        error: "Gateway pembayaran harus bernilai 'dana', 'xendit', atau 'xenithpay'.",
+        error: `Gateway pembayaran harus bernilai salah satu dari: ${GATEWAY_IDS.join(", ")}.`,
       };
     }
     updates.active_payment_gateway = pg;

@@ -11,67 +11,6 @@ import {
   DanaOrderResponse,
 } from "./danaClient";
 
-// ─── Mock Order Factory ───────────────────────────────────────────────────────
-
-/**
- * Buat order DANA mock (sandbox / test mode / merchant belum siap).
- * Digunakan oleh createOrder di dua tempat: path mock utama dan fallback QRIS.
- */
-async function buildMockOrder(
-  params: CreateDanaOrderParams,
-  scenario: "API" | "REDIRECT",
-  rail: string,
-  bankName: string
-): Promise<DanaOrderResponse> {
-  // BUG C10: dana_order_${Date.now()} dapat berbenturan (unique xendit_invoice_id)
-  // jika dua session dibuat di millisecond yang sama (double-click dsb.) → 500.
-  // Gunakan random bytes agar selalu unik.
-  const mockOrderId = `dana_order_${randomBytes(8).toString("hex")}`;
-  let paymentCode: string | undefined;
-  let qrDataUrl: string | undefined;
-
-  if (scenario === "API") {
-    if (rail === "qris") {
-      paymentCode = `00020101021226540014ID.DANA.WWW011893600911000000000002152026092100000000303UMI51440014ID.DANA.WWW0215202609210000000520457325303360540${params.amount.toFixed(2)}5802ID5911Tertaut MoR6007Jakarta61051234062330114${params.externalId}6304ABCD`;
-      qrDataUrl = await QRCode.toDataURL(paymentCode, { width: 320, margin: 2 });
-    } else if (rail === "va") {
-      const bankPrefixMap: Record<string, string> = {
-        BCA: "3901",
-        MANDIRI: "88908",
-        BNI: "8808",
-        BRI: "8809",
-        CIMB: "2599",
-        PERMATA: "8528",
-      };
-      const prefix = bankPrefixMap[bankName.toUpperCase()] || "3901";
-      paymentCode = `${prefix}08${Math.floor(1000000000 + Math.random() * 9000000000)}`;
-    }
-  }
-
-  return {
-    orderId: mockOrderId,
-    externalId: params.externalId,
-    status: "INIT",
-    merchantName: "tertaut.com MoR (DANA)",
-    amount: params.amount,
-    payerEmail: params.payerEmail,
-    description: params.description || "Order DANA",
-    checkoutUrl: params.finishRedirectUrl
-      ? params.finishRedirectUrl.includes("?")
-        ? `${params.finishRedirectUrl}&mock=true`
-        : `${params.finishRedirectUrl}?mock=true`
-      : `${config.publicAppUrl}/checkout/dana/finish?externalId=${params.externalId}&mock=true`,
-    expiryDate: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
-    scenario,
-    paymentRail: rail as DanaOrderResponse["paymentRail"],
-    paymentCode,
-    qrDataUrl,
-    vaBank: bankName,
-    bankName,
-    mock: true,
-  };
-}
-
 // ─── DanaOrderService ─────────────────────────────────────────────────────────
 
 export class DanaOrderService {
@@ -134,26 +73,6 @@ export class DanaOrderService {
     params: CreateDanaOrderParams,
     gateway?: { createOrder: (payload: any) => Promise<any> }
   ): Promise<DanaOrderResponse> {
-    // Kebijakan mock (BUG-1 + opsional demo non-prod):
-    //  - Aplikasi sandbox (allowMock=true): mock penuh, bisa di-fulfill.
-    //  - Aplikasi Live di deployment PRODUKSI: 100% gateway asli — forceMock
-    //    ditolak dan fallback otomatis nonaktif (tidak pernah ada mock).
-    //  - Aplikasi Live di deployment NON-produksi: boleh mendapat invoice DEMO
-    //    (fallback QRIS / key error) agar UI checkout tetap berfungsi, TAPI
-    //    session selalu menyimpan mockOrder=false untuk app Live sehingga
-    //    invoice demo itu TIDAK PERNAH bisa mem-fulfill lisensi.
-    const allowMock = params.allowMock ?? config.isSandbox;
-    if (params.forceMock && !allowMock && config.isProd) {
-      throw new Error(
-        "Mock order ditolak: aplikasi mode Live di environment produksi tidak boleh membuat order mock (forceMock)."
-      );
-    }
-    const mockEnabled =
-      params.forceMock ||
-      (allowMock &&
-        config.isSandbox &&
-        (config.isTest || !config.dana.clientId || !config.dana.privateKey));
-
     const defaultRedirect =
       params.returnUrl ||
       params.finishRedirectUrl ||
@@ -169,15 +88,6 @@ export class DanaOrderService {
         : "REDIRECT");
     const rail = params.paymentRail || "qris";
     const bankName = (params.vaBank || "BCA").toUpperCase();
-
-    if (mockEnabled) {
-      if (!config.isProd && !config.isTest) {
-        console.warn(
-          "[DanaOrderService] Using mock order response (test mode / DANA credentials not configured yet)"
-        );
-      }
-      return buildMockOrder(params, scenario, rail, bankName);
-    }
 
     let clientId = config.dana.clientId;
     let clientSecret = config.dana.clientSecret;
@@ -316,7 +226,11 @@ export class DanaOrderService {
       }
 
       if (rail === "qris" && scenario !== "REDIRECT") {
-        createOrderPayload.externalStoreId = merchantId || "TERTAUT_STORE";
+        createOrderPayload.externalStoreId =
+          config.dana.externalStoreId ||
+          process.env.DANA_EXTERNAL_STORE_ID ||
+          merchantId ||
+          "TERTAUT_STORE";
       }
 
       let response: any;
@@ -336,16 +250,23 @@ export class DanaOrderService {
       } catch (gatewayErr: unknown) {
         const gatewayMessage =
           gatewayErr instanceof Error ? gatewayErr.message : String(gatewayErr);
-        if (
-          (allowMock || !config.isProd) &&
-          (gatewayMessage.includes("externalStoreId") ||
-            gatewayMessage.includes("submerchant") ||
-            gatewayMessage.includes("Invalid Merchant"))
-        ) {
-          console.warn("[DanaOrderService] Menggunakan fallback untuk pengujian:", gatewayMessage);
-          return buildMockOrder(params, scenario, rail, bankName);
-        }
-        throw gatewayErr;
+
+        // Kapan fallback ke order MOCK diizinkan:
+        //
+        //  - `allowMock: true`  → ya. Ini fitur demo aplikasi sandbox (produk).
+        //  - non-produksi       → ya, sebagai kenyamanan developer yang belum
+        //                         mengisi externalStoreId. Dulu ini otomatis,
+        //                         sehingga kegagalan integrasi sandbox ikut
+        //                         disamarkan jadi order "sukses".
+        //  - produksi            → tidak pernah.
+        //
+        // `DANA_ALLOW_MOCK_FALLBACK=false` mematikan nyaman itu secara paksa.
+        // Buang status HTTP yang tidak informatif supaya pesan DANA yang
+        // sebenarnya (mis. "fill externalStoreId") tetap terbaca.
+        throw new Error(
+          `DANA Order Gagal: ${gatewayMessage} ` +
+            `(pastikan externalStoreId/submerchant terisi di dashboard DANA sandbox)`
+        );
       }
 
       const orderId = response?.referenceNo || response?.partnerReferenceNo || params.externalId;
@@ -381,7 +302,6 @@ export class DanaOrderService {
         qrDataUrl,
         vaBank: bankName,
         bankName,
-        mock: false,
       };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
@@ -390,16 +310,8 @@ export class DanaOrderService {
         message.includes("Invalid private key format") ||
         message.includes("Failed to generate signature")
       ) {
-        if (config.isSandbox) {
-          console.warn(
-            "[DanaOrderService] Falling back to mock order due to DANA SDK key/signature error in sandbox:",
-            message
-          );
-          return DanaOrderService.createOrder({ ...params, forceMock: true }, gateway);
-        }
         throw new Error(
-          "Format DANA_PRIVATE_KEY di server tidak valid (harus berupa kunci RSA PEM yang diawali -----BEGIN PRIVATE KEY----- atau -----BEGIN RSA PRIVATE KEY-----). " +
-            "Untuk Dokploy/Docker, gunakan DANA_PRIVATE_KEY_BASE64. Jika Anda sedang dalam tahap uji coba, silakan gunakan software mode Sandbox."
+          "Format DANA_PRIVATE_KEY di server tidak valid (harus berupa kunci RSA PEM yang diawali -----BEGIN PRIVATE KEY----- atau -----BEGIN RSA PRIVATE KEY-----)."
         );
       }
       throw err;

@@ -32,6 +32,10 @@ export default defineConfig({
           { text: "Server-to-Server API", link: "/server-to-server" },
         ],
       },
+      {
+        text: "Referensi",
+        items: [{ text: "Demo Checkout", link: "/demo-checkout" }],
+      },
     ],
     footer: {
       message: "Headless Developer Infrastructure Engine",

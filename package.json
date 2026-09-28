@@ -1,6 +1,6 @@
 {
   "name": "tertaut",
-  "version": "2.2.0",
+  "version": "2.2.3",
   "private": true,
   "type": "module",
   "description": "Headless Developer Infrastructure Engine (Monetization, Licensing, AI Protection, Validation & Launch Kit)",
@@ -22,6 +22,9 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "test": "bun test --parallel=1",
+    "test:isolated": "bash scripts/test-isolated.sh",
+    "test:gateways": "bash scripts/test-gateways.sh",
+    "smoke:gateway": "bun scripts/smoke-gateway.ts",
     "test:coverage": "bun test --coverage --parallel=1",
     "typecheck": "tsc --noEmit && vue-tsc -p src/client/tsconfig.json --noEmit",
     "lint": "prettier --check .",

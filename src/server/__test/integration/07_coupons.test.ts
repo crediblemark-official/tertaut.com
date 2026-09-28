@@ -1,12 +1,24 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll, spyOn } from "bun:test";
 import { setupTestAuth } from "../setup";
 import { db } from "../../db";
 import { apps, coupons, transactions } from "../../db/schema";
 import { eq } from "drizzle-orm";
+import { danaGateway } from "../../services/gateways/danaGateway";
 
 setupTestAuth();
 
 describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
+  let gatewaySpy: any;
+  beforeAll(() => {
+    gatewaySpy = spyOn(danaGateway, "createOrder").mockImplementation(async (params) => ({
+      orderId: `dana_order_${Date.now()}`,
+      checkoutUrl: `https://api.sandbox.dana.id/checkout/dana/finish?externalId=${params.externalId}`,
+      paymentRail: params.paymentRail,
+    }));
+  });
+  afterAll(() => {
+    gatewaySpy?.mockRestore();
+  });
   async function createTestApp(): Promise<{ id: string; slug: string }> {
     const builder = await db.query.builders.findFirst();
     if (!builder) throw new Error("No builder found — jalankan seed/auto-seed dulu");

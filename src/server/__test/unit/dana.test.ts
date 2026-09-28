@@ -46,30 +46,27 @@ describe("Unit Tests - DanaService", () => {
     config.dana.clientSecret = origSecret;
   });
 
-  it("should handle DANA disbursement mock mode vs missing credential error", async () => {
+  it("should throw error on DANA disbursement when credentials missing", async () => {
     const origSandbox = config.isSandbox;
     const origClientId = config.dana.clientId;
     const origSecret = config.dana.clientSecret;
 
-    // Sandbox mock mode
+    // Both sandbox and live throw when credentials are missing (no mock fallback)
     config.isSandbox = true;
     config.dana.clientId = "";
     config.dana.clientSecret = "";
-    const mockDisb = await DanaService.createDisbursement({
-      externalId: "dana_disb_unit_1",
-      amount: 100_000,
-      bankCode: "BNI",
-      accountHolderName: "Dana Tester",
-      accountNumber: "0987654321",
-      description: "Test payout",
-    });
-    expect(mockDisb.status).toBe("COMPLETED");
-    expect(mockDisb.external_id).toBe("dana_disb_unit_1");
+    expect(
+      DanaService.createDisbursement({
+        externalId: "dana_disb_unit_1",
+        amount: 100_000,
+        bankCode: "BNI",
+        accountHolderName: "Dana Tester",
+        accountNumber: "0987654321",
+        description: "Test payout",
+      })
+    ).rejects.toThrow();
 
-    // Live mode without credentials throws error
     config.isSandbox = false;
-    config.dana.clientId = "";
-    config.dana.clientSecret = "";
     expect(
       DanaService.createDisbursement({
         externalId: "dana_disb_fail",

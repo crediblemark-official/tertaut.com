@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeAll } from "bun:test";
+import { describe, it, expect, beforeAll, spyOn } from "bun:test";
 import { setupTestAuth, authCookie } from "../setup";
 import { handleBatchPayout } from "../../routes/panel/payouts";
 import { handleDisburse } from "../../routes/apps/disburse";
+import { DanaService } from "../../services/dana";
 import {
   handleDanaFinish,
   handlePreviewCoupon,
   handleListTransactions,
-  handleSimulatePaid,
 } from "../../routes/checkout/handlers";
 import { db } from "../../db";
 import { apps, builders, transactions, coupons } from "../../db/schema";
@@ -181,12 +181,22 @@ describe("Payouts, Disbursements, and Checkout Handlers", () => {
       disbursementStatus: "PENDING",
     });
 
+    const spyDisb = spyOn(DanaService, "createDisbursement").mockResolvedValueOnce({
+      id: `dana_disb_${Date.now()}`,
+      external_id: `disb_${paidTxId}`,
+      amount: 95000,
+      bank_code: "014",
+      account_holder_name: "Test Builder",
+      status: "COMPLETED",
+    });
+
     const disburseSuccess = await handleDisburse({
       params: { transactionId: paidTxId },
       set: {},
       request: { headers: adminHeaders },
     });
     expect(disburseSuccess.success).toBe(true);
+    spyDisb.mockRestore();
 
     // 5. Re-disbursing already completed/processing transaction gives 400
     const secondTry = await handleDisburse({
@@ -303,32 +313,27 @@ describe("Payouts, Disbursements, and Checkout Handlers", () => {
     expect(listTx.success).toBe(true);
     expect(Array.isArray(listTx.transactions)).toBe(true);
 
-    // 4. handleSimulatePaid
-    const simNotFound = await handleSimulatePaid({ params: { txId: "non_existent_tx" }, set });
-    expect(set.status).toBe(404);
-
-    // Create a pending transaction for sandboxApp
+    // 4. fulfillment via webhook fulfill
+    const { fulfillPaymentTransaction } = await import("../../routes/webhook/fulfill");
     const simTxId = `tx_sim_${Date.now()}`;
-    await db.insert(transactions).values({
-      id: simTxId,
-      appId: sandboxApp.id,
-      builderId: testBuilder.id,
-      xenditExternalId: `ext_${simTxId}`,
-      customerEmail: "sim@test.com",
-      grossAmount: 50000,
-      platformFee: 2500,
-      netAmount: 47500,
-      paymentStatus: "PENDING",
-      disbursementStatus: "PENDING",
-    });
+    const [inserted] = await db
+      .insert(transactions)
+      .values({
+        id: simTxId,
+        appId: sandboxApp.id,
+        builderId: testBuilder.id,
+        xenditExternalId: `ext_${simTxId}`,
+        customerEmail: "sim@test.com",
+        grossAmount: 50000,
+        platformFee: 2500,
+        netAmount: 47500,
+        paymentStatus: "PENDING",
+        disbursementStatus: "PENDING",
+      })
+      .returning();
 
-    const simSuccess = await handleSimulatePaid({ params: { txId: simTxId }, set: {} });
-    expect(simSuccess.success).toBe(true);
-    expect(simSuccess.licenseKey).toBeDefined();
-
-    // Call again on already PAID transaction
-    const simAgain = await handleSimulatePaid({ params: { txId: simTxId }, set: {} });
-    expect(simAgain.success).toBe(true);
-    expect(simAgain.message).toContain("PAID sebelumnya");
+    await fulfillPaymentTransaction(inserted, "XENDIT");
+    const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, simTxId) });
+    expect(updated?.paymentStatus).toBe("PAID");
   });
 });
