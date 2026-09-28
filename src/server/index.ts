@@ -12,7 +12,7 @@ import { LicenseTokenService } from "./services/licenseToken";
 import { existsSync, statSync } from "fs";
 import { resolve } from "path";
 import { db } from "./db";
-import { licenses, user } from "./db/schema";
+import { licenses, user, account } from "./db/schema";
 import { eq, and, lt, asc } from "drizzle-orm";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { LicenseLeaseService } from "./services/licenseLease";
@@ -21,6 +21,7 @@ import { WebhookService } from "./services/webhooks";
 import { ensureDemoData } from "./db/ensureDemo";
 import { ensurePlatformSettings } from "./db/ensureSettings";
 import { randomBytes } from "crypto";
+import { hashPassword } from "better-auth/crypto";
 
 const clientDistPath = resolve(import.meta.dir, "../../dist");
 const docsDistPath = resolve(clientDistPath, "docs");
@@ -546,6 +547,33 @@ export async function ensurePlatformAdmin(): Promise<void> {
         .set({ role: "admin", emailVerified: true })
         .where(eq(user.id, platformUser.id));
       console.log(`[Auth] Akun platform (${adminEmail}) dipastikan sebagai admin.`);
+    }
+
+    if (platformUser && config.admin.password) {
+      const hashedPassword = await hashPassword(config.admin.password);
+      const existingAccount = await db.query.account.findFirst({
+        where: and(eq(account.userId, platformUser.id), eq(account.providerId, "credential")),
+      });
+
+      if (existingAccount) {
+        await db
+          .update(account)
+          .set({ password: hashedPassword, updatedAt: new Date() })
+          .where(eq(account.id, existingAccount.id));
+      } else {
+        await db.insert(account).values({
+          id: `acc_admin_${Date.now()}`,
+          accountId: platformUser.id,
+          providerId: "credential",
+          userId: platformUser.id,
+          password: hashedPassword,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+      console.log(
+        `[Auth] Password akun platform (${adminEmail}) berhasil disinkronkan dari environment.`
+      );
     }
   } catch (error: any) {
     console.warn("[Auth] Gagal memeriksa status admin platform:", error?.message || error);
