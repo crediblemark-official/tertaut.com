@@ -24,34 +24,39 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
 
   beforeAll(async () => {
     adminHeaders = new Headers({ cookie: authCookie });
-    const bList = await db.query.builders.findMany({ limit: 1 });
-    if (bList.length > 0) {
-      testBuilder = bList[0];
-    } else {
-      const [b] = await db
-        .insert(builders)
+    try {
+      const bList = await db.query.builders.findMany({ limit: 1 });
+      if (bList.length > 0) {
+        testBuilder = bList[0];
+      } else {
+        const [b] = await db
+          .insert(builders)
+          .values({
+            name: "Queries Builder",
+            email: `q_${Date.now()}@test.com`,
+            apiKey: generateAppApiKey("live"),
+          })
+          .returning();
+        testBuilder = b;
+      }
+
+      const testSlug = `app-query-${Date.now()}`;
+      const [a] = await db
+        .insert(apps)
         .values({
-          name: "Queries Builder",
-          email: `q_${Date.now()}@test.com`,
-          apiKey: generateAppApiKey("live"),
+          id: `app_q_${Date.now()}`,
+          name: "Query Test App",
+          slug: testSlug,
+          builderId: testBuilder.id,
+          mode: "live",
+          targetPrice: 50000,
         })
         .returning();
-      testBuilder = b;
+      testApp = a;
+    } catch {
+      // DB tidak tersedia (misal lokal tanpa Docker) — test yang tidak memerlukan
+      // DB (seperti DanaService) tetap akan berjalan.
     }
-
-    const testSlug = `app-query-${Date.now()}`;
-    const [a] = await db
-      .insert(apps)
-      .values({
-        id: `app_q_${Date.now()}`,
-        name: "Query Test App",
-        slug: testSlug,
-        builderId: testBuilder.id,
-        mode: "live",
-        targetPrice: 50000,
-      })
-      .returning();
-    testApp = a;
   });
 
   it("should test apps queries handlers (getBuilderMyself, listApps, stats, checkSlug, getBySlug)", async () => {

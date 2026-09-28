@@ -129,7 +129,9 @@ export class DanaOrderService {
       }
     } catch {}
 
-    if (!clientId || !privateKey) {
+    // Jika caller menyediakan gateway eksplisit, skip validasi credential —
+    // caller sudah bertanggung jawab atas gateway-nya (misalnya stub di test).
+    if (!gateway && (!clientId || !privateKey)) {
       throw new Error(
         "DANA Order Creation Failed: DANA_CLIENT_ID / DANA_PRIVATE_KEY tidak dikonfigurasi."
       );
