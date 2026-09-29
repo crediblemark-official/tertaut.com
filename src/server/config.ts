@@ -399,7 +399,7 @@ export const config = {
       clientSecret: isSandbox
         ? getEnv("DANA_SANDBOX_CLIENT_SECRET") ||
           getEnv("DANA_CLIENT_SECRET") ||
-          (isTest ? "00b18d19398bcd9ddad4b0792a0bdeaf5f2d70ee65c8359d4066a933515a5" : "")
+          (isTest ? "00b18d19398bcd9ddad4b0792a0bdeaf5f2d79d70ee65c8359d4066a933515a5" : "")
         : getEnv("DANA_CLIENT_SECRET"),
       merchantId: isSandbox
         ? getEnv("DANA_SANDBOX_MERCHANT_ID") ||
