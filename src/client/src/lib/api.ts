@@ -114,7 +114,13 @@ async function parseJson<T = any>(res: Response): Promise<T> {
     try {
       data = JSON.parse(text);
     } catch {
-      data = { error: `HTTP ${res.status}: respons bukan format JSON valid` };
+      const snippet = text.trim().slice(0, 120);
+      data = {
+        error:
+          snippet.startsWith("<") || snippet.includes("error code:")
+            ? `HTTP ${res.status}: Gateway/Proxy upstream error (${snippet})`
+            : `HTTP ${res.status}: ${snippet || "respons bukan format JSON valid"}`,
+      };
     }
   }
 

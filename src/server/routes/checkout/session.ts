@@ -551,7 +551,7 @@ export async function handleCreateSession({ request, body, set }: any) {
   } catch (err: any) {
     console.error("[handleCreateSession Error]:", err);
     const msg = err?.message || "";
-    set.status = 500;
+    set.status = 400;
     let errorMsg = "Terjadi kesalahan internal saat membuat sesi checkout. Silakan coba lagi.";
     if (
       msg.includes("Invalid Merchant") ||
@@ -562,25 +562,25 @@ export async function handleCreateSession({ request, body, set }: any) {
         "Gateway DANA menolak transaksi: merchant/submerchant (externalStoreId) untuk " +
         "metode pembayaran ini belum terdaftar di dashboard DANA. Daftarkan di " +
         "https://dashboard.dana.id/sandbox/submerchants, atau gunakan aplikasi mode Sandbox untuk pengujian.";
-      set.status = 502;
+      set.status = 400;
     } else if (
       msg.includes("DANA_CLIENT_ID") ||
       msg.includes("DANA_PRIVATE_KEY") ||
       (msg.includes("DANA") && msg.includes("tidak dikonfigurasi"))
     ) {
       errorMsg = "Gateway pembayaran DANA belum dikonfigurasi dengan benar di server.";
-      set.status = 502;
+      set.status = 400;
     } else if (
       msg.includes("XENDIT_SECRET_KEY") ||
       (msg.includes("Xendit") && msg.includes("belum dikonfigurasi"))
     ) {
       errorMsg =
         "Gateway pembayaran Xendit belum dikonfigurasi dengan benar di server atau Super Admin Panel.";
-      set.status = 502;
+      set.status = 400;
     } else if (msg.includes("XenithPay") && msg.includes("belum dikonfigurasi")) {
       errorMsg =
         "Gateway pembayaran XenithPay belum dikonfigurasi di panel atau environment server.";
-      set.status = 502;
+      set.status = 400;
     } else if (
       msg.includes("XenithPay API error") &&
       msg.toLowerCase().includes("ip address") &&
@@ -589,10 +589,10 @@ export async function handleCreateSession({ request, body, set }: any) {
       errorMsg =
         "XenithPay menolak server ini: IP publik server belum diizinkan. " +
         "Tambahkan IP publik server ke allowlist akun XenithPay lalu coba lagi.";
-      set.status = 502;
+      set.status = 400;
     } else if (msg.toLowerCase().includes("timeout")) {
       errorMsg = "Gateway pembayaran tidak merespons tepat waktu. Silakan coba lagi beberapa saat.";
-      set.status = 502;
+      set.status = 400;
     }
     return {
       success: false,
