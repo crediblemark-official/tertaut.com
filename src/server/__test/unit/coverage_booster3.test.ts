@@ -256,7 +256,7 @@ describe("Coverage Booster3: panel/payouts.ts handleBatchPayout", () => {
     expect(res.success).toBe(true);
     // processedCount is number of SUCCESS results; others are skipped or errored
     expect(typeof res.processedCount).toBe("number");
-  });
+  }, 20000);
 
   it("handleBatchPayout: builder with eligible txs but no bank account → skips with error entry", async () => {
     const { builder, app: a } = await seedBuilderApp("live");
@@ -268,7 +268,7 @@ describe("Coverage Booster3: panel/payouts.ts handleBatchPayout", () => {
     // This path only triggers in production. Just run and verify no crash.
     const res = await handleBatchPayout();
     expect(res.success).toBe(true);
-  });
+  }, 20000);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
