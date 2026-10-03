@@ -180,17 +180,38 @@ const couponInputValue = computed({
       </div>
     </div>
 
-    <!-- Footer Trust -->
-    <div
-      class="flex items-center justify-between text-xs font-semibold text-slate-600 pt-3 border-t border-slate-200 shrink-0"
-    >
-      <div class="flex items-center gap-1.5">
-        <Lock class="w-3.5 h-3.5 text-amber-600" />
-        <span>Enkripsi 256-Bit SSL</span>
+    <!-- Footer Trust & Legal Merchant Info -->
+    <div class="space-y-2 pt-3 border-t border-slate-200 shrink-0">
+      <div class="flex items-center justify-between text-xs font-semibold text-slate-600">
+        <div class="flex items-center gap-1.5">
+          <Lock class="w-3.5 h-3.5 text-amber-600" />
+          <span>Enkripsi 256-Bit SSL</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <Sparkles class="w-3.5 h-3.5 text-emerald-600" />
+          <span>Aktivasi Instan</span>
+        </div>
       </div>
-      <div class="flex items-center gap-1.5">
-        <Sparkles class="w-3.5 h-3.5 text-emerald-600" />
-        <span>Aktivasi Instan</span>
+      <div
+        class="p-2.5 rounded-lg bg-white border border-slate-200 text-[10.5px] text-slate-600 space-y-1"
+      >
+        <div class="font-bold text-slate-800">Disediakan Resmi oleh PT RETAS LINTAS BATAS</div>
+        <div class="text-slate-500 leading-tight">
+          Jl. Raya Batang-Batang, Kab. Sumenep, Jawa Timur
+        </div>
+        <div class="flex items-center gap-2 pt-0.5 text-slate-600">
+          <a
+            href="https://wa.me/6285183131249"
+            target="_blank"
+            class="text-emerald-700 font-bold hover:underline"
+          >
+            WA: +62 851-8313-1249
+          </a>
+          <span>•</span>
+          <a href="mailto:retaslintasbatas@gmail.com" class="hover:underline">
+            retaslintasbatas@gmail.com
+          </a>
+        </div>
       </div>
     </div>
   </div>
@@ -321,6 +342,29 @@ const couponInputValue = computed({
           </button>
         </div>
         <p v-if="couponError" class="text-xs text-red-600 font-semibold mt-1">{{ couponError }}</p>
+      </div>
+    </div>
+
+    <!-- Mobile Merchant Legal Footer -->
+    <div
+      class="p-2.5 rounded-lg bg-white border border-slate-200/80 text-[10.5px] text-slate-600 space-y-1"
+    >
+      <div class="font-bold text-slate-800">Penjual Resmi: PT RETAS LINTAS BATAS</div>
+      <div class="text-slate-500 leading-tight">
+        Jl. Raya Batang-Batang, Kab. Sumenep, Jawa Timur
+      </div>
+      <div class="flex items-center gap-2 pt-0.5">
+        <a
+          href="https://wa.me/6285183131249"
+          target="_blank"
+          class="text-emerald-700 font-bold hover:underline"
+        >
+          WA: +62 851-8313-1249
+        </a>
+        <span>•</span>
+        <a href="mailto:retaslintasbatas@gmail.com" class="hover:underline">
+          retaslintasbatas@gmail.com
+        </a>
       </div>
     </div>
   </div>

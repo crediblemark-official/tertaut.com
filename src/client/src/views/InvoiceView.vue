@@ -321,14 +321,17 @@ onMounted(() => {
       </div>
 
       <!-- Legal Footer -->
-      <div class="pt-6 border-t border-slate-200 text-[10px] text-slate-400 space-y-1 text-center">
-        <p>
-          Faktur ini adalah bukti transaksi yang sah dan diterbitkan secara elektronik oleh platform
-          tertaut.com sebagai Merchant of Record.
+      <div
+        class="pt-6 border-t border-slate-200 text-[10px] text-slate-500 space-y-1.5 text-center"
+      >
+        <p class="font-bold text-slate-700">
+          Faktur ini adalah bukti transaksi resmi yang sah dan diterbitkan secara elektronik oleh
+          platform tertaut.com di bawah naungan <strong>PT RETAS LINTAS BATAS</strong> sebagai
+          Merchant of Record resmi.
         </p>
         <p>
-          Untuk pertanyaan atau dukungan teknis terkait lisensi, silakan hubungi tim dukungan
-          melalui support@tertaut.com.
+          Alamat: Jl. Raya Batang-Batang, Kab. Sumenep, Jawa Timur • WhatsApp Dukungan: +62
+          851-8313-1249 • Email: retaslintasbatas@gmail.com
         </p>
       </div>
     </div>

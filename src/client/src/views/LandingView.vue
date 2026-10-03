@@ -29,7 +29,11 @@ import {
   Check,
   TrendingUp,
   Lock,
+  ShoppingBag,
+  PhoneCall,
 } from "lucide-vue-next";
+import PublicFooter from "../components/common/PublicFooter.vue";
+import { COMPANY_INFO, PLATFORM_PRICING } from "../constants/company";
 
 const { copied: copiedSdk, copy: writeClipboard } = useClipboard();
 const isMobileMenuOpen = ref(false);
@@ -192,19 +196,32 @@ function copySdkInstall() {
         </router-link>
 
         <!-- Navigation Links -->
-        <nav class="hidden md:flex items-center gap-7 text-xs font-semibold text-jetblack/75">
-          <a href="#solusi" class="hover:text-jetblack transition">Solusi Produk</a>
+        <nav class="hidden md:flex items-center gap-6 text-xs font-semibold text-jetblack/75">
+          <a href="#biaya" class="hover:text-forest transition font-bold text-forest">
+            Biaya &amp; Layanan
+          </a>
+          <router-link to="/demo/checkout" class="hover:text-jetblack transition">
+            Demo Checkout
+          </router-link>
+          <a href="#solusi" class="hover:text-jetblack transition">Solusi MoR</a>
           <a href="#cara-kerja" class="hover:text-jetblack transition">Cara Kerja</a>
-          <a href="#integrasi-sdk" class="hover:text-jetblack transition">Integrasi SDK</a>
           <a href="#kalkulator" class="hover:text-jetblack transition">Kalkulator Biaya</a>
           <a href="#faq" class="hover:text-jetblack transition">FAQ</a>
-          <router-link to="/dashboard/docs" class="hover:text-jetblack transition"
-            >Dokumentasi</router-link
-          >
+          <router-link to="/contact" class="hover:text-jetblack transition flex items-center gap-1">
+            <PhoneCall class="w-3 h-3 text-gold" />
+            <span>Kontak</span>
+          </router-link>
         </nav>
 
         <!-- Action CTAs -->
         <div class="flex items-center gap-2 sm:gap-3">
+          <router-link
+            to="/demo/checkout"
+            class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-forest/30 bg-forest/5 text-forest text-xs font-bold hover:bg-forest/10 transition"
+          >
+            <span>Demo Checkout</span>
+          </router-link>
+
           <router-link
             v-if="!isLoggedIn"
             to="/login"
@@ -242,6 +259,20 @@ function copySdkInstall() {
         class="md:hidden border-t border-jetblack/10 bg-white px-4 py-4 space-y-3 text-xs font-semibold animate-fadeIn shadow-lg"
       >
         <a
+          href="#biaya"
+          @click="isMobileMenuOpen = false"
+          class="block py-1.5 text-forest font-bold hover:text-forest-dark"
+        >
+          💳 Biaya &amp; Layanan Platform
+        </a>
+        <router-link
+          to="/demo/checkout"
+          @click="isMobileMenuOpen = false"
+          class="block py-1.5 text-forest font-bold hover:text-forest-dark"
+        >
+          ⚡ Simulasi Demo Checkout
+        </router-link>
+        <a
           href="#solusi"
           @click="isMobileMenuOpen = false"
           class="block py-1.5 text-jetblack/80 hover:text-jetblack"
@@ -270,6 +301,12 @@ function copySdkInstall() {
           @click="isMobileMenuOpen = false"
           class="block py-1.5 text-jetblack/80 hover:text-jetblack"
           >FAQ</a
+        >
+        <router-link
+          to="/contact"
+          @click="isMobileMenuOpen = false"
+          class="block py-1.5 text-gold font-bold hover:text-jetblack"
+          >📞 Kontak &amp; Alamat Resmi</router-link
         >
         <router-link
           to="/dashboard/docs"
@@ -1081,6 +1118,87 @@ function copySdkInstall() {
       </div>
     </section>
 
+    <!-- Transparent Pricing & MoR Overview Section -->
+    <section id="biaya" class="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
+      <div class="text-center space-y-3 max-w-2xl mx-auto">
+        <div
+          class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-forest/10 text-forest text-xs font-bold font-mono"
+        >
+          <Sparkles class="w-3.5 h-3.5" />
+          <span>BIAYA LAYANAN TRANSPARAN</span>
+        </div>
+        <h2 class="text-2xl sm:text-4xl font-black text-jetblack tracking-tight">
+          100% Gratis Digunakan.<br />
+          <span class="text-forest">Hanya 5% Flat Fee Saat Terjadi Penjualan.</span>
+        </h2>
+        <p class="text-xs sm:text-sm text-jetblack/65">
+          Platform Tertaut dioperasikan resmi oleh <strong>{{ COMPANY_INFO.legalName }}</strong
+          >. Tanpa biaya pendaftaran, tanpa biaya bulanan, dan tanpa kontrak terikat.
+        </p>
+      </div>
+
+      <!-- 3 Columns Highlights -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="p-6 rounded-2xl bg-[#FAFAFA] border border-jetblack/10 space-y-3">
+          <div class="text-xs font-mono font-bold uppercase text-forest">
+            01 • Pendaftaran &amp; Akun
+          </div>
+          <div class="text-3xl font-black text-jetblack font-mono">Rp 0</div>
+          <p class="text-xs text-jetblack/70 leading-relaxed">
+            Daftar dan gunakan seluruh fitur lisensi offline Ed25519, AI Proxy Shield, dan API
+            secara gratis selamanya.
+          </p>
+        </div>
+
+        <div class="p-6 rounded-2xl bg-[#F5FAF7] border border-forest/30 space-y-3">
+          <div class="text-xs font-mono font-bold uppercase text-forest">02 • Platform MoR Fee</div>
+          <div class="text-3xl font-black text-forest font-mono">5% Flat Fee</div>
+          <p class="text-xs text-forest/90 leading-relaxed">
+            Hanya dipotong saat pembeli software Anda berhasil membayar via QRIS atau Virtual
+            Account. Tanpa biaya jika tidak ada penjualan.
+          </p>
+        </div>
+
+        <div class="p-6 rounded-2xl bg-[#FAFAFA] border border-jetblack/10 space-y-3">
+          <div class="text-xs font-mono font-bold uppercase text-forest">03 • Pencairan Bersih</div>
+          <div class="text-3xl font-black text-jetblack font-mono">95% Uang Bersih</div>
+          <p class="text-xs text-jetblack/70 leading-relaxed">
+            95% dana bersih dicairkan langsung ke rekening bank lokal Anda. Faktur pajak resmi PPN
+            11% terbit otomatis.
+          </p>
+        </div>
+      </div>
+
+      <!-- Live Demo Checkout Callout Card -->
+      <div
+        class="p-6 sm:p-8 rounded-2xl bg-jetblack text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6"
+      >
+        <div class="space-y-2 max-w-xl">
+          <div class="flex items-center gap-2 text-xs font-bold text-gold font-mono">
+            <QrCode class="w-4 h-4" />
+            <span>PRATINJAU ALUR PEMBAYARAN KONSUMEN</span>
+          </div>
+          <h3 class="text-xl sm:text-2xl font-black tracking-tight">
+            Coba Langsung Halaman Checkout Pembayaran
+          </h3>
+          <p class="text-xs text-white/70 leading-relaxed">
+            Lihat bagaimana alur checkout resmi Tertaut memproses pembayaran QRIS &amp; Virtual
+            Account dengan verifikasi otomatis detik itu juga.
+          </p>
+        </div>
+
+        <div class="shrink-0 w-full md:w-auto">
+          <router-link
+            to="/demo/checkout"
+            class="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white text-jetblack text-xs font-bold hover:bg-[#F2F2F2] transition active:scale-95 shadow-md"
+          >
+            <span>Buka Simulasi Demo Checkout</span>
+            <ArrowRight class="w-3.5 h-3.5 text-forest" />
+          </router-link>
+        </div>
+      </div>
+    </section>
+
     <!-- Revenue & Payout Calculator -->
     <section id="kalkulator" class="py-16 md:py-24 bg-[#FAFAFA] border-y border-jetblack/10">
       <div class="max-w-5xl mx-auto px-4 sm:px-6 space-y-12">
@@ -1299,129 +1417,6 @@ function copySdkInstall() {
     </section>
 
     <!-- Public Footer -->
-    <footer class="mt-auto border-t border-jetblack/10 bg-white py-12">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <!-- Column 1: Brand & Bio -->
-          <div class="space-y-3 md:col-span-1">
-            <div class="flex items-center gap-2">
-              <img :src="logoUrl" alt="tertaut.com" class="w-7 h-7 rounded-md shadow-xs" />
-              <span class="font-extrabold text-jetblack font-mono text-sm"
-                >tertaut<span class="text-gold">.com</span></span
-              >
-            </div>
-            <p class="text-xs text-jetblack/60 leading-relaxed">
-              Platform Merchant of Record (MoR), proteksi lisensi kriptografis, dan monetisasi
-              software nomor 1 untuk software builder Indonesia.
-            </p>
-            <div class="flex items-center gap-2 font-mono text-[11px] text-forest pt-1">
-              <span class="w-2 h-2 rounded-full bg-forest animate-pulse"></span>
-              <span>Platform Operasional &amp; Aktif</span>
-            </div>
-          </div>
-
-          <!-- Column 2: Solusi Produk -->
-          <div class="space-y-2.5">
-            <div class="text-xs font-bold text-jetblack uppercase tracking-wider font-mono">
-              Solusi Produk
-            </div>
-            <ul class="space-y-2 text-xs text-jetblack/70">
-              <li>
-                <a href="#solusi" class="hover:text-jetblack transition"
-                  >Merchant of Record (MoR)</a
-                >
-              </li>
-              <li>
-                <a href="#solusi" class="hover:text-jetblack transition"
-                  >Universal Licensing Ed25519</a
-                >
-              </li>
-              <li>
-                <a href="#solusi" class="hover:text-jetblack transition"
-                  >AI Gateway &amp; Proxy Shield</a
-                >
-              </li>
-              <li>
-                <a href="#solusi" class="hover:text-jetblack transition"
-                  >Web Component Trust Badge</a
-                >
-              </li>
-            </ul>
-          </div>
-
-          <!-- Column 3: Developer & Integrasi -->
-          <div class="space-y-2.5">
-            <div class="text-xs font-bold text-jetblack uppercase tracking-wider font-mono">
-              Developer
-            </div>
-            <ul class="space-y-2 text-xs text-jetblack/70">
-              <li>
-                <router-link to="/dashboard/docs" class="hover:text-jetblack transition"
-                  >Dokumentasi SDK</router-link
-                >
-              </li>
-              <li>
-                <a
-                  href="https://www.npmjs.com/package/@tertaut/sdk"
-                  target="_blank"
-                  class="hover:text-jetblack transition inline-flex items-center gap-1"
-                >
-                  <span>NPM: @tertaut/sdk</span>
-                  <ExternalLink class="w-3 h-3 text-jetblack/40" />
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/swagger"
-                  target="_blank"
-                  class="hover:text-jetblack transition inline-flex items-center gap-1"
-                >
-                  <span>Swagger OpenAPI</span>
-                  <ExternalLink class="w-3 h-3 text-jetblack/40" />
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <!-- Column 4: Akun & Platform -->
-          <div class="space-y-2.5">
-            <div class="text-xs font-bold text-jetblack uppercase tracking-wider font-mono">
-              Platform
-            </div>
-            <ul class="space-y-2 text-xs text-jetblack/70">
-              <li>
-                <router-link to="/dashboard" class="hover:text-jetblack transition"
-                  >Dashboard Builder</router-link
-                >
-              </li>
-              <li v-if="isAdmin">
-                <router-link to="/panel" class="hover:text-jetblack transition"
-                  >Admin Panel</router-link
-                >
-              </li>
-              <li>
-                <a href="#kalkulator" class="hover:text-jetblack transition">Kalkulator Biaya</a>
-              </li>
-              <li>
-                <a href="#faq" class="hover:text-jetblack transition">Bantuan &amp; FAQ</a>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div
-          class="pt-6 border-t border-jetblack/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-jetblack/50"
-        >
-          <div>&copy; {{ new Date().getFullYear() }} Tertaut. Seluruh hak cipta dilindungi.</div>
-          <div class="flex items-center gap-4">
-            <span class="hover:text-jetblack transition">Syarat &amp; Ketentuan</span>
-            <span>•</span>
-            <span class="hover:text-jetblack transition">Kebijakan Privasi</span>
-            <span>•</span>
-            <span class="hover:text-jetblack transition">Keamanan</span>
-          </div>
-        </div>
-      </div>
-    </footer>
+    <PublicFooter :is-admin="isAdmin" />
   </div>
 </template>
