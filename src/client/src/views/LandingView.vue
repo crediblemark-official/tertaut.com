@@ -34,6 +34,15 @@ import {
 } from "lucide-vue-next";
 import PublicFooter from "../components/common/PublicFooter.vue";
 import { COMPANY_INFO, PLATFORM_PRICING } from "../constants/company";
+import { useSeo } from "../composables/useSeo";
+import { STATIC_PAGES_META, createJsonLd } from "../constants/seo";
+
+useSeo(STATIC_PAGES_META.home, [
+  createJsonLd("organization"),
+  createJsonLd("website"),
+  createJsonLd("software"),
+  createJsonLd("faq"),
+]);
 
 const { copied: copiedSdk, copy: writeClipboard } = useClipboard();
 const isMobileMenuOpen = ref(false);

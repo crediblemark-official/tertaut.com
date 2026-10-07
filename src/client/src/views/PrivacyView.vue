@@ -17,6 +17,10 @@ import {
 import PublicHeader from "../components/common/PublicHeader.vue";
 import PublicFooter from "../components/common/PublicFooter.vue";
 import { COMPANY_INFO } from "../constants/company";
+import { useSeo } from "../composables/useSeo";
+import { STATIC_PAGES_META } from "../constants/seo";
+
+useSeo(STATIC_PAGES_META.privacy);
 
 const isDrawerOpen = ref(false);
 const activeChapterId = ref("pasal-1");

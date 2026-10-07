@@ -1,0 +1,18 @@
+# Tertaut — Developer Infrastructure & Merchant of Record Platform
+
+> Official developer infrastructure engine, cryptographic software licensing, and Merchant of Record platform for software creators in Indonesia.
+
+## Core Services
+
+- [Overview](https://tertaut.com/): Official home page, product explanation, and fee structure (flat 5% fee, 0% monthly).
+- [Documentation & SDK](https://tertaut.com/dashboard/docs): Official `@tertaut/sdk` documentation for Ed25519 offline licensing, hardware seat binding, and Server-to-Server API.
+- [Checkout Simulation](https://tertaut.com/demo/checkout): Live interactive preview of dynamic QRIS & Virtual Account payments.
+- [Privacy Policy](https://tertaut.com/privacy.html): Comprehensive privacy compliance with Indonesia's UU PDP No. 27/2022 and Google API Services User Data Policy.
+- [Terms of Service](https://tertaut.com/terms.html): Platform terms and merchant obligations.
+- [Contact & Corporate Legal](https://tertaut.com/contact): Managed by PT RETAS LINTAS BATAS, Sumenep, East Java, Indonesia.
+
+## Capabilities
+
+1. **Merchant of Record (MoR):** Handles local Indonesian payments (instant dynamic QRIS, bank Virtual Accounts) and automatically generates compliant Indonesian tax invoices (PPN 11%). Software creators receive net 95% automated payouts to their bank accounts.
+2. **Universal Licensing Engine (@tertaut/sdk):** Offline-first cryptographic licensing using Ed25519 digital signatures. Supports 30-day offline validation, floating seat quotas, and salted Hardware ID device seat locking for Tauri, Electron, Flutter, C#, and SaaS apps.
+3. **AI Proxy Shield & Quota Metering:** Protects upstream AI provider API keys (OpenAI, Claude) inside AES-256 encrypted server vaults. Provides daily token caps, per-minute rate limiting (15 req/min), and real-time usage telemetry.

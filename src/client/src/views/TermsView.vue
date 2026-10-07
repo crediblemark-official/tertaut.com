@@ -3,6 +3,10 @@ import PublicHeader from "../components/common/PublicHeader.vue";
 import PublicFooter from "../components/common/PublicFooter.vue";
 import { COMPANY_INFO } from "../constants/company";
 import { FileText, ShieldCheck, CheckCircle2 } from "lucide-vue-next";
+import { useSeo } from "../composables/useSeo";
+import { STATIC_PAGES_META } from "../constants/seo";
+
+useSeo(STATIC_PAGES_META.terms);
 </script>
 
 <template>

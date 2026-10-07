@@ -1,0 +1,24 @@
+# robots.txt for tertaut.com
+User-agent: *
+Allow: /
+Allow: /privacy.html
+Allow: /terms.html
+Allow: /contact
+Allow: /refund
+Allow: /dashboard/docs
+Allow: /demo/checkout
+Disallow: /dashboard/
+Disallow: /panel/
+Disallow: /api/
+
+# AI Crawlers & LLM Agents
+User-agent: GPTBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://tertaut.com/sitemap.xml

@@ -388,16 +388,31 @@ if (hasBuiltClient) {
         }
       }
 
-      // Sajikan static terms.html secara langsung untuk /terms dan /terms.html
-      if (
-        url.pathname === "/terms" ||
-        url.pathname === "/terms/" ||
-        url.pathname === "/terms.html"
-      ) {
-        const termsFile = resolve(clientDistPath, "terms.html");
-        if (existsSync(termsFile)) {
-          set.headers["content-type"] = "text/html; charset=utf-8";
-          return Bun.file(termsFile);
+      // Sajikan sitemap.xml dengan header application/xml
+      if (url.pathname === "/sitemap.xml") {
+        const sitemapFile = resolve(clientDistPath, "sitemap.xml");
+        if (existsSync(sitemapFile)) {
+          set.headers["content-type"] = "application/xml; charset=utf-8";
+          return Bun.file(sitemapFile);
+        }
+      }
+
+      // Sajikan robots.txt & llms.txt dengan header text/plain
+      if (url.pathname === "/robots.txt" || url.pathname === "/llms.txt") {
+        const fileName = url.pathname.slice(1);
+        const txtFile = resolve(clientDistPath, fileName);
+        if (existsSync(txtFile)) {
+          set.headers["content-type"] = "text/plain; charset=utf-8";
+          return Bun.file(txtFile);
+        }
+      }
+
+      // Sajikan .well-known/ai-catalog.json dengan header application/json
+      if (url.pathname === "/.well-known/ai-catalog.json") {
+        const catalogFile = resolve(clientDistPath, ".well-known/ai-catalog.json");
+        if (existsSync(catalogFile)) {
+          set.headers["content-type"] = "application/json; charset=utf-8";
+          return Bun.file(catalogFile);
         }
       }
 

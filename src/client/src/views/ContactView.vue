@@ -3,6 +3,8 @@ import { ref } from "vue";
 import PublicHeader from "../components/common/PublicHeader.vue";
 import PublicFooter from "../components/common/PublicFooter.vue";
 import { COMPANY_INFO } from "../constants/company";
+import { useSeo } from "../composables/useSeo";
+import { STATIC_PAGES_META, createJsonLd } from "../constants/seo";
 import {
   MapPin,
   Phone,
@@ -15,6 +17,8 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "lucide-vue-next";
+
+useSeo(STATIC_PAGES_META.contact, createJsonLd("localbusiness"));
 
 const name = ref("");
 const email = ref("");
