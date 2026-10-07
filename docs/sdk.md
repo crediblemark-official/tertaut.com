@@ -166,14 +166,14 @@ status pembayaran serta mengambil faktur.
 Rail **tidak seragam antar gateway**. Mengirim rail yang tidak didukung gateway
 aktif akan membuat gateway tersebut menolak permintaan.
 
-| Rail      | DANA             | Xendit | XenithPay |
-| --------- | ---------------- | ------ | --------- |
-| `qris`    | ✅               | ✅     | ✅        |
-| `va`      | ✅               | ✅     | ✅        |
-| `ewallet` | ✅               | ✅     | ✅        |
-| `card`    | ❌               | ✅     | ✅        |
-| `retail`  | ❌               | ✅     | ✅        |
-| `balance` | ✅ (khusus DANA) | ❌     | ❌        |
+| Rail      | DANA             | Xendit | XenithPay | Tertaut Sandbox (Simulasi) |
+| --------- | ---------------- | ------ | --------- | -------------------------- |
+| `qris`    | ✅               | ✅     | ✅        | ✅                         |
+| `va`      | ✅               | ✅     | ✅        | ✅                         |
+| `ewallet` | ✅               | ✅     | ✅        | ✅                         |
+| `card`    | ❌               | ✅     | ✅        | ✅                         |
+| `retail`  | ❌               | ✅     | ✅        | ✅                         |
+| `balance` | ✅ (khusus DANA) | ❌     | ❌        | ❌                         |
 
 Bila `paymentRail` tidak diisi, server memakai rail default dari produk. Untuk
 kode yang harus jalan di semua gateway, lakukan branch berdasarkan

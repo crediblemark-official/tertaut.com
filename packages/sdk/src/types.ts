@@ -64,6 +64,26 @@ export interface CheckoutOptions {
   /** Aktifkan free trial bila produk punya `trialPeriodDays > 0`. */
   startTrial?: boolean;
   isTrial?: boolean;
+  /**
+   * Jika di-set `false`, SDK tidak akan otomatis mengalihkan browser via `window.location.href`.
+   * Berguna untuk integrasi in-app headless, modal, extension, atau SPA. (Default: true).
+   */
+  autoRedirect?: boolean;
+}
+
+export interface CheckoutStatusResult {
+  success: boolean;
+  transactionId: string;
+  paymentStatus: "PENDING" | "PAID" | "EXPIRED" | "FAILED" | string;
+  licenseKey?: string | null;
+  appId?: string;
+  amount?: number;
+  qrDataUrl?: string;
+  paymentCode?: string;
+  channel?: string;
+  checkoutUrl?: string;
+  paidAt?: string | null;
+  message?: string;
 }
 
 /** Hasil `POST /api/v1/checkout/session`. Pada cabang free trial, lisensi terbit langsung. */

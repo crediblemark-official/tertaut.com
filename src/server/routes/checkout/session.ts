@@ -382,7 +382,9 @@ export async function handleCreateSession({ request, body, set }: any) {
     // Resolve payment gateway: request body -> setting platform -> gateway default.
     // Semua normalisasi nama (alias, allowlist)diurus registry.
     const activePlatformPg = await getActivePaymentGateway();
-    let selectedGateway: GatewayId = normalizeGatewayId(body.paymentGateway) ?? activePlatformPg;
+    let selectedGateway: GatewayId = demoMode
+      ? "sandbox"
+      : (normalizeGatewayId(body.paymentGateway) ?? activePlatformPg);
 
     // Rail yang tidak didukung gateway terpilih dialihkan ke gateway TERDAFTAR
     // lain yang mendukungnya.
@@ -404,13 +406,16 @@ export async function handleCreateSession({ request, body, set }: any) {
 
     const defaultScenario = isHostedMode ? "REDIRECT" : selectedRail ? "API" : "REDIRECT";
     const selectedScenario =
-      demoMode || isSandboxApp ? "API" : isHostedMode ? "REDIRECT" : scenario || defaultScenario;
+      demoMode || selectedGateway === "sandbox" || isSandboxApp
+        ? "API"
+        : isHostedMode
+          ? "REDIRECT"
+          : scenario || defaultScenario;
 
     // Pilihan Adapter:
-    // Jika aplikasi berstatus sandbox (app.mode === "sandbox"), GUNAKAN sandboxGateway (Simulator Internal Tertaut).
-    // Transaksi sandbox 100% terisolasi secara internal dan TIDAK AKAN PERNAH menembak vendor PG produksi riil.
-    // Jika live, gunakan adapter gateway resmi (Xendit Live).
-    const effectiveGatewayId = isSandboxApp ? ("sandbox" as const) : selectedGateway;
+    // Gunakan gateway adapter terpilih. Jika gateway adalah "sandbox", transaksi 100%
+    // terisolasi secara internal dan tidak menembak vendor PG produksi riil.
+    const effectiveGatewayId = selectedGateway;
     const gatewayAdapter = getGatewayAdapter(effectiveGatewayId);
 
     // Hitung Merchant of Record 5% platform fee & 95% net atas nominal yang dibayar
@@ -444,10 +449,10 @@ export async function handleCreateSession({ request, body, set }: any) {
       retailOutlet,
     });
 
-    const invoiceUrl = orderResult.checkoutUrl;
+    const hostedPayUrl = `${requestOrigin}/pay/${app.slug || targetIdentifier}?externalId=${externalId}`;
+    const invoiceUrl = effectiveGatewayId === "sandbox" ? hostedPayUrl : orderResult.checkoutUrl;
     const invoiceId = orderResult.orderId;
     const expiryDate = orderResult.expiryDate;
-    const hostedPayUrl = `${requestOrigin}/pay/${app.slug || targetIdentifier}?externalId=${externalId}`;
 
     // Label paymentChannel disusun dari nama gateway di registry
     const gatewayDescriptorForTx = gatewayDescriptor(effectiveGatewayId);

@@ -18,6 +18,7 @@ import type {
   TertautExecutor,
   CheckoutOptions,
   CheckoutResult,
+  CheckoutStatusResult,
 } from "./types";
 
 export * from "./types";
@@ -148,7 +149,10 @@ export class Tertaut {
   /**
    * Cek status pembayaran transaksi MoR dengan atau tanpa ticket HMAC.
    */
-  public async getPaymentStatus(transactionId: string, ticket?: string): Promise<any> {
+  public async getPaymentStatus(
+    transactionId: string,
+    ticket?: string
+  ): Promise<CheckoutStatusResult> {
     return getPaymentStatus(this.executor(), transactionId, ticket);
   }
 }

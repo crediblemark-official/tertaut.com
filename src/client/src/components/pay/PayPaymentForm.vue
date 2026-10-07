@@ -10,6 +10,7 @@ import {
   ExternalLink,
   FlaskConical,
   Sparkles,
+  CreditCard,
 } from "lucide-vue-next";
 import { formatRupiah } from "../../lib/utils";
 import { api } from "../../lib/api";
@@ -504,6 +505,75 @@ function copyToClipboard(text: string, isLicense = false) {
               <FlaskConical class="w-3.5 h-3.5 text-amber-600 shrink-0" />
               <span
                 >Mode Sandbox: Simulasi notifikasi e-wallet Tertaut tanpa melibatkan uang
+                riil.</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- 2E. Credit/Debit Card Display -->
+        <div
+          v-else-if="activeOrder.paymentRail === 'card'"
+          class="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 space-y-4 shadow-xs"
+        >
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Pembayaran Kartu Kredit / Debit
+            </span>
+            <span
+              class="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 flex items-center gap-1"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+              Menunggu Autentikasi
+            </span>
+          </div>
+
+          <div class="p-3.5 bg-slate-50/70 rounded-xl border border-slate-200/80 space-y-2 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-600 font-medium">Metode Pembayaran:</span>
+              <span class="font-bold text-slate-900 flex items-center gap-1.5">
+                <CreditCard class="w-4 h-4 text-slate-700" />
+                {{ activeOrder.cardDetails?.brand || "Kartu Kredit/Debit" }}
+              </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-600 font-medium">Nomor Kartu:</span>
+              <span class="font-mono font-bold text-slate-900">
+                •••• •••• •••• {{ activeOrder.cardDetails?.last4 || "2151" }}
+              </span>
+            </div>
+            <div class="flex items-center justify-between pt-1 border-t border-slate-200/60">
+              <span class="text-slate-600 font-medium">Total Tagihan:</span>
+              <span class="font-extrabold text-slate-900">
+                {{ formatRupiah(activeOrder.amount || payableAmount) }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Sandbox guidance Card -->
+          <div v-if="product.mode === 'sandbox'" class="pt-1.5 space-y-2">
+            <button
+              type="button"
+              :disabled="isSimulatingPaid"
+              @click="handleSimulatePayment"
+              class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <Sparkles class="w-4 h-4" />
+              <span>{{
+                isSimulatingPaid
+                  ? "Memproses Simulasi..."
+                  : "⚡ Simulasi Bayar Lunas (1-Klik Sandbox)"
+              }}</span>
+            </button>
+            <p v-if="simulateError" class="text-[11px] text-red-600 font-medium text-center">
+              {{ simulateError }}
+            </p>
+            <div
+              class="p-2.5 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-800 flex items-center gap-2"
+            >
+              <FlaskConical class="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span
+                >Mode Sandbox: Simulasi otorisasi kartu kredit Tertaut tanpa melibatkan uang
                 riil.</span
               >
             </div>

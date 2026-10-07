@@ -2,6 +2,7 @@ import { Elysia } from "elysia";
 import { handleDanaFinishPaymentWebhook, handleDanaDisburseNotifyWebhook } from "./dana";
 import { handleXenditInvoiceWebhook, handleXenditDisbursementWebhook } from "./xendit";
 import { handleXenithPayWebhook } from "./xenithpay";
+import { handleSandboxPaymentWebhook } from "./sandbox";
 import { danaWebhookSchema, danaDisburseWebhookSchema } from "./schemas";
 
 export const webhookRoutes = new Elysia({ prefix: "/webhook" })
@@ -21,7 +22,8 @@ export const webhookRoutes = new Elysia({ prefix: "/webhook" })
   .post("/xendit/invoice", handleXenditInvoiceWebhook)
   .post("/xendit/disbursement", handleXenditDisbursementWebhook)
   .post("/xenithpay", handleXenithPayWebhook)
-  .post("/xenithpay/payout", handleXenithPayWebhook);
+  .post("/xenithpay/payout", handleXenithPayWebhook)
+  .post("/sandbox", handleSandboxPaymentWebhook);
 
 export const webhooksPluralRoutes = new Elysia({ prefix: "/webhooks" })
   .post("/dana/finish-payment", handleDanaFinishPaymentWebhook, danaWebhookSchema)
@@ -30,7 +32,8 @@ export const webhooksPluralRoutes = new Elysia({ prefix: "/webhooks" })
   .post("/xendit/invoice", handleXenditInvoiceWebhook)
   .post("/xendit/disbursement", handleXenditDisbursementWebhook)
   .post("/xenithpay", handleXenithPayWebhook)
-  .post("/xenithpay/payout", handleXenithPayWebhook);
+  .post("/xenithpay/payout", handleXenithPayWebhook)
+  .post("/sandbox", handleSandboxPaymentWebhook);
 
 export const snapBiWebhookRoutes = new Elysia()
   .post("/v1.0/debit/notify", handleDanaFinishPaymentWebhook, danaWebhookSchema)

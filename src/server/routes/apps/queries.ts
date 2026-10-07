@@ -256,20 +256,23 @@ export async function handleGetBySlug({ params: { slug }, set }: SlugParamContex
   }
 
   const isDemoFastMail = app.slug === "fastmail-ai";
+  const isSandbox = isDemoFastMail || app.mode === "sandbox";
 
   const checkoutModeRow = await db.query.platformSettings.findFirst({
     where: eq(platformSettings.key, "checkout_mode"),
   });
   const checkoutMode = checkoutModeRow?.value === "hosted" ? "hosted" : "custom";
 
-  // Gateway aktif dibaca lewat helper tunggal, bukan ternary inline yang
-  // hardcode nama gateway (dulu duplikat dari `paymentGateway.ts`).
-  const activePaymentGateway = await getActivePaymentGateway();
+  // Untuk aplikasi sandbox, gunakan gateway adapter sandbox sehingga seluruh
+  // opsi simulator (QRIS, VA, E-Wallet, Retail) aktif dan dapat diuji.
+  // Untuk mode live, gunakan gateway pembayaran platform riil (Xendit/DANA).
+  const platformGateway = await getActivePaymentGateway();
+  const effectiveGateway = isSandbox ? "sandbox" : platformGateway;
 
   let availableChannels = undefined;
   try {
     const { getPaymentGateway } = await import("../../services/payments/gateways");
-    const gateway = getPaymentGateway(activePaymentGateway);
+    const gateway = getPaymentGateway(effectiveGateway);
     if (gateway.getPaymentChannels) {
       availableChannels = await gateway.getPaymentChannels();
     }
@@ -281,7 +284,7 @@ export async function handleGetBySlug({ params: { slug }, set }: SlugParamContex
     slug: app.slug,
     mode: isDemoFastMail ? "sandbox" : app.mode,
     checkoutMode: checkoutMode,
-    activePaymentGateway,
+    activePaymentGateway: effectiveGateway,
     availableChannels,
     targetPrice: app.targetPrice,
     description: app.description,

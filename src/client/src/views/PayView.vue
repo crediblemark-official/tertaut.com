@@ -165,28 +165,43 @@ async function loadCheckoutData() {
   loading.value = true;
   errorMessage.value = "";
   try {
-    const identifier = slug.value || queryAppId.value;
-    if (!identifier) {
+    let identifier = slug.value || queryAppId.value;
+    const externalIdParam = (route.query.externalId as string) || "";
+    currentTicket = (route.query.ticket as string) || currentTicket || "";
+
+    let statusRes: any = null;
+    if (externalIdParam) {
+      try {
+        statusRes = await api.getPaymentStatus(externalIdParam, currentTicket);
+        if (statusRes?.appId && !identifier) {
+          identifier = statusRes.appId;
+        }
+      } catch {}
+    }
+
+    if (!identifier && !externalIdParam) {
       notFound.value = true;
       return;
     }
 
     let loadedApp: any = null;
-    try {
-      const data = await api.getAppBySlug(identifier);
-      if (data && data.id) {
-        loadedApp = data;
-      }
-    } catch {
+    if (identifier) {
       try {
-        const json = await api.getApps();
-        if (json.apps) {
-          const found = json.apps.find((a: any) => a.slug === identifier || a.id === identifier);
-          if (found) {
-            loadedApp = found;
-          }
+        const data = await api.getAppBySlug(identifier);
+        if (data && data.id) {
+          loadedApp = data;
         }
-      } catch {}
+      } catch {
+        try {
+          const json = await api.getApps();
+          if (json.apps) {
+            const found = json.apps.find((a: any) => a.slug === identifier || a.id === identifier);
+            if (found) {
+              loadedApp = found;
+            }
+          }
+        } catch {}
+      }
     }
 
     if (!loadedApp) {
@@ -197,32 +212,27 @@ async function loadCheckoutData() {
     setProductData(loadedApp);
 
     // Cek jika halaman dibuka dengan parameter externalId (misal dari redirect finish / link transaksi)
-    const externalIdParam = (route.query.externalId as string) || "";
-    if (externalIdParam) {
-      // Ticket polling disematkan server saat redirect finish ke /pay (BUG-5)
-      currentTicket = (route.query.ticket as string) || "";
-      try {
-        const statusRes = await api.getPaymentStatus(externalIdParam, currentTicket);
-        if (statusRes && statusRes.success) {
-          if (statusRes.paymentStatus === "PAID") {
-            isPaid.value = true;
-            paidResult.value = {
-              licenseKey: statusRes.licenseKey || undefined,
-              message: "Pembayaran berhasil diverifikasi.",
-            };
-          } else if (statusRes.paymentStatus === "PENDING") {
-            activeCustomOrder.value = {
-              transactionId: statusRes.transactionId || externalIdParam,
-              paymentRail: statusRes.channel?.toLowerCase().includes("va") ? "va" : "qris",
-              paymentCode: statusRes.paymentCode,
-              qrDataUrl: statusRes.qrDataUrl,
-              amount: statusRes.amount || payableAmount.value,
-              checkoutUrl: statusRes.checkoutUrl,
-            };
-            startPolling(statusRes.transactionId || externalIdParam);
-          }
+    if (externalIdParam && statusRes) {
+      if (statusRes.success) {
+        if (statusRes.paymentStatus === "PAID") {
+          isPaid.value = true;
+          paidResult.value = {
+            licenseKey: statusRes.licenseKey || undefined,
+            message: "Pembayaran berhasil diverifikasi.",
+          };
+        } else if (statusRes.paymentStatus === "PENDING") {
+          activeCustomOrder.value = {
+            transactionId: statusRes.transactionId || externalIdParam,
+            paymentRail: statusRes.channel?.toLowerCase().includes("va") ? "va" : "qris",
+            paymentCode: statusRes.paymentCode,
+            qrDataUrl: statusRes.qrDataUrl,
+            amount: statusRes.amount || payableAmount.value,
+            checkoutUrl: statusRes.checkoutUrl,
+            ticket: currentTicket,
+          };
+          startPolling(statusRes.transactionId || externalIdParam);
         }
-      } catch {}
+      }
     }
   } catch (err: any) {
     errorMessage.value = err.message || "Gagal memuat produk pembayaran";

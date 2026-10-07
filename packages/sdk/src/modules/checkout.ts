@@ -2,7 +2,12 @@
  * Modul Checkout: Dynamic Checkout Session & Redirect (MoR Engine).
  */
 
-import type { TertautExecutor, CheckoutOptions, CheckoutResult } from "../types";
+import type {
+  TertautExecutor,
+  CheckoutOptions,
+  CheckoutResult,
+  CheckoutStatusResult,
+} from "../types";
 
 type RequestExecutor = TertautExecutor;
 
@@ -14,7 +19,9 @@ export async function executeCheckout(
     throw new Error("[Tertaut SDK] customerEmail is required for checkout.");
   }
   if (!executor.appId && !options.appSlug && !options.slug) {
-    throw new Error("[Tertaut SDK] appId is required for checkout session.");
+    throw new Error(
+      "[Tertaut SDK] appId is required for checkout session (or specify appSlug/slug)."
+    );
   }
 
   // Catatan: `grantCredits` sengaja TIDAK pernah dikirim dari klien. Server
@@ -47,8 +54,9 @@ export async function executeCheckout(
     }),
   });
 
+  const shouldAutoRedirect = options.autoRedirect !== false;
   const checkoutUrl = data.checkoutUrl || data.redirectUrl || "";
-  if (typeof window !== "undefined" && checkoutUrl) {
+  if (shouldAutoRedirect && typeof window !== "undefined" && checkoutUrl) {
     window.location.href = checkoutUrl;
   }
   return { ...data, checkoutUrl };
@@ -58,11 +66,11 @@ export async function getPaymentStatus(
   executor: RequestExecutor,
   transactionId: string,
   ticket?: string
-): Promise<any> {
+): Promise<CheckoutStatusResult> {
   // Server mendefinisikan GET /checkout/status/:txId (path param),
   // bukan query param txId.
   const query = ticket ? `?ticket=${encodeURIComponent(ticket)}` : "";
-  return executor.requestJson(
+  return executor.requestJson<CheckoutStatusResult>(
     `/api/v1/checkout/status/${encodeURIComponent(transactionId)}${query}`
   );
 }

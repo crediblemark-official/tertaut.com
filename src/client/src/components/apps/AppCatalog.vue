@@ -3,6 +3,7 @@ import { ref, computed, watch } from "vue";
 import type { AppItem, CatalogKPIStats } from "../../types/app";
 import { dashboardEnv, envPath } from "../../lib/environment";
 import { formatRupiah } from "../../lib/utils";
+import { api } from "../../lib/api";
 import {
   Plus,
   ExternalLink,
@@ -38,10 +39,30 @@ const selectedModeTab = ref<"live" | "sandbox" | "all">(
   dashboardEnv.value === "sandbox" ? "sandbox" : "live"
 );
 
+const modeStats = ref<CatalogKPIStats | null>(props.stats || null);
+watch(
+  () => props.stats,
+  (val) => {
+    if (val) modeStats.value = val;
+  }
+);
+
 // Sinkronkan tab saat dashboardEnv berubah (mis. user klik toggle environment di sidebar)
 watch(dashboardEnv, (newEnv) => {
   selectedModeTab.value = newEnv === "sandbox" ? "sandbox" : "live";
 });
+
+// Update KPI stats saat user berpindah tab mode
+watch(
+  selectedModeTab,
+  async (newMode) => {
+    try {
+      const s = await api.getCatalogStats(newMode);
+      if (s) modeStats.value = s;
+    } catch {}
+  },
+  { immediate: true }
+);
 
 const liveCount = computed(() => props.apps.filter((a) => a.mode === "live").length);
 const sandboxCount = computed(() => props.apps.filter((a) => a.mode === "sandbox").length);
@@ -64,11 +85,11 @@ const filteredApps = computed(() => {
 });
 
 const activeProductsCount = computed(() => filteredApps.value.length);
-const archivedProductsCount = computed(() => props.stats?.archivedProducts ?? 0);
-const salesCount = computed(() => props.stats?.sales30d ?? 0);
-const activeSubscriptionsCount = computed(() => props.stats?.activeSubscriptions ?? 0);
+const archivedProductsCount = computed(() => modeStats.value?.archivedProducts ?? 0);
+const salesCount = computed(() => modeStats.value?.sales30d ?? 0);
+const activeSubscriptionsCount = computed(() => modeStats.value?.activeSubscriptions ?? 0);
 const acrossProductsCount = computed(() => (filteredApps.value.length > 0 ? 1 : 0));
-const customersCount = computed(() => props.stats?.customers30d ?? 0);
+const customersCount = computed(() => modeStats.value?.customers30d ?? 0);
 
 function confirmToggleMode(app: AppItem) {
   const targetMode = app.mode === "sandbox" ? "LIVE" : "SANDBOX";
