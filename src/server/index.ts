@@ -374,6 +374,25 @@ if (hasBuiltClient) {
       const decodedPath = decodeURIComponent(url.pathname);
       // Sanitize path traversal attempts
       const safePath = decodedPath.replace(/\.\.+[/\\]/g, "");
+
+      // Sajikan static privacy.html secara langsung untuk /privacy (kepatuhan bot/crawler Google OAuth)
+      if (url.pathname === "/privacy" || url.pathname === "/privacy/") {
+        const privacyFile = resolve(clientDistPath, "privacy.html");
+        if (existsSync(privacyFile)) {
+          set.headers["content-type"] = "text/html; charset=utf-8";
+          return Bun.file(privacyFile);
+        }
+      }
+
+      // Sajikan static terms.html secara langsung untuk /terms
+      if (url.pathname === "/terms" || url.pathname === "/terms/") {
+        const termsFile = resolve(clientDistPath, "terms.html");
+        if (existsSync(termsFile)) {
+          set.headers["content-type"] = "text/html; charset=utf-8";
+          return Bun.file(termsFile);
+        }
+      }
+
       const targetFile = resolve(clientDistPath, "." + safePath);
 
       // Ensure resolved path is strictly within clientDistPath
