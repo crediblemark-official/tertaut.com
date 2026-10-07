@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { api } from "../lib/api";
+import { api, clearAppsCache } from "../lib/api";
 import type { AppItem, CatalogKPIStats } from "../types/app";
 import { dashboardEnv } from "../lib/environment";
 import AppCatalog from "../components/apps/AppCatalog.vue";
@@ -40,7 +40,7 @@ async function loadData() {
   loading.value = true;
   try {
     const [appsRes, statsRes] = await Promise.all([
-      api.getApps("all"),
+      api.getApps("all", true),
       api.getCatalogStats("all").catch((err) => {
         console.error("Failed to load catalog stats:", err);
         return null;
@@ -57,10 +57,13 @@ async function loadData() {
 
 async function handleCreated() {
   closeCreatePage();
+  clearAppsCache();
   await loadData();
 }
 
 const errorMessage = ref<string | null>(null);
+const successMessage = ref<string | null>(null);
+
 function showError(msg: string) {
   errorMessage.value = msg;
   setTimeout(() => {
@@ -68,21 +71,49 @@ function showError(msg: string) {
   }, 5000);
 }
 
+function showSuccess(msg: string) {
+  successMessage.value = msg;
+  setTimeout(() => {
+    successMessage.value = null;
+  }, 4000);
+}
+
 async function handleToggleMode(app: AppItem) {
   const newMode = app.mode === "sandbox" ? "live" : "sandbox";
   try {
     await api.updateAppMode(app.id, newMode);
+    clearAppsCache();
+    showSuccess(`Software "${app.name}" berhasil dialihkan ke mode ${newMode.toUpperCase()}`);
     await loadData();
   } catch (err: any) {
     showError("Gagal mengubah mode software: " + (err?.message || err));
   }
 }
 
+watch(dashboardEnv, () => {
+  loadData();
+});
+
 onMounted(() => loadData());
 </script>
 
 <template>
   <div class="animate-fadeIn pb-12">
+    <!-- Success Notification Toast -->
+    <div
+      v-if="successMessage"
+      class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 bg-emerald-600 text-white text-xs font-semibold rounded-xl shadow-xl transition-all"
+    >
+      <span>{{ successMessage }}</span>
+      <button
+        type="button"
+        @click="successMessage = null"
+        class="text-white/80 hover:text-white font-bold ml-2 cursor-pointer"
+      >
+        ×
+      </button>
+    </div>
+
     <!-- Error Notification Toast -->
     <div
       v-if="errorMessage"
@@ -92,7 +123,7 @@ onMounted(() => loadData());
       <button
         type="button"
         @click="errorMessage = null"
-        class="text-white/80 hover:text-white font-bold ml-2"
+        class="text-white/80 hover:text-white font-bold ml-2 cursor-pointer"
       >
         ×
       </button>

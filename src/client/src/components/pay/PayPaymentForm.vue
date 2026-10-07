@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   ExternalLink,
   FlaskConical,
+  Sparkles,
 } from "lucide-vue-next";
 import { formatRupiah } from "../../lib/utils";
 import { api } from "../../lib/api";
@@ -23,6 +24,7 @@ interface ProductData {
   mode: "sandbox" | "live";
   checkoutMode?: "custom" | "hosted";
   activePaymentGateway?: "dana" | "xendit" | "xenithpay";
+  availableChannels?: import("../../types/app").AvailableChannels;
   targetPrice: number;
 }
 
@@ -81,6 +83,7 @@ const emit = defineEmits<{
     },
   ];
   resetOrder: [];
+  paymentSuccess: [result: { licenseKey?: string; message?: string }];
 }>();
 
 const effectiveGateway = computed<"dana" | "xendit" | "xenithpay">(() => {
@@ -89,6 +92,32 @@ const effectiveGateway = computed<"dana" | "xendit" | "xenithpay">(() => {
 
 const copiedVa = ref(false);
 const copiedLicense = ref(false);
+const isSimulatingPaid = ref(false);
+const simulateError = ref("");
+
+async function handleSimulatePayment() {
+  if (!props.activeOrder?.transactionId) return;
+  isSimulatingPaid.value = true;
+  simulateError.value = "";
+  try {
+    const res = await api.simulatePayment(
+      props.activeOrder.transactionId,
+      props.activeOrder.ticket || ""
+    );
+    if (res.success && res.paymentStatus === "PAID") {
+      emit("paymentSuccess", {
+        licenseKey: res.licenseKey || undefined,
+        message: res.message || "Simulasi pembayaran sandbox berhasil diverifikasi.",
+      });
+    } else {
+      simulateError.value = res.error || res.message || "Simulasi pembayaran gagal";
+    }
+  } catch (err: any) {
+    simulateError.value = err?.message || "Gagal menghubungi server simulasi";
+  } finally {
+    isSimulatingPaid.value = false;
+  }
+}
 
 function copyToClipboard(text: string, isLicense = false) {
   if (!text) return;
@@ -220,24 +249,30 @@ function copyToClipboard(text: string, isLicense = false) {
             </p>
           </div>
 
-          <!-- Sandbox guidance -->
+          <!-- Sandbox guidance QRIS -->
           <div v-if="product.mode === 'sandbox'" class="pt-1.5 space-y-2">
-            <a
-              v-if="activeOrder.checkoutUrl"
-              :href="activeOrder.checkoutUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs"
+            <button
+              type="button"
+              :disabled="isSimulatingPaid"
+              @click="handleSimulatePayment"
+              class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <ExternalLink class="w-4 h-4 text-emerald-400" />
-              <span>Buka Halaman Kasir Sandbox</span>
-            </a>
+              <Sparkles class="w-4 h-4" />
+              <span>{{
+                isSimulatingPaid
+                  ? "Memproses Simulasi..."
+                  : "⚡ Simulasi Bayar Lunas (1-Klik Sandbox)"
+              }}</span>
+            </button>
+            <p v-if="simulateError" class="text-[11px] text-red-600 font-medium text-center">
+              {{ simulateError }}
+            </p>
             <div
               class="p-2.5 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-800 flex items-center gap-2"
             >
               <FlaskConical class="w-3.5 h-3.5 text-amber-600 shrink-0" />
               <span
-                >Mode Sandbox: Selesaikan pembayaran via simulator PG atau aplikasi sandbox.</span
+                >Mode Sandbox: Transaksi simulasi internal Tertaut tanpa melibatkan uang riil.</span
               >
             </div>
           </div>
@@ -303,21 +338,30 @@ function copyToClipboard(text: string, isLicense = false) {
 
           <!-- Sandbox guidance VA -->
           <div v-if="product.mode === 'sandbox'" class="pt-1.5 space-y-2">
-            <a
-              v-if="activeOrder.checkoutUrl"
-              :href="activeOrder.checkoutUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs"
+            <button
+              type="button"
+              :disabled="isSimulatingPaid"
+              @click="handleSimulatePayment"
+              class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <ExternalLink class="w-4 h-4 text-emerald-400" />
-              <span>Buka Halaman Kasir Sandbox</span>
-            </a>
+              <Sparkles class="w-4 h-4" />
+              <span>{{
+                isSimulatingPaid
+                  ? "Memproses Simulasi..."
+                  : "⚡ Simulasi Bayar Lunas (1-Klik Sandbox)"
+              }}</span>
+            </button>
+            <p v-if="simulateError" class="text-[11px] text-red-600 font-medium text-center">
+              {{ simulateError }}
+            </p>
             <div
               class="p-2.5 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-800 flex items-center gap-2"
             >
               <FlaskConical class="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span>Mode Sandbox: Selesaikan transfer via simulator VA PG.</span>
+              <span
+                >Mode Sandbox: Simulasi transfer VA internal Tertaut tanpa melibatkan uang
+                riil.</span
+              >
             </div>
           </div>
         </div>
@@ -382,21 +426,29 @@ function copyToClipboard(text: string, isLicense = false) {
 
           <!-- Sandbox guidance Retail -->
           <div v-if="product.mode === 'sandbox'" class="pt-1.5 space-y-2">
-            <a
-              v-if="activeOrder.checkoutUrl"
-              :href="activeOrder.checkoutUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs"
+            <button
+              type="button"
+              :disabled="isSimulatingPaid"
+              @click="handleSimulatePayment"
+              class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <ExternalLink class="w-4 h-4 text-emerald-400" />
-              <span>Buka Halaman Kasir Sandbox</span>
-            </a>
+              <Sparkles class="w-4 h-4" />
+              <span>{{
+                isSimulatingPaid
+                  ? "Memproses Simulasi..."
+                  : "⚡ Simulasi Bayar Lunas (1-Klik Sandbox)"
+              }}</span>
+            </button>
+            <p v-if="simulateError" class="text-[11px] text-red-600 font-medium text-center">
+              {{ simulateError }}
+            </p>
             <div
               class="p-2.5 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-800 flex items-center gap-2"
             >
               <FlaskConical class="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span>Mode Sandbox: Selesaikan pembayaran via simulator kasir PG.</span>
+              <span
+                >Mode Sandbox: Simulasi kasir minimarket Tertaut tanpa melibatkan uang riil.</span
+              >
             </div>
           </div>
         </div>
@@ -430,21 +482,30 @@ function copyToClipboard(text: string, isLicense = false) {
 
           <!-- Sandbox guidance E-Wallet -->
           <div v-if="product.mode === 'sandbox'" class="pt-1.5 space-y-2">
-            <a
-              v-if="activeOrder.checkoutUrl"
-              :href="activeOrder.checkoutUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs"
+            <button
+              type="button"
+              :disabled="isSimulatingPaid"
+              @click="handleSimulatePayment"
+              class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <ExternalLink class="w-4 h-4 text-emerald-400" />
-              <span>Buka Halaman Kasir Sandbox</span>
-            </a>
+              <Sparkles class="w-4 h-4" />
+              <span>{{
+                isSimulatingPaid
+                  ? "Memproses Simulasi..."
+                  : "⚡ Simulasi Bayar Lunas (1-Klik Sandbox)"
+              }}</span>
+            </button>
+            <p v-if="simulateError" class="text-[11px] text-red-600 font-medium text-center">
+              {{ simulateError }}
+            </p>
             <div
               class="p-2.5 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-800 flex items-center gap-2"
             >
               <FlaskConical class="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span>Mode Sandbox: Selesaikan pembayaran via simulator e-wallet PG.</span>
+              <span
+                >Mode Sandbox: Simulasi notifikasi e-wallet Tertaut tanpa melibatkan uang
+                riil.</span
+              >
             </div>
           </div>
         </div>
@@ -496,10 +557,11 @@ function copyToClipboard(text: string, isLicense = false) {
           <p>3. Simpan struk bukti pembayaran yang diberikan kasir.</p>
         </div>
 
-        <!-- Opsi Buka Invoice Eksternal jika ada -->
+        <!-- Opsi Buka Invoice Eksternal jika ada (Hanya Mode Live) -->
         <div
           v-if="
             !demoMode &&
+            product.mode !== 'sandbox' &&
             activeOrder.checkoutUrl &&
             activeOrder.paymentRail !== 'card' &&
             activeOrder.paymentRail !== 'ewallet'

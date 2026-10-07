@@ -43,6 +43,7 @@ const product = ref<{
   mode: "sandbox" | "live";
   checkoutMode?: "custom" | "hosted";
   activePaymentGateway?: "dana" | "xendit" | "xenithpay";
+  availableChannels?: import("../types/app").AvailableChannels;
   targetPrice: number;
   description: string | null;
   headline: string | null;
@@ -141,6 +142,12 @@ function startPolling(txId: string) {
       }
     } catch {}
   }, 2500);
+}
+
+function onPaymentSuccess(result: { licenseKey?: string; message?: string }) {
+  stopPolling();
+  isPaid.value = true;
+  paidResult.value = result;
 }
 
 function resetCheckoutOrder() {
@@ -257,6 +264,7 @@ function setProductData(app: any) {
     mode: app.mode || "live",
     checkoutMode: app.checkoutMode || "custom",
     activePaymentGateway: app.activePaymentGateway || "dana",
+    availableChannels: app.availableChannels,
     targetPrice: queryAmount.value || app.targetPrice || 0,
     description: app.description || "Solusi software premium otomatis & berlisensi resmi.",
     headline: app.headline || null,
@@ -273,6 +281,27 @@ function setProductData(app: any) {
           ],
     redirectUrl: queryRedirectUrl.value || app.redirectUrl || null,
   };
+
+  // Pilih payment rail & sub-channel yang benar-benar aktif di akun gateway
+  if (app.availableChannels) {
+    const { qrisEnabled, activeRails, activeBanks, activeEwallets, activeRetails } =
+      app.availableChannels;
+    // Jika rail qris nonaktif, alihkan ke rail pertama yang aktif
+    if (selectedPaymentRail.value === "qris" && !qrisEnabled && activeRails?.length > 0) {
+      selectedPaymentRail.value = activeRails[0];
+    }
+    // Jika bank terpilih tidak aktif di gateway, pilih bank pertama yang aktif
+    if (activeBanks?.length > 0 && !activeBanks.includes(selectedBank.value)) {
+      selectedBank.value = activeBanks[0];
+    }
+    // Ewallet & retail
+    if (activeEwallets?.length > 0 && !activeEwallets.includes(selectedEwallet.value)) {
+      selectedEwallet.value = activeEwallets[0];
+    }
+    if (activeRetails?.length > 0 && !activeRetails.includes(selectedRetail.value)) {
+      selectedRetail.value = activeRetails[0];
+    }
+  }
 }
 
 async function handlePay(payload?: {
@@ -529,6 +558,7 @@ onUnmounted(() => {
               @update:selected-ewallet="selectedEwallet = $event"
               @update:selected-retail="selectedRetail = $event"
               @reset-order="resetCheckoutOrder"
+              @payment-success="onPaymentSuccess"
               @pay="handlePay"
             />
           </div>

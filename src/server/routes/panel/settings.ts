@@ -39,52 +39,66 @@ export async function handleGetPlatformSettings() {
 
   // Kredensial environment (.env / Dokploy) selalu menjadi acuan utama (di luar test runner)
   if (!config.isTest) {
-    if (process.env.XENDIT_SECRET_KEY) {
-      settingsMap.xendit_secret_key = process.env.XENDIT_SECRET_KEY;
-    }
-    if (process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN || process.env.XENDIT_WEBHOOK_TOKEN) {
-      settingsMap.xendit_webhook_token =
-        process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN || process.env.XENDIT_WEBHOOK_TOKEN || "";
-    }
-    if (process.env.XENITHPAY_SANDBOX_ACCESS_KEY && !settingsMap.xenithpay_sandbox_access_key) {
-      settingsMap.xenithpay_sandbox_access_key = process.env.XENITHPAY_SANDBOX_ACCESS_KEY;
-    }
-    if (process.env.XENITHPAY_SANDBOX_SECRET_KEY && !settingsMap.xenithpay_sandbox_secret_key) {
-      settingsMap.xenithpay_sandbox_secret_key = process.env.XENITHPAY_SANDBOX_SECRET_KEY;
+    if (process.env.XENDIT_SANDBOX_SECRET_KEY || process.env.XENDIT_SECRET_KEY) {
+      settingsMap.xendit_secret_key =
+        process.env.XENDIT_SANDBOX_SECRET_KEY || process.env.XENDIT_SECRET_KEY || "";
     }
     if (
-      process.env.XENITHPAY_SANDBOX_WEBHOOK_SECRET &&
-      !settingsMap.xenithpay_sandbox_webhook_secret
+      process.env.XENDIT_SANDBOX_WEBHOOK_VERIFICATION_TOKEN ||
+      process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN ||
+      process.env.XENDIT_WEBHOOK_TOKEN
     ) {
+      settingsMap.xendit_webhook_token =
+        process.env.XENDIT_SANDBOX_WEBHOOK_VERIFICATION_TOKEN ||
+        process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN ||
+        process.env.XENDIT_WEBHOOK_TOKEN ||
+        "";
+    }
+    if (process.env.XENITHPAY_SANDBOX_ACCESS_KEY) {
+      settingsMap.xenithpay_sandbox_access_key = process.env.XENITHPAY_SANDBOX_ACCESS_KEY;
+    }
+    if (process.env.XENITHPAY_SANDBOX_SECRET_KEY) {
+      settingsMap.xenithpay_sandbox_secret_key = process.env.XENITHPAY_SANDBOX_SECRET_KEY;
+    }
+    if (process.env.XENITHPAY_SANDBOX_WEBHOOK_SECRET) {
       settingsMap.xenithpay_sandbox_webhook_secret = process.env.XENITHPAY_SANDBOX_WEBHOOK_SECRET;
     }
-    // DANA Sandbox defaults dari environment jika belum ada di database
-    if (process.env.DANA_SANDBOX_CLIENT_ID && !settingsMap.dana_sandbox_client_id) {
+    // DANA Sandbox defaults dari environment
+    if (process.env.DANA_SANDBOX_CLIENT_ID) {
       settingsMap.dana_sandbox_client_id = process.env.DANA_SANDBOX_CLIENT_ID;
     }
-    if (process.env.DANA_SANDBOX_CLIENT_SECRET && !settingsMap.dana_sandbox_client_secret) {
+    if (process.env.DANA_SANDBOX_CLIENT_SECRET) {
       settingsMap.dana_sandbox_client_secret = process.env.DANA_SANDBOX_CLIENT_SECRET;
     }
-    if (process.env.DANA_SANDBOX_MERCHANT_ID && !settingsMap.dana_sandbox_merchant_id) {
+    if (process.env.DANA_SANDBOX_MERCHANT_ID) {
       settingsMap.dana_sandbox_merchant_id = process.env.DANA_SANDBOX_MERCHANT_ID;
     }
   }
 
+  const isSandbox = settingsMap.sandbox_mode !== "false";
   settingsMap.xendit_configured = String(
-    Boolean(settingsMap.xendit_secret_key && settingsMap.xendit_webhook_token)
+    Boolean(
+      isSandbox
+        ? (process.env.XENDIT_SANDBOX_SECRET_KEY || settingsMap.xendit_secret_key) &&
+            (process.env.XENDIT_SANDBOX_WEBHOOK_VERIFICATION_TOKEN ||
+              settingsMap.xendit_webhook_token)
+        : (process.env.XENDIT_PRODUCTION_SECRET_KEY || process.env.XENDIT_SECRET_KEY) &&
+            (process.env.XENDIT_PRODUCTION_WEBHOOK_VERIFICATION_TOKEN ||
+              settingsMap.xendit_webhook_token)
+    )
   );
   settingsMap.dana_configured = String(
     Boolean(
-      process.env.DANA_CLIENT_ID ||
-      process.env.DANA_SANDBOX_CLIENT_ID ||
-      settingsMap.dana_sandbox_client_id
+      isSandbox
+        ? process.env.DANA_SANDBOX_CLIENT_ID || settingsMap.dana_sandbox_client_id
+        : process.env.DANA_CLIENT_ID
     )
   );
   settingsMap.xenithpay_configured = String(
     Boolean(
-      settingsMap.sandbox_mode === "false"
-        ? config.xenithpay.accessKey && config.xenithpay.secretKey
-        : settingsMap.xenithpay_sandbox_access_key && settingsMap.xenithpay_sandbox_secret_key
+      isSandbox
+        ? process.env.XENITHPAY_SANDBOX_ACCESS_KEY || settingsMap.xenithpay_sandbox_access_key
+        : process.env.XENITHPAY_ACCESS_KEY || config.xenithpay.accessKey
     )
   );
 

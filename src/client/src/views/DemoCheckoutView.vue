@@ -139,6 +139,12 @@ function startPolling(txId: string) {
   }, 2500);
 }
 
+function onPaymentSuccess(result: { licenseKey?: string; message?: string }) {
+  stopPolling();
+  isPaid.value = true;
+  paidResult.value = result;
+}
+
 function resetCheckoutOrder() {
   activeCustomOrder.value = null;
   isPaid.value = false;
@@ -493,6 +499,7 @@ onUnmounted(() => {
               @update:selected-ewallet="selectedEwallet = $event"
               @update:selected-retail="selectedRetail = $event"
               @reset-order="resetCheckoutOrder"
+              @payment-success="onPaymentSuccess"
               @pay="handlePay"
             />
           </div>

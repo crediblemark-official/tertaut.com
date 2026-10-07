@@ -11,9 +11,11 @@ import {
   handleListTransactions,
   handleDisburseTx,
   handleGetInvoiceData,
+  handleGetPaymentChannels,
+  handleSimulateSandboxPayment,
 } from "./handlers";
 
-/** Endpoint checkout yang memang harus publik (webhook, buat sesi, preview kupon, redirect DANA, polling status, invoice). */
+/** Endpoint checkout yang memang harus publik (webhook, buat sesi, preview kupon, redirect DANA, polling status, invoice, channels, simulate). */
 const PUBLIC_CHECKOUT_PATHS = [
   "webhook",
   "/session",
@@ -21,6 +23,8 @@ const PUBLIC_CHECKOUT_PATHS = [
   "dana/finish",
   "/status",
   "consult-pay",
+  "channels",
+  "simulate",
   "/invoice",
 ];
 
@@ -133,9 +137,39 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
     },
   })
   /**
+   * Mengambil daftar channel pembayaran yang aktif secara dinamis dari gateway
+   */
+  .get("/channels", handleGetPaymentChannels, {
+    detail: {
+      tags: ["MoR Checkout"],
+      summary: "Get Active Payment Channels",
+      description:
+        "Mengembalikan daftar channel dan rails pembayaran (VA, QRIS, E-Wallet, Retail) yang aktif dari gateway.",
+      responses: {
+        200: {
+          description: "Daftar channel pembayaran aktif",
+        },
+      },
+    },
+  })
+  /**
    * Endpoint Redirect pembeli setelah menyelesaikan pembayaran DANA
    */
   .get("/dana/finish", handleDanaFinish)
+  /**
+   * Simulasi pelunasan instan untuk transaksi Sandbox Tertaut
+   */
+  .post("/simulate-payment", handleSimulateSandboxPayment, {
+    body: t.Object({
+      transactionId: t.String({ description: "ID transaksi (tx_...)" }),
+      ticket: t.String({ description: "HMAC ticket keamanan checkout" }),
+    }),
+    detail: {
+      tags: ["MoR Checkout"],
+      summary: "Simulate Sandbox Payment",
+      description: "Menyelesaikan transaksi pengujian sandbox Tertaut tanpa uang riil.",
+    },
+  })
   /**
    * Preview kupon tanpa membuat transaksi
    */

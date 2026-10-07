@@ -85,6 +85,9 @@ export interface PlatformSettingsFormData {
   dana_sandbox_merchant_id: string;
   checkout_mode: string;
   sandbox_mode: string;
+  xendit_configured?: string;
+  dana_configured?: string;
+  xenithpay_configured?: string;
 }
 
 export interface PanelAppItem {

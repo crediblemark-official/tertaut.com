@@ -7,6 +7,7 @@ import type {
   GatewayDisbursementParams,
   GatewayDisbursementResponse,
   MorBreakdown,
+  GatewayChannelsResponse,
 } from "./types";
 import { config } from "../../../config";
 import { db } from "../../../db";
@@ -111,29 +112,44 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
         };
       }
 
-      // Jika sandbox dinonaktifkan (mode Production), gunakan kredensial dari .env server
-      if (!isSandbox) {
-        const prodSecret =
-          process.env.XENDIT_SECRET_KEY_PRODUCTION ||
-          process.env.XENDIT_PRODUCTION_SECRET_KEY ||
-          config.xendit.secretKey?.trim() ||
-          "";
-        const prodToken =
-          process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN_PRODUCTION ||
-          process.env.XENDIT_WEBHOOK_TOKEN ||
+      if (isSandbox) {
+        // Mode Sandbox: HANYA izinkan secret key sandbox (xnd_development_*)
+        const sandboxSecret =
+          process.env.XENDIT_SANDBOX_SECRET_KEY?.trim() ||
+          (keyRow?.value?.trim().startsWith("xnd_development_") ? keyRow.value.trim() : "") ||
+          (config.xendit.secretKey?.trim().startsWith("xnd_development_")
+            ? config.xendit.secretKey.trim()
+            : "");
+
+        const sandboxToken =
+          process.env.XENDIT_SANDBOX_WEBHOOK_VERIFICATION_TOKEN?.trim() ||
+          tokenRow?.value?.trim() ||
+          process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN?.trim() ||
           config.xendit.webhookToken?.trim() ||
           "";
-        return { secretKey: prodSecret, webhookToken: prodToken };
+
+        return { secretKey: sandboxSecret, webhookToken: sandboxToken };
       }
 
-      // Mode Sandbox: prioritaskan kredensial pengujian dari Super Admin Panel
-      const envSecret = config.xendit.secretKey?.trim();
-      const envToken = config.xendit.webhookToken?.trim();
+      // Mode Production (Live): Gunakan secret key produksi (xnd_production_*)
+      const prodSecret =
+        process.env.XENDIT_PRODUCTION_SECRET_KEY?.trim() ||
+        process.env.XENDIT_SECRET_KEY_PRODUCTION?.trim() ||
+        (keyRow?.value?.trim().startsWith("xnd_production_") ? keyRow.value.trim() : "") ||
+        process.env.XENDIT_SECRET_KEY?.trim() ||
+        config.xendit.secretKey?.trim() ||
+        "";
 
-      const secretKey = keyRow?.value?.trim() || envSecret || "";
-      const webhookToken = tokenRow?.value?.trim() || envToken || "";
+      const prodToken =
+        process.env.XENDIT_PRODUCTION_WEBHOOK_VERIFICATION_TOKEN?.trim() ||
+        process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN_PRODUCTION?.trim() ||
+        tokenRow?.value?.trim() ||
+        process.env.XENDIT_WEBHOOK_VERIFICATION_TOKEN?.trim() ||
+        process.env.XENDIT_WEBHOOK_TOKEN?.trim() ||
+        config.xendit.webhookToken?.trim() ||
+        "";
 
-      return { secretKey, webhookToken };
+      return { secretKey: prodSecret, webhookToken: prodToken };
     } catch {
       return {
         secretKey: config.xendit.secretKey?.trim() || "",
@@ -144,6 +160,114 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
 
   private cachedClient: InstanceType<typeof Xendit> | null = null;
   private cachedSecretKey: string | null = null;
+  private channelsCache: {
+    timestamp: number;
+    key: string;
+    data: GatewayChannelsResponse;
+  } | null = null;
+
+  /**
+   * Mengambil daftar channel pembayaran yang aktif langsung dari API resmi Xendit
+   * (GET https://api.xendit.co/payment_channels) dan mencache-nya selama 5 menit.
+   */
+  async getPaymentChannels(): Promise<GatewayChannelsResponse> {
+    const { secretKey } = await this.getCredentials();
+    if (!secretKey || !secretKey.startsWith("xnd_")) {
+      return {
+        channels: [],
+        activeRails: ["va"],
+        activeBanks: ["BCA", "MANDIRI", "BNI", "BRI", "PERMATA"],
+        activeEwallets: [],
+        activeRetails: ["ALFAMART", "INDOMARET"],
+        qrisEnabled: false,
+      };
+    }
+
+    const now = Date.now();
+    if (
+      this.channelsCache &&
+      this.channelsCache.key === secretKey &&
+      now - this.channelsCache.timestamp < 300_000
+    ) {
+      return this.channelsCache.data;
+    }
+
+    try {
+      const resp = await fetch("https://api.xendit.co/payment_channels", {
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${secretKey}:`).toString("base64")}`,
+        },
+      });
+
+      if (!resp.ok) {
+        console.warn(`[XenditGateway] Gagal mengambil payment channels: HTTP ${resp.status}`);
+        return (
+          this.channelsCache?.data || {
+            channels: [],
+            activeRails: ["va", "retail"],
+            activeBanks: ["BCA", "MANDIRI", "BNI", "BRI", "PERMATA"],
+            activeEwallets: [],
+            activeRetails: ["ALFAMART", "INDOMARET"],
+            qrisEnabled: false,
+          }
+        );
+      }
+
+      const rawList: any[] = await resp.json();
+      const channels = Array.isArray(rawList)
+        ? rawList.map((c) => ({
+            channelCode: String(c.channel_code || "").toUpperCase(),
+            channelCategory: String(c.channel_category || "").toUpperCase(),
+            isEnabled: Boolean(c.is_enabled),
+            name: String(c.name || ""),
+          }))
+        : [];
+
+      const qrisEnabled = channels.some((c) => c.channelCategory === "QRIS" && c.isEnabled);
+      const activeBanks = channels
+        .filter((c) => c.channelCategory === "VIRTUAL_ACCOUNT" && c.isEnabled)
+        .map((c) => c.channelCode);
+      const activeEwallets = channels
+        .filter((c) => c.channelCategory === "EWALLET" && c.isEnabled)
+        .map((c) => c.channelCode);
+      const activeRetails = channels
+        .filter((c) => c.channelCategory === "RETAIL_OUTLET" && c.isEnabled)
+        .map((c) => c.channelCode);
+
+      const activeRails: Array<"qris" | "va" | "ewallet" | "card" | "retail"> = [];
+      if (qrisEnabled) activeRails.push("qris");
+      if (activeBanks.length > 0) activeRails.push("va");
+      if (activeEwallets.length > 0) activeRails.push("ewallet");
+      if (activeRetails.length > 0) activeRails.push("retail");
+
+      const result: GatewayChannelsResponse = {
+        channels,
+        activeRails,
+        activeBanks,
+        activeEwallets,
+        activeRetails,
+        qrisEnabled,
+      };
+
+      this.channelsCache = {
+        timestamp: now,
+        key: secretKey,
+        data: result,
+      };
+
+      return result;
+    } catch (err) {
+      console.error("[XenditGateway] Error fetching payment channels:", err);
+      return {
+        channels: [],
+        activeRails: ["va", "retail"],
+        activeBanks: ["BCA", "MANDIRI", "BNI", "BRI", "PERMATA"],
+        activeEwallets: [],
+        activeRetails: ["ALFAMART", "INDOMARET"],
+        qrisEnabled: false,
+      };
+    }
+  }
 
   /**
    * Mendapatkan instance client official Xendit SDK (di-cache agar tidak instansiasi ulang tiap request)
@@ -173,33 +297,37 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
       throw new Error("Xendit Invoice Creation Failed: XENDIT_SECRET_KEY belum dikonfigurasi.");
     }
 
-    // Bangun paymentMethods jika ditentukan sesuai channel aktif Xendit
+    // Bangun paymentMethods jika ditentukan sesuai channel aktif Xendit.
+    // Jika scenario adalah REDIRECT (Hosted Checkout), jangan persempit hanya ke 1 rail (seperti QRIS saja),
+    // biarkan paymentMethods kosong agar pembeli di halaman resmi Xendit bebas memilih QRIS, VA, E-Wallet, Card, atau Retail.
     const paymentMethods: string[] = [];
-    if (params.paymentRail === "qris") {
-      paymentMethods.push("QRIS");
-    } else if (params.paymentRail === "va" && params.vaBank) {
-      paymentMethods.push(params.vaBank.toUpperCase());
-    } else if (params.paymentRail === "card") {
-      paymentMethods.push("CREDIT_CARD");
-    } else if (params.paymentRail === "retail") {
-      if (params.retailOutlet) {
-        paymentMethods.push(params.retailOutlet.toUpperCase());
-      } else {
-        paymentMethods.push("ALFAMART", "INDOMARET");
-      }
-    } else if (params.paymentRail === "ewallet") {
-      if (params.ewalletChannel) {
-        paymentMethods.push(params.ewalletChannel.toUpperCase());
-      } else {
-        paymentMethods.push(
-          "OVO",
-          "DANA",
-          "SHOPEEPAY",
-          "GOPAY",
-          "LINKAJA",
-          "ASTRAPAY",
-          "JENIUSPAY"
-        );
+    if (params.scenario !== "REDIRECT" && params.paymentRail) {
+      if (params.paymentRail === "qris") {
+        paymentMethods.push("QRIS");
+      } else if (params.paymentRail === "va" && params.vaBank) {
+        paymentMethods.push(params.vaBank.toUpperCase());
+      } else if (params.paymentRail === "card") {
+        paymentMethods.push("CREDIT_CARD");
+      } else if (params.paymentRail === "retail") {
+        if (params.retailOutlet) {
+          paymentMethods.push(params.retailOutlet.toUpperCase());
+        } else {
+          paymentMethods.push("ALFAMART", "INDOMARET");
+        }
+      } else if (params.paymentRail === "ewallet") {
+        if (params.ewalletChannel) {
+          paymentMethods.push(params.ewalletChannel.toUpperCase());
+        } else {
+          paymentMethods.push(
+            "OVO",
+            "DANA",
+            "SHOPEEPAY",
+            "GOPAY",
+            "LINKAJA",
+            "ASTRAPAY",
+            "JENIUSPAY"
+          );
+        }
       }
     } else if (params.paymentMethods && params.paymentMethods.length > 0) {
       paymentMethods.push(...params.paymentMethods);

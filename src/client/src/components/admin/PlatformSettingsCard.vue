@@ -103,6 +103,9 @@ async function loadSettings() {
         dana_sandbox_merchant_id: res.settings.dana_sandbox_merchant_id || "",
         checkout_mode: res.settings.checkout_mode || "custom",
         sandbox_mode: res.settings.sandbox_mode !== "false" ? "true" : "false",
+        xendit_configured: res.settings.xendit_configured || "false",
+        dana_configured: res.settings.dana_configured || "false",
+        xenithpay_configured: res.settings.xenithpay_configured || "false",
       };
     }
   } catch (err: any) {

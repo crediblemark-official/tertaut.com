@@ -52,6 +52,20 @@ export interface MeteringConfig {
 export type BillingPeriodType =
   "weekly" | "daily" | "monthly" | "every_3_months" | "every_6_months" | "yearly" | "custom";
 
+export interface AvailableChannels {
+  channels?: Array<{
+    channelCode: string;
+    channelCategory: string;
+    isEnabled: boolean;
+    name: string;
+  }>;
+  activeRails: Array<"qris" | "va" | "ewallet" | "card" | "retail">;
+  activeBanks: string[];
+  activeEwallets: string[];
+  activeRetails: string[];
+  qrisEnabled: boolean;
+}
+
 export interface AppItem {
   id: string;
   /** Publishable API key aplikasi: `tt_live_...` / `tt_test_...` (untuk @tertaut/sdk). */
@@ -62,6 +76,7 @@ export interface AppItem {
   mode: AppMode;
   checkoutMode?: "custom" | "hosted";
   activePaymentGateway?: "dana" | "xendit" | "xenithpay";
+  availableChannels?: AvailableChannels;
   targetPrice: number;
   pricingType?: "one_time" | "subscription" | "free";
   billingPeriod?:

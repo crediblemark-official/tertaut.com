@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, computed, watch } from "vue";
 import type { AppItem, CatalogKPIStats } from "../../types/app";
 import { dashboardEnv, envPath } from "../../lib/environment";
 import { formatRupiah } from "../../lib/utils";
@@ -14,6 +14,10 @@ import {
   Zap,
   Sparkles,
   Wifi,
+  FlaskConical,
+  CheckCircle2,
+  ArrowLeftRight,
+  Layers,
 } from "lucide-vue-next";
 
 const props = defineProps<{
@@ -23,22 +27,32 @@ const props = defineProps<{
   stats?: CatalogKPIStats | null;
 }>();
 
-const activeProductsCount = computed(() => props.stats?.activeProducts ?? props.apps.length);
-const archivedProductsCount = computed(() => props.stats?.archivedProducts ?? 0);
-const salesCount = computed(() => props.stats?.sales30d ?? 0);
-const activeSubscriptionsCount = computed(() => props.stats?.activeSubscriptions ?? 0);
-const acrossProductsCount = computed(
-  () => props.stats?.acrossProducts ?? (props.apps.length > 0 ? 1 : 0)
-);
-const customersCount = computed(() => props.stats?.customers30d ?? 0);
-
 const emit = defineEmits<{
   "update:searchQuery": [value: string];
   "open-create": [];
+  "toggle-mode": [app: AppItem];
 }>();
+
+// Filter tab: default sinkron dengan environment dashboard aktif
+const selectedModeTab = ref<"live" | "sandbox" | "all">(
+  dashboardEnv.value === "sandbox" ? "sandbox" : "live"
+);
+
+// Sinkronkan tab saat dashboardEnv berubah (mis. user klik toggle environment di sidebar)
+watch(dashboardEnv, (newEnv) => {
+  selectedModeTab.value = newEnv === "sandbox" ? "sandbox" : "live";
+});
+
+const liveCount = computed(() => props.apps.filter((a) => a.mode === "live").length);
+const sandboxCount = computed(() => props.apps.filter((a) => a.mode === "sandbox").length);
 
 const filteredApps = computed(() => {
   return props.apps.filter((app) => {
+    // Mode filter
+    if (selectedModeTab.value !== "all" && app.mode !== selectedModeTab.value) {
+      return false;
+    }
+    // Search query
     if (props.searchQuery.trim()) {
       const q = props.searchQuery.toLowerCase().trim();
       const matchName = app.name.toLowerCase().includes(q);
@@ -48,6 +62,24 @@ const filteredApps = computed(() => {
     return true;
   });
 });
+
+const activeProductsCount = computed(() => filteredApps.value.length);
+const archivedProductsCount = computed(() => props.stats?.archivedProducts ?? 0);
+const salesCount = computed(() => props.stats?.sales30d ?? 0);
+const activeSubscriptionsCount = computed(() => props.stats?.activeSubscriptions ?? 0);
+const acrossProductsCount = computed(() => (filteredApps.value.length > 0 ? 1 : 0));
+const customersCount = computed(() => props.stats?.customers30d ?? 0);
+
+function confirmToggleMode(app: AppItem) {
+  const targetMode = app.mode === "sandbox" ? "LIVE" : "SANDBOX";
+  const desc =
+    app.mode === "sandbox"
+      ? `Ubah software "${app.name}" ke mode LIVE? Pembayaran akan dialihkan ke gateway produksi riil.`
+      : `Ubah software "${app.name}" ke mode SANDBOX? Pembayaran akan menggunakan simulator testing Tertaut.`;
+  if (confirm(desc)) {
+    emit("toggle-mode", app);
+  }
+}
 
 function getPricingBadge(app: AppItem): string {
   if (app.pricingType === "free") return "Gratis";
@@ -68,21 +100,62 @@ function getPricingBadge(app: AppItem): string {
   <div>
     <!-- Unified Header & Toolbar -->
     <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-2 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col md:flex-row md:items-center justify-between gap-2.5 shadow-xs mb-3"
     >
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2.5 flex-wrap">
         <h1 class="text-xs font-bold uppercase tracking-wider text-white">
           Katalog Produk &amp; Monetisasi
         </h1>
-        <span
-          class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
+
+        <!-- Mode Filter Segmented Tabs -->
+        <div
+          class="inline-flex items-center p-0.5 rounded-lg bg-white/10 border border-white/15 text-xs"
         >
-          {{ apps.length }} produk
-        </span>
+          <button
+            type="button"
+            @click="selectedModeTab = 'live'"
+            class="px-2.5 py-1 rounded-md text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer"
+            :class="
+              selectedModeTab === 'live'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            "
+          >
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+            <span>Live ({{ liveCount }})</span>
+          </button>
+
+          <button
+            type="button"
+            @click="selectedModeTab = 'sandbox'"
+            class="px-2.5 py-1 rounded-md text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer"
+            :class="
+              selectedModeTab === 'sandbox'
+                ? 'bg-amber-500 text-slate-900 shadow-xs font-extrabold'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            "
+          >
+            <FlaskConical class="w-3 h-3 text-amber-900" />
+            <span>Sandbox ({{ sandboxCount }})</span>
+          </button>
+
+          <button
+            type="button"
+            @click="selectedModeTab = 'all'"
+            class="px-2.5 py-1 rounded-md text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+            :class="
+              selectedModeTab === 'all'
+                ? 'bg-white/25 text-white shadow-xs'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            "
+          >
+            <span>Semua ({{ apps.length }})</span>
+          </button>
+        </div>
       </div>
 
       <div class="flex items-center gap-2">
-        <div class="relative w-full sm:w-60">
+        <div class="relative w-full sm:w-56">
           <Search
             class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"
           />
@@ -275,20 +348,24 @@ function getPricingBadge(app: AppItem): string {
               <span v-else class="text-jetblack/30 text-[10px] font-mono">—</span>
             </td>
             <td class="py-2.5 px-3">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+              <button
+                type="button"
+                @click="confirmToggleMode(app)"
+                :title="`Klik untuk mengubah software ini ke mode ${app.mode === 'sandbox' ? 'LIVE' : 'SANDBOX'}`"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold transition hover:opacity-85 cursor-pointer shadow-2xs group"
                 :class="
                   app.mode === 'sandbox'
-                    ? 'bg-gold/15 text-[#8a6d1f] border border-gold/25'
-                    : 'bg-forest/10 text-forest border border-forest/20'
+                    ? 'bg-amber-500/15 text-amber-800 border border-amber-500/30 hover:bg-amber-500/25'
+                    : 'bg-emerald-500/15 text-emerald-800 border border-emerald-500/30 hover:bg-emerald-500/25'
                 "
               >
-                <span
-                  class="w-1.5 h-1.5 rounded-full"
-                  :class="app.mode === 'sandbox' ? 'bg-gold' : 'bg-forest'"
-                ></span>
+                <FlaskConical v-if="app.mode === 'sandbox'" class="w-3 h-3 text-amber-700" />
+                <span v-else class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
                 <span>{{ app.mode === "sandbox" ? "Sandbox" : "Live" }}</span>
-              </span>
+                <ArrowLeftRight
+                  class="w-2.5 h-2.5 opacity-40 group-hover:opacity-100 transition ml-0.5"
+                />
+              </button>
             </td>
             <td class="py-2.5 px-3 font-mono text-[11px]">
               <a
@@ -299,9 +376,11 @@ function getPricingBadge(app: AppItem): string {
                 <span>/pay/{{ app.slug }}</span>
                 <span
                   v-if="app.mode === 'sandbox'"
-                  class="text-[9px] font-sans font-semibold px-1 rounded bg-amber-500/10 text-amber-700 border border-amber-500/20"
-                  >Test</span
+                  class="text-[9px] font-sans font-semibold px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-800 border border-amber-500/30 flex items-center gap-0.5"
                 >
+                  <FlaskConical class="w-2.5 h-2.5" />
+                  <span>Sandbox</span>
+                </span>
                 <ExternalLink class="w-2.5 h-2.5" />
               </a>
             </td>

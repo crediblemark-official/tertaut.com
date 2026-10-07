@@ -294,6 +294,15 @@ export const api = {
     return parseJson(res);
   },
 
+  async getPaymentChannels(): Promise<{
+    success: boolean;
+    gateway: string;
+    data: import("../types/app").AvailableChannels;
+  }> {
+    const res = await apiFetch("/api/v1/checkout/channels");
+    return parseJson(res);
+  },
+
   async createCheckoutSession(data: {
     appId: string;
     paymentGateway?: "dana" | "xendit" | string;
@@ -349,6 +358,24 @@ export const api = {
     const sep = ticket ? (txId.includes("?") ? "&" : "?") : "";
     const qs = ticket ? `${sep}ticket=${encodeURIComponent(ticket)}` : "";
     const res = await apiFetch(`/api/v1/checkout/status/${txId}${qs}`);
+    return parseJson(res);
+  },
+
+  async simulatePayment(
+    transactionId: string,
+    ticket: string
+  ): Promise<{
+    success: boolean;
+    paymentStatus: "PAID" | "PENDING" | "EXPIRED" | "FAILED";
+    licenseKey?: string | null;
+    message?: string;
+    error?: string;
+  }> {
+    const res = await apiFetch("/api/v1/checkout/simulate-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transactionId, ticket }),
+    });
     return parseJson(res);
   },
 

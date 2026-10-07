@@ -22,6 +22,7 @@ interface ProductData {
   slug: string;
   mode: "sandbox" | "live";
   checkoutMode?: "custom" | "hosted";
+  availableChannels?: import("../../types/app").AvailableChannels;
   targetPrice: number;
 }
 
@@ -68,18 +69,80 @@ const isHosted = computed(() => {
 });
 const isXenithPay = computed(() => props.activeGateway === "xenithpay");
 
+const availableChannels = computed(() => props.product?.availableChannels);
+
+// 1. Ketersediaan QRIS
+const isQrisActive = computed(() => {
+  if (!availableChannels.value) return true;
+  return availableChannels.value.qrisEnabled;
+});
+
+// 2. Ketersediaan Bank Virtual Account
+const activeBankList = computed(() => {
+  if (!availableChannels.value || !availableChannels.value.activeBanks?.length) {
+    return BANKS;
+  }
+  const allowed = new Set(availableChannels.value.activeBanks);
+  return BANKS.filter((b) => allowed.has(b.id));
+});
+const isVaActive = computed(() => activeBankList.value.length > 0);
+
+// 3. Ketersediaan E-Wallet
+const activeEwalletList = computed(() => {
+  if (!availableChannels.value || !availableChannels.value.activeEwallets?.length) {
+    return SUPPORTED_EWALLETS;
+  }
+  const allowed = new Set(availableChannels.value.activeEwallets);
+  return SUPPORTED_EWALLETS.filter((e) => allowed.has(e.id));
+});
+const isEwalletActive = computed(() => {
+  if (!availableChannels.value) return true;
+  return availableChannels.value.activeEwallets.length > 0;
+});
+
+// 4. Ketersediaan Retail Minimarket
+const activeRetailList = computed(() => {
+  if (!availableChannels.value || !availableChannels.value.activeRetails?.length) {
+    return SUPPORTED_RETAILS;
+  }
+  const allowed = new Set(availableChannels.value.activeRetails);
+  return SUPPORTED_RETAILS.filter((r) => allowed.has(r.id));
+});
+const isRetailActive = computed(() => {
+  if (!availableChannels.value) return true;
+  return availableChannels.value.activeRetails.length > 0;
+});
+
+// 5. Ketersediaan Kartu Kredit (3D Secure memerlukan mode live)
+const isCardActive = computed(() => props.product?.mode === "live");
+
 const currentBank = computed({
-  get: () => props.selectedBank || "BCA",
+  get: () => {
+    if (activeBankList.value.some((b) => b.id === props.selectedBank)) {
+      return props.selectedBank || "BCA";
+    }
+    return activeBankList.value[0]?.id || "BCA";
+  },
   set: (val: string) => emit("update:selectedBank", val),
 });
 
 const currentEwallet = computed({
-  get: () => props.selectedEwallet || "DANA",
+  get: () => {
+    if (activeEwalletList.value.some((e) => e.id === props.selectedEwallet)) {
+      return props.selectedEwallet || "DANA";
+    }
+    return activeEwalletList.value[0]?.id || "DANA";
+  },
   set: (val: string) => emit("update:selectedEwallet", val),
 });
 
 const currentRetail = computed({
-  get: () => props.selectedRetail || "ALFAMART",
+  get: () => {
+    if (activeRetailList.value.some((r) => r.id === props.selectedRetail)) {
+      return props.selectedRetail || "ALFAMART";
+    }
+    return activeRetailList.value[0]?.id || "ALFAMART";
+  },
   set: (val: string) => emit("update:selectedRetail", val),
 });
 
@@ -114,7 +177,7 @@ function onPayClicked() {
       : undefined;
 
   emit("pay", {
-    paymentRail: isHosted.value && isXenithPay.value ? undefined : props.selectedPaymentRail,
+    paymentRail: isHosted.value ? undefined : props.selectedPaymentRail,
     vaBank: currentBank.value,
     ewalletChannel: currentEwallet.value,
     retailOutlet: currentRetail.value,
@@ -319,53 +382,98 @@ function onPayClicked() {
         </span>
       </div>
 
+      <!-- Sandbox Live-Sync Notice -->
+      <div
+        v-if="product.mode === 'sandbox'"
+        class="p-2.5 rounded-xl bg-blue-50/80 border border-blue-200/70 text-xs text-blue-900 flex items-start gap-2"
+      >
+        <FlaskConical class="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+        <div class="text-[11px] leading-relaxed">
+          <span class="font-bold">Mode Sandbox Xendit:</span>
+          Channel disinkronkan real-time dari API Xendit.
+          <span class="font-medium text-blue-800">
+            Jalur aktif:
+            <strong>Virtual Account ({{ activeBankList.map((b) => b.label).join(", ") }})</strong> &
+            <strong>Minimarket ({{ activeRetailList.map((r) => r.label).join(", ") }})</strong>.
+          </span>
+        </div>
+      </div>
+
       <div class="space-y-2">
         <!-- 1. QRIS Instan -->
         <div
-          @click="emit('update:selectedPaymentRail', 'qris')"
-          class="rounded-xl border transition-all cursor-pointer overflow-hidden"
-          :class="
-            selectedPaymentRail === 'qris'
-              ? 'border-slate-900 bg-slate-50/70 shadow-xs ring-1 ring-slate-900/10'
-              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/40'
-          "
+          @click="isQrisActive ? emit('update:selectedPaymentRail', 'qris') : null"
+          class="rounded-xl border transition-all overflow-hidden"
+          :class="[
+            !isQrisActive
+              ? 'opacity-65 bg-slate-50/60 border-slate-200 cursor-not-allowed'
+              : selectedPaymentRail === 'qris'
+                ? 'border-slate-900 bg-slate-50/70 shadow-xs ring-1 ring-slate-900/10 cursor-pointer'
+                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/40 cursor-pointer',
+          ]"
         >
           <div class="p-3 flex items-center justify-between gap-3">
             <div class="flex items-center gap-2.5 min-w-0">
               <div
                 class="w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition"
                 :class="
-                  selectedPaymentRail === 'qris'
-                    ? 'border-slate-900 bg-slate-900'
-                    : 'border-slate-300 bg-white'
+                  !isQrisActive
+                    ? 'border-slate-300 bg-slate-100'
+                    : selectedPaymentRail === 'qris'
+                      ? 'border-slate-900 bg-slate-900'
+                      : 'border-slate-300 bg-white'
                 "
               >
                 <div
-                  v-if="selectedPaymentRail === 'qris'"
+                  v-if="selectedPaymentRail === 'qris' && isQrisActive"
                   class="w-1.5 h-1.5 rounded-full bg-white"
                 />
               </div>
-              <div class="p-1.5 rounded-lg bg-amber-50 text-amber-600 shrink-0">
+              <div
+                class="p-1.5 rounded-lg shrink-0"
+                :class="isQrisActive ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-400'"
+              >
                 <QrCode class="w-4 h-4" />
               </div>
               <div class="min-w-0">
                 <div class="flex items-center gap-1.5 flex-wrap">
-                  <span class="text-xs font-bold text-slate-900">QRIS Instan</span>
                   <span
+                    class="text-xs font-bold"
+                    :class="isQrisActive ? 'text-slate-900' : 'text-slate-500'"
+                  >
+                    QRIS Instan
+                  </span>
+                  <span
+                    v-if="!isQrisActive"
+                    class="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-amber-100 text-amber-800"
+                  >
+                    Nonaktif di Sandbox
+                  </span>
+                  <span
+                    v-else
                     class="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-amber-100 text-amber-800"
                   >
                     Populer
                   </span>
                 </div>
                 <p class="text-[11px] text-slate-500 truncate">
-                  BCA, Mandiri, BRI, BNI, GoPay, OVO, ...
+                  {{
+                    isQrisActive
+                      ? "BCA, Mandiri, BRI, BNI, GoPay, OVO, ..."
+                      : "Metode QRIS belum aktif pada akun Xendit ini"
+                  }}
                 </p>
               </div>
             </div>
-            <span class="text-[11px] font-bold text-emerald-600 shrink-0">Bebas Admin</span>
+            <span
+              class="text-[11px] font-bold shrink-0"
+              :class="isQrisActive ? 'text-emerald-600' : 'text-slate-400 font-medium'"
+            >
+              {{ isQrisActive ? "Bebas Admin" : "Belum Aktif" }}
+            </span>
           </div>
           <div
-            v-if="selectedPaymentRail === 'qris'"
+            v-if="selectedPaymentRail === 'qris' && isQrisActive"
             class="px-3 pb-3 pt-1 border-t border-slate-200/70 text-[11px] text-slate-600 flex items-center gap-1.5"
           >
             <Check class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -407,11 +515,11 @@ function onPayClicked() {
                   <span
                     class="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-blue-100 text-blue-700"
                   >
-                    9 Bank
+                    {{ activeBankList.length }} Bank Aktif
                   </span>
                 </div>
                 <p class="text-[11px] text-slate-500 truncate">
-                  BCA, Mandiri, BNI, BRI, BSI, CIMB, Perma...
+                  {{ activeBankList.map((b) => b.label).join(", ") }}
                 </p>
               </div>
             </div>
@@ -427,11 +535,11 @@ function onPayClicked() {
             @click.stop
           >
             <label class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-              Pilih Bank Tujuan Transfer
+              Pilih Bank Tujuan Transfer (Aktif di Xendit)
             </label>
             <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
               <button
-                v-for="b in BANKS"
+                v-for="b in activeBankList"
                 :key="b.id"
                 type="button"
                 @click="currentBank = b.id"
@@ -451,58 +559,89 @@ function onPayClicked() {
 
         <!-- 3. E-Wallet Multi-Platform -->
         <div
-          @click="emit('update:selectedPaymentRail', 'ewallet')"
-          class="rounded-xl border transition-all cursor-pointer overflow-hidden"
-          :class="
-            selectedPaymentRail === 'ewallet'
-              ? 'border-slate-900 bg-slate-50/70 shadow-xs ring-1 ring-slate-900/10'
-              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/40'
-          "
+          @click="isEwalletActive ? emit('update:selectedPaymentRail', 'ewallet') : null"
+          class="rounded-xl border transition-all overflow-hidden"
+          :class="[
+            !isEwalletActive
+              ? 'opacity-65 bg-slate-50/60 border-slate-200 cursor-not-allowed'
+              : selectedPaymentRail === 'ewallet'
+                ? 'border-slate-900 bg-slate-50/70 shadow-xs ring-1 ring-slate-900/10 cursor-pointer'
+                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/40 cursor-pointer',
+          ]"
         >
           <div class="p-3 flex items-center justify-between gap-3">
             <div class="flex items-center gap-2.5 min-w-0">
               <div
                 class="w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition"
                 :class="
-                  selectedPaymentRail === 'ewallet'
-                    ? 'border-slate-900 bg-slate-900'
-                    : 'border-slate-300 bg-white'
+                  !isEwalletActive
+                    ? 'border-slate-300 bg-slate-100'
+                    : selectedPaymentRail === 'ewallet'
+                      ? 'border-slate-900 bg-slate-900'
+                      : 'border-slate-300 bg-white'
                 "
               >
                 <div
-                  v-if="selectedPaymentRail === 'ewallet'"
+                  v-if="selectedPaymentRail === 'ewallet' && isEwalletActive"
                   class="w-1.5 h-1.5 rounded-full bg-white"
                 />
               </div>
-              <div class="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 shrink-0">
+              <div
+                class="p-1.5 rounded-lg shrink-0"
+                :class="
+                  isEwalletActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
+                "
+              >
                 <Wallet class="w-4 h-4" />
               </div>
               <div class="min-w-0">
                 <div class="flex items-center gap-1.5 flex-wrap">
-                  <span class="text-xs font-bold text-slate-900">E-Wallet</span>
                   <span
+                    class="text-xs font-bold"
+                    :class="isEwalletActive ? 'text-slate-900' : 'text-slate-500'"
+                  >
+                    E-Wallet
+                  </span>
+                  <span
+                    v-if="!isEwalletActive"
+                    class="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-slate-200 text-slate-600"
+                  >
+                    Nonaktif di Sandbox
+                  </span>
+                  <span
+                    v-else
                     class="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-700"
                   >
-                    7 Aplikasi
+                    {{ activeEwalletList.length }} Aplikasi
                   </span>
                 </div>
                 <p class="text-[11px] text-slate-500 truncate">
-                  DANA, OVO, ShopeePay, GoPay, Lin...
+                  {{
+                    isEwalletActive
+                      ? activeEwalletList.map((e) => e.label).join(", ")
+                      : "E-Wallet belum diaktifkan pada akun Xendit ini"
+                  }}
                 </p>
               </div>
             </div>
-            <span class="text-[11px] font-bold text-slate-600 shrink-0">
+            <span
+              class="text-[11px] font-bold shrink-0"
+              :class="isEwalletActive ? 'text-slate-600' : 'text-slate-400 font-medium'"
+            >
               {{
-                selectedPaymentRail === "ewallet"
-                  ? SUPPORTED_EWALLETS.find((w) => w.id === currentEwallet)?.label || currentEwallet
-                  : "Pilih E-Wallet"
+                !isEwalletActive
+                  ? "Belum Aktif"
+                  : selectedPaymentRail === "ewallet"
+                    ? SUPPORTED_EWALLETS.find((w) => w.id === currentEwallet)?.label ||
+                      currentEwallet
+                    : "Pilih E-Wallet"
               }}
             </span>
           </div>
 
           <!-- Expanded E-Wallet Selector -->
           <div
-            v-if="selectedPaymentRail === 'ewallet'"
+            v-if="selectedPaymentRail === 'ewallet' && isEwalletActive"
             class="px-3 pb-3 pt-2.5 border-t border-slate-200/70 space-y-2 animate-fadeIn"
             @click.stop
           >
@@ -511,7 +650,7 @@ function onPayClicked() {
             </label>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <button
-                v-for="ew in SUPPORTED_EWALLETS"
+                v-for="ew in activeEwalletList"
                 :key="ew.id"
                 type="button"
                 @click="currentEwallet = ew.id"
@@ -531,43 +670,68 @@ function onPayClicked() {
 
         <!-- 4. Kartu Kredit / Debit -->
         <div
-          @click="emit('update:selectedPaymentRail', 'card')"
-          class="rounded-xl border transition-all cursor-pointer overflow-hidden"
-          :class="
-            selectedPaymentRail === 'card'
-              ? 'border-slate-900 bg-slate-50/70 shadow-xs ring-1 ring-slate-900/10'
-              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/40'
-          "
+          @click="isCardActive ? emit('update:selectedPaymentRail', 'card') : null"
+          class="rounded-xl border transition-all overflow-hidden"
+          :class="[
+            !isCardActive
+              ? 'opacity-65 bg-slate-50/60 border-slate-200 cursor-not-allowed'
+              : selectedPaymentRail === 'card'
+                ? 'border-slate-900 bg-slate-50/70 shadow-xs ring-1 ring-slate-900/10 cursor-pointer'
+                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/40 cursor-pointer',
+          ]"
         >
           <div class="p-3 flex items-center justify-between gap-3">
             <div class="flex items-center gap-2.5 min-w-0">
               <div
                 class="w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition"
                 :class="
-                  selectedPaymentRail === 'card'
-                    ? 'border-slate-900 bg-slate-900'
-                    : 'border-slate-300 bg-white'
+                  !isCardActive
+                    ? 'border-slate-300 bg-slate-100'
+                    : selectedPaymentRail === 'card'
+                      ? 'border-slate-900 bg-slate-900'
+                      : 'border-slate-300 bg-white'
                 "
               >
                 <div
-                  v-if="selectedPaymentRail === 'card'"
+                  v-if="selectedPaymentRail === 'card' && isCardActive"
                   class="w-1.5 h-1.5 rounded-full bg-white"
                 />
               </div>
-              <div class="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 shrink-0">
+              <div
+                class="p-1.5 rounded-lg shrink-0"
+                :class="
+                  isCardActive ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-400'
+                "
+              >
                 <CreditCard class="w-4 h-4" />
               </div>
               <div class="min-w-0">
                 <div class="flex items-center gap-1.5 flex-wrap">
-                  <span class="text-xs font-bold text-slate-900">Kartu Kredit / Debit</span>
                   <span
+                    class="text-xs font-bold"
+                    :class="isCardActive ? 'text-slate-900' : 'text-slate-500'"
+                  >
+                    Kartu Kredit / Debit
+                  </span>
+                  <span
+                    v-if="!isCardActive"
+                    class="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-slate-200 text-slate-600"
+                  >
+                    Hanya Mode Live
+                  </span>
+                  <span
+                    v-else
                     class="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-700"
                   >
                     3D Secure
                   </span>
                 </div>
                 <p class="text-[11px] text-slate-500 truncate">
-                  Visa, Mastercard, JCB, American ...
+                  {{
+                    isCardActive
+                      ? "Visa, Mastercard, JCB, American Express"
+                      : "Pembayaran kartu memerlukan akun live"
+                  }}
                 </p>
               </div>
             </div>
@@ -580,16 +744,12 @@ function onPayClicked() {
                 class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200"
                 >MC</span
               >
-              <span
-                class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200"
-                >JCB</span
-              >
             </div>
           </div>
 
           <!-- Expanded Card Inputs -->
           <div
-            v-if="selectedPaymentRail === 'card'"
+            v-if="selectedPaymentRail === 'card' && isCardActive"
             class="px-3 pb-3 pt-2.5 border-t border-slate-200/70 space-y-3 animate-fadeIn"
             @click.stop
           >
@@ -657,13 +817,15 @@ function onPayClicked() {
 
         <!-- 5. Minimarket Retail -->
         <div
-          @click="emit('update:selectedPaymentRail', 'retail')"
-          class="rounded-xl border transition-all cursor-pointer overflow-hidden"
-          :class="
-            selectedPaymentRail === 'retail'
-              ? 'border-slate-900 bg-slate-50/70 shadow-xs ring-1 ring-slate-900/10'
-              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/40'
-          "
+          @click="isRetailActive ? emit('update:selectedPaymentRail', 'retail') : null"
+          class="rounded-xl border transition-all overflow-hidden"
+          :class="[
+            !isRetailActive
+              ? 'opacity-65 bg-slate-50/60 border-slate-200 cursor-not-allowed'
+              : selectedPaymentRail === 'retail'
+                ? 'border-slate-900 bg-slate-50/70 shadow-xs ring-1 ring-slate-900/10 cursor-pointer'
+                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/40 cursor-pointer',
+          ]"
         >
           <div class="p-3 flex items-center justify-between gap-3">
             <div class="flex items-center gap-2.5 min-w-0">
@@ -689,11 +851,11 @@ function onPayClicked() {
                   <span
                     class="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800"
                   >
-                    Tunai Kasir
+                    {{ activeRetailList.length }} Gerai Aktif
                   </span>
                 </div>
                 <p class="text-[11px] text-slate-500 truncate">
-                  Alfamart, Indomaret, Alfamidi, Dan+Dan
+                  {{ activeRetailList.map((r) => r.label).join(", ") }}
                 </p>
               </div>
             </div>
@@ -719,7 +881,7 @@ function onPayClicked() {
             </label>
             <div class="grid grid-cols-2 gap-2">
               <button
-                v-for="ret in SUPPORTED_RETAILS"
+                v-for="ret in activeRetailList"
                 :key="ret.id"
                 type="button"
                 @click="currentRetail = ret.id"

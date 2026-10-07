@@ -104,4 +104,23 @@ export interface PaymentGatewayAdapter {
    * Eksekusi pencairan dana ke rekening bank builder
    */
   createDisbursement(params: GatewayDisbursementParams): Promise<GatewayDisbursementResponse>;
+
+  /**
+   * Mengambil daftar channel pembayaran yang aktif secara dinamis dari gateway
+   */
+  getPaymentChannels?(): Promise<GatewayChannelsResponse>;
+}
+
+export interface GatewayChannelsResponse {
+  channels?: Array<{
+    channelCode: string;
+    channelCategory: string;
+    isEnabled: boolean;
+    name: string;
+  }>;
+  activeRails: Array<"qris" | "va" | "ewallet" | "card" | "retail">;
+  activeBanks: string[];
+  activeEwallets: string[];
+  activeRetails: string[];
+  qrisEnabled: boolean;
 }

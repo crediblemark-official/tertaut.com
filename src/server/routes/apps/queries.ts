@@ -266,6 +266,15 @@ export async function handleGetBySlug({ params: { slug }, set }: SlugParamContex
   // hardcode nama gateway (dulu duplikat dari `paymentGateway.ts`).
   const activePaymentGateway = await getActivePaymentGateway();
 
+  let availableChannels = undefined;
+  try {
+    const { getPaymentGateway } = await import("../../services/payments/gateways");
+    const gateway = getPaymentGateway(activePaymentGateway);
+    if (gateway.getPaymentChannels) {
+      availableChannels = await gateway.getPaymentChannels();
+    }
+  } catch {}
+
   return {
     id: app.id,
     name: app.name,
@@ -273,6 +282,7 @@ export async function handleGetBySlug({ params: { slug }, set }: SlugParamContex
     mode: isDemoFastMail ? "sandbox" : app.mode,
     checkoutMode: checkoutMode,
     activePaymentGateway,
+    availableChannels,
     targetPrice: app.targetPrice,
     description: app.description,
     headline: app.headline || app.name,

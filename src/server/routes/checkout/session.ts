@@ -21,6 +21,7 @@ import { config as checkoutConfig, resolveRequestOrigin } from "../../config";
 import { enforceRateLimit } from "../../services/security/rateLimiter";
 import { createPollTicket } from "../../utils/pollTicket";
 import { randomBytes } from "crypto";
+import QRCode from "qrcode";
 
 const DEFAULT_PRICE = checkoutConfig.defaultPrice;
 
@@ -402,13 +403,15 @@ export async function handleCreateSession({ request, body, set }: any) {
     }
 
     const defaultScenario = isHostedMode ? "REDIRECT" : selectedRail ? "API" : "REDIRECT";
-    const selectedScenario = demoMode
-      ? "API"
-      : isHostedMode
-        ? "REDIRECT"
-        : scenario || defaultScenario;
+    const selectedScenario =
+      demoMode || isSandboxApp ? "API" : isHostedMode ? "REDIRECT" : scenario || defaultScenario;
 
-    const gatewayAdapter = getGatewayAdapter(selectedGateway);
+    // Pilihan Adapter:
+    // Jika aplikasi berstatus sandbox (app.mode === "sandbox"), GUNAKAN sandboxGateway (Simulator Internal Tertaut).
+    // Transaksi sandbox 100% terisolasi secara internal dan TIDAK AKAN PERNAH menembak vendor PG produksi riil.
+    // Jika live, gunakan adapter gateway resmi (Xendit Live).
+    const effectiveGatewayId = isSandboxApp ? ("sandbox" as const) : selectedGateway;
+    const gatewayAdapter = getGatewayAdapter(effectiveGatewayId);
 
     // Hitung Merchant of Record 5% platform fee & 95% net atas nominal yang dibayar
     const { grossAmount, platformFee, netAmount } = gatewayAdapter.calculateMor(payableAmount);
@@ -416,16 +419,14 @@ export async function handleCreateSession({ request, body, set }: any) {
     const txId = `tx_${randomBytes(8).toString("hex")}`;
     const externalId = `tt_${randomBytes(8).toString("hex")}`;
 
-    // Path finish diambil dari registry, bukan dari `if (gateway === "xendit")`.
-    // `selectedGateway` selalu hasil `normalizeGatewayId` atau fallback registry,
-    // jadi descriptor-nya pasti ada; `DEFAULT_FINISH_PATH` hanya jaga-jaga.
-    const finishPath = gatewayDescriptor(selectedGateway)?.finishPath ?? "/checkout/success";
+    // Path finish diambil dari registry
+    const finishPath = gatewayDescriptor(effectiveGatewayId)?.finishPath ?? "/checkout/success";
     const finishRedirectUrl = `${requestOrigin}${finishPath}?externalId=${externalId}`;
 
     const resolvedBank = (
       vaBank ||
       bank ||
-      gatewayDescriptor(selectedGateway)?.defaultVaBank ||
+      gatewayDescriptor(effectiveGatewayId)?.defaultVaBank ||
       "BCA"
     ).toUpperCase();
 
@@ -438,8 +439,9 @@ export async function handleCreateSession({ request, body, set }: any) {
       finishRedirectUrl,
       demoMode,
       scenario: selectedScenario,
-      paymentRail: selectedRail || undefined,
+      paymentRail: isHostedMode ? undefined : selectedRail || undefined,
       vaBank: resolvedBank,
+      retailOutlet,
     });
 
     const invoiceUrl = orderResult.checkoutUrl;
@@ -447,11 +449,9 @@ export async function handleCreateSession({ request, body, set }: any) {
     const expiryDate = orderResult.expiryDate;
     const hostedPayUrl = `${requestOrigin}/pay/${app.slug || targetIdentifier}?externalId=${externalId}`;
 
-    // Label paymentChannel disusun dari nama gateway di registry, bukan rantai
-    // `if (selectedGateway === ...)`. Label khusus rail (VA/QRIS/CARD/RETAIL)
-    // tetap dipertahankan karena sudah dipakai di filter ledger.
-    const gatewayDescriptorForTx = gatewayDescriptor(selectedGateway);
-    const gatewaySlug = selectedGateway.replace(/[^a-z0-9]/gi, "").toUpperCase();
+    // Label paymentChannel disusun dari nama gateway di registry
+    const gatewayDescriptorForTx = gatewayDescriptor(effectiveGatewayId);
+    const gatewaySlug = effectiveGatewayId.replace(/[^a-z0-9]/gi, "").toUpperCase();
     const savedChannel =
       orderResult.paymentRail === "va"
         ? `VA_${orderResult.vaBank || selectedBank}`
@@ -470,7 +470,7 @@ export async function handleCreateSession({ request, body, set }: any) {
         id: txId,
         appId: app.id,
         builderId: app.builderId,
-        paymentProvider: selectedGateway,
+        paymentProvider: effectiveGatewayId,
         providerReferenceId: invoiceId,
         xenditInvoiceId: invoiceId,
         xenditExternalId: externalId,
@@ -569,6 +569,21 @@ export async function handleCreateSession({ request, body, set }: any) {
       (msg.includes("DANA") && msg.includes("tidak dikonfigurasi"))
     ) {
       errorMsg = "Gateway pembayaran DANA belum dikonfigurasi dengan benar di server.";
+      set.status = 400;
+    } else if (
+      err?.errorCode === "UNAUTHORIZED_SENDER_IP" ||
+      err?.errorMessage?.includes("IP Allowlist") ||
+      msg.includes("IP Allowlist") ||
+      msg.includes("UNAUTHORIZED_SENDER_IP")
+    ) {
+      const rejectedIp =
+        err?.errorMessage?.match(/IP\s+([\d.]+)/)?.[1] ||
+        msg.match(/IP\s+([\d.]+)/)?.[1] ||
+        "server";
+      errorMsg =
+        `IP ${rejectedIp} belum didaftarkan di IP Whitelist Xendit. ` +
+        `Buka Dashboard Xendit (Settings > Developers > IP Whitelist) di https://dashboard.xendit.co/settings/developers#ip-allowlist ` +
+        `lalu tambahkan IP ${rejectedIp} atau nonaktifkan pembatasan IP Allowlist.`;
       set.status = 400;
     } else if (
       msg.includes("XENDIT_SECRET_KEY") ||

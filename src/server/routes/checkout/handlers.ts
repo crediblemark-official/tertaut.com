@@ -136,7 +136,10 @@ export async function handleGetPaymentStatus({ params, query, request, set }: an
   const nowMs = Date.now();
   const lastSync = gatewaySyncThrottleMap.get(tx.id) || 0;
   const isExplicitSync = (query as any)?.sync === "true" || (query as any)?.refresh === "true";
-  const shouldSyncRemote = isExplicitSync || checkoutConfig.isTest || nowMs - lastSync > 15_000;
+  const isInternalSandbox =
+    tx.paymentProvider === "sandbox" || tx.xenditInvoiceId?.startsWith("inv_sandbox_");
+  const shouldSyncRemote =
+    !isInternalSandbox && (isExplicitSync || checkoutConfig.isTest || nowMs - lastSync > 15_000);
 
   if (tx.paymentStatus === "PENDING" && shouldSyncRemote) {
     gatewaySyncThrottleMap.set(tx.id, nowMs);
@@ -270,6 +273,121 @@ export async function handleConsultPay({ query, request, set }: any) {
   return {
     success: true,
     data: result,
+  };
+}
+
+/**
+ * Mengambil daftar channel pembayaran yang aktif secara dinamis dari gateway yang aktif
+ */
+export async function handleGetPaymentChannels({ request, set }: any) {
+  const rl = enforceRateLimit(request, "checkout:channels", 60, 60_000);
+  if (!rl.allowed) {
+    set.status = 429;
+    return { error: "Terlalu banyak permintaan. Coba lagi sebentar lagi." };
+  }
+
+  try {
+    const { getActivePaymentGateway } = await import("../../services/payments/paymentGateway");
+    const { getPaymentGateway } = await import("../../services/payments/gateways");
+    const activeGatewayId = await getActivePaymentGateway();
+    const gateway = getPaymentGateway(activeGatewayId);
+
+    if (gateway.getPaymentChannels) {
+      const channelsData = await gateway.getPaymentChannels();
+      return {
+        success: true,
+        gateway: activeGatewayId,
+        data: channelsData,
+      };
+    }
+
+    return {
+      success: true,
+      gateway: activeGatewayId,
+      data: {
+        activeRails: ["qris", "va"],
+        activeBanks: ["BCA", "MANDIRI", "BNI", "BRI", "PERMATA"],
+        activeEwallets: [],
+        activeRetails: ["ALFAMART", "INDOMARET"],
+        qrisEnabled: true,
+      },
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || "Gagal mengambil channel pembayaran",
+    };
+  }
+}
+
+/**
+ * Simulasi pelunasan instan untuk transaksi Sandbox Tertaut (Testing & UAT)
+ */
+export async function handleSimulateSandboxPayment({ body, request, set }: any) {
+  const rl = enforceRateLimit(request, "checkout:simulate", 30, 60_000);
+  if (!rl.allowed) {
+    set.status = 429;
+    return { error: "Terlalu banyak permintaan simulasi. Coba lagi sebentar lagi." };
+  }
+
+  const { transactionId, ticket } = body || {};
+  if (!transactionId) {
+    set.status = 400;
+    return { error: "transactionId wajib disertakan" };
+  }
+
+  let tx = await db.query.transactions.findFirst({
+    where: or(eq(transactions.id, transactionId), eq(transactions.xenditExternalId, transactionId)),
+  });
+
+  if (!tx) {
+    set.status = 404;
+    return { error: "Transaksi tidak ditemukan" };
+  }
+
+  if (!ticket || !verifyPollTicket(tx.id, ticket)) {
+    set.status = 403;
+    return { error: "Ticket autentikasi checkout tidak valid" };
+  }
+
+  const app = await db.query.apps.findFirst({
+    where: eq(apps.id, tx.appId),
+  });
+
+  const isSandbox =
+    app?.mode === "sandbox" ||
+    tx.paymentProvider === "sandbox" ||
+    tx.xenditInvoiceId?.startsWith("inv_sandbox_");
+
+  if (!isSandbox) {
+    set.status = 400;
+    return { error: "Simulasi pembayaran hanya diizinkan untuk produk dalam mode Sandbox" };
+  }
+
+  if (tx.paymentStatus === "PAID") {
+    const lic = await db.query.licenses.findFirst({
+      where: eq(licenses.transactionId, tx.id),
+    });
+    return {
+      success: true,
+      paymentStatus: "PAID",
+      licenseKey: lic?.licenseKey || null,
+      message: "Transaksi sudah lunas sebelumnya",
+    };
+  }
+
+  const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
+  await fulfillPaymentTransaction(tx, tx.paymentChannel || "VA_BCA");
+
+  const lic = await db.query.licenses.findFirst({
+    where: eq(licenses.transactionId, tx.id),
+  });
+
+  return {
+    success: true,
+    paymentStatus: "PAID",
+    licenseKey: lic?.licenseKey || null,
+    message: "Pembayaran sandbox berhasil diselesaikan (Simulasi Lunas)",
   };
 }
 

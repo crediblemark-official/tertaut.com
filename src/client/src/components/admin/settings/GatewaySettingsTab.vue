@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import type { PlatformSettingsFormData } from "../../../types/panel";
-import { Save, CreditCard, Key, Eye, EyeOff, Copy, Check, ExternalLink } from "lucide-vue-next";
+import {
+  Save,
+  CreditCard,
+  Key,
+  Copy,
+  Check,
+  ExternalLink,
+  ShieldCheck,
+  Terminal,
+  FileCode,
+} from "lucide-vue-next";
 
 const props = defineProps<{
   form: PlatformSettingsFormData;
@@ -12,9 +22,6 @@ const emit = defineEmits<{
   (e: "save"): void;
 }>();
 
-const showXenditKey = ref(false);
-const showXenithSecret = ref(false);
-const showDanaSecret = ref(false);
 const copiedWebhook = ref(false);
 const copiedDanaWebhook = ref(false);
 const copiedXenithWebhook = ref(false);
@@ -205,51 +212,77 @@ function copyXenithWebhookUrl() {
           </div>
         </div>
 
-        <!-- Sandbox Credentials Form -->
+        <!-- DANA Sandbox Config Status Card (Managed via .env) -->
         <div class="p-3.5 rounded-lg border border-jetblack/10 bg-jetblack/[0.02] space-y-3">
-          <div class="flex items-center gap-2">
-            <Key class="w-3.5 h-3.5 text-jetblack/60" />
-            <span class="text-xs font-bold text-jetblack">Kredensial DANA Enterprise Sandbox</span>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <ShieldCheck class="w-4 h-4 text-forest" />
+              <span class="text-xs font-bold text-jetblack"
+                >Kredensial DANA Enterprise Sandbox</span
+              >
+            </div>
+            <span
+              class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+              :class="
+                form.dana_configured === 'true'
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : 'bg-amber-100 text-amber-800 border border-amber-300'
+              "
+            >
+              {{
+                form.dana_configured === "true" ? "Terkonfigurasi di .env" : "Belum Lengkap di .env"
+              }}
+            </span>
           </div>
 
-          <div class="space-y-2.5">
-            <div class="space-y-1">
-              <label class="text-xs text-jetblack/70 block">Sandbox Client ID</label>
-              <input
-                v-model="form.dana_sandbox_client_id"
-                type="text"
-                placeholder="Client ID dari DANA Developer Portal Sandbox"
-                class="w-full h-9 px-3 rounded-lg border border-jetblack/15 bg-white text-xs font-mono text-jetblack focus:border-gold"
-              />
-            </div>
-            <div class="space-y-1">
-              <div class="flex items-center justify-between">
-                <label class="text-xs text-jetblack/70 block">Sandbox Client Secret</label>
-                <button
-                  type="button"
-                  @click="showDanaSecret = !showDanaSecret"
-                  class="text-[11px] text-jetblack/50 hover:text-jetblack inline-flex items-center gap-1 cursor-pointer"
+          <div class="p-3 bg-white rounded-lg border border-jetblack/10 space-y-2 text-xs">
+            <div class="flex items-center gap-1.5 text-jetblack/70 text-[11px]">
+              <FileCode class="w-3.5 h-3.5 text-gold shrink-0" />
+              <span
+                >Dikelola aman via file
+                <code class="font-mono bg-jetblack/5 px-1 py-0.5 rounded font-bold text-jetblack"
+                  >.env</code
                 >
-                  <Eye v-if="!showDanaSecret" class="w-3 h-3" />
-                  <EyeOff v-else class="w-3 h-3" />
-                  <span>{{ showDanaSecret ? "Sembunyikan" : "Tampilkan" }}</span>
-                </button>
-              </div>
-              <input
-                v-model="form.dana_sandbox_client_secret"
-                :type="showDanaSecret ? 'text' : 'password'"
-                placeholder="Client Secret dari DANA Sandbox"
-                class="w-full h-9 px-3 rounded-lg border border-jetblack/15 bg-white text-xs font-mono text-jetblack focus:border-gold"
-              />
+                server:</span
+              >
             </div>
-            <div class="space-y-1">
-              <label class="text-xs text-jetblack/70 block">Sandbox Merchant ID</label>
-              <input
-                v-model="form.dana_sandbox_merchant_id"
-                type="text"
-                placeholder="Merchant ID (X-Partner-ID) dari DANA Sandbox"
-                class="w-full h-9 px-3 rounded-lg border border-jetblack/15 bg-white text-xs font-mono text-jetblack focus:border-gold"
-              />
+            <div
+              class="font-mono text-[11px] text-jetblack/80 space-y-1.5 bg-jetblack/[0.03] p-2.5 rounded border border-jetblack/5"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-jetblack/50">DANA_SANDBOX_CLIENT_ID:</span>
+                <span
+                  :class="
+                    form.dana_sandbox_client_id ? 'text-forest font-bold' : 'text-slate-400 italic'
+                  "
+                >
+                  {{ form.dana_sandbox_client_id ? "✓ Disetel" : "Kosong" }}
+                </span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-jetblack/50">DANA_SANDBOX_CLIENT_SECRET:</span>
+                <span
+                  :class="
+                    form.dana_sandbox_client_secret
+                      ? 'text-forest font-bold'
+                      : 'text-slate-400 italic'
+                  "
+                >
+                  {{ form.dana_sandbox_client_secret ? "✓ Disetel" : "Kosong" }}
+                </span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-jetblack/50">DANA_SANDBOX_MERCHANT_ID:</span>
+                <span
+                  :class="
+                    form.dana_sandbox_merchant_id
+                      ? 'text-forest font-bold'
+                      : 'text-slate-400 italic'
+                  "
+                >
+                  {{ form.dana_sandbox_merchant_id ? "✓ Disetel" : "Kosong" }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -307,44 +340,63 @@ function copyXenithWebhookUrl() {
           </div>
         </div>
 
-        <!-- Sandbox Credentials Form -->
+        <!-- Xendit Sandbox Config Status Card (Managed via .env) -->
         <div class="p-3.5 rounded-lg border border-jetblack/10 bg-jetblack/[0.02] space-y-3">
-          <div class="flex items-center gap-2">
-            <Key class="w-3.5 h-3.5 text-jetblack/60" />
-            <span class="text-xs font-bold text-jetblack">Kredensial Xendit Sandbox</span>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <ShieldCheck class="w-4 h-4 text-blue-600" />
+              <span class="text-xs font-bold text-jetblack">Kredensial Xendit Sandbox</span>
+            </div>
+            <span
+              class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+              :class="
+                form.xendit_configured === 'true'
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : 'bg-amber-100 text-amber-800 border border-amber-300'
+              "
+            >
+              {{
+                form.xendit_configured === "true"
+                  ? "Terkonfigurasi di .env"
+                  : "Belum Lengkap di .env"
+              }}
+            </span>
           </div>
 
-          <div class="space-y-2.5">
-            <div class="space-y-1">
-              <div class="flex items-center justify-between">
-                <label class="text-xs text-jetblack/70 block">Secret Key (Sandbox)</label>
-                <button
-                  type="button"
-                  @click="showXenditKey = !showXenditKey"
-                  class="text-[11px] text-jetblack/50 hover:text-jetblack inline-flex items-center gap-1 cursor-pointer"
+          <div class="p-3 bg-white rounded-lg border border-jetblack/10 space-y-2 text-xs">
+            <div class="flex items-center gap-1.5 text-jetblack/70 text-[11px]">
+              <FileCode class="w-3.5 h-3.5 text-gold shrink-0" />
+              <span
+                >Dikelola aman via file
+                <code class="font-mono bg-jetblack/5 px-1 py-0.5 rounded font-bold text-jetblack"
+                  >.env</code
                 >
-                  <Eye v-if="!showXenditKey" class="w-3 h-3" />
-                  <EyeOff v-else class="w-3 h-3" />
-                  <span>{{ showXenditKey ? "Sembunyikan" : "Tampilkan" }}</span>
-                </button>
-              </div>
-              <input
-                v-model="form.xendit_secret_key"
-                :type="showXenditKey ? 'text' : 'password'"
-                placeholder="xnd_development_..."
-                class="w-full h-9 px-3 rounded-lg border border-jetblack/15 bg-white text-xs font-mono text-jetblack focus:border-gold"
-              />
-            </div>
-            <div class="space-y-1">
-              <label class="text-xs text-jetblack/70 block"
-                >Webhook Verification Token (Sandbox)</label
+                server:</span
               >
-              <input
-                v-model="form.xendit_webhook_token"
-                type="password"
-                placeholder="Token verifikasi webhook dari Xendit Dashboard"
-                class="w-full h-9 px-3 rounded-lg border border-jetblack/15 bg-white text-xs font-mono text-jetblack focus:border-gold"
-              />
+            </div>
+            <div
+              class="font-mono text-[11px] text-jetblack/80 space-y-1.5 bg-jetblack/[0.03] p-2.5 rounded border border-jetblack/5"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-jetblack/50">XENDIT_SANDBOX_SECRET_KEY:</span>
+                <span
+                  :class="
+                    form.xendit_secret_key ? 'text-forest font-bold' : 'text-slate-400 italic'
+                  "
+                >
+                  {{ form.xendit_secret_key ? "✓ Disetel (xnd_development_...)" : "Kosong" }}
+                </span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-jetblack/50">XENDIT_SANDBOX_WEBHOOK_VERIFICATION_TOKEN:</span>
+                <span
+                  :class="
+                    form.xendit_webhook_token ? 'text-forest font-bold' : 'text-slate-400 italic'
+                  "
+                >
+                  {{ form.xendit_webhook_token ? "✓ Disetel" : "Kosong" }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -404,51 +456,79 @@ function copyXenithWebhookUrl() {
           </div>
         </div>
 
-        <!-- Sandbox Credentials Form -->
+        <!-- XenithPay Sandbox Config Status Card (Managed via .env) -->
         <div class="p-3.5 rounded-lg border border-jetblack/10 bg-jetblack/[0.02] space-y-3">
-          <div class="flex items-center gap-2">
-            <Key class="w-3.5 h-3.5 text-jetblack/60" />
-            <span class="text-xs font-bold text-jetblack">Kredensial XenithPay Sandbox</span>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <ShieldCheck class="w-4 h-4 text-emerald-600" />
+              <span class="text-xs font-bold text-jetblack">Kredensial XenithPay Sandbox</span>
+            </div>
+            <span
+              class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+              :class="
+                form.xenithpay_configured === 'true'
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : 'bg-amber-100 text-amber-800 border border-amber-300'
+              "
+            >
+              {{
+                form.xenithpay_configured === "true"
+                  ? "Terkonfigurasi di .env"
+                  : "Belum Lengkap di .env"
+              }}
+            </span>
           </div>
 
-          <div class="space-y-2.5">
-            <div class="space-y-1">
-              <label class="text-xs text-jetblack/70 block">Sandbox Access Key (Client ID)</label>
-              <input
-                v-model="form.xenithpay_sandbox_access_key"
-                type="text"
-                placeholder="Access key dari XenithPay Sandbox"
-                class="w-full h-9 px-3 rounded-lg border border-jetblack/15 bg-white text-xs font-mono text-jetblack focus:border-gold"
-              />
-            </div>
-            <div class="space-y-1">
-              <div class="flex items-center justify-between">
-                <label class="text-xs text-jetblack/70 block">Sandbox Secret Key</label>
-                <button
-                  type="button"
-                  @click="showXenithSecret = !showXenithSecret"
-                  class="text-[11px] text-jetblack/50 hover:text-jetblack inline-flex items-center gap-1 cursor-pointer"
+          <div class="p-3 bg-white rounded-lg border border-jetblack/10 space-y-2 text-xs">
+            <div class="flex items-center gap-1.5 text-jetblack/70 text-[11px]">
+              <FileCode class="w-3.5 h-3.5 text-gold shrink-0" />
+              <span
+                >Dikelola aman via file
+                <code class="font-mono bg-jetblack/5 px-1 py-0.5 rounded font-bold text-jetblack"
+                  >.env</code
                 >
-                  <Eye v-if="!showXenithSecret" class="w-3 h-3" />
-                  <EyeOff v-else class="w-3 h-3" />
-                  <span>{{ showXenithSecret ? "Sembunyikan" : "Tampilkan" }}</span>
-                </button>
-              </div>
-              <input
-                v-model="form.xenithpay_sandbox_secret_key"
-                :type="showXenithSecret ? 'text' : 'password'"
-                placeholder="Secret key dari XenithPay Sandbox"
-                class="w-full h-9 px-3 rounded-lg border border-jetblack/15 bg-white text-xs font-mono text-jetblack focus:border-gold"
-              />
+                server:</span
+              >
             </div>
-            <div class="space-y-1">
-              <label class="text-xs text-jetblack/70 block">Sandbox Webhook Signature Secret</label>
-              <input
-                v-model="form.xenithpay_sandbox_webhook_secret"
-                type="password"
-                placeholder="Webhook signature secret dari XenithPay Sandbox"
-                class="w-full h-9 px-3 rounded-lg border border-jetblack/15 bg-white text-xs font-mono text-jetblack focus:border-gold"
-              />
+            <div
+              class="font-mono text-[11px] text-jetblack/80 space-y-1.5 bg-jetblack/[0.03] p-2.5 rounded border border-jetblack/5"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-jetblack/50">XENITHPAY_SANDBOX_ACCESS_KEY:</span>
+                <span
+                  :class="
+                    form.xenithpay_sandbox_access_key
+                      ? 'text-forest font-bold'
+                      : 'text-slate-400 italic'
+                  "
+                >
+                  {{ form.xenithpay_sandbox_access_key ? "✓ Disetel" : "Kosong" }}
+                </span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-jetblack/50">XENITHPAY_SANDBOX_SECRET_KEY:</span>
+                <span
+                  :class="
+                    form.xenithpay_sandbox_secret_key
+                      ? 'text-forest font-bold'
+                      : 'text-slate-400 italic'
+                  "
+                >
+                  {{ form.xenithpay_sandbox_secret_key ? "✓ Disetel" : "Kosong" }}
+                </span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-jetblack/50">XENITHPAY_SANDBOX_WEBHOOK_SECRET:</span>
+                <span
+                  :class="
+                    form.xenithpay_sandbox_webhook_secret
+                      ? 'text-forest font-bold'
+                      : 'text-slate-400 italic'
+                  "
+                >
+                  {{ form.xenithpay_sandbox_webhook_secret ? "✓ Disetel" : "Kosong" }}
+                </span>
+              </div>
             </div>
           </div>
         </div>

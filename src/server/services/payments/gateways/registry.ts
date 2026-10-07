@@ -13,7 +13,7 @@
  */
 
 /** Id gateway yang terdaftar. Hapus satu baris untuk mencabut satu gateway. */
-export const GATEWAY_IDS = ["dana", "xendit", "xenithpay"] as const;
+export const GATEWAY_IDS = ["dana", "xendit", "xenithpay", "sandbox"] as const;
 
 export type GatewayId = (typeof GATEWAY_IDS)[number];
 
@@ -23,6 +23,7 @@ const GATEWAY_ALIASES: Record<string, GatewayId> = {
   xendit: "xendit",
   xenith: "xenithpay",
   xenithpay: "xenithpay",
+  sandbox: "sandbox",
 };
 
 export const DEFAULT_GATEWAY_ID: GatewayId = GATEWAY_IDS[0];
@@ -143,6 +144,16 @@ export const GATEWAY_REGISTRY: Readonly<Record<GatewayId, GatewayDescriptor>> = 
         "XENITHPAY_WEBHOOK_SECRET",
       ],
     },
+  },
+  sandbox: {
+    id: "sandbox",
+    displayName: "Tertaut Sandbox (Simulasi)",
+    rails: CARD_RAILS,
+    finishPath: "/checkout/success",
+    defaultVaBank: "BCA",
+    qrChannelLabel: "QRIS",
+    sandboxPayoutAccountNumber: "1234567890",
+    credentials: {},
   },
 };
 

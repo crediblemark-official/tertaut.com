@@ -3,6 +3,7 @@ import { GATEWAY_IDS, GATEWAY_REGISTRY, normalizeGatewayId, DEFAULT_GATEWAY_ID }
 import { danaGateway } from "./danaGateway";
 import { xenditGateway } from "./xenditGateway";
 import { xenithpayGateway } from "./xenithpayGateway";
+import { sandboxGateway } from "./sandboxGateway";
 import { getActivePaymentGateway as getActivePgSetting } from "../paymentGateway";
 
 export * from "./types";
@@ -10,6 +11,7 @@ export * from "./registry";
 export { danaGateway } from "./danaGateway";
 export { xenditGateway } from "./xenditGateway";
 export { xenithpayGateway } from "./xenithpayGateway";
+export { sandboxGateway } from "./sandboxGateway";
 
 /**
  * Pemetaan id → adapter.
@@ -23,6 +25,7 @@ const ADAPTERS = {
   dana: danaGateway,
   xendit: xenditGateway,
   xenithpay: xenithpayGateway,
+  sandbox: sandboxGateway,
 } satisfies Record<(typeof GATEWAY_IDS)[number], PaymentGatewayAdapter>;
 
 export type { PaymentGatewayAdapter };
