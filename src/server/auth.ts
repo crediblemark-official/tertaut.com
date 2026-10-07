@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin } from "better-auth/plugins";
 import { db } from "./db";
-import { config } from "./config";
+import { config, getEnv } from "./config";
 import { user, session, account, verification } from "./db/schema";
 import { EmailService } from "./services/notifications/email";
 
@@ -48,9 +48,9 @@ export const auth = betterAuth({
   },
   socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-      enabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+      clientId: getEnv("GOOGLE_CLIENT_ID"),
+      clientSecret: getEnv("GOOGLE_CLIENT_SECRET"),
+      enabled: !!(getEnv("GOOGLE_CLIENT_ID") && getEnv("GOOGLE_CLIENT_SECRET")),
     },
   },
   rateLimit: {

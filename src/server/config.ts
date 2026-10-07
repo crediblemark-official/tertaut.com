@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "fs";
 
-function getEnv(key: string, fallback = ""): string {
+export function getEnv(key: string, fallback = ""): string {
   // Environment proses (Docker/systemd/shell) selalu menang atas file .env,
   // agar override runtime tidak diabaikan.
   if (process.env[key] !== undefined) {
