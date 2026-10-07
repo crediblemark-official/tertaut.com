@@ -69,7 +69,9 @@ export async function apiFetch(
 
     if (res.status === 401 && typeof window !== "undefined") {
       const currentPath = window.location.pathname;
-      if (!currentPath.startsWith("/login") && !currentPath.startsWith("/pay/")) {
+      const isProtectedRoute =
+        currentPath.startsWith("/dashboard") || currentPath.startsWith("/panel");
+      if (isProtectedRoute) {
         window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
       }
     }

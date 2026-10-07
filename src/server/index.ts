@@ -375,8 +375,12 @@ if (hasBuiltClient) {
       // Sanitize path traversal attempts
       const safePath = decodedPath.replace(/\.\.+[/\\]/g, "");
 
-      // Sajikan static privacy.html secara langsung untuk /privacy (kepatuhan bot/crawler Google OAuth)
-      if (url.pathname === "/privacy" || url.pathname === "/privacy/") {
+      // Sajikan static privacy.html secara langsung untuk /privacy dan /privacy.html (kepatuhan bot/crawler Google OAuth)
+      if (
+        url.pathname === "/privacy" ||
+        url.pathname === "/privacy/" ||
+        url.pathname === "/privacy.html"
+      ) {
         const privacyFile = resolve(clientDistPath, "privacy.html");
         if (existsSync(privacyFile)) {
           set.headers["content-type"] = "text/html; charset=utf-8";
@@ -384,8 +388,12 @@ if (hasBuiltClient) {
         }
       }
 
-      // Sajikan static terms.html secara langsung untuk /terms
-      if (url.pathname === "/terms" || url.pathname === "/terms/") {
+      // Sajikan static terms.html secara langsung untuk /terms dan /terms.html
+      if (
+        url.pathname === "/terms" ||
+        url.pathname === "/terms/" ||
+        url.pathname === "/terms.html"
+      ) {
         const termsFile = resolve(clientDistPath, "terms.html");
         if (existsSync(termsFile)) {
           set.headers["content-type"] = "text/html; charset=utf-8";

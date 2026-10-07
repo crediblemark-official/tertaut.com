@@ -32,49 +32,162 @@
   <body
     class="bg-white text-jetblack antialiased selection:bg-gold selection:text-jetblack min-h-screen"
   >
-    <div id="app"></div>
-    <noscript>
-      <div
+    <div id="app">
+      <!-- Fallback / Crawler Accessible Content (hydrated by Vue SPA) -->
+      <header
         style="
-          font-family: sans-serif;
-          max-width: 800px;
-          margin: 40px auto;
-          padding: 24px;
-          line-height: 1.6;
-          color: #111;
+          max-width: 960px;
+          margin: 0 auto;
+          padding: 24px 16px;
+          border-bottom: 1px solid #e2e8f0;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
         "
       >
-        <h1>Tertaut — Merchant of Record &amp; Developer Infrastructure Platform</h1>
-        <p>
-          <strong>Official Website:</strong> <a href="https://tertaut.com">https://tertaut.com</a>
+        <div style="font-weight: 800; font-size: 20px; color: #0f172a; font-family: sans-serif">
+          tertaut<span style="color: #e5b842">.com</span>
+        </div>
+        <nav style="display: flex; gap: 16px; font-size: 13px; font-family: sans-serif">
+          <a href="/privacy.html" style="color: #0f172a; text-decoration: none; font-weight: 600"
+            >Kebijakan Privasi</a
+          >
+          <a href="/terms.html" style="color: #0f172a; text-decoration: none; font-weight: 600"
+            >Syarat &amp; Ketentuan</a
+          >
+          <a href="/login" style="color: #0f172a; text-decoration: none; font-weight: 700"
+            >Masuk / Daftar</a
+          >
+        </nav>
+      </header>
+      <main
+        style="
+          max-width: 960px;
+          margin: 40px auto;
+          padding: 0 16px;
+          font-family: sans-serif;
+          line-height: 1.6;
+          color: #1e293b;
+        "
+      >
+        <div
+          style="
+            display: inline-block;
+            padding: 4px 12px;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 16px;
+          "
+        >
+          🚀 Platform Infrastruktur Pengembang &amp; Merchant of Record (MoR)
+        </div>
+        <h1
+          style="
+            font-size: 32px;
+            font-weight: 900;
+            color: #0f172a;
+            margin-bottom: 16px;
+            line-height: 1.25;
+          "
+        >
+          Tertaut — Monetisasi Software, Lisensi Ed25519 &amp; Merchant of Record Indonesia
+        </h1>
+        <p style="font-size: 16px; color: #475569; margin-bottom: 24px">
+          Tertaut adalah platform infrastruktur terintegrasi untuk software builders, aplikasi
+          desktop, SaaS, dan pengembang AI. Kami menangani pembayaran lokal Indonesia (QRIS &amp;
+          Virtual Account), faktur pajak resmi (PPN 11%), lisensi kriptografis offline-first
+          (Ed25519), serta AI proxy shield.
+          <strong
+            >Seluruh informasi produk dan dokumentasi dapat diakses secara publik tanpa perlu
+            login.</strong
+          >
         </p>
-        <p>
-          Tertaut is an all-in-one developer infrastructure platform and registered Merchant of
-          Record (MoR) designed for software builders, desktop applications, SaaS, and AI tool
-          creators. Users can browse product details, view documentation, test interactive demos,
-          and review public policies freely without requiring an account or login.
-        </p>
-        <h2>Core Platform Features:</h2>
-        <ul>
-          <li>
-            <strong>Cryptographic Software Licensing:</strong> Issue and verify offline-first
-            Ed25519 license tokens and manage device seat quotas.
-          </li>
-          <li>
-            <strong>Merchant of Record Payments:</strong> Process local Indonesian payment channels
-            (QRIS, Virtual Accounts) and handle compliant tax invoices.
-          </li>
-          <li>
-            <strong>AI Proxy Shield:</strong> Secure upstream AI provider API keys, meter user token
-            consumption, and enforce rate limits.
-          </li>
-        </ul>
-        <p>
-          For complete legal, compliance, and user data details, please visit our
-          <a href="/privacy">Privacy Policy</a> and <a href="/terms">Terms of Service</a>.
-        </p>
-      </div>
-    </noscript>
+
+        <section
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin: 32px 0;
+          "
+        >
+          <div
+            style="
+              padding: 20px;
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
+            "
+          >
+            <h2 style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px">
+              💳 Merchant of Record (MoR)
+            </h2>
+            <p style="font-size: 13px; color: #64748b; margin: 0">
+              Terima pembayaran instan via QRIS dan Virtual Account tanpa perlu mendirikan entitas
+              PT/CV secara mandiri. Faktur pajak diterbitkan otomatis.
+            </p>
+          </div>
+          <div
+            style="
+              padding: 20px;
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
+            "
+          >
+            <h2 style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px">
+              🔑 Lisensi Kriptografis Ed25519
+            </h2>
+            <p style="font-size: 13px; color: #64748b; margin: 0">
+              Sistem aktivasi dan validasi lisensi offline-first hingga 30 hari dengan hardware ID
+              device seat locking untuk desktop app (Tauri, Electron, Flutter) dan SaaS.
+            </p>
+          </div>
+          <div
+            style="
+              padding: 20px;
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
+            "
+          >
+            <h2 style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px">
+              🛡️ AI Proxy Shield &amp; Metering
+            </h2>
+            <p style="font-size: 13px; color: #64748b; margin: 0">
+              Amankan master API key OpenAI/Claude di server vault AES-256. Batasi kuota harian
+              token LLM dan cegah pembobolan kredensial AI.
+            </p>
+          </div>
+        </section>
+
+        <div
+          style="
+            padding: 16px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            margin: 24px 0;
+            font-size: 13px;
+            color: #1e3a8a;
+          "
+        >
+          <strong>Kepatuhan &amp; Transparansi:</strong> Pengguna dapat meninjau kebijakan legal
+          kami secara terbuka di
+          <a href="/privacy.html" style="color: #1d4ed8; font-weight: 700"
+            >Kebijakan Privasi (Privacy Policy)</a
+          >
+          dan
+          <a href="/terms.html" style="color: #1d4ed8; font-weight: 700"
+            >Syarat &amp; Ketentuan (Terms of Service)</a
+          >.
+        </div>
+      </main>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
