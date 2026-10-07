@@ -159,6 +159,12 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
+    path: "/terms.html",
+    name: "terms-html",
+    component: () => import("../views/TermsView.vue"),
+    meta: { public: true },
+  },
+  {
     path: "/syarat-ketentuan",
     name: "terms-alias",
     component: () => import("../views/TermsView.vue"),
@@ -167,6 +173,12 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/privacy",
     name: "privacy",
+    component: () => import("../views/PrivacyView.vue"),
+    meta: { public: true },
+  },
+  {
+    path: "/privacy.html",
+    name: "privacy-html",
     component: () => import("../views/PrivacyView.vue"),
     meta: { public: true },
   },

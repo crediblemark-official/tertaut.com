@@ -375,19 +375,6 @@ if (hasBuiltClient) {
       // Sanitize path traversal attempts
       const safePath = decodedPath.replace(/\.\.+[/\\]/g, "");
 
-      // Sajikan static privacy.html secara langsung untuk /privacy dan /privacy.html (kepatuhan bot/crawler Google OAuth)
-      if (
-        url.pathname === "/privacy" ||
-        url.pathname === "/privacy/" ||
-        url.pathname === "/privacy.html"
-      ) {
-        const privacyFile = resolve(clientDistPath, "privacy.html");
-        if (existsSync(privacyFile)) {
-          set.headers["content-type"] = "text/html; charset=utf-8";
-          return Bun.file(privacyFile);
-        }
-      }
-
       // Sajikan sitemap.xml dengan header application/xml
       if (url.pathname === "/sitemap.xml") {
         const sitemapFile = resolve(clientDistPath, "sitemap.xml");

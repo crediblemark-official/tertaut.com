@@ -1,8 +1,8 @@
 # robots.txt for tertaut.com
 User-agent: *
 Allow: /
-Allow: /privacy.html
-Allow: /terms.html
+Allow: /privacy
+Allow: /terms
 Allow: /contact
 Allow: /refund
 Allow: /dashboard/docs

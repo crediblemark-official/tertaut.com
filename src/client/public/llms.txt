@@ -7,8 +7,8 @@
 - [Overview](https://tertaut.com/): Official home page, product explanation, and fee structure (flat 5% fee, 0% monthly).
 - [Documentation & SDK](https://tertaut.com/dashboard/docs): Official `@tertaut/sdk` documentation for Ed25519 offline licensing, hardware seat binding, and Server-to-Server API.
 - [Checkout Simulation](https://tertaut.com/demo/checkout): Live interactive preview of dynamic QRIS & Virtual Account payments.
-- [Privacy Policy](https://tertaut.com/privacy.html): Comprehensive privacy compliance with Indonesia's UU PDP No. 27/2022 and Google API Services User Data Policy.
-- [Terms of Service](https://tertaut.com/terms.html): Platform terms and merchant obligations.
+- [Privacy Policy](https://tertaut.com/privacy): Comprehensive privacy compliance with Indonesia's UU PDP No. 27/2022 and Google API Services User Data Policy.
+- [Terms of Service](https://tertaut.com/terms): Platform terms and merchant obligations.
 - [Contact & Corporate Legal](https://tertaut.com/contact): Managed by PT RETAS LINTAS BATAS, Sumenep, East Java, Indonesia.
 
 ## Capabilities
