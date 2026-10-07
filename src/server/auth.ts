@@ -46,6 +46,13 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     requireEmailVerification: verifyEmailEnabled,
   },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      enabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    },
+  },
   rateLimit: {
     window: 60,
     max: 100,

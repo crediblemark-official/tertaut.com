@@ -30,9 +30,34 @@ const name = ref("");
 const showPassword = ref(false);
 const rememberMe = ref(true);
 const loading = ref(false);
+const googleLoading = ref(false);
 const error = ref("");
 
 const isPasswordValid = computed(() => password.value.length >= 8);
+
+async function signInWithGoogle() {
+  error.value = "";
+  googleLoading.value = true;
+  try {
+    const callbackURL = (route.query.redirect as string) || "/dashboard";
+    const res = await authClient.signIn.social({
+      provider: "google",
+      callbackURL,
+    });
+    if (res?.error) {
+      if (res.error.message?.includes("Provider not found")) {
+        throw new Error(
+          "Google Login belum dikonfigurasi. Harap isi GOOGLE_CLIENT_ID dan GOOGLE_CLIENT_SECRET di .env."
+        );
+      }
+      throw new Error(res.error.message || "Gagal menghubungkan ke Google.");
+    }
+  } catch (e: any) {
+    error.value = e?.message || "Gagal login dengan akun Google.";
+  } finally {
+    googleLoading.value = false;
+  }
+}
 
 function toggleMode(target: "signin" | "signup") {
   mode.value = target;
@@ -430,6 +455,47 @@ async function submit() {
                 </button>
               </div>
             </form>
+
+            <!-- Divider -->
+            <div class="relative my-3">
+              <div class="absolute inset-0 flex items-center">
+                <div class="w-full border-t border-white/[0.08]"></div>
+              </div>
+              <div class="relative flex justify-center text-[10.5px]">
+                <span class="bg-[#111215] px-2 text-white/40 font-medium"
+                  >atau lanjutkan dengan</span
+                >
+              </div>
+            </div>
+
+            <!-- Google Sign-In Button -->
+            <button
+              type="button"
+              :disabled="loading || googleLoading"
+              @click="signInWithGoogle"
+              class="w-full flex items-center justify-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] active:scale-[0.99] px-4 py-2 text-xs sm:text-sm font-semibold text-white transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <Loader2 v-if="googleLoading" class="h-4 w-4 animate-spin text-white/60" />
+              <svg v-else class="h-4 w-4 shrink-0" viewBox="0 0 24 24">
+                <path
+                  fill="#EA4335"
+                  d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"
+                />
+                <path
+                  fill="#4285F4"
+                  d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.1-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.2s.7 5.5 1.9 7.9l3.7-2.9z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 17c1.8 3.7 5.6 6.5 10.1 6.5z"
+                />
+              </svg>
+              <span>{{ mode === "signin" ? "Masuk dengan Google" : "Daftar dengan Google" }}</span>
+            </button>
           </div>
 
           <!-- Bottom Footer Area inside scroll container -->
