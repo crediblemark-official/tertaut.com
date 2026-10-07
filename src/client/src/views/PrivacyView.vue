@@ -98,8 +98,91 @@ import { Shield, Lock, CheckCircle2 } from "lucide-vue-next";
             </p>
           </section>
 
+          <section class="space-y-3 p-4 rounded-xl bg-forest/5 border border-forest/20">
+            <h2 class="text-base font-bold text-jetblack flex items-center gap-2">
+              <Shield class="w-4 h-4 text-forest" />
+              <span
+                >5. Kebijakan Khusus Data Pengguna Google (Google OAuth &amp; User Data
+                Policy)</span
+              >
+            </h2>
+            <p>
+              Apabila Anda memilih untuk masuk atau mendaftar menggunakan akun Google (Google Single
+              Sign-On / OAuth 2.0), kami mengakses data terbatas dari profil Google Anda melalui
+              scope standar (<code class="text-xs bg-black/5 px-1 py-0.5 rounded font-mono"
+                >openid</code
+              >, <code class="text-xs bg-black/5 px-1 py-0.5 rounded font-mono">email</code>, dan
+              <code class="text-xs bg-black/5 px-1 py-0.5 rounded font-mono">profile</code>):
+            </p>
+            <ul class="list-disc list-inside space-y-1.5 pl-2">
+              <li>
+                <strong>Data yang Dikumpulkan:</strong> Alamat email Google terverifikasi, nama
+                lengkap, foto profil publik, dan Google User ID unik.
+              </li>
+              <li>
+                <strong>Tujuan Penggunaan:</strong> Data tersebut semata-mata digunakan untuk
+                memverifikasi identitas Anda, membuat akun builder di platform Tertaut, serta
+                mengelola sesi login yang aman.
+              </li>
+              <li>
+                <strong>Penyimpanan dan Retensi:</strong> Data disimpan di basis data server kami
+                yang terenkripsi selama akun Anda tetap aktif.
+              </li>
+              <li>
+                <strong>Larangan Penjualan dan Pembagian Data:</strong> Kami
+                <em
+                  >tidak pernah menjual, menyewakan, membagikan, atau mentransfer data pengguna
+                  Google</em
+                >
+                kepada pihak ketiga, jaringan periklanan, atau perantara data pihak ketiga mana pun.
+              </li>
+              <li>
+                <strong>Pencabutan Akses &amp; Penghapusan Data:</strong> Anda dapat mencabut akses
+                Tertaut kapan saja melalui halaman
+                <a
+                  href="https://myaccount.google.com/permissions"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-forest underline font-semibold"
+                >
+                  Pengaturan Izin Akun Google
+                </a>
+                atau meminta penghapusan akun beserta seluruh data terkait dengan menghubungi kami
+                di
+                <a :href="`mailto:${COMPANY_INFO.contact.email}`" class="text-forest underline">
+                  {{ COMPANY_INFO.contact.email }} </a
+                >.
+              </li>
+            </ul>
+
+            <div
+              class="mt-3 p-3 rounded-lg bg-white border border-jetblack/10 text-xs text-jetblack/80 space-y-2"
+            >
+              <div class="font-bold text-jetblack">
+                Pernyataan Kepatuhan Google API (Google API Compliance Statement):
+              </div>
+              <p>
+                Penggunaan dan transfer informasi yang diterima dari Google API oleh Tertaut ke
+                aplikasi lain akan sepenuhnya mematuhi
+                <a
+                  href="https://developers.google.com/terms/api-services-user-data-policy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-forest font-semibold underline"
+                >
+                  Google API Services User Data Policy </a
+                >, termasuk persyaratan Penggunaan Terbatas (Limited Use requirements).
+              </p>
+              <p class="text-[11px] text-jetblack/60 italic">
+                (English: Tertaut's use and transfer to any other app of information received from
+                Google APIs will adhere to the Google API Services User Data Policy, including the
+                Limited Use requirements.)
+              </p>
+            </div>
+          </section>
+
           <section class="space-y-2">
-            <h2 class="text-base font-bold text-jetblack">5. Informasi Kontak Pengendali Data</h2>
+            <h2 class="text-base font-bold text-jetblack">6. Informasi Kontak Pengendali Data</h2>
             <p>Untuk pertanyaan atau permintaan terkait data pribadi, hubungi kami di:</p>
             <ul class="list-disc list-inside space-y-1 pl-2">
               <li><strong>Nama Perusahaan:</strong> {{ COMPANY_INFO.legalName }}</li>
