@@ -58,17 +58,29 @@ export const STATIC_PAGES_META: Record<string, SeoMetaData> = {
       "Panduan integrasi resmi @tertaut/sdk untuk lisensi kriptografis Ed25519 offline 30 hari, penguncian hardware ID seat, server-to-server API, dan AI proxy shield.",
     canonicalUrl: "/dashboard/docs",
   },
+  pricing: {
+    title: "Biaya Transaksi & Skema Monetisasi — Tertaut",
+    description:
+      "Biaya transparan flat 5% Merchant of Record tanpa langganan bulanan. Terima pembayaran QRIS & Virtual Account instan dengan settlement otomatis.",
+    canonicalUrl: "/pricing",
+  },
+  products: {
+    title: "Katalog Fitur & Solusi Lisensi Software — Tertaut",
+    description:
+      "Infrastruktur lengkap untuk software builder Indonesia: Universal Licensing Ed25519, AI Proxy Shield, dan Merchant of Record checkout.",
+    canonicalUrl: "/products",
+  },
   privacy: {
     title: "Kebijakan Privasi (Privacy Policy) & Kepatuhan Data — Tertaut",
     description:
       "Dokumen resmi Kebijakan Privasi tertaut.com sesuai UU No. 27/2022 (UU PDP) dan Google API Services User Data Policy (Limited Use Requirements).",
-    canonicalUrl: "/privacy.html",
+    canonicalUrl: "/privacy",
   },
   terms: {
     title: "Syarat & Ketentuan Layanan (Terms of Service) — Tertaut",
     description:
       "Syarat dan ketentuan resmi penggunaan platform Merchant of Record, penerbitan lisensi perangkat lunak, dan aturan kepatuhan transaksi di tertaut.com.",
-    canonicalUrl: "/terms.html",
+    canonicalUrl: "/terms",
   },
   refund: {
     title: "Kebijakan Pengembalian Dana (Refund Policy) — Tertaut",

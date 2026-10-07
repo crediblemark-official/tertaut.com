@@ -1,12 +1,18 @@
 # robots.txt for tertaut.com
 User-agent: *
 Allow: /
+Allow: /pricing
+Allow: /products
 Allow: /privacy
 Allow: /terms
 Allow: /contact
 Allow: /refund
 Allow: /dashboard/docs
 Allow: /demo/checkout
+Allow: /pay/
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /.well-known/ai-catalog.json
 Disallow: /dashboard/
 Disallow: /panel/
 Disallow: /api/

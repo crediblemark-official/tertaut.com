@@ -3,6 +3,18 @@ import { ref, computed } from "vue";
 import PublicHeader from "../components/common/PublicHeader.vue";
 import PublicFooter from "../components/common/PublicFooter.vue";
 import { COMPANY_INFO, PLATFORM_PRICING } from "../constants/company";
+import { useSeo } from "../composables/useSeo";
+import { STATIC_PAGES_META, createJsonLd } from "../constants/seo";
+
+useSeo(STATIC_PAGES_META.pricing, [
+  createJsonLd("breadcrumb", {
+    items: [
+      { name: "Beranda", url: "/" },
+      { name: "Biaya & Skema", url: "/pricing" },
+    ],
+  }),
+  createJsonLd("faq"),
+]);
 import {
   CheckCircle2,
   ArrowRight,

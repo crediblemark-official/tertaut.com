@@ -22,6 +22,8 @@ import { ensureDemoData } from "./db/ensureDemo";
 import { ensurePlatformSettings } from "./db/ensureSettings";
 import { randomBytes } from "crypto";
 import { hashPassword } from "better-auth/crypto";
+import { generateDynamicSitemap } from "./routes/seo/sitemap";
+import { isCrawler, resolveMetadataForPath, injectDynamicSeo } from "./services/seo/seoPrerender";
 
 const clientDistPath = resolve(import.meta.dir, "../../dist");
 const docsDistPath = resolve(clientDistPath, "docs");
@@ -337,7 +339,14 @@ export const app = new Elysia()
   .use(webhookRoutes)
   .use(webhooksPluralRoutes)
   .use(snapBiWebhookRoutes)
-  .use(checkoutRoutes);
+  .use(checkoutRoutes)
+
+  // Dynamic Programmatic Sitemap (Auto-sync DB Apps & Static Pages)
+  .get("/sitemap.xml", async ({ set }) => {
+    set.headers["content-type"] = "application/xml; charset=utf-8";
+    set.headers["cache-control"] = "public, max-age=3600, s-maxage=86400";
+    return await generateDynamicSitemap();
+  });
 
 // Production: Single Container Monolith serves built SPA assets from dist/
 if (hasBuiltClient) {
@@ -365,7 +374,7 @@ if (hasBuiltClient) {
       set.redirect = `/api/v1/checkout/dana/finish${qs ? `?${qs}` : ""}`;
     })
     // SPA fallback
-    .get("*", ({ request, set }) => {
+    .get("*", async ({ request, set }) => {
       const url = new URL(request.url);
       if (url.pathname.startsWith("/api/")) {
         set.status = 404;
@@ -375,17 +384,12 @@ if (hasBuiltClient) {
       // Sanitize path traversal attempts
       const safePath = decodedPath.replace(/\.\.+[/\\]/g, "");
 
-      // Sajikan sitemap.xml dengan header application/xml
-      if (url.pathname === "/sitemap.xml") {
-        const sitemapFile = resolve(clientDistPath, "sitemap.xml");
-        if (existsSync(sitemapFile)) {
-          set.headers["content-type"] = "application/xml; charset=utf-8";
-          return Bun.file(sitemapFile);
-        }
-      }
-
-      // Sajikan robots.txt & llms.txt dengan header text/plain
-      if (url.pathname === "/robots.txt" || url.pathname === "/llms.txt") {
+      // Sajikan robots.txt, llms.txt, & llms-full.txt dengan header text/plain
+      if (
+        url.pathname === "/robots.txt" ||
+        url.pathname === "/llms.txt" ||
+        url.pathname === "/llms-full.txt"
+      ) {
         const fileName = url.pathname.slice(1);
         const txtFile = resolve(clientDistPath, fileName);
         if (existsSync(txtFile)) {
@@ -416,8 +420,15 @@ if (hasBuiltClient) {
 
       const indexPath = resolve(clientDistPath, "index.html");
       if (existsSync(indexPath)) {
-        set.headers["content-type"] = "text/html; charset=utf8";
-        return Bun.file(indexPath);
+        set.headers["content-type"] = "text/html; charset=utf-8";
+        try {
+          const rawHtml = await Bun.file(indexPath).text();
+          const userAgent = request.headers.get("user-agent");
+          const meta = await resolveMetadataForPath(url.pathname);
+          return injectDynamicSeo(rawHtml, meta, { isCrawler: isCrawler(userAgent) });
+        } catch {
+          return Bun.file(indexPath);
+        }
       }
       set.status = 404;
       return { error: "Not Found" };

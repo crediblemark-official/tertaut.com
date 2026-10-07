@@ -5,6 +5,7 @@ import { api } from "../lib/api";
 import { ShieldCheck, Lock, ArrowLeft, FlaskConical } from "lucide-vue-next";
 import PayOrderSummary from "../components/pay/PayOrderSummary.vue";
 import PayPaymentForm from "../components/pay/PayPaymentForm.vue";
+import { useSeo } from "../composables/useSeo";
 
 const route = useRoute();
 const router = useRouter();
@@ -50,6 +51,17 @@ const product = ref<{
   valueProps: string[];
   redirectUrl: string | null;
 } | null>(null);
+
+useSeo(() => ({
+  title: product.value
+    ? `Beli Lisensi ${product.value.name} — Tertaut Checkout Resmi`
+    : "Checkout Pembayaran Lisensi — Tertaut",
+  description:
+    product.value?.headline ||
+    product.value?.description ||
+    "Sistem pembayaran resmi lisensi software digital dengan QRIS dan Virtual Account di tertaut.com.",
+  canonicalUrl: product.value?.slug ? `/pay/${product.value.slug}` : "/pay",
+}));
 
 const emailInput = ref("");
 const couponInput = ref("");

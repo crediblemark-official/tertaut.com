@@ -10,6 +10,7 @@
 - [Privacy Policy](https://tertaut.com/privacy): Comprehensive privacy compliance with Indonesia's UU PDP No. 27/2022 and Google API Services User Data Policy.
 - [Terms of Service](https://tertaut.com/terms): Platform terms and merchant obligations.
 - [Contact & Corporate Legal](https://tertaut.com/contact): Managed by PT RETAS LINTAS BATAS, Sumenep, East Java, Indonesia.
+- [Comprehensive AI & LLM Spec](https://tertaut.com/llms-full.txt): Complete platform architecture, fee structure, SDK guides, and security specifications for AI agents and LLMs.
 
 ## Capabilities
 

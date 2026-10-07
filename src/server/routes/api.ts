@@ -14,8 +14,10 @@ import { meteringRoutes } from "./metering/router";
 import { s2sRoutes } from "./s2s/router";
 import { handleGetPublicAnnouncement } from "./panel/settings";
 import { authMiddleware, authenticate } from "../middleware/auth";
+import { generateOgSvg } from "./seo/og";
 
 const PUBLIC_PREFIXES = [
+  "/api/v1/og",
   "/api/v1/health",
   "/api/v1/s2s",
   "/api/v1/badge",
@@ -72,4 +74,14 @@ export const apiV1Routes = new Elysia({ prefix: "/api/v1" })
   .use(couponRoutes)
   .use(meteringRoutes)
   .use(s2sRoutes)
-  .get("/announcement", handleGetPublicAnnouncement);
+  .get("/announcement", handleGetPublicAnnouncement)
+  .get("/og", ({ query, set }: any) => {
+    set.headers["content-type"] = "image/svg+xml; charset=utf-8";
+    set.headers["cache-control"] = "public, max-age=86400, s-maxage=604800";
+    return generateOgSvg({
+      title: query?.title,
+      description: query?.desc || query?.description,
+      badge: query?.badge,
+      price: query?.price,
+    });
+  });
