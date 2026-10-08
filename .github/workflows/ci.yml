@@ -60,6 +60,7 @@ jobs:
       # baris ini CI hanya hijau karena kebetulan repo tidak punya file `.env`;
       # developer dengan `.env` lokal akan melihat test payout & checkout gagal.
       ACTIVE_PAYMENT_GATEWAY: dana
+      TERTAUT_TEST_GATEWAY: dana
       DANA_ENV: sandbox
       DANA_CLIENT_ID: 2026092111025202221544
       DANA_CLIENT_SECRET: 00b18d19398bcd9ddad4b0792a0bdeaf5f2d70ee65c8359d4066a933515a5

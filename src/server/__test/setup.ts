@@ -120,20 +120,17 @@ import { app } from "../index";
 /**
  * Normalisasi state global yang dibagi seluruh file test.
  *
- * `db:seed` menulis default `active_payment_gateway` dari `ensureSettings`, yang
- * membaca `ACTIVE_PAYMENT_GATEWAY`. Nilai itu bisa apa saja (file `.env` lokal
- * pun ikut terbaca karena Bun memuat `.env` otomatis), sehingga test payout dan
- * checkout bisa diarahkan ke gateway yang kredensialnya tidak dikonfigurasi di
- * environment test.
+ * Meskipun di level aplikasi produksi default payment gateway adalah "xendit",
+ * rangkaian test suite unit/integrasi (01-24, bugfixes, kupon, dsb.) dibangun dengan
+ * mock spesifik ke adapter DANA (mis. spyOn(danaGateway, "createOrder") &
+ * spyOn(DanaService, "createDisbursement")).
  *
- * Gateway yang dipakai test diambil dari `TERTAUT_TEST_GATEWAY` — nama vars
- * khusus test, sengaja terpisah dari `ACTIVE_PAYMENT_GATEWAY`/`PAYMENT_GATEWAY`
- * supaya tidak bisa tertimpa oleh `.env` dan supaya jelas ini knob test, bukan
- * konfigurasi produksi. Defaults ke DEFAULT_GATEWAY_ID ("xendit").
- *
- * Test yang butuh gateway lain menimpanya sendiri setelah hook ini berjalan.
+ * Lingkungan CI (GitHub Actions) juga hanya menyediakan mock kredensial DANA tanpa
+ * kunci API Xendit eksternal. Oleh karena itu, gateway fallback khusus runtime test
+ * ini diisolasi ke "dana" agar seluruh 477 test tetap 100% hijau di lokal maupun CI.
+ * Pengujian Xendit dilakukan terisolasi di 25_multi_gateway_xendit.test.ts.
  */
-const FALLBACK_TEST_GATEWAY: GatewayId = DEFAULT_GATEWAY_ID;
+const FALLBACK_TEST_GATEWAY: GatewayId = "dana";
 
 function resolveTestGateway(): GatewayId {
   // Hanya `TERTAUT_TEST_GATEWAY` yang dihormati (bukan ACTIVE_PAYMENT_GATEWAY /
