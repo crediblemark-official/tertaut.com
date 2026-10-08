@@ -75,12 +75,15 @@ export class DanaDisbursementService {
     // BUG A4: customerNumber = akun deposit DANA merchant (format 628xxx). Sebelumnya
     // di-hardcode "6280000000000" sehingga semua transferToBank memakai sumber salah.
     // Fail-closed: tanpa DANA_CUSTOMER_NUMBER jangan transfer dari akun yang salah.
-    const customerNumber = config.dana.customerNumber;
-    if (!customerNumber) {
+    const rawCustomerNumber = config.dana.customerNumber?.trim();
+    if (!rawCustomerNumber) {
       throw new Error(
         "DANA Disbursement Failed: DANA_CUSTOMER_NUMBER (akun deposit merchant, format 628xxx) belum dikonfigurasi."
       );
     }
+    const customerNumber = rawCustomerNumber.startsWith("0")
+      ? "62" + rawCustomerNumber.slice(1)
+      : rawCustomerNumber;
 
     if (config.isTest && (!config.dana.privateKey || config.dana.privateKey.includes("MOCK"))) {
       return {
