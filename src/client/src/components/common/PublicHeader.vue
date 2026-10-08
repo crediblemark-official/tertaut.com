@@ -30,28 +30,20 @@ const isLoggedIn = computed(() => !!authSession.value?.data?.user);
       </router-link>
 
       <!-- Navigation Links -->
-      <nav class="hidden lg:flex items-center gap-6 text-xs font-semibold text-jetblack/75">
-        <router-link to="/" class="hover:text-jetblack transition">Beranda</router-link>
-        <router-link
-          to="/products"
-          class="hover:text-jetblack transition flex items-center gap-1 font-bold text-forest"
-        >
-          <span>Biaya &amp; Layanan</span>
+      <nav class="hidden md:flex items-center gap-6 text-xs font-semibold text-jetblack/75">
+        <a href="/#biaya" class="hover:text-forest transition font-bold text-forest">
+          Biaya &amp; Layanan
+        </a>
+        <router-link to="/demo/checkout" class="hover:text-jetblack transition">
+          Demo Checkout
         </router-link>
-        <a href="/#cara-kerja" class="hover:text-jetblack transition">Cara Kerja</a>
         <a href="/#solusi" class="hover:text-jetblack transition">Solusi MoR</a>
-        <router-link
-          to="/demo/checkout"
-          class="hover:text-jetblack transition flex items-center gap-1"
-        >
-          <span>Demo Checkout</span>
-        </router-link>
-        <router-link to="/dashboard/docs" class="hover:text-jetblack transition"
-          >Dokumentasi</router-link
-        >
+        <a href="/#cara-kerja" class="hover:text-jetblack transition">Cara Kerja</a>
+        <a href="/#kalkulator" class="hover:text-jetblack transition">Kalkulator Biaya</a>
+        <a href="/#faq" class="hover:text-jetblack transition">FAQ</a>
         <router-link to="/contact" class="hover:text-jetblack transition flex items-center gap-1">
           <PhoneCall class="w-3 h-3 text-gold" />
-          <span>Hubungi Kami</span>
+          <span>Kontak</span>
         </router-link>
       </nav>
 
@@ -86,7 +78,7 @@ const isLoggedIn = computed(() => !!authSession.value?.data?.user);
         <!-- Mobile Hamburger Toggle -->
         <button
           @click="isMobileMenuOpen = !isMobileMenuOpen"
-          class="lg:hidden p-1.5 rounded-lg border border-jetblack/15 text-jetblack hover:bg-jetblack/5 cursor-pointer"
+          class="md:hidden p-1.5 rounded-lg border border-jetblack/15 text-jetblack hover:bg-jetblack/5 cursor-pointer"
           aria-label="Toggle Menu"
         >
           <X v-if="isMobileMenuOpen" class="w-4 h-4" />
@@ -98,22 +90,15 @@ const isLoggedIn = computed(() => !!authSession.value?.data?.user);
     <!-- Mobile Navigation Drawer -->
     <div
       v-if="isMobileMenuOpen"
-      class="lg:hidden border-t border-jetblack/10 bg-white px-4 py-4 space-y-3 text-xs font-semibold animate-fadeIn shadow-lg"
+      class="md:hidden border-t border-jetblack/10 bg-white px-4 py-4 space-y-3 text-xs font-semibold animate-fadeIn shadow-lg"
     >
-      <router-link
-        to="/"
-        @click="isMobileMenuOpen = false"
-        class="block py-1.5 text-jetblack/80 hover:text-jetblack"
-      >
-        Beranda
-      </router-link>
-      <router-link
-        to="/products"
+      <a
+        href="/#biaya"
         @click="isMobileMenuOpen = false"
         class="block py-1.5 text-forest font-bold hover:text-forest-dark"
       >
         💳 Biaya &amp; Layanan Platform
-      </router-link>
+      </a>
       <router-link
         to="/demo/checkout"
         @click="isMobileMenuOpen = false"
@@ -136,11 +121,25 @@ const isLoggedIn = computed(() => !!authSession.value?.data?.user);
         Cara Kerja
       </a>
       <a
+        href="/#integrasi-sdk"
+        @click="isMobileMenuOpen = false"
+        class="block py-1.5 text-jetblack/80 hover:text-jetblack"
+      >
+        Integrasi SDK
+      </a>
+      <a
         href="/#kalkulator"
         @click="isMobileMenuOpen = false"
         class="block py-1.5 text-jetblack/80 hover:text-jetblack"
       >
         Kalkulator Biaya
+      </a>
+      <a
+        href="/#faq"
+        @click="isMobileMenuOpen = false"
+        class="block py-1.5 text-jetblack/80 hover:text-jetblack"
+      >
+        FAQ
       </a>
       <router-link
         to="/dashboard/docs"
@@ -152,9 +151,9 @@ const isLoggedIn = computed(() => !!authSession.value?.data?.user);
       <router-link
         to="/contact"
         @click="isMobileMenuOpen = false"
-        class="block py-1.5 text-gold-dark font-bold hover:text-jetblack"
+        class="block py-1.5 text-gold font-bold hover:text-jetblack"
       >
-        📞 Hubungi Kami &amp; Kontak Resmi
+        📞 Kontak &amp; Alamat Resmi
       </router-link>
 
       <div class="pt-3 border-t border-jetblack/10 space-y-2">
