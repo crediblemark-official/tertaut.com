@@ -1,7 +1,7 @@
 # SDK @tertaut/sdk
 
 SDK ringan (**~16 KB minified, ~5 KB gzipped, zero dependency**, `fetch`-based) untuk
-tertaut.com: checkout MoR, universal licensing, metered credits, dan AI proxy.
+tertaut.com: checkout Merchant-of-Record (MoR) dinamis, universal licensing, dan metered credits.
 
 Berjalan di **Browser**, **Chrome Extension**, **Desktop (Tauri/Electron)**, **Node.js / Bun**, dan **React Native**.
 
@@ -92,16 +92,16 @@ Semua kelas menurunkan `TertautError` yang punya `code`, `status`, dan `details`
 
 ### Tabel pemetaan error
 
-| Kode dari server                                                                                                                                                                                                                                                                   | Kelas SDK                  | HTTP   |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------ |
-| `TOKEN_EXPIRED`, `LICENSE_EXPIRED`, `EXPIRED`                                                                                                                                                                                                                                      | `LicenseExpiredError`      | 403    |
-| `TOKEN_REVOKED`, `LICENSE_REVOKED`, `REVOKED`                                                                                                                                                                                                                                      | `LicenseRevokedError`      | 403    |
-| `SEAT_FULL`                                                                                                                                                                                                                                                                        | `SeatLimitExceededError`   | 403    |
-| `LEASE_MISMATCH` (heartbeat), `LEASE_STALE` (verify)                                                                                                                                                                                                                               | `HeartbeatLeaseError`      | 409    |
-| `INSUFFICIENT_CREDITS`                                                                                                                                                                                                                                                             | `InsufficientCreditsError` | 402    |
-| `APP_VERSION_TOO_OLD`                                                                                                                                                                                                                                                              | `VersionFloorError`        | 403    |
-| `RATE_LIMITED`, `RATE_LIMIT_EXCEEDED`, `DAILY_TOKEN_LIMIT_EXCEEDED`                                                                                                                                                                                                                | `TertautRateLimitError`    | 429    |
-| `LICENSE_NOT_FOUND`, `APP_MISMATCH`, `HARDWARE_MISMATCH`, `DEVICE_NOT_ACTIVATED`, `PLATFORM_MISMATCH`, `HWID_REQUIRED`, `COUPON_EXHAUSTED`, `APP_SUSPENDED`, `BUILDER_SUSPENDED`, `AI_KILL_SWITCH_ACTIVE`, `BUDGET_LIMIT_EXCEEDED`, `UPSTREAM_AI_ERROR`, `AI_PROXY_UNAVAILABLE`, … | `TertautError`             | varies |
+| Kode dari server                                                                                                                                                                    | Kelas SDK                  | HTTP   |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------ |
+| `TOKEN_EXPIRED`, `LICENSE_EXPIRED`, `EXPIRED`                                                                                                                                       | `LicenseExpiredError`      | 403    |
+| `TOKEN_REVOKED`, `LICENSE_REVOKED`, `REVOKED`                                                                                                                                       | `LicenseRevokedError`      | 403    |
+| `SEAT_FULL`                                                                                                                                                                         | `SeatLimitExceededError`   | 403    |
+| `LEASE_MISMATCH` (heartbeat), `LEASE_STALE` (verify)                                                                                                                                | `HeartbeatLeaseError`      | 409    |
+| `INSUFFICIENT_CREDITS`                                                                                                                                                              | `InsufficientCreditsError` | 402    |
+| `APP_VERSION_TOO_OLD`                                                                                                                                                               | `VersionFloorError`        | 403    |
+| `RATE_LIMITED`, `RATE_LIMIT_EXCEEDED`, `DAILY_TOKEN_LIMIT_EXCEEDED`                                                                                                                 | `TertautRateLimitError`    | 429    |
+| `LICENSE_NOT_FOUND`, `APP_MISMATCH`, `HARDWARE_MISMATCH`, `DEVICE_NOT_ACTIVATED`, `PLATFORM_MISMATCH`, `HWID_REQUIRED`, `COUPON_EXHAUSTED`, `APP_SUSPENDED`, `BUILDER_SUSPENDED`, … | `TertautError`             | varies |
 
 > Catatan: `LEASE_EXPIRED` dan `LEASE_INVALID` **tidak pernah** dikirim server
 > sebagai kode respons. Kode lease yang nyata adalah `LEASE_MISMATCH` dan
@@ -111,20 +111,19 @@ Semua kelas menurunkan `TertautError` yang punya `code`, `status`, dan `details`
 
 Dihitung per IP dengan fixed window. exceeded → HTTP `429` + `TertautRateLimitError`.
 
-| Endpoint                               | Batas                                                |
-| -------------------------------------- | ---------------------------------------------------- |
-| `POST /licensing/activate`             | 60 / menit                                           |
-| `POST /licensing/validate`             | 120 / menit                                          |
-| `POST /licensing/verify`               | 120 / menit                                          |
-| `POST /licensing/deactivate`           | 30 / menit                                           |
-| `POST /licensing/heartbeat`            | 120 / menit                                          |
-| `POST /licensing/verify-offline-token` | 120 / menit                                          |
-| `POST /licensing/credits/balance`      | 120 / menit                                          |
-| `POST /licensing/credits/consume`      | 120 / menit                                          |
-| `POST /licensing/credits/history`      | 60 / menit                                           |
-| `POST /checkout/session`               | 60 / menit                                           |
-| `GET /checkout/status/:txId`           | 120 / menit                                          |
-| `POST /ai/chat`                        | `maxRequestsPerMin` per lisensi (default 15 / menit) |
+| Endpoint                               | Batas       |
+| -------------------------------------- | ----------- |
+| `POST /licensing/activate`             | 60 / menit  |
+| `POST /licensing/validate`             | 120 / menit |
+| `POST /licensing/verify`               | 120 / menit |
+| `POST /licensing/deactivate`           | 30 / menit  |
+| `POST /licensing/heartbeat`            | 120 / menit |
+| `POST /licensing/verify-offline-token` | 120 / menit |
+| `POST /licensing/credits/balance`      | 120 / menit |
+| `POST /licensing/credits/consume`      | 120 / menit |
+| `POST /licensing/credits/history`      | 60 / menit  |
+| `POST /checkout/session`               | 60 / menit  |
+| `GET /checkout/status/:txId`           | 120 / menit |
 
 > Validasi lisensi yang dilakukan setiap heartbeat **harus** tetap di bawah 120/menit.
 > Pada interval 60 detik Anda aman dengan margin jauh.
@@ -156,6 +155,9 @@ const { checkoutUrl, transactionId, ticket } = await tertaut.checkout({
 | `paymentRail`                                      | `"qris" \| "va" \| "ewallet" \| "card" \| "retail"` — ketersediaan bergantung gateway aktif, lihat tabel di bawah |
 | `preferredPaymentChannel`                          | string — alias `paymentRail`                                                                                      |
 | `vaBank`, `bank`, `ewalletChannel`, `retailOutlet` | string                                                                                                            |
+| `customerName`                                     | string — nama pembeli/pelanggan untuk faktur & receipt email                                                      |
+| `metadata`                                         | object — data kustom SaaS (mis. `userId`, `tier`, `seats`) yang diteruskan ke webhook                             |
+| `autoRedirect`                                     | boolean (default `true`) — bila `false`, SDK tidak otomatis redirect ke `window.location.href`                    |
 | `startTrial` / `isTrial`                           | boolean — free trial bila produk punya periode                                                                    |
 
 **Simpan `ticket`.** Ticket HMAC berumur 45 menit dan dibutuhkan untuk polling
@@ -408,53 +410,6 @@ SDK mengirim `x-api-key` aplikasi secara otomatis sebagai bukti kepemilikan.
 
 ---
 
-## AI Proxy
-
-| Metode                | Request                       |
-| --------------------- | ----------------------------- |
-| `aiProxy.chat`        | `POST /api/v1/ai/chat`        |
-| `aiProxy.chatStream`  | `POST /api/v1/ai/chat` (SSE)  |
-| `aiProxy.quotaStatus` | `GET /api/v1/ai/quota-status` |
-
-```ts
-const reply = await tertaut.aiProxy.chat({
-  licenseKey: "TT-...", // atau licenseToken
-  prompt: "Ringkas dokumen ini",
-});
-// → { success, text, model, provider, usage: {...}, latencyMs }
-
-for await (const chunk of await tertaut.aiProxy.chatStream({
-  licenseKey: "TT-...",
-  prompt: "Halo",
-})) {
-  process.stdout.write(chunk.text);
-}
-
-const quota = await tertaut.aiProxy.quotaStatus({ licenseKey: "TT-..." });
-// → { success, data: { dailyTokensUsed, dailyTokenLimit, remainingTokens, resetInSeconds } }
-```
-
-### `modelAlias` — read the room carefully
-
-`modelAlias` **bukan** nama model AI, melainkan **kunci lookup konfigurasi** milik
-builder di dashboard. Nilai ini menentukan guardrail yang berlaku:
-
-- `maxRequestsPerMin` (rate limit)
-- `dailyTokenLimit` (kuota token harian)
-- `targetModelName` (model yang dituju)
-
-Karena itu default SDK adalah `"default"` — nilai yang sama dipakai server.
-Jika Anda mengirim alias yang tidak terdaftar, konfigurasi builder **tidak akan
-ditemukan dan guardrail-nya dilewati** (jatuh ke default server), bukan error.
-
-```ts
-// ✅ Ikut konfigurasi builder
-await tertaut.aiProxy.chat({ licenseKey, prompt, modelAlias: "fastmail-summary" });
-
-// ✅ Alias default — guardrail default aplikasi diterapkan
-await tertaut.aiProxy.chat({ licenseKey, prompt });
-```
-
 ---
 
 ## Server-to-Server (backend)
@@ -527,9 +482,10 @@ const isValid = await Tertaut.verifyWebhookSignature(
 Perbandingan dilakukan secara constant-time. Prefix `hmac-sha256=` opsional.
 Kesalahan konfigurasi secret akan menghasilkan `false`, bukan exception.
 
-Event yang tersedia: `license.issued`, `license.activated`, `license.deactivated`,
-`license.seat_full`, `license.revoked`, `license.expired`, `license.renewed`,
-`license.transferred`, `license.unbound`, `credits.insufficient`.
+Event yang tersedia: `payment.success`, `payment.failed`, `license.issued`,
+`license.activated`, `license.deactivated`, `license.seat_full`, `license.revoked`,
+`license.expired`, `license.renewed`, `license.transferred`, `license.unbound`,
+`credits.insufficient`.
 
 ---
 
@@ -541,6 +497,5 @@ Event yang tersedia: `license.issued`, `license.activated`, `license.deactivated
 | `getPaymentStatus(txId, ticket?)` | Status pembayaran MoR                                  |
 | `licensing.*`                     | Siklus hidup lisensi, seat, lease & verifikasi offline |
 | `credits.*`                       | Saldo, pemakaian idempoten, riwayat, metered usage     |
-| `aiProxy.*`                       | AI gateway streaming, non-streaming & kuota            |
 | `s2s.*`                           | Admin API backend (secret key)                         |
 | `Tertaut.verifyWebhookSignature`  | Verifikasi HMAC webhook                                |

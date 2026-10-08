@@ -1,8 +1,8 @@
 # @tertaut/sdk
 
 SDK ringan (**~16 KB minified, ~5 KB gzipped, zero dependency**) untuk
-[tertaut.com](https://tertaut.com): checkout Merchant-of-Record, lisensi universal
-multi-platform, metered credits, dan AI proxy.
+[tertaut.com](https://tertaut.com): checkout Merchant-of-Record (MoR), pembayaran dinamis S2S,
+lisensi universal multi-platform, dan metered credits.
 
 Berjalan di Browser, Chrome Extension, Desktop (Tauri/Electron), Node.js, Bun, dan React Native.
 
@@ -30,16 +30,23 @@ const tertaut = new Tertaut({
 
 `appId` wajib diisi kecuali `apiKey` berupa `tt_secret_…` (kunci server).
 
-### Checkout (Merchant of Record)
+### Checkout (Merchant of Record / S2S Dynamic SaaS)
 
 ```ts
 const { checkoutUrl, transactionId, ticket } = await tertaut.checkout({
-  amount: 49000,
+  amount: 135000,
   customerEmail: "pembeli@example.com",
+  customerName: "Budi Santoso",
   redirectUrl: "https://app.example.com/thanks",
-}); // di browser akan otomatis redirect ke halaman pembayaran
+  metadata: {
+    userId: "usr_9981",
+    tier: "pro",
+    seats: 3,
+  },
+  autoRedirect: true, // di browser akan otomatis redirect ke hosted checkout
+});
 
-// Simpan `ticket` (HMAC,umur 45 menit) untuk polling status & faktur
+// Simpan `ticket` (HMAC, umur 45 menit) untuk polling status & faktur
 const status = await tertaut.getPaymentStatus(transactionId, ticket);
 ```
 
@@ -102,25 +109,6 @@ const usage = await tertaut.credits.getUsage(licenseKey);
 
 Konsumsi bersifat atomik dan mendukung `reference` untuk idempotensi.
 
-### AI Proxy
-
-```ts
-const reply = await tertaut.aiProxy.chat({
-  licenseKey,
-  messages: [{ role: "user", content: "Ringkas dokumen ini" }],
-});
-
-for await (const chunk of await tertaut.aiProxy.chatStream({ licenseKey, prompt: "Halo" })) {
-  process.stdout.write(chunk.text);
-}
-
-const quota = await tertaut.aiProxy.quotaStatus({ licenseKey });
-```
-
-> `modelAlias` adalah kunci lookup konfigurasi builder (bukan nama model).
-> Nilai default SDK adalah `"default"`, sama dengan server. Alias yang tidak
-> terdaftar membuat rate limit dan kuota harian builder dilewati.
-
 ## Penanganan error
 
 Semua metode melempar subclass `TertautError` untuk HTTP `>= 400`:
@@ -168,8 +156,6 @@ jawaban bisnis yang sah. Periksa `result.valid` seperti biasa.
 | `credits.balance / consume / history`              | Saldo & pemakaian kredit lisensi (konsumsi idempoten)                                 |
 | `credits.reportUsage`                              | Kirim event konsumsi kredit terukur (metered usage event)                             |
 | `credits.getUsage`                                 | Ambil ringkasan penggunaan metered billing untuk lisensi                              |
-| `aiProxy.chat / chatStream`                        | AI gateway (non-streaming & SSE streaming relay)                                      |
-| `aiProxy.quotaStatus`                              | Periksa kuota harian & sisa limit token AI Proxy                                      |
 | `s2s.*`                                            | Server-to-Server Admin API (apps, licenses, seats, webhooks, credits)                 |
 | `Tertaut.verifyWebhookSignature`                   | Verifikasi HMAC-SHA256 webhook (constant-time, Web Crypto)                            |
 
@@ -238,7 +224,6 @@ SDK diorganisir secara modular di bawah `src/` dengan standar Web Crypto zero-de
 - `modules/checkout.ts`: MoR checkout engine.
 - `modules/licensing.ts`: Universal licensing & floating lease manager.
 - `modules/credits.ts`: Saldo, ledger & metered usage.
-- `modules/aiproxy.ts`: Shield gateway & SSE streaming parser.
 - `modules/s2s.ts`: Server-to-Server Admin API & Webhooks.
 - `utils/crypto.ts`: Web Crypto Ed25519 & HMAC-SHA256 (constant-time).
 - `utils/semver.ts`: Semver version comparison untuk version floor.
