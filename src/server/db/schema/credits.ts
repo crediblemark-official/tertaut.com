@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, integer, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
-import { apps } from "./apps";
+import { projects } from "./projects";
 import { licenses } from "./licenses";
 
 /**
@@ -16,7 +16,7 @@ export const creditLedger = pgTable(
       .references(() => licenses.id, { onDelete: "cascade" }),
     appId: text("app_id")
       .notNull()
-      .references(() => apps.id, { onDelete: "cascade" }),
+      .references(() => projects.id, { onDelete: "cascade" }),
     customerEmail: text("customer_email").notNull(),
     type: text("type", {
       enum: ["GRANT", "DEBIT", "REFUND", "ADJUSTMENT"],

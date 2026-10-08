@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from "vue";
+import { useRoute } from "vue-router";
 import { api } from "../../lib/api";
 import type { AppItem, DashboardStats } from "../../types/app";
 import type { TransactionItem } from "../../types/transaction";
@@ -32,6 +33,7 @@ const props = withDefaults(
   defineProps<{
     showCreateButton?: boolean;
     hideHeaderToolbar?: boolean;
+    filterAppId?: string;
   }>(),
   {
     showCreateButton: false,
@@ -43,6 +45,7 @@ const emit = defineEmits<{
   (e: "create-checkout"): void;
 }>();
 
+const route = useRoute();
 const env = dashboardEnv;
 const loading = ref(true);
 const transactions = ref<TransactionItem[]>([]);
@@ -56,7 +59,9 @@ const hasMore = ref(false);
 
 const searchQuery = ref("");
 const selectedStatus = ref<"ALL" | "PAID" | "PENDING" | "FAILED" | "EXPIRED">("ALL");
-const selectedAppId = ref<string>("ALL");
+const selectedAppId = ref<string>(
+  props.filterAppId || (typeof route?.query?.appId === "string" ? route.query.appId : "ALL")
+);
 
 const selectedTx = ref<TransactionItem | null>(null);
 const isDetailModalOpen = ref(false);
@@ -71,7 +76,12 @@ async function loadData() {
   disburseAlert.value = null;
   try {
     const [txRes, appRes, statsRes] = await Promise.all([
-      api.getTransactions({ page: page.value, limit: limit.value }),
+      api.getTransactions({
+        page: page.value,
+        limit: limit.value,
+        appId:
+          props.filterAppId || (selectedAppId.value !== "ALL" ? selectedAppId.value : undefined),
+      }),
       api.getApps(),
       api.getStats().catch(() => null),
     ]);
@@ -107,6 +117,30 @@ onMounted(loadData);
 watch(env, () => {
   page.value = 1;
   loadData();
+});
+watch(
+  () => props.filterAppId,
+  (newId) => {
+    selectedAppId.value = newId || "ALL";
+    page.value = 1;
+    loadData();
+  }
+);
+watch(
+  () => route?.query?.appId,
+  (newId) => {
+    if (typeof newId === "string" && !props.filterAppId) {
+      selectedAppId.value = newId;
+      page.value = 1;
+      loadData();
+    }
+  }
+);
+watch(selectedAppId, (newId, oldId) => {
+  if (newId !== oldId) {
+    page.value = 1;
+    loadData();
+  }
 });
 
 const filteredTransactions = computed(() => {
@@ -184,12 +218,7 @@ defineExpose({
       class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs"
     >
       <div class="flex items-center gap-2">
-        <div class="flex items-center gap-1.5">
-          <Receipt class="w-3.5 h-3.5 text-gold" />
-          <h1 class="text-xs font-bold uppercase tracking-wider text-white">
-            Riwayat Transaksi & Pembayaran
-          </h1>
-        </div>
+        <Receipt class="w-3.5 h-3.5 text-gold shrink-0" />
         <span
           class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
         >
@@ -237,6 +266,24 @@ defineExpose({
             placeholder="Cari ID, email, kupon..."
             class="w-full pl-8 pr-2.5 py-1 rounded-lg bg-white/10 border border-white/15 text-xs text-white placeholder:text-white/40 focus:outline-none focus:bg-white/15 focus:border-gold transition"
           />
+        </div>
+
+        <!-- Filter Per Project Dropdown -->
+        <div class="relative shrink-0">
+          <select
+            v-model="selectedAppId"
+            class="h-7 px-2.5 rounded-md bg-white/10 border border-white/15 text-xs text-white focus:outline-none focus:bg-white/15 focus:border-gold transition cursor-pointer"
+          >
+            <option value="ALL" class="bg-jetblack text-white">Semua Project</option>
+            <option
+              v-for="app in appsList"
+              :key="app.id"
+              :value="app.id"
+              class="bg-jetblack text-white"
+            >
+              {{ app.name }}
+            </option>
+          </select>
         </div>
 
         <!-- Status Filter Pills -->
@@ -438,14 +485,31 @@ defineExpose({
             </td>
             <td class="py-3 px-2.5">
               <div class="flex items-center gap-1.5">
-                <span class="font-medium text-jetblack">{{ tx.customerEmail || "-" }}</span>
+                <div>
+                  <div class="font-medium text-jetblack leading-tight">
+                    {{ tx.customerEmail || "-" }}
+                  </div>
+                  <div
+                    v-if="tx.customerName"
+                    class="text-[10.5px] text-jetblack/50 leading-tight mt-0.5"
+                  >
+                    {{ tx.customerName }}
+                  </div>
+                </div>
                 <span
                   v-if="tx.couponCode"
-                  class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-gold/15 border border-gold/30 text-[9px] font-bold text-jetblack font-mono"
+                  class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-gold/15 border border-gold/30 text-[9px] font-bold text-jetblack font-mono shrink-0"
                   title="Kupon Diskon Digunakan"
                 >
                   <TicketPercent class="w-2.5 h-2.5" />
                   {{ tx.couponCode }}
+                </span>
+                <span
+                  v-if="tx.metadata && Object.keys(tx.metadata).length > 0"
+                  class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-jetblack/5 border border-jetblack/15 text-[9px] font-bold text-jetblack/70 font-mono shrink-0"
+                  title="Membawa metadata kustom SaaS"
+                >
+                  META
                 </span>
               </div>
             </td>
@@ -646,6 +710,13 @@ defineExpose({
               <span class="font-semibold text-jetblack">{{ selectedTx.customerEmail || "-" }}</span>
             </div>
             <div
+              v-if="selectedTx.customerName"
+              class="flex justify-between py-1 border-b border-slate-100"
+            >
+              <span class="text-jetblack/60">Nama Pelanggan</span>
+              <span class="font-semibold text-jetblack">{{ selectedTx.customerName }}</span>
+            </div>
+            <div
               v-if="selectedTx.couponCode"
               class="flex justify-between py-1 border-b border-slate-100"
             >
@@ -692,6 +763,21 @@ defineExpose({
               <span class="text-jetblack">{{
                 formatDate(selectedTx.paidAt || selectedTx.createdAt)
               }}</span>
+            </div>
+            <div
+              v-if="selectedTx.metadata && Object.keys(selectedTx.metadata).length > 0"
+              class="pt-2 border-t border-slate-100 space-y-1.5"
+            >
+              <span class="text-[10px] font-bold text-jetblack/50 uppercase tracking-wider block">
+                Metadata Kustom SaaS
+              </span>
+              <div
+                class="p-2.5 rounded-xl bg-jetblack/5 font-mono text-[11px] text-jetblack overflow-x-auto max-h-36 border border-jetblack/10"
+              >
+                <pre class="whitespace-pre-wrap leading-relaxed">{{
+                  JSON.stringify(selectedTx.metadata, null, 2)
+                }}</pre>
+              </div>
             </div>
           </div>
 

@@ -61,6 +61,8 @@ export async function handleCreateSession({ request, body, set }: any) {
       bank,
       ewalletChannel,
       retailOutlet,
+      customerName,
+      metadata,
     } = body;
 
     // B8: Dukung preferredPaymentChannel (dari PayView) maupun paymentRail secara konsisten
@@ -327,18 +329,41 @@ export async function handleCreateSession({ request, body, set }: any) {
     // anonim bisa mencetak kredit tak terbatas dengan sekali bayar.
     const grantCredits = Math.max(0, Math.floor(Number(app.meteringConfig?.freeAllowance) || 0));
 
-    // B1: Harga resmi aplikasi adalah basis otoritas list price.
+    // B1: Harga resmi aplikasi atau nominal dinamis dari backend S2S
     const appPrice = app.targetPrice ?? 0;
     const requestedAmount = customAmount ?? amount ?? null;
 
-    // List price sebelum diskon: gunakan appPrice (atau requestedAmount jika custom donation > appPrice)
-    const listPrice =
-      appPrice > 0
-        ? Math.max(
-            requestedAmount && requestedAmount >= appPrice ? requestedAmount : appPrice,
-            appPrice
-          )
-        : (requestedAmount ?? DEFAULT_PRICE);
+    // Cek otentikasi S2S via Secret API Key builder
+    const authHeader =
+      request?.headers?.get?.("authorization") ||
+      request?.headers?.authorization ||
+      request?.headers?.get?.("x-api-key") ||
+      request?.headers?.["x-api-key"] ||
+      "";
+    const bearerKey = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : authHeader.trim();
+    const isS2SAuth = Boolean(builder?.secretApiKey && bearerKey === builder.secretApiKey);
+
+    // List price sebelum diskon:
+    let listPrice: number;
+    if (isS2SAuth || app.appType === "saas_web") {
+      // Otoritas Server-to-Server (S2S) atau SaaS Web: nominal dinamis penuh dari kodingan backend
+      listPrice =
+        typeof requestedAmount === "number" && requestedAmount > 0
+          ? requestedAmount
+          : appPrice > 0
+            ? appPrice
+            : DEFAULT_PRICE;
+    } else {
+      listPrice =
+        appPrice > 0
+          ? Math.max(
+              requestedAmount && requestedAmount >= appPrice ? requestedAmount : appPrice,
+              appPrice
+            )
+          : (requestedAmount ?? DEFAULT_PRICE);
+    }
 
     // 1. Validasi & hitung diskon kupon (jika ada)
     let coupon: Awaited<ReturnType<typeof CouponService.validate>>["coupon"] = undefined;
@@ -358,8 +383,14 @@ export async function handleCreateSession({ request, body, set }: any) {
       discountPercent = couponResult.discountPercent || 0;
     }
 
-    // Validasi jika pembeli sengaja mengirim nominal di bawah listPrice tanpa kupon yang sah
-    if (appPrice > 0 && requestedAmount !== null && requestedAmount < appPrice) {
+    // Validasi jika pembeli sengaja mengirim nominal di bawah listPrice tanpa kupon yang sah (hanya berlaku untuk retail fixed DRM bukan S2S/SaaS Web)
+    if (
+      !isS2SAuth &&
+      app.appType !== "saas_web" &&
+      appPrice > 0 &&
+      requestedAmount !== null &&
+      requestedAmount < appPrice
+    ) {
       const expectedPayable = Math.max(0, listPrice - discountAmount);
       // Jika requestedAmount tidak cocok dengan harga diskon kupon yang sah
       if (!coupon || requestedAmount !== expectedPayable) {
@@ -481,6 +512,8 @@ export async function handleCreateSession({ request, body, set }: any) {
         xenditExternalId: externalId,
         xenditInvoiceUrl: invoiceUrl,
         customerEmail: email,
+        customerName: customerName || body.name || null,
+        metadata: metadata || null,
         grossAmount,
         platformFee,
         netAmount,
@@ -520,6 +553,7 @@ export async function handleCreateSession({ request, body, set }: any) {
       success: true,
       data: {
         sessionId: newTx.id,
+        snapToken: newTx.id,
         ticket: pollTicket,
         paymentGateway: selectedGateway,
         checkoutUrl: invoiceUrl,
@@ -534,6 +568,7 @@ export async function handleCreateSession({ request, body, set }: any) {
         hostedPayUrl,
       },
       transactionId: newTx.id,
+      snapToken: newTx.id,
       ticket: pollTicket,
       checkoutUrl: invoiceUrl,
       hostedPayUrl,

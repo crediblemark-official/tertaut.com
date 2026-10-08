@@ -13,12 +13,12 @@ const emit = defineEmits<{
 const newBenefitInput = ref("");
 
 const suggestedBenefits = [
-  "Akses source code lengkap",
-  "Lisensi komersial software",
-  "Update berkala & perbaikan bug",
-  "Dukungan teknis prioritas",
-  "Kunci lisensi terverifikasi",
+  "Unduhan berkas digital instan",
+  "Update seumur hidup & patch",
   "Akses channel komunitas privat",
+  "Lisensi komersial software",
+  "Dukungan teknis prioritas",
+  "Kunci API & kredensial instan",
 ];
 
 function addBenefit() {

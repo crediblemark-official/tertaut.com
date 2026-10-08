@@ -23,6 +23,8 @@ import {
   handleDeleteWebhook,
   handleRotateWebhookSecret,
   handleTestWebhook,
+  handleListDeliveries,
+  handleRetryDelivery,
 } from "./adminWebhooks";
 
 export function createLicensingRouter(prefix: string) {
@@ -486,6 +488,33 @@ export function createLicensingRouter(prefix: string) {
         detail: {
           tags: ["Webhooks"],
           summary: "Kirim Test Delivery",
+        },
+      })
+
+      /**
+       * Daftar log pengiriman outbox webhook
+       */
+      .get("/webhooks/deliveries", handleListDeliveries, {
+        requireAuth: true,
+        query: t.Object({
+          limit: t.Optional(t.Numeric()),
+          mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
+        }),
+        detail: {
+          tags: ["Webhooks"],
+          summary: "List Webhook Deliveries",
+        },
+      })
+
+      /**
+       * Retry manual pengiriman webhook
+       */
+      .post("/webhooks/deliveries/:id/retry", handleRetryDelivery, {
+        requireAuth: true,
+        params: t.Object({ id: t.String() }),
+        detail: {
+          tags: ["Webhooks"],
+          summary: "Retry Webhook Delivery",
         },
       })
 

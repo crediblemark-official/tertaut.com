@@ -5,7 +5,6 @@ import { checkoutRoutes } from "./checkout/router";
 import { webhookRoutes, webhooksPluralRoutes } from "./webhook/router";
 import { payoutsRoutes } from "./payouts/router";
 import { licensingRoutes, licenseLegacyRoutes } from "./licensing/router";
-import { aiProxyRoutes, aiRoutes } from "./aiproxy/router";
 import { badgeRoutes, widgetRoutes } from "./badge/router";
 import { launchRoutes } from "./launch";
 import { panelRoutes } from "./panel/router";
@@ -46,10 +45,6 @@ const PUBLIC_PREFIXES = [
   "/api/v1/license/api-key",
   "/api/v1/metering/events",
   "/api/v1/metering/usage",
-  "/api/v1/ai/chat",
-  "/api/v1/ai/quota-status",
-  "/api/v1/ai-proxy/chat",
-  "/api/v1/ai-proxy/quota-status",
 ];
 
 export const apiV1Routes = new Elysia({ prefix: "/api/v1" })
@@ -67,8 +62,6 @@ export const apiV1Routes = new Elysia({ prefix: "/api/v1" })
   .use(webhooksPluralRoutes)
   .use(licensingRoutes)
   .use(licenseLegacyRoutes)
-  .use(aiProxyRoutes)
-  .use(aiRoutes)
   .use(badgeRoutes)
   .use(widgetRoutes)
   .use(launchRoutes)

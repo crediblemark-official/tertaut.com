@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { apps, licenses, coupons } from "../db/schema";
 import { eq, or } from "drizzle-orm";
-import type { App } from "../db/schema/apps";
+import type { App } from "../db/schema/projects";
 import type { License } from "../db/schema/licenses";
 import type { Coupon } from "../db/schema/coupons";
 

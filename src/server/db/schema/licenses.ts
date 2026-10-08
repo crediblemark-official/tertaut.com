@@ -9,7 +9,7 @@ import {
   uuid,
   boolean,
 } from "drizzle-orm/pg-core";
-import { apps } from "./apps";
+import { projects } from "./projects";
 import { transactions } from "./transactions";
 import { builders } from "./builders";
 
@@ -19,7 +19,7 @@ export const licenses = pgTable(
     id: text("id").primaryKey(), // e.g. "lic_xyz123"
     appId: text("app_id")
       .notNull()
-      .references(() => apps.id, { onDelete: "cascade" }),
+      .references(() => projects.id, { onDelete: "cascade" }),
     transactionId: text("transaction_id").references(() => transactions.id, {
       onDelete: "set null",
     }),

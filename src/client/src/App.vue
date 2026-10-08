@@ -58,25 +58,26 @@ const navKey = computed(() => pageKey(route.path));
 const currentPage = computed(() => {
   switch (navKey.value) {
     case "/":
-      return { title: "Ringkasan Ekosistem", category: "Overview" };
+      return { title: "Ringkasan", category: "Overview" };
+    case "/projects":
     case "/apps":
-      return { title: "Katalog Aplikasi Builder", category: "Apps" };
+      return { title: "Project", category: "Projects" };
     case "/payments":
-      return { title: "Pembayaran & Transaksi", category: "Payments" };
+      return { title: "Payments", category: "Payments" };
     case "/subscriptions":
-      return { title: "Langganan & Nilai Siklus Hidup", category: "Subscriptions" };
+      return { title: "Subscription", category: "Subscriptions" };
     case "/balances":
-      return { title: "Saldo & Permintaan Pencairan", category: "Balances" };
+      return { title: "Balances", category: "Balances" };
     case "/checkout":
-      return { title: "Dynamic Checkout & MoR", category: "Checkout" };
+      return { title: "Checkout", category: "Checkout" };
     case "/coupons":
-      return { title: "Kupon Diskon", category: "Checkout" };
+      return { title: "Kupon", category: "Checkout" };
     case "/licensing":
-      return { title: "Lisensi & Anti-Piracy", category: "Lisensi" };
-    case "/ai-proxy":
-      return { title: "AI API Proxy Shield", category: "AI Shield" };
+      return { title: "Lisensi", category: "Lisensi" };
+    case "/developer":
+      return { title: "Developer Portal", category: "Developer" };
     case "/docs":
-      return { title: "Dokumentasi & SDK", category: "Docs" };
+      return { title: "Dashboard Docs", category: "Docs" };
     case "/panel":
       return { title: "Super Admin Panel", category: "Admin Panel" };
     default:

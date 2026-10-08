@@ -273,7 +273,7 @@ function formatSubDate(dateStr?: string | null): string {
       class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-0"
     >
       <div class="flex items-center gap-2">
-        <h1 class="text-xs font-bold uppercase tracking-wider text-white">Subscriptions</h1>
+        <Repeat class="w-3.5 h-3.5 text-gold shrink-0" />
         <span
           class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
         >
@@ -299,6 +299,24 @@ function formatSubDate(dateStr?: string | null): string {
             placeholder="Cari email, kunci, app..."
             class="w-full pl-8 pr-2.5 py-1 rounded-lg bg-white/10 border border-white/15 text-xs text-white placeholder:text-white/40 focus:outline-none focus:bg-white/15 focus:border-gold transition"
           />
+        </div>
+
+        <!-- Filter Per Project Dropdown -->
+        <div class="relative shrink-0">
+          <select
+            v-model="selectedAppId"
+            class="h-7 px-2.5 rounded-md bg-white/10 border border-white/15 text-xs text-white focus:outline-none focus:bg-white/15 focus:border-gold transition cursor-pointer"
+          >
+            <option value="ALL" class="bg-jetblack text-white">Semua Project</option>
+            <option
+              v-for="app in appsList"
+              :key="app.id"
+              :value="app.id"
+              class="bg-jetblack text-white"
+            >
+              {{ app.name }}
+            </option>
+          </select>
         </div>
 
         <!-- Status Filter Pill -->

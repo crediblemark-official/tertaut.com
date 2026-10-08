@@ -104,6 +104,11 @@ export interface AppItem {
   pageBlocks?: any[] | null;
   captureConfig?: Record<string, any> | null;
   redirectUrl: string | null;
+  webhookUrl?: string | null;
+  appType?: "saas_web" | "desktop_onprem" | null;
+  brandColor?: string | null;
+  logoUrl?: string | null;
+  appUrl?: string | null;
   createdAt: string;
 }
 

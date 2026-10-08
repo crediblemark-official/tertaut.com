@@ -49,6 +49,8 @@ export async function executeCheckout(
       ewalletChannel: options.ewalletChannel,
       retailOutlet: options.retailOutlet,
       customAmount: options.customAmount,
+      customerName: options.customerName,
+      metadata: options.metadata,
       startTrial: options.startTrial,
       isTrial: options.isTrial,
     }),

@@ -30,8 +30,8 @@ import { COMPANY_INFO } from "../../constants/company";
         </div>
         <div class="text-3xl font-black text-jetblack font-mono">Rp 0</div>
         <p class="text-xs text-jetblack/70 leading-relaxed">
-          Daftar dan gunakan seluruh fitur lisensi offline Ed25519, AI Proxy Shield, dan API secara
-          gratis selamanya.
+          Daftar dan gunakan seluruh fitur payment gateway, dynamic checkout modal, lisensi Ed25519,
+          dan API secara gratis selamanya.
         </p>
       </div>
 

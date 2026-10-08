@@ -3,7 +3,7 @@ import { db } from "../../db";
 import { licenseLeases } from "../../db/schema";
 import { eq, and, inArray, gt, lt } from "drizzle-orm";
 import { LicenseService } from "./license";
-import type { App } from "../../db/schema/apps";
+import type { App } from "../../db/schema/projects";
 
 export interface ResolvedFloatingConfig {
   enabled: boolean;

@@ -51,16 +51,17 @@ const product = ref<{
   mediaUrl: string | null;
   valueProps: string[];
   redirectUrl: string | null;
+  deliveryConfig?: import("../types/app").DeliveryConfig | null;
 } | null>(null);
 
 useSeo(() => ({
   title: product.value
-    ? `Beli Lisensi ${product.value.name} — Tertaut Checkout Resmi`
-    : "Checkout Pembayaran Lisensi — Tertaut",
+    ? `Beli ${product.value.name} — Tertaut Checkout Resmi`
+    : "Checkout Pembayaran — Tertaut",
   description:
     product.value?.headline ||
     product.value?.description ||
-    "Sistem pembayaran resmi lisensi software digital dengan QRIS dan Virtual Account di tertaut.com.",
+    "Sistem pembayaran resmi produk digital & software dengan QRIS dan Virtual Account di tertaut.com.",
   canonicalUrl: product.value?.slug ? `/pay/${product.value.slug}` : "/pay",
 }));
 
@@ -309,6 +310,7 @@ function setProductData(app: any) {
             "Update versi & dukungan pelanggan langsung",
           ],
     redirectUrl: queryRedirectUrl.value || app.redirectUrl || null,
+    deliveryConfig: app.deliveryConfig || null,
   };
 
   // Pilih payment rail & sub-channel yang benar-benar aktif di akun gateway

@@ -223,3 +223,40 @@ export async function handleTestWebhook({ params, request, set }: any) {
   const attempted = await WebhookService.dispatchDue();
   return { success: true, deliveryId: delivery.id, attempted };
 }
+
+export async function handleListDeliveries({ request, query, set }: any) {
+  const headers = request?.headers;
+  const actor = headers ? await resolveWebhookActor(headers) : { error: "no-headers" };
+  if ("error" in actor) {
+    set.status = 403;
+    return { success: false, error: actor.error };
+  }
+  if (!actor.builder) {
+    set.status = 403;
+    return { success: false, error: "Profil builder tidak ditemukan" };
+  }
+
+  const limit = typeof query?.limit === "number" ? query.limit : 50;
+  const deliveries = await WebhookService.listDeliveries(actor.builder.id, limit);
+  return { success: true, deliveries };
+}
+
+export async function handleRetryDelivery({ params, request, set }: any) {
+  const headers = request?.headers;
+  const actor = headers ? await resolveWebhookActor(headers) : { error: "no-headers" };
+  if ("error" in actor) {
+    set.status = 403;
+    return { success: false, error: actor.error };
+  }
+  if (!actor.builder) {
+    set.status = 403;
+    return { success: false, error: "Profil builder tidak ditemukan" };
+  }
+
+  const result = await WebhookService.retryDelivery(actor.builder.id, params.id);
+  if (!result.ok) {
+    set.status = 400;
+    return { success: false, error: result.error };
+  }
+  return { success: true, delivery: result.delivery };
+}

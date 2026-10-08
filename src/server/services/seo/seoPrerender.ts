@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { apps } from "../../db/schema";
+import { projects } from "../../db/schema";
 import { eq } from "drizzle-orm";
 
 const BOT_USER_AGENTS = [
@@ -130,8 +130,8 @@ export async function resolveMetadataForPath(pathname: string): Promise<PageMeta
     const slug = clean.slice("/pay/".length).trim();
     if (slug) {
       try {
-        const app = await db.query.apps.findFirst({
-          where: eq(apps.slug, slug),
+        const app = await db.query.projects.findFirst({
+          where: eq(projects.slug, slug),
           columns: { name: true, headline: true, description: true, targetPrice: true },
         });
 

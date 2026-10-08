@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, integer, boolean, index, unique } from "drizzle-orm/pg-core";
-import { apps } from "./apps";
+import { projects } from "./projects";
 
 /**
  * Sistem Kupon Diskon (Modul 1: Monetization)
@@ -11,7 +11,7 @@ export const coupons = pgTable(
   {
     id: text("id").primaryKey(), // e.g. "cpn_xyz123"
     code: text("code").notNull().unique(), // e.g. "EARLY50" (disimpan uppercase)
-    appId: text("app_id").references(() => apps.id, { onDelete: "cascade" }), // null = berlaku untuk semua app
+    appId: text("app_id").references(() => projects.id, { onDelete: "cascade" }), // null = berlaku untuk semua app
     discountPercent: integer("discount_percent").notNull(), // 1-100
     maxRedemptions: integer("max_redemptions").default(0).notNull(), // 0 = unlimited
     redemptionCount: integer("redemption_count").default(0).notNull(),

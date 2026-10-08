@@ -57,6 +57,11 @@ const appBodySchema = t.Object({
   customHtml: t.Optional(t.Union([t.String(), t.Null()])),
   captureConfig: t.Optional(t.Any()),
   redirectUrl: t.Optional(t.Union([t.String(), t.Null()])),
+  appType: t.Optional(t.Union([t.Literal("saas_web"), t.Literal("desktop_onprem"), t.Null()])),
+  brandColor: t.Optional(t.Union([t.String(), t.Null()])),
+  logoUrl: t.Optional(t.Union([t.String(), t.Null()])),
+  appUrl: t.Optional(t.Union([t.String(), t.Null()])),
+  webhookUrl: t.Optional(t.Union([t.String(), t.Null()])),
 });
 
 export const appRoutes = new Elysia({ prefix: "/apps" })

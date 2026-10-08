@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CreditCard, KeyRound, Bot, Sparkles, ChevronRight } from "lucide-vue-next";
+import { CreditCard, KeyRound, Webhook, Sparkles, ChevronRight } from "lucide-vue-next";
 </script>
 
 <template>
@@ -99,17 +99,17 @@ import { CreditCard, KeyRound, Bot, Sparkles, ChevronRight } from "lucide-vue-ne
             <div
               class="w-10 h-10 rounded-xl bg-jetblack/5 flex items-center justify-center text-jetblack group-hover:bg-jetblack group-hover:text-white transition"
             >
-              <Bot class="w-5 h-5 text-forest" />
+              <Webhook class="w-5 h-5 text-forest" />
             </div>
             <div class="space-y-2">
               <span
                 class="text-[10px] font-bold uppercase tracking-wider text-jetblack/50 font-mono"
                 >Pilar 03</span
               >
-              <h4 class="text-base font-bold text-jetblack">AI Proxy Shield &amp; Metering</h4>
+              <h4 class="text-base font-bold text-jetblack">Developer API &amp; Webhooks</h4>
               <p class="text-xs text-jetblack/65 leading-relaxed">
-                Gateway aman ke OpenAI, Claude &amp; Gemini. Enkripsi AES-256 di data store, rate
-                limit 15 req/menit, daily token cap, dan Zero Prompt Retention.
+                Integrasi pembayaran dinamis dari kode backend SaaS. Dilengkapi verifikasi tanda
+                tangan HMAC-SHA256 dan modal kasir in-app zero-redirect.
               </p>
             </div>
           </div>
@@ -120,11 +120,11 @@ import { CreditCard, KeyRound, Bot, Sparkles, ChevronRight } from "lucide-vue-ne
               to="/dashboard/docs"
               class="text-forest hover:underline flex items-center gap-1"
             >
-              <span>AI Gateway</span>
+              <span>Developer API</span>
               <ChevronRight class="w-3.5 h-3.5" />
             </router-link>
             <span class="text-[10px] font-mono text-forest bg-forest/10 px-2 py-0.5 rounded"
-              >Zero Leak</span
+              >HMAC Signed</span
             >
           </div>
         </div>

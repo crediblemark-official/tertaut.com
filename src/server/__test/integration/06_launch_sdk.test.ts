@@ -103,9 +103,6 @@ describe("PRD Module 5: Launch Kit & Developer SDK", () => {
     expect(typeof sdk.licensing.check).toBe("function");
     expect(typeof sdk.credits.reportUsage).toBe("function");
     expect(typeof sdk.credits.getUsage).toBe("function");
-    expect(typeof sdk.aiProxy.chat).toBe("function");
-    expect(typeof sdk.aiProxy.chatStream).toBe("function");
-    expect(typeof sdk.aiProxy.quotaStatus).toBe("function");
     expect(typeof sdk.s2s.licenses.issue).toBe("function");
     expect(typeof sdk.s2s.webhooks.create).toBe("function");
 

@@ -239,17 +239,6 @@ describe("SDK error pipeline", () => {
       );
     });
 
-    it("aiProxy.chatStream error 429 tetap melempar dengan pesan server", async () => {
-      mockJson(
-        { success: false, error: "RATE_LIMIT_EXCEEDED", message: "Daily limit exceeded" },
-        429
-      );
-      const sdk = makeSdk();
-      await expect(sdk.aiProxy.chatStream({ licenseKey: "TT-1", prompt: "hi" })).rejects.toThrow(
-        "Daily limit exceeded"
-      );
-    });
-
     it("respons 2xx dengan success:false TIDAK dilempar (jawaban bisnis, bukan kegagalan)", async () => {
       mockJson({ valid: false, status: "DEVICE_NOT_ACTIVATED" }, 200);
       const sdk = makeSdk();
@@ -274,36 +263,6 @@ describe("SDK error pipeline", () => {
   });
 
   describe("Perbaikan kontrak hasil audit", () => {
-    it("A1: AI Proxy memakai modelAlias 'default', bukan alias fiktif", async () => {
-      let sentBody: any;
-      globalThis.fetch = (async (_url: string, init?: RequestInit) => {
-        sentBody = JSON.parse(init!.body as string);
-        return new Response(JSON.stringify({ text: "ok" }), { status: 200 });
-      }) as any;
-
-      const sdk = makeSdk();
-      await sdk.aiProxy.chat({ licenseKey: "TT-1", prompt: "hi" });
-      expect(sentBody.modelAlias).toBe("default");
-
-      await sdk.aiProxy.chatStream({ licenseKey: "TT-1", prompt: "hi" }).catch(() => {});
-      expect(sentBody.modelAlias).toBe("default");
-
-      // Alias eksplitasikan harus dihormati apa adanya
-      await sdk.aiProxy.chat({ licenseKey: "TT-1", prompt: "hi", modelAlias: "fastmail-summary" });
-      expect(sentBody.modelAlias).toBe("fastmail-summary");
-    });
-
-    it("A1: quotaStatus memakai modelAlias 'default'", async () => {
-      let seenUrl = "";
-      globalThis.fetch = (async (url: string) => {
-        seenUrl = url;
-        return new Response(JSON.stringify({ success: true, data: {} }), { status: 200 });
-      }) as any;
-
-      await makeSdk().aiProxy.quotaStatus({ licenseKey: "TT-1" });
-      expect(seenUrl).toContain("modelAlias=default");
-    });
-
     it("A2: checkout tidak pernah mengirim grantCredits dari klien", async () => {
       let sentBody: any;
       globalThis.fetch = (async (_url: string, init?: RequestInit) => {

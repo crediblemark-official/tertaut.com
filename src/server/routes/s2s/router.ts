@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { db } from "../../db";
-import { apps } from "../../db/schema";
+import { projects } from "../../db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { authenticateSecretApiKey } from "../../middleware/auth";
 import { ownedApp } from "./helpers";
@@ -60,11 +60,11 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
   .get(
     "/apps",
     ({ builder, query }) => {
-      return db.query.apps.findMany({
+      return db.query.projects.findMany({
         where: query.mode
-          ? and(eq(apps.builderId, builder.id), eq(apps.mode, query.mode))
-          : eq(apps.builderId, builder.id),
-        orderBy: [desc(apps.createdAt)],
+          ? and(eq(projects.builderId, builder.id), eq(projects.mode, query.mode))
+          : eq(projects.builderId, builder.id),
+        orderBy: [desc(projects.createdAt)],
       });
     },
     {

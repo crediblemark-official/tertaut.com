@@ -149,11 +149,13 @@ export class EmailService {
     expiresAt: Date | string;
     customerName?: string;
     deliveryDetails?: {
+      licenseKeyEnabled?: boolean;
       fileDownload?: { title?: string; fileUrl?: string; fileName?: string };
       privateNote?: { title?: string; note?: string };
       apiAccess?: { endpointUrl?: string; instruction?: string; apiKey?: string };
     };
   }): Promise<SendEmailResult> {
+    const isLicenseKeyEnabled = params.deliveryDetails?.licenseKeyEnabled !== false;
     const appName = escapeHtml(params.appName);
     const licenseKey = escapeHtml(params.licenseKey);
     const greeting = params.customerName ? `Halo ${escapeHtml(params.customerName)},` : "Halo,";
@@ -214,43 +216,66 @@ export class EmailService {
       if (apiUrl) textExtra.push(`Akses API: ${params.deliveryDetails.apiAccess.endpointUrl}`);
     }
 
+    const licenseBlockHtml = isLicenseKeyEnabled
+      ? `
+        <p style="margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#71717a;">Kunci Lisensi</p>
+        <p style="margin:0 0 20px;padding:14px 16px;background:#0b0b0f;border:1px dashed #3f3f46;border-radius:8px;font-family:monospace;font-size:15px;word-break:break-all;color:#a5f3fc;">${licenseKey}</p>`
+      : "";
+
+    const emailTitle = isLicenseKeyEnabled
+      ? `Lisensi ${appName} aktif`
+      : `Pesanan ${appName} Berhasil`;
+    const introMsg = isLicenseKeyEnabled
+      ? `${greeting} pembayaran kamu sudah kami terima dan lisensi telah diterbitkan.`
+      : `${greeting} pembayaran kamu sudah kami terima dan pesanan kamu siap diakses.`;
+    const footerMsg = isLicenseKeyEnabled
+      ? `Salin kunci lisensi di atas dan masukkan langsung ke dalam aplikasi ${appName} untuk mengaktifkan.`
+      : `Simpan email ini sebagai bukti transaksi resmi Anda.`;
+
     const html = `<!doctype html>
 <html lang="id">
   <body style="margin:0;padding:24px;background:#0b0b0f;font-family:Arial,Helvetica,sans-serif;color:#e5e7eb;">
     <table role="presentation" width="100%" style="max-width:560px;margin:0 auto;background:#15151c;border:1px solid #26262f;border-radius:12px;">
       <tr><td style="padding:32px;">
-        <h1 style="margin:0 0 8px;font-size:20px;color:#ffffff;">Lisensi ${appName} aktif</h1>
-        <p style="margin:0 0 20px;font-size:14px;color:#a1a1aa;">${greeting} pembayaran kamu sudah kami terima dan lisensi telah diterbitkan.</p>
-        <p style="margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#71717a;">Kunci Lisensi</p>
-        <p style="margin:0 0 20px;padding:14px 16px;background:#0b0b0f;border:1px dashed #3f3f46;border-radius:8px;font-family:monospace;font-size:15px;word-break:break-all;color:#a5f3fc;">${licenseKey}</p>
+        <h1 style="margin:0 0 8px;font-size:20px;color:#ffffff;">${emailTitle}</h1>
+        <p style="margin:0 0 20px;font-size:14px;color:#a1a1aa;">${introMsg}</p>
+        ${licenseBlockHtml}
         <table role="presentation" width="100%" style="font-size:13px;color:#a1a1aa;">
           <tr><td style="padding:4px 0;">Produk</td><td style="padding:4px 0;text-align:right;color:#e5e7eb;">${appName}</td></tr>
-          <tr><td style="padding:4px 0;">Berlaku sampai</td><td style="padding:4px 0;text-align:right;color:#e5e7eb;">${expires}</td></tr>
+          ${isLicenseKeyEnabled ? `<tr><td style="padding:4px 0;">Berlaku sampai</td><td style="padding:4px 0;text-align:right;color:#e5e7eb;">${expires}</td></tr>` : ""}
         </table>
         ${deliverySectionHtml}
-        <p style="margin:20px 0 0;font-size:12px;color:#71717a;">Salin kunci lisensi di atas dan masukkan langsung ke dalam aplikasi ${appName} untuk mengaktifkan.</p>
+        <p style="margin:20px 0 0;font-size:12px;color:#71717a;">${footerMsg}</p>
       </td></tr>
     </table>
   </body>
 </html>`;
 
-    const text = [
-      `Lisensi ${params.appName} aktif`,
-      "",
-      greeting,
-      "Pembayaran kamu sudah kami terima dan lisensi telah diterbitkan.",
-      "",
-      `Kunci Lisensi : ${params.licenseKey}`,
-      `Produk        : ${params.appName}`,
-      `Berlaku s/d   : ${expires}`,
-      ...(textExtra.length > 0 ? ["", ...textExtra] : []),
-      "",
-      `Masukkan kunci lisensi di atas langsung ke aplikasi ${params.appName} untuk mengaktifkan.`,
-    ].join("\n");
+    const textLines = [emailTitle, "", greeting, introMsg, ""];
+
+    if (isLicenseKeyEnabled) {
+      textLines.push(`Kunci Lisensi : ${params.licenseKey}`);
+      textLines.push(`Produk        : ${params.appName}`);
+      textLines.push(`Berlaku s/d   : ${expires}`);
+    } else {
+      textLines.push(`Produk        : ${params.appName}`);
+    }
+
+    if (textExtra.length > 0) {
+      textLines.push("");
+      textLines.push(...textExtra);
+    }
+
+    textLines.push("");
+    textLines.push(footerMsg);
+
+    const text = textLines.join("\n");
 
     return this.send({
       to: params.to,
-      subject: `Lisensi ${params.appName} kamu aktif`,
+      subject: isLicenseKeyEnabled
+        ? `Lisensi ${params.appName} kamu aktif`
+        : `Pesanan ${params.appName} berhasil dikonfirmasi`,
       html,
       text,
     });

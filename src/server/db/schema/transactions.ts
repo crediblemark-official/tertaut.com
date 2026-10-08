@@ -5,11 +5,12 @@ import {
   uuid,
   integer,
   boolean,
+  jsonb,
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { apps } from "./apps";
+import { projects } from "./projects";
 import { builders } from "./builders";
 
 export const transactions = pgTable(
@@ -18,7 +19,7 @@ export const transactions = pgTable(
     id: text("id").primaryKey(), // e.g. "tx_xyz123"
     appId: text("app_id")
       .notNull()
-      .references(() => apps.id, { onDelete: "cascade" }),
+      .references(() => projects.id, { onDelete: "cascade" }),
     builderId: uuid("builder_id")
       .notNull()
       .references(() => builders.id, { onDelete: "cascade" }),
@@ -28,6 +29,8 @@ export const transactions = pgTable(
     xenditExternalId: text("xendit_external_id").notNull(),
     xenditInvoiceUrl: text("xendit_invoice_url"),
     customerEmail: text("customer_email").notNull(),
+    customerName: text("customer_name"),
+    metadata: jsonb("metadata").$type<Record<string, any>>(),
     grossAmount: integer("gross_amount").notNull(), // e.g. 49000
     platformFee: integer("platform_fee").notNull(), // 5% = 2450
     netAmount: integer("net_amount").notNull(), // 95% = 46550

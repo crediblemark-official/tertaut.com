@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, computed } from "vue";
 import type { AppItem, CatalogKPIStats } from "../../types/app";
 import { dashboardEnv, envPath } from "../../lib/environment";
 import { formatRupiah } from "../../lib/utils";
+import { useClipboard } from "../../composables/useClipboard";
 import {
   Plus,
   ExternalLink,
@@ -18,6 +19,13 @@ import {
   CheckCircle2,
   ArrowLeftRight,
   Layers,
+  Pencil,
+  Receipt,
+  Copy,
+  Check,
+  Webhook,
+  Boxes,
+  Trash2,
 } from "lucide-vue-next";
 import TableSkeleton from "../common/TableSkeleton.vue";
 
@@ -32,6 +40,8 @@ const emit = defineEmits<{
   "update:searchQuery": [value: string];
   "open-create": [];
   "toggle-mode": [app: AppItem];
+  edit: [app: AppItem];
+  delete: [app: AppItem];
 }>();
 
 const filteredApps = computed(() => {
@@ -75,6 +85,19 @@ function getPricingBadge(app: AppItem): string {
   if (period === "custom") return "Kustom";
   return "Berulang";
 }
+
+const copiedAppId = ref<string | null>(null);
+const { copy: copyClipboard } = useClipboard();
+
+async function handleCopyAppId(id: string) {
+  const ok = await copyClipboard(id);
+  if (ok) {
+    copiedAppId.value = id;
+    setTimeout(() => {
+      if (copiedAppId.value === id) copiedAppId.value = null;
+    }, 2000);
+  }
+}
 </script>
 
 <template>
@@ -83,14 +106,12 @@ function getPricingBadge(app: AppItem): string {
     <div
       class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-2 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xs mb-3"
     >
-      <div class="flex items-center gap-2.5">
-        <h1 class="text-xs font-bold uppercase tracking-wider text-white">
-          Katalog Produk &amp; Monetisasi
-        </h1>
+      <div class="flex items-center gap-2">
+        <Boxes class="w-3.5 h-3.5 text-gold shrink-0" />
         <span
           class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
         >
-          {{ apps.length }} produk
+          {{ apps.length }} project
         </span>
       </div>
 
@@ -231,32 +252,82 @@ function getPricingBadge(app: AppItem): string {
                   }}</span>
                 </div>
                 <div>
-                  <div class="font-bold text-jetblack leading-tight">{{ app.name }}</div>
-                  <div class="text-[10px] text-jetblack/50 font-mono">{{ app.slug }}</div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-bold text-jetblack leading-tight">{{ app.name }}</span>
+                    <span
+                      class="text-[9px] px-1.5 py-0.2 rounded font-semibold"
+                      :class="
+                        app.appType === 'desktop_onprem'
+                          ? 'bg-gold/15 text-[#8a6d1f]'
+                          : 'bg-forest/10 text-forest'
+                      "
+                    >
+                      {{ app.appType === "desktop_onprem" ? "💻 DRM" : "🚀 SaaS" }}
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-1.5 text-[10px] text-jetblack/50 font-mono">
+                    <span>{{ app.slug }}</span>
+                    <span>•</span>
+                    <button
+                      type="button"
+                      @click.stop="handleCopyAppId(app.id)"
+                      class="hover:text-forest transition inline-flex items-center gap-1 cursor-pointer"
+                      :title="`Salin App ID: ${app.id}`"
+                    >
+                      <span>{{ app.id }}</span>
+                      <Check
+                        v-if="copiedAppId === app.id"
+                        class="w-2.5 h-2.5 text-forest stroke-[3]"
+                      />
+                      <Copy v-else class="w-2.5 h-2.5 opacity-60" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </td>
             <td class="py-2.5 px-3">
               <div class="flex items-center gap-1.5">
-                <span class="font-mono font-bold text-jetblack">
-                  {{ app.pricingType === "free" ? "Gratis" : formatRupiah(app.targetPrice) }}
-                </span>
-                <span
-                  class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase"
-                  :class="
-                    app.pricingType === 'subscription'
-                      ? 'bg-forest/10 text-forest'
-                      : app.pricingType === 'free'
-                        ? 'bg-neutral-100 text-neutral-600'
-                        : 'bg-gold/15 text-[#8a6d1f]'
+                <template
+                  v-if="
+                    app.appType !== 'desktop_onprem' && (!app.targetPrice || app.targetPrice === 0)
                   "
                 >
-                  {{ getPricingBadge(app) }}
-                </span>
+                  <span class="font-mono font-bold text-forest text-[11px]"> Dinamis (S2S) </span>
+                  <span
+                    class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-forest/10 text-forest"
+                  >
+                    Checkout API
+                  </span>
+                </template>
+                <template v-else>
+                  <span class="font-mono font-bold text-jetblack">
+                    {{ app.pricingType === "free" ? "Gratis" : formatRupiah(app.targetPrice) }}
+                  </span>
+                  <span
+                    class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase"
+                    :class="
+                      app.pricingType === 'subscription'
+                        ? 'bg-forest/10 text-forest'
+                        : app.pricingType === 'free'
+                          ? 'bg-neutral-100 text-neutral-600'
+                          : 'bg-gold/15 text-[#8a6d1f]'
+                    "
+                  >
+                    {{ getPricingBadge(app) }}
+                  </span>
+                </template>
               </div>
             </td>
             <td class="py-2.5 px-3">
               <div class="flex items-center gap-1">
+                <span
+                  v-if="app.appType === 'saas_web'"
+                  title="Integrasi Webhook S2S (Event-Driven)"
+                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-forest/10 text-forest border border-forest/25 text-[10px] font-semibold"
+                >
+                  <Webhook class="w-2.5 h-2.5" />
+                  <span>Webhook</span>
+                </span>
                 <span
                   v-if="app.deliveryConfig?.licenseKey?.enabled"
                   title="Lisensi Software"
@@ -274,14 +345,6 @@ function getPricingBadge(app: AppItem): string {
                   <span>Floating</span>
                 </span>
                 <span
-                  v-if="app.deliveryConfig?.fileDownload?.enabled"
-                  title="File Download"
-                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-semibold"
-                >
-                  <FileText class="w-2.5 h-2.5" />
-                  <span>File</span>
-                </span>
-                <span
                   v-if="app.deliveryConfig?.apiAccess?.enabled"
                   title="Akses API & Token"
                   class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-semibold"
@@ -290,19 +353,10 @@ function getPricingBadge(app: AppItem): string {
                   <span>API</span>
                 </span>
                 <span
-                  v-if="app.deliveryConfig?.privateNote?.enabled"
-                  title="Catatan Akses Privat"
-                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200 text-[10px] font-semibold"
-                >
-                  <Lock class="w-2.5 h-2.5" />
-                  <span>Note</span>
-                </span>
-                <span
                   v-if="
+                    app.appType !== 'saas_web' &&
                     !app.deliveryConfig?.licenseKey?.enabled &&
-                    !app.deliveryConfig?.fileDownload?.enabled &&
-                    !app.deliveryConfig?.apiAccess?.enabled &&
-                    !app.deliveryConfig?.privateNote?.enabled
+                    !app.deliveryConfig?.apiAccess?.enabled
                   "
                   class="text-jetblack/40 text-[10px]"
                 >
@@ -358,15 +412,43 @@ function getPricingBadge(app: AppItem): string {
               </a>
             </td>
             <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
-              <a
-                :href="`/pay/${app.slug}`"
-                target="_blank"
-                class="inline-flex items-center gap-1 text-[11px] font-bold text-jetblack hover:text-gold transition"
-                title="Buka Halaman Kasir / Pembayaran"
-              >
-                <span>Buka Kasir</span>
-                <ArrowUpRight class="w-3 h-3" />
-              </a>
+              <div class="flex items-center justify-end gap-1.5">
+                <router-link
+                  :to="envPath(dashboardEnv, '/payments?appId=' + app.id)"
+                  class="inline-flex items-center gap-1 text-[11px] font-bold text-forest hover:text-forest/80 transition px-2 py-1 hover:bg-forest/5 rounded-lg"
+                  title="Lihat Mutasi & Transaksi Aplikasi Ini di Menu Payments"
+                >
+                  <Receipt class="w-3 h-3 text-forest" />
+                  <span>Transaksi</span>
+                </router-link>
+                <button
+                  type="button"
+                  @click="emit('edit', app)"
+                  class="inline-flex items-center gap-1 text-[11px] font-bold text-jetblack/70 hover:text-jetblack transition px-2 py-1 hover:bg-jetblack/5 rounded-lg cursor-pointer"
+                  title="Edit Konfigurasi Produk"
+                >
+                  <Pencil class="w-3 h-3 text-jetblack/50" />
+                  <span>Edit</span>
+                </button>
+                <button
+                  type="button"
+                  @click="emit('delete', app)"
+                  class="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:text-rose-700 transition px-2 py-1 hover:bg-rose-50 rounded-lg cursor-pointer"
+                  title="Hapus Project Ini"
+                >
+                  <Trash2 class="w-3 h-3 text-rose-500" />
+                  <span>Hapus</span>
+                </button>
+                <a
+                  :href="`/pay/${app.slug}`"
+                  target="_blank"
+                  class="inline-flex items-center gap-1 text-[11px] font-bold text-jetblack hover:text-gold transition px-2 py-1"
+                  title="Buka Halaman Kasir / Pembayaran"
+                >
+                  <span>Buka Kasir</span>
+                  <ArrowUpRight class="w-3 h-3" />
+                </a>
+              </div>
             </td>
           </tr>
         </tbody>

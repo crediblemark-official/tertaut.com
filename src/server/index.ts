@@ -165,9 +165,6 @@ export const app = new Elysia()
         /^\/badge\//,
         // Alias legacy duplikat
         /^\/api\/v1\/license\//,
-        /^\/api\/v1\/ai-proxy/,
-        // Internal vault kredensial AI
-        /^\/api\/v1\/ai\/vault/,
         // Manajemen aplikasi via dashboard (kelola lewat UI; programatik pakai S2S)
         /^\/api\/v1\/apps\/$/,
         /^\/api\/v1\/apps\/[^/]+$/,
@@ -188,9 +185,6 @@ export const app = new Elysia()
         /^\/api\/v1\/launch/,
         // Statistik metering dashboard
         /^\/api\/v1\/metering\/stats/,
-        // Konfigurasi & log AI Shield dashboard
-        /^\/api\/v1\/ai\/configs/,
-        /^\/api\/v1\/ai\/logs/,
         // Admin lisensi dashboard (programatik: S2S /licenses/issue|revoke)
         /^\/api\/v1\/licensing\/list/,
         /^\/api\/v1\/licensing\/issue/,

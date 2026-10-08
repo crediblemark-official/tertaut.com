@@ -7,7 +7,6 @@
 import { executeCheckout, getPaymentStatus } from "./modules/checkout";
 import { LicensingModule } from "./modules/licensing";
 import { CreditsModule } from "./modules/credits";
-import { AiProxyModule } from "./modules/aiproxy";
 import { S2SModule } from "./modules/s2s";
 import { verifyWebhookSignature } from "./utils/crypto";
 import { createTertautError } from "./errors";
@@ -33,7 +32,6 @@ export class Tertaut {
 
   public licensing: LicensingModule;
   public credits: CreditsModule;
-  public aiProxy: AiProxyModule;
   public s2s: S2SModule;
 
   constructor(config: TertautConfig) {
@@ -64,7 +62,6 @@ export class Tertaut {
 
     this.licensing = new LicensingModule(this.executor());
     this.credits = new CreditsModule(this.executor());
-    this.aiProxy = new AiProxyModule(this.executor());
     this.s2s = new S2SModule(this.executor());
   }
 

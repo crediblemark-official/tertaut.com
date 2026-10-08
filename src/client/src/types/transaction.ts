@@ -5,6 +5,8 @@ export interface TransactionItem {
   id: string;
   appId: string;
   customerEmail: string;
+  customerName?: string | null;
+  metadata?: Record<string, any> | null;
   grossAmount: number;
   platformFee: number;
   netAmount: number;

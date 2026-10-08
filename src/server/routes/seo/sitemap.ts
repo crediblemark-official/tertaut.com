@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { apps } from "../../db/schema";
+import { projects } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 
 export interface SitemapRoute {
@@ -30,8 +30,8 @@ export async function generateDynamicSitemap(): Promise<string> {
   let appEntries: { slug: string; lastmod: string }[] = [];
 
   try {
-    const liveApps = await db.query.apps.findMany({
-      where: and(eq(apps.isSuspended, false), eq(apps.mode, "live")),
+    const liveApps = await db.query.projects.findMany({
+      where: and(eq(projects.isSuspended, false), eq(projects.mode, "live")),
       columns: { slug: true, updatedAt: true, createdAt: true },
     });
 

@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { db } from "../../db";
-import { transactions, builders, apps } from "../../db/schema";
+import { transactions, builders, projects } from "../../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { DanaService } from "../../services/payments/dana/dana";
 import { getActiveGateway } from "../../services/payments/gateways";
@@ -69,7 +69,10 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
 
       // Hanya transaksi dari aplikasi mode LIVE yang boleh dicairkan.
       // Transaksi sandbox adalah simulasi dan tidak pernah dikirim ke Xendit.
-      const liveAppRows = await db.select({ id: apps.id }).from(apps).where(eq(apps.mode, "live"));
+      const liveAppRows = await db
+        .select({ id: projects.id })
+        .from(projects)
+        .where(eq(projects.mode, "live"));
       const liveAppIds = liveAppRows.map((a) => a.id);
 
       // Ambil HANYA transaksi milik builder ini yang sudah lunas (PAID)

@@ -7,7 +7,6 @@ import {
   Terminal,
   CheckCircle2,
   ShieldCheck,
-  Bot,
   Sparkles,
   Lock,
   ExternalLink,
@@ -16,7 +15,7 @@ import {
 const { copied: copiedSdk, copy: writeClipboard } = useClipboard();
 
 // Hero Interactive Tabs
-const activeDemoTab = ref<"checkout" | "license" | "ai" | "badge">("checkout");
+const activeDemoTab = ref<"checkout" | "license" | "badge">("checkout");
 const selectedDemoChannel = ref("QRIS Instan");
 const selectedDemoBadge = ref("verified");
 
@@ -153,17 +152,6 @@ function copySdkInstall() {
                 🔑 Lisensi Ed25519
               </button>
               <button
-                @click="activeDemoTab = 'ai'"
-                :class="[
-                  'px-2.5 py-1 rounded-md transition cursor-pointer text-xs whitespace-nowrap',
-                  activeDemoTab === 'ai'
-                    ? 'bg-white font-bold text-jetblack shadow-xs'
-                    : 'text-jetblack/60 hover:text-jetblack',
-                ]"
-              >
-                🤖 AI Gateway
-              </button>
-              <button
                 @click="activeDemoTab = 'badge'"
                 :class="[
                   'px-2.5 py-1 rounded-md transition cursor-pointer text-xs whitespace-nowrap',
@@ -280,49 +268,6 @@ function copySdkInstall() {
                 class="inline-flex items-center gap-1 text-xs font-bold text-gold hover:underline pt-1"
               >
                 <span>Lihat Kode Integrasi SDK</span>
-                <ExternalLink class="w-3.5 h-3.5" />
-              </router-link>
-            </div>
-          </div>
-
-          <!-- Tab 3: AI Gateway -->
-          <div
-            v-else-if="activeDemoTab === 'ai'"
-            class="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center"
-          >
-            <div class="sm:col-span-7 space-y-3">
-              <div
-                class="p-3 rounded-xl bg-[#FAFAFA] border border-jetblack/10 font-mono text-xs space-y-2"
-              >
-                <div class="flex items-center justify-between text-[11px]">
-                  <span class="text-jetblack/60">POST /api/v1/ai/chat/stream</span>
-                  <span class="text-forest font-bold">200 OK</span>
-                </div>
-                <div
-                  class="p-2.5 rounded-lg bg-white border border-jetblack/10 text-[11px] text-jetblack/80 space-y-1 font-sans"
-                >
-                  <div class="font-bold text-jetblack text-xs">Proteksi API Terpasang:</div>
-                  <div class="text-forest text-[11px]">✓ Kunci OpenAI tersembunyi di server</div>
-                  <div class="text-forest text-[11px]">✓ Batas 15 permintaan per menit</div>
-                  <div class="text-forest text-[11px]">✓ Kuota harian 50.000 token per lisensi</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="sm:col-span-5 p-4 rounded-xl bg-jetblack text-white space-y-2.5 shadow-xs">
-              <div class="flex items-center gap-1.5 text-xs font-bold text-gold">
-                <Bot class="w-4 h-4 shrink-0" />
-                <span>Cegah Tagihan Boncos</span>
-              </div>
-              <p class="text-[11px] text-white/75 leading-relaxed">
-                Jual software berbasis AI tanpa takut pengguna mengekstrak API key OpenAI Anda dari
-                file binari atau browser.
-              </p>
-              <router-link
-                to="/dashboard/ai-proxy"
-                class="inline-flex items-center gap-1 text-xs font-bold text-gold hover:underline pt-1"
-              >
-                <span>Pelajari AI Shield</span>
                 <ExternalLink class="w-3.5 h-3.5" />
               </router-link>
             </div>

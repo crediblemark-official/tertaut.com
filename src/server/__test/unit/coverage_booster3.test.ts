@@ -123,6 +123,30 @@ describe("Coverage Booster3: webhook/fulfill.ts", () => {
     // locked will be null → returns error status
     expect((res as any).status).toBe("error");
   });
+
+  it("fulfillPaymentTransaction: skips desktop license creation for saas_web project", async () => {
+    const { builder, app: a } = await seedBuilderApp();
+    await db
+      .update(apps)
+      .set({
+        appType: "saas_web",
+        deliveryConfig: {
+          licenseKey: { enabled: false },
+        } as any,
+      })
+      .where(eq(apps.id, a.id));
+
+    const tx = await createTx(builder.id, a.id);
+    const res = await fulfillPaymentTransaction(tx, "QRIS");
+    expect((res as any).status).toBe("success");
+    expect((res as any).licenseKey).toBeNull();
+
+    // Verify no license record was inserted
+    const lic = await db.query.licenses.findFirst({
+      where: eq(licenses.transactionId, tx.id),
+    });
+    expect(lic).toBeUndefined();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

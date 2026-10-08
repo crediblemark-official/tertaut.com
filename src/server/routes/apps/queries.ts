@@ -39,6 +39,7 @@ export async function handleGetBuilderMyself({ request: { headers }, set }: Requ
       id: builder.id,
       email: builder.email,
       name: builder.name,
+      apiKey: builder.apiKey,
       secretApiKey: builder.secretApiKey || "",
     },
   };

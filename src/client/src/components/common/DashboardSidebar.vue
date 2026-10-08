@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Boxes,
   KeyRound,
-  Bot,
   BookOpen,
   Code2,
   ExternalLink,
@@ -18,6 +17,7 @@ import {
   Receipt,
   Repeat,
   Wallet,
+  Terminal,
 } from "lucide-vue-next";
 
 interface NavSubItem {
@@ -54,6 +54,7 @@ function pageKey(path: string): string {
     : path.startsWith("/dashboard")
       ? path.slice("/dashboard".length)
       : path;
+  if (stripped === "/apps") return "/projects";
   return stripped || "/";
 }
 
@@ -63,7 +64,7 @@ const navItems = computed<NavItem[]>(() => {
   const e = env.value;
   return [
     { name: "Ringkasan", key: "/", path: envPath(e), icon: LayoutDashboard },
-    { name: "Aplikasi", key: "/apps", path: envPath(e, "/apps"), icon: Boxes },
+    { name: "Project", key: "/projects", path: envPath(e, "/projects"), icon: Boxes },
     { name: "Payments", key: "/payments", path: envPath(e, "/payments"), icon: Receipt },
     {
       name: "Subscription",
@@ -74,7 +75,7 @@ const navItems = computed<NavItem[]>(() => {
     { name: "Balances", key: "/balances", path: envPath(e, "/balances"), icon: Wallet },
     { name: "Kupon", key: "/coupons", path: envPath(e, "/coupons"), icon: Ticket },
     { name: "Lisensi", key: "/licensing", path: envPath(e, "/licensing"), icon: KeyRound },
-    { name: "AI Shield", key: "/ai-proxy", path: envPath(e, "/ai-proxy"), icon: Bot },
+    { name: "Developer", key: "/developer", path: envPath(e, "/developer"), icon: Terminal },
     { name: "Dashboard Docs", key: "/docs", path: envPath(e, "/docs"), icon: BookOpen },
   ];
 });

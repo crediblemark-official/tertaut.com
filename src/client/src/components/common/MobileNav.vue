@@ -8,7 +8,6 @@ import {
   Receipt,
   KeyRound,
   Boxes,
-  Bot,
   BookOpen,
   Ticket,
   MoreHorizontal,
@@ -18,6 +17,7 @@ import {
   LogIn,
   Repeat,
   Wallet,
+  Terminal,
 } from "lucide-vue-next";
 
 interface NavItem {
@@ -59,6 +59,7 @@ function pageKey(path: string): string {
     : path.startsWith("/dashboard")
       ? path.slice("/dashboard".length)
       : path;
+  if (stripped === "/apps") return "/projects";
   return stripped || "/";
 }
 const navKey = computed(() => pageKey(route.path));
@@ -67,14 +68,14 @@ const mobileNavItems = computed<NavItem[]>(() => {
   const e = env.value;
   return [
     { name: "Ringkasan", key: "/", path: envPath(e), icon: LayoutDashboard },
-    { name: "Aplikasi", key: "/apps", path: envPath(e, "/apps"), icon: Boxes },
+    { name: "Project", key: "/projects", path: envPath(e, "/projects"), icon: Boxes },
     { name: "Payments", key: "/payments", path: envPath(e, "/payments"), icon: Receipt },
     { name: "Lisensi", key: "/licensing", path: envPath(e, "/licensing"), icon: KeyRound },
   ];
 });
 
 const isMoreActive = computed(() =>
-  ["/subscriptions", "/balances", "/coupons", "/ai-proxy", "/docs"].includes(navKey.value)
+  ["/subscriptions", "/balances", "/coupons", "/developer", "/docs"].includes(navKey.value)
 );
 const moreBadgeCount = computed(() => props.activeCouponCount);
 </script>
@@ -195,13 +196,7 @@ const moreBadgeCount = computed(() => props.activeCouponCount);
           >{{ moreBadgeCount }}</span
         >
         <span class="truncate max-w-[55px] leading-tight text-[9.5px]">{{
-          isMoreActive
-            ? navKey === "/coupons"
-              ? "Kupon"
-              : navKey === "/ai-proxy"
-                ? "AI Shield"
-                : "Docs"
-            : "Lainnya"
+          isMoreActive ? (navKey === "/coupons" ? "Kupon" : "Docs") : "Lainnya"
         }}</span>
         <span
           v-if="isMoreActive || isMobileMoreOpen"
@@ -313,26 +308,28 @@ const moreBadgeCount = computed(() => props.activeCouponCount);
             <div class="text-[10px] text-jetblack/50 truncate">{{ activeCouponCount }} Aktif</div>
           </div>
         </router-link>
+
         <router-link
-          :to="envPath(env, '/ai-proxy')"
+          :to="envPath(env, '/developer')"
           @click="emit('close-more')"
           class="flex items-center gap-2.5 p-3 rounded-xl border transition text-left cursor-pointer active:scale-95"
           :class="
-            navKey === '/ai-proxy'
-              ? 'bg-forest/10 border-forest/40 text-jetblack font-bold'
+            navKey === '/developer'
+              ? 'bg-jetblack text-white font-bold'
               : 'bg-jetblack/[0.02] border-jetblack/10 text-jetblack/80 hover:bg-jetblack/5'
           "
         >
           <div
-            class="w-8 h-8 rounded-lg bg-forest/15 flex items-center justify-center text-forest shrink-0"
+            class="w-8 h-8 rounded-lg bg-gold/20 flex items-center justify-center text-jetblack shrink-0"
           >
-            <Bot class="w-4 h-4" />
+            <Terminal class="w-4 h-4 text-gold" />
           </div>
           <div class="flex-1 min-w-0">
-            <div class="text-xs font-bold leading-tight">AI Proxy Shield</div>
-            <div class="text-[10px] text-jetblack/50 truncate">Audit &amp; Guard</div>
+            <div class="text-xs font-bold leading-tight">Developer</div>
+            <div class="text-[10px] text-jetblack/50 truncate">Kredensial S2S &amp; API</div>
           </div>
         </router-link>
+
         <router-link
           :to="envPath(env, '/docs')"
           @click="emit('close-more')"

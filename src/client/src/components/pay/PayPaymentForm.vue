@@ -11,6 +11,10 @@ import {
   FlaskConical,
   Sparkles,
   CreditCard,
+  Download,
+  FileText,
+  Zap,
+  KeyRound,
 } from "lucide-vue-next";
 import { formatRupiah } from "../../lib/utils";
 import { api } from "../../lib/api";
@@ -26,6 +30,8 @@ interface ProductData {
   checkoutMode?: "custom" | "hosted";
   activePaymentGateway?: "dana" | "xendit" | "xenithpay";
   availableChannels?: import("../../types/app").AvailableChannels;
+  deliveryConfig?: import("../../types/app").DeliveryConfig | null;
+  redirectUrl?: string | null;
   targetPrice: number;
 }
 
@@ -155,13 +161,65 @@ function copyToClipboard(text: string, isLicense = false) {
             Pembayaran Berhasil Diverifikasi!
           </p>
           <p class="text-xs text-slate-700 leading-relaxed">
-            Terima kasih! Pembayaran Anda telah terkonfirmasi resmi. Lisensi software Anda sudah
-            aktif.
+            Terima kasih! Pembayaran Anda telah terkonfirmasi resmi. Akses produk Anda sudah aktif.
           </p>
         </div>
       </div>
 
-      <div v-if="paidResult?.licenseKey" class="pt-3 border-t border-emerald-200 space-y-2">
+      <!-- 1. Unduhan Berkas Digital (File Download) -->
+      <div
+        v-if="product?.deliveryConfig?.fileDownload?.fileUrl"
+        class="pt-3 border-t border-emerald-200 space-y-2"
+      >
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-800">Unduhan Berkas Digital</span>
+          <span class="text-[11px] text-blue-700 font-semibold flex items-center gap-1">
+            <Download class="w-3.5 h-3.5" /> Berkas Siap Diunduh
+          </span>
+        </div>
+        <a
+          :href="product.deliveryConfig.fileDownload.fileUrl"
+          target="_blank"
+          download
+          class="w-full py-2.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+        >
+          <Download class="w-3.5 h-3.5" />
+          <span
+            >{{ product.deliveryConfig.fileDownload.title || "Unduh Berkas"
+            }}{{
+              product.deliveryConfig.fileDownload.fileName
+                ? ` (${product.deliveryConfig.fileDownload.fileName})`
+                : ""
+            }}</span
+          >
+        </a>
+      </div>
+
+      <!-- 2. Catatan Privat / Link Komunitas (Private Note) -->
+      <div
+        v-if="product?.deliveryConfig?.privateNote?.note"
+        class="pt-3 border-t border-emerald-200 space-y-1.5"
+      >
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-800">
+            {{ product.deliveryConfig.privateNote.title || "Panduan Akses & Instruksi" }}
+          </span>
+          <span class="text-[11px] text-purple-700 font-semibold flex items-center gap-1">
+            <FileText class="w-3.5 h-3.5" /> Akses Privat
+          </span>
+        </div>
+        <div
+          class="p-3 bg-white/90 border border-purple-200 rounded-xl text-xs text-purple-950 whitespace-pre-wrap font-sans leading-relaxed shadow-2xs"
+        >
+          {{ product.deliveryConfig.privateNote.note }}
+        </div>
+      </div>
+
+      <!-- 3. Kunci Lisensi Software (Hanya jika fitur lisensi aktif) -->
+      <div
+        v-if="paidResult?.licenseKey && product?.deliveryConfig?.licenseKey?.enabled !== false"
+        class="pt-3 border-t border-emerald-200 space-y-2"
+      >
         <div class="flex items-center justify-between">
           <span class="text-xs font-bold text-slate-800">Kunci Lisensi Resmi Anda</span>
           <span class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
@@ -189,6 +247,17 @@ function copyToClipboard(text: string, isLicense = false) {
           <span class="font-bold text-slate-900">{{ emailInput }}</span
           >.
         </p>
+      </div>
+
+      <!-- 4. Tombol Lanjut ke Aplikasi SaaS / Web Portal -->
+      <div v-if="product?.redirectUrl" class="pt-3 border-t border-emerald-200">
+        <a
+          :href="product.redirectUrl"
+          class="w-full py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+        >
+          <span>Lanjutkan ke Aplikasi SaaS</span>
+          <ExternalLink class="w-3.5 h-3.5" />
+        </a>
       </div>
 
       <div class="pt-3 border-t border-emerald-200/70 flex items-center justify-between text-xs">

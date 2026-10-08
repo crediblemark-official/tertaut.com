@@ -87,10 +87,10 @@ export interface MeteringConfig {
   freeAllowance?: number;
 }
 
-export const apps = pgTable(
-  "apps",
+export const projects = pgTable(
+  "projects",
   {
-    id: text("id").primaryKey(), // e.g. "app_xyz123"
+    id: text("id").primaryKey(), // e.g. "app_xyz123" / "proj_xyz123"
     /** Publishable API key aplikasi (pola publishable-key): `tt_live_...` / `tt_test_...`. Dipakai klien SDK @tertaut/sdk. */
     apiKey: text("api_key").notNull().default(""),
     builderId: uuid("builder_id")
@@ -101,6 +101,12 @@ export const apps = pgTable(
     mode: text("mode", { enum: ["sandbox", "live"] })
       .default("sandbox")
       .notNull(),
+    appType: text("app_type", { enum: ["saas_web", "desktop_onprem"] })
+      .default("saas_web")
+      .notNull(),
+    brandColor: text("brand_color").default("#0D9488"),
+    logoUrl: text("logo_url"),
+    appUrl: text("app_url"),
     isSuspended: boolean("is_suspended").default(false).notNull(),
     targetPrice: integer("target_price").default(0).notNull(), // dalam IDR
     pricingType: text("pricing_type", { enum: ["one_time", "subscription", "free"] })
@@ -126,10 +132,14 @@ export const apps = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    index("idx_apps_builder_id").on(table.builderId),
-    index("idx_apps_mode").on(table.mode),
+    index("idx_projects_builder_id").on(table.builderId),
+    index("idx_projects_mode").on(table.mode),
   ]
 );
 
-export type App = typeof apps.$inferSelect;
-export type NewApp = typeof apps.$inferInsert;
+export const apps = projects;
+
+export type Project = typeof projects.$inferSelect;
+export type NewProject = typeof projects.$inferInsert;
+export type App = Project;
+export type NewApp = NewProject;

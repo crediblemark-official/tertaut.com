@@ -39,10 +39,6 @@ const REQUIRED_DOCS: Array<{ label: string; needle: string }> = [
   { label: "credits.history", needle: "credits.history" },
   { label: "credits.reportUsage", needle: "reportUsage" },
   { label: "credits.getUsage", needle: "getUsage" },
-  // AI Proxy
-  { label: "aiProxy.chat", needle: "aiProxy.chat" },
-  { label: "aiProxy.chatStream", needle: "aiProxy.chatStream" },
-  { label: "aiProxy.quotaStatus", needle: "quotaStatus" },
   // S2S
   { label: "s2s.info", needle: "s2s.info" },
   { label: "s2s.apps", needle: "s2s.apps" },

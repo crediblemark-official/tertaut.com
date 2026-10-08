@@ -10,7 +10,6 @@ import type {
   EventsResponse,
   WebhookEndpointItem,
 } from "../types/licensing";
-import type { VaultCredentialItem, AiProxyLogItem, AiQuotaStatus } from "../types/aiproxy";
 import type {
   PanelStats,
   PanelBuilderItem,
@@ -28,9 +27,6 @@ export type {
   CatalogKPIStats,
   TransactionItem,
   LicenseItem,
-  VaultCredentialItem,
-  AiProxyLogItem,
-  AiQuotaStatus,
   PanelStats,
   PanelBuilderItem,
   PanelTransactionItem,
@@ -216,6 +212,10 @@ export const api = {
     return parseJson(res);
   },
 
+  async deleteApp(appId: string): Promise<{ success: boolean; message?: string }> {
+    return this.deleteCampaign(appId);
+  },
+
   async rotateApiKey(appId: string): Promise<{ success: boolean; app: AppItem; error?: string }> {
     clearAppsCache();
     const res = await apiFetch(`/api/v1/apps/${appId}/rotate-api-key`, {
@@ -239,7 +239,7 @@ export const api = {
 
   async getBuilderMyself(): Promise<{
     success: boolean;
-    builder: { id: string; email: string; name: string; secretApiKey: string };
+    builder: { id: string; email: string; name: string; apiKey?: string; secretApiKey: string };
     error?: string;
   }> {
     const res = await apiFetch("/api/v1/apps/me");
@@ -646,112 +646,20 @@ export const api = {
     return parseJson(res);
   },
 
-  async getAiVault(
-    appId: string
-  ): Promise<{ success: boolean; credentials: VaultCredentialItem[] }> {
-    const res = await apiFetch(`/api/v1/ai-proxy/vault/${appId}`);
+  async getWebhookDeliveries(
+    limit = 50
+  ): Promise<{ success: boolean; deliveries: any[]; error?: string }> {
+    const res = await apiFetch(withMode(`/api/v1/licensing/webhooks/deliveries?limit=${limit}`));
     return parseJson(res);
   },
 
-  async saveAiVault(data: {
-    appId: string;
-    provider: "openai" | "anthropic" | "gemini";
-    rawApiKey: string;
-    monthlyBudgetLimit?: number;
-  }) {
-    const res = await apiFetch("/api/v1/ai-proxy/vault", {
+  async retryWebhookDelivery(
+    id: string
+  ): Promise<{ success: boolean; delivery?: any; error?: string }> {
+    const res = await apiFetch(`/api/v1/licensing/webhooks/deliveries/${id}/retry`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
     });
     return parseJson(res);
-  },
-
-  async toggleAiKillSwitch(data: { appId: string; provider: "openai" | "anthropic" | "gemini" }) {
-    const res = await apiFetch("/api/v1/ai-proxy/vault/toggle-kill-switch", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    return parseJson(res);
-  },
-
-  async getAiProxyLogs(appId: string): Promise<{ success: boolean; logs: AiProxyLogItem[] }> {
-    const res = await apiFetch(`/api/v1/ai-proxy/logs/${appId}`);
-    return parseJson(res);
-  },
-
-  async testAiProxy(data: {
-    licenseKey: string;
-    appId: string;
-    prompt: string;
-    provider?: string;
-    modelAlias?: string;
-    stream?: boolean;
-  }) {
-    const res = await apiFetch("/api/v1/ai/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    return parseJson(res);
-  },
-
-  async getAiQuotaStatus(
-    licenseKey: string,
-    modelAlias = "default"
-  ): Promise<{ success: boolean; data: AiQuotaStatus; error?: string; message?: string }> {
-    const res = await apiFetch(
-      `/api/v1/ai/quota-status?licenseKey=${encodeURIComponent(licenseKey)}&modelAlias=${encodeURIComponent(modelAlias)}`
-    );
-    return parseJson(res);
-  },
-
-  async streamAiChat(
-    data: { licenseKey: string; appId?: string; modelAlias?: string; prompt: string },
-    onChunk: (text: string) => void
-  ): Promise<void> {
-    const res = await apiFetch("/api/v1/ai/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, stream: true }),
-    });
-
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}) as any);
-      throw new Error(
-        errJson.message || errJson.error || `Gagal streaming AI (HTTP ${res.status}).`
-      );
-    }
-
-    if (!res.body) return;
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let done = false;
-
-    while (!done) {
-      const { value, done: readerDone } = await reader.read();
-      done = readerDone;
-      if (value) {
-        const text = decoder.decode(value);
-        const lines = text.split("\n");
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const rawData = line.slice(6).trim();
-            if (rawData === "[DONE]") return;
-            try {
-              const parsed = JSON.parse(rawData);
-              const deltaContent = parsed.choices?.[0]?.delta?.content;
-              if (deltaContent) {
-                onChunk(deltaContent);
-              }
-            } catch {
-              // Non-json or raw text chunk
-            }
-          }
-        }
-      }
-    }
   },
 
   async convertToLiveLaunch(data: {

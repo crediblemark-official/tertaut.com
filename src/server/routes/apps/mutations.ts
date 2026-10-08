@@ -1,6 +1,6 @@
 import { db } from "../../db";
-import { apps, builders } from "../../db/schema";
-import type { DeliveryConfig, MeteringConfig, CaptureConfig } from "../../db/schema/apps";
+import { projects, apps, builders } from "../../db/schema";
+import type { DeliveryConfig, MeteringConfig, CaptureConfig } from "../../db/schema/projects";
 import { eq } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { resolveCurrentBuilder } from "./builder";
@@ -25,6 +25,11 @@ export interface CreateAppBody {
   trialPeriodDays?: number | null;
   deliveryConfig?: DeliveryConfig | null;
   meteringConfig?: MeteringConfig | null;
+  appType?: "saas_web" | "desktop_onprem" | null;
+  brandColor?: string | null;
+  logoUrl?: string | null;
+  appUrl?: string | null;
+  webhookUrl?: string | null;
 }
 
 export interface UpdateAppBody extends Partial<CreateAppBody> {
@@ -86,6 +91,11 @@ export async function handleCreateApp({ body, set, request: { headers } }: Creat
     trialPeriodDays,
     deliveryConfig,
     meteringConfig,
+    appType = "saas_web",
+    brandColor = "#0D9488",
+    logoUrl,
+    appUrl,
+    webhookUrl,
   } = body;
 
   const { builder } = await resolveCurrentBuilder(headers);
@@ -129,6 +139,11 @@ export async function handleCreateApp({ body, set, request: { headers } }: Creat
       customIntentMessage: customIntentMessage || null,
       captureConfig: captureConfig || null,
       redirectUrl: redirectUrl || null,
+      appType: appType || "saas_web",
+      brandColor: brandColor || "#0D9488",
+      logoUrl: logoUrl || null,
+      appUrl: appUrl || null,
+      webhookUrl: webhookUrl || null,
     })
     .returning();
 
@@ -192,6 +207,11 @@ export async function handleUpdateApp({
     trialPeriodDays,
     deliveryConfig,
     meteringConfig,
+    appType,
+    brandColor,
+    logoUrl,
+    appUrl,
+    webhookUrl,
   } = body as Record<string, any>;
 
   const updateData: Record<string, any> = { updatedAt: new Date() };
@@ -215,6 +235,11 @@ export async function handleUpdateApp({
   if (pageBlocks !== undefined) updateData.pageBlocks = pageBlocks;
   if (customHtml !== undefined) updateData.customHtml = customHtml;
   if (captureConfig !== undefined) updateData.captureConfig = captureConfig;
+  if (appType !== undefined) updateData.appType = appType;
+  if (brandColor !== undefined) updateData.brandColor = brandColor;
+  if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
+  if (appUrl !== undefined) updateData.appUrl = appUrl;
+  if (webhookUrl !== undefined) updateData.webhookUrl = webhookUrl;
 
   const [updated] = await db.update(apps).set(updateData).where(eq(apps.id, appId)).returning();
 
@@ -244,9 +269,9 @@ export async function handleDeleteApp({
     return { error: "Forbidden: Anda tidak memiliki hak akses menghapus aplikasi ini" };
   }
 
-  await db.delete(apps).where(eq(apps.id, appId));
+  await db.delete(projects).where(eq(projects.id, appId));
 
-  return { success: true, message: `Kampanye "${existing.name}" berhasil dihapus.` };
+  return { success: true, message: `Project "${existing.name}" berhasil dihapus.` };
 }
 
 /**

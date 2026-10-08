@@ -64,6 +64,10 @@ export interface CheckoutOptions {
   /** Aktifkan free trial bila produk punya `trialPeriodDays > 0`. */
   startTrial?: boolean;
   isTrial?: boolean;
+  /** Nama pembeli / pelanggan untuk faktur dan receipt email. */
+  customerName?: string;
+  /** Metadata bebas (misal userId, tier, seats) yang dikembalikan di webhook payment.success. */
+  metadata?: Record<string, any>;
   /**
    * Jika di-set `false`, SDK tidak akan otomatis mengalihkan browser via `window.location.href`.
    * Berguna untuk integrasi in-app headless, modal, extension, atau SPA. (Default: true).
@@ -293,31 +297,6 @@ export interface LicenseEntitlementsResult {
   message?: string;
   hasFeature: (featureName: string) => boolean;
   getFeature: <T = any>(featureName: string, defaultValue?: T) => T;
-}
-
-export interface ChatMessage {
-  role: "system" | "user" | "assistant";
-  content: string;
-}
-
-export interface AiChatOptions {
-  licenseKey?: string;
-  licenseToken?: string;
-  prompt?: string;
-  messages?: ChatMessage[];
-  /**
-   * Alias model yang dikonfigurasi builder di dashboard. Default-nya `"default"`,
-   * yang wajib sama persis dengan nilai yang dipakai server agar guardrail
-   * (rate limit per menit & kuota token harian) ikut diterapkan.
-   */
-  modelAlias?: string;
-  provider?: "openai" | "anthropic" | "gemini" | "deepseek" | "custom";
-  model?: string;
-  temperature?: number;
-}
-
-export interface AiStreamChunk {
-  text: string;
 }
 
 /** Hasil verifikasi offline token secara lokal (tanpa request ke server). */

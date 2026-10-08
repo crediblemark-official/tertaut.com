@@ -12,10 +12,14 @@ const liveDashboardRoutes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
-    path: "/dashboard/apps",
-    name: "apps",
+    path: "/dashboard/projects",
+    name: "projects",
     component: () => import("../views/AppsView.vue"),
     meta: { requiresAuth: true },
+  },
+  {
+    path: "/dashboard/apps",
+    redirect: "/dashboard/projects",
   },
   {
     path: "/dashboard/licensing",
@@ -23,12 +27,7 @@ const liveDashboardRoutes: RouteRecordRaw[] = [
     component: () => import("../views/LicensingView.vue"),
     meta: { requiresAuth: true },
   },
-  {
-    path: "/dashboard/ai-proxy",
-    name: "ai-proxy",
-    component: () => import("../views/AiProxyView.vue"),
-    meta: { requiresAuth: true },
-  },
+
   {
     path: "/dashboard/coupons",
     name: "coupons",
@@ -57,6 +56,12 @@ const liveDashboardRoutes: RouteRecordRaw[] = [
     path: "/dashboard/balances",
     name: "balances",
     component: () => import("../views/BalancesView.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/dashboard/developer",
+    name: "developer",
+    component: () => import("../views/DeveloperView.vue"),
     meta: { requiresAuth: true },
   },
   {

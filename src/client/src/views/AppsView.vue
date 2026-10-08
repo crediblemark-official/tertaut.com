@@ -15,23 +15,49 @@ const catalogStats = ref<CatalogKPIStats | null>(null);
 const loading = ref(true);
 const searchQuery = ref("");
 const viewMode = ref<"list" | "create">("list");
+const editingApp = ref<AppItem | null>(null);
 
 function openCreatePage() {
+  editingApp.value = null;
   viewMode.value = "create";
   router.push({ query: { ...route.query, action: "new" } });
 }
 
+function openEditPage(app: AppItem) {
+  editingApp.value = app;
+  viewMode.value = "create";
+  router.push({ query: { ...route.query, action: "edit", app_id: app.id } });
+}
+
 function closeCreatePage() {
+  editingApp.value = null;
   viewMode.value = "list";
   const query = { ...route.query };
   delete query.action;
+  delete query.app_id;
   router.push({ query });
 }
 
 watch(
-  () => route.query.action,
-  (action) => {
-    viewMode.value = action === "new" ? "create" : "list";
+  [() => route.query.action, () => route.query.app_id, appsList],
+  ([action, appId]) => {
+    if (action === "edit" && appId) {
+      const match = appsList.value.find((a) => a.id === appId);
+      if (match) {
+        editingApp.value = match;
+        viewMode.value = "create";
+        return;
+      }
+    }
+    if (action === "new") {
+      editingApp.value = null;
+      viewMode.value = "create";
+      return;
+    }
+    if (action !== "edit") {
+      viewMode.value = "list";
+      editingApp.value = null;
+    }
   },
   { immediate: true }
 );
@@ -48,6 +74,12 @@ async function loadData() {
     ]);
     appsList.value = appsRes.apps || [];
     catalogStats.value = statsRes;
+
+    // Refresh editingApp if active
+    if (editingApp.value) {
+      const found = appsList.value.find((a) => a.id === editingApp.value!.id);
+      if (found) editingApp.value = found;
+    }
   } catch (err) {
     console.error("Failed to load apps:", err);
   } finally {
@@ -59,6 +91,16 @@ async function handleCreated() {
   closeCreatePage();
   clearAppsCache();
   await loadData();
+}
+
+async function handleUpdated() {
+  showSuccess(`Aplikasi "${editingApp.value?.name || ""}" berhasil diperbarui!`);
+  clearAppsCache();
+  await loadData();
+}
+
+async function handleUpdateProduct(appId: string, payload: Record<string, any>) {
+  return api.updateApp(appId, payload);
 }
 
 const errorMessage = ref<string | null>(null);
@@ -83,10 +125,33 @@ async function handleToggleMode(app: AppItem) {
   try {
     await api.updateAppMode(app.id, newMode);
     clearAppsCache();
-    showSuccess(`Software "${app.name}" berhasil dialihkan ke mode ${newMode.toUpperCase()}`);
+    showSuccess(`Aplikasi "${app.name}" berhasil dialihkan ke mode ${newMode.toUpperCase()}`);
     await loadData();
   } catch (err: any) {
-    showError("Gagal mengubah mode software: " + (err?.message || err));
+    showError("Gagal mengubah mode aplikasi: " + (err?.message || err));
+  }
+}
+
+async function handleDeleteApp(app: AppItem) {
+  const confirmed = confirm(
+    `Hapus project "${app.name}" (${app.slug})?\n\nTindakan ini permanen dan akan menghapus semua konfigurasi project ini.`
+  );
+  if (!confirmed) return;
+
+  try {
+    const res = await api.deleteApp(app.id);
+    if (res.success) {
+      showSuccess(`Project "${app.name}" berhasil dihapus.`);
+      if (editingApp.value?.id === app.id) {
+        closeCreatePage();
+      }
+      clearAppsCache();
+      await loadData();
+    } else {
+      showError(res.message || "Gagal menghapus project.");
+    }
+  } catch (err: any) {
+    showError("Gagal menghapus project: " + (err?.message || err));
   }
 }
 
@@ -94,7 +159,9 @@ watch(dashboardEnv, () => {
   loadData();
 });
 
-onMounted(() => loadData());
+onMounted(() => {
+  loadData();
+});
 </script>
 
 <template>
@@ -129,6 +196,9 @@ onMounted(() => loadData());
       </button>
     </div>
 
+    <!-- ============================================== -->
+    <!-- VIEW 1: APP CATALOG LIST (Multi-SaaS Registry) -->
+    <!-- ============================================== -->
     <AppCatalog
       v-if="viewMode === 'list'"
       :apps="appsList"
@@ -138,13 +208,22 @@ onMounted(() => loadData());
       @update:search-query="searchQuery = $event"
       @open-create="openCreatePage"
       @toggle-mode="handleToggleMode"
+      @edit="openEditPage"
+      @delete="handleDeleteApp"
     />
 
+    <!-- ============================================== -->
+    <!-- VIEW 2: CLEAN APP FORM (Single Unified Header) -->
+    <!-- ============================================== -->
     <AppCreateForm
-      v-else
+      v-else-if="viewMode === 'create'"
+      :initial-app="editingApp"
       :create-fn="api.createCampaign.bind(api)"
+      :update-fn="handleUpdateProduct"
       @cancel="closeCreatePage"
       @created="handleCreated"
+      @updated="handleUpdated"
+      @delete="handleDeleteApp"
     />
   </div>
 </template>

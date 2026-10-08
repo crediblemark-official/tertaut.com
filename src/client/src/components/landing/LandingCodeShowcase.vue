@@ -5,10 +5,41 @@ import { Check, Copy, ExternalLink } from "lucide-vue-next";
 
 const { copy: writeClipboard } = useClipboard();
 
-const activeCodeTab = ref<"license" | "aiproxy" | "checkout" | "metering">("license");
+const activeCodeTab = ref<"license" | "webhook" | "checkout" | "metering">("checkout");
 const copiedCode = ref(false);
 
 const codeSnippets = {
+  checkout: `import { Tertaut } from "@tertaut/sdk";
+
+// Inisialisasi dengan Secret Key di backend SaaS Anda
+const tertaut = new Tertaut({ secretKey: process.env.TERTAUT_SECRET_KEY });
+
+// Buat sesi pembayaran dengan nominal dinamis dari kode SaaS
+const session = await tertaut.checkout.createSession({
+  appId: "app_fastmail_01",
+  orderId: "INV-2026-901",
+  amount: 135000, // Rp 135.000 (misal: 3 seats x Rp 45.000)
+  customerEmail: "budi@perusahaan.com",
+  paymentRail: "qris",
+});
+
+// Kembalikan qrString / checkoutUrl ke frontend web SaaS Anda
+console.log("QRIS String:", session.qrString);`,
+  webhook: `import crypto from "crypto";
+
+// Verifikasi keaslian webhook pembayaran dari server Tertaut
+export function verifyTertautWebhook(rawBody, signatureHeader, secretKey) {
+  const [tPart, v1Part] = signatureHeader.split(",");
+  const timestamp = tPart?.replace("t=", "");
+  const signature = v1Part?.replace("v1=", "");
+  
+  if (!timestamp || !signature) return false;
+
+  const signed = \`\${timestamp}.\${rawBody}\`;
+  const expected = crypto.createHmac("sha256", secretKey).update(signed).digest("hex");
+  
+  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+}`,
   license: `import { Tertaut } from "@tertaut/sdk";
 
 const tertaut = new Tertaut({ appSlug: "desktop-pro" });
@@ -23,33 +54,6 @@ if (result.valid) {
   console.log("Lisensi aktif untuk:", result.customerName);
   console.log("Device seat terpakai: 1 / 3");
 }`,
-  aiproxy: `import { Tertaut } from "@tertaut/sdk";
-
-const tertaut = new Tertaut({ appSlug: "chat-ai-suite" });
-
-// Kirim prompt ke AI tanpa mengekspos OpenAI / Anthropic API Key di klien!
-const response = await tertaut.aiProxy.chat({
-  licenseKey: "TT-AI-5512-8890",
-  messages: [
-    { role: "user", content: "Buat ringkasan laporan keuangan ini..." }
-  ],
-  model: "gpt-4o", // otomatis diproteksi rate limit & daily token cap
-});
-
-console.log("Hasil AI:", response.choices[0].message.content);`,
-  checkout: `import { Tertaut } from "@tertaut/sdk";
-
-const tertaut = new Tertaut({ appSlug: "desktop-pro" });
-
-// Buka sesi checkout berbayar instan (QRIS & Virtual Account)
-const session = await tertaut.checkout.createSession({
-  productSlug: "lifetime-license",
-  customerEmail: "pembeli@perusahaan.com",
-  couponCode: "EARLYBIRD20",
-});
-
-// Arahkan pembeli ke halaman checkout aman Tertaut
-window.location.href = session.checkoutUrl;`,
   metering: `import { Tertaut } from "@tertaut/sdk";
 
 const tertaut = new Tertaut({ appSlug: "saas-automate" });
@@ -100,28 +104,6 @@ function copyActiveCode() {
         >
           <div class="flex items-center gap-2 overflow-x-auto">
             <button
-              @click="activeCodeTab = 'license'"
-              :class="[
-                'px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition cursor-pointer',
-                activeCodeTab === 'license'
-                  ? 'bg-white/15 text-white'
-                  : 'text-white/60 hover:text-white',
-              ]"
-            >
-              1. Validasi Lisensi
-            </button>
-            <button
-              @click="activeCodeTab = 'aiproxy'"
-              :class="[
-                'px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition cursor-pointer',
-                activeCodeTab === 'aiproxy'
-                  ? 'bg-white/15 text-white'
-                  : 'text-white/60 hover:text-white',
-              ]"
-            >
-              2. Panggil AI Gateway
-            </button>
-            <button
               @click="activeCodeTab = 'checkout'"
               :class="[
                 'px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition cursor-pointer',
@@ -130,7 +112,29 @@ function copyActiveCode() {
                   : 'text-white/60 hover:text-white',
               ]"
             >
-              3. Buka Sesi Checkout
+              1. Dynamic Checkout
+            </button>
+            <button
+              @click="activeCodeTab = 'webhook'"
+              :class="[
+                'px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition cursor-pointer',
+                activeCodeTab === 'webhook'
+                  ? 'bg-white/15 text-white'
+                  : 'text-white/60 hover:text-white',
+              ]"
+            >
+              2. Verifikasi Webhook
+            </button>
+            <button
+              @click="activeCodeTab = 'license'"
+              :class="[
+                'px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition cursor-pointer',
+                activeCodeTab === 'license'
+                  ? 'bg-white/15 text-white'
+                  : 'text-white/60 hover:text-white',
+              ]"
+            >
+              3. Validasi Lisensi
             </button>
             <button
               @click="activeCodeTab = 'metering'"

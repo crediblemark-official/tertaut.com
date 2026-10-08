@@ -12,16 +12,15 @@ import { handleUnbindHardware } from "../../routes/licensing/device/unbind";
 import { handleDeactivateLicense } from "../../routes/licensing/device/deactivate";
 import { handleValidateLicense } from "../../routes/licensing/device/validate";
 import { handleHeartbeat } from "../../routes/licensing/device/heartbeat";
-import { handleAiChat } from "../../routes/aiproxy/chat";
 import { LicenseService } from "../../services/licensing/license";
 import { db } from "../../db";
-import { apps, builders, licenses, aiVaultCredentials, aiAppConfigs } from "../../db/schema";
+import { apps, builders, licenses } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { generateAppApiKey } from "../../routes/apps/api-key";
 
 setupTestAuth();
 
-describe("Device Seat Ops, App Mutations, and AI Chat Guardrails", () => {
+describe("Device Seat Ops and App Mutations", () => {
   let testBuilder: any;
   let testApp: any;
   let adminHeaders: Headers;
@@ -241,69 +240,5 @@ describe("Device Seat Ops, App Mutations, and AI Chat Guardrails", () => {
       set: {},
     });
     expect(validateRes.valid).toBe(true);
-  });
-
-  it("should test AI chat completion guardrails (empty prompt, kill switch, mock response)", async () => {
-    const set: any = {};
-
-    const issueRes = await LicenseService.issueDirect({
-      appId: testApp.id,
-      customerEmail: `ai_chat_${Date.now()}@test.com`,
-      grantDays: 30,
-      maxSeats: 1,
-      actor: { type: "ADMIN", id: "admin" },
-    });
-    const lic = issueRes.license;
-
-    // 1. Empty prompt (400)
-    const emptyPromptRes: any = await handleAiChat({
-      body: { licenseKey: lic.licenseKey, appId: testApp.id, prompt: "" },
-      set,
-    });
-    expect(set.status).toBe(400);
-    expect(emptyPromptRes.error).toBe("EMPTY_PROMPT");
-
-    // 2. Kill switch active (429)
-    await db.insert(aiVaultCredentials).values({
-      appId: testApp.id,
-      provider: "openai",
-      encryptedApiKey: "test_cipher",
-      iv: "test_iv",
-      authTag: "test_tag",
-      isKillSwitchActive: true,
-    });
-
-    const killSwitchRes: any = await handleAiChat({
-      body: { licenseKey: lic.licenseKey, appId: testApp.id, prompt: "Halo AI" },
-      set,
-    });
-    expect(set.status).toBe(429);
-    expect(killSwitchRes.error).toBe("AI_KILL_SWITCH_ACTIVE");
-
-    // 3. Deactivate kill switch and test successful chat in sandbox
-    const { CryptoService } = await import("../../services/security/crypto");
-    const enc = CryptoService.encrypt("mock-openai-key");
-    await db
-      .update(aiVaultCredentials)
-      .set({
-        isKillSwitchActive: false,
-        encryptedApiKey: enc.cipherText,
-        iv: enc.iv,
-        authTag: enc.authTag,
-      })
-      .where(eq(aiVaultCredentials.appId, testApp.id));
-
-    const chatSuccess: any = await handleAiChat({
-      body: {
-        licenseKey: lic.licenseKey,
-        appId: testApp.id,
-        prompt: "Halo AI!",
-        modelAlias: "default",
-      },
-      set: {},
-    });
-    expect(chatSuccess.success).toBe(true);
-    expect(chatSuccess.text).toBeDefined();
-    expect(chatSuccess.usage).toBeDefined();
   });
 });

@@ -12,11 +12,6 @@ import {
   revokedTokens,
   creditLedger,
   coupons,
-  aiVaultCredentials,
-  aiProxyLogs,
-  aiProviderKeys,
-  aiAppConfigs,
-  aiUsageLogs,
   platformSettings,
 } from "./schema";
 import { user } from "./schema/auth";
@@ -28,7 +23,7 @@ import { LicenseService } from "../services/licensing/license";
 import { DanaService } from "../services/payments/dana/dana";
 import { randomBytes } from "crypto";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../routes/apps/api-key";
-import type { DeliveryConfig } from "../db/schema/apps";
+import type { DeliveryConfig } from "../db/schema/projects";
 import { config } from "../config";
 
 /**
@@ -228,34 +223,6 @@ const ACTIVATIONS = [
   },
 ];
 
-const AI_VAULT = [
-  { appId: "app_fastmail_ai", provider: "gemini" as const, budget: 500000, usage: 48500 },
-  { appId: "app_autoreels_ai", provider: "openai" as const, budget: 1000000, usage: 182000 },
-];
-
-const AI_LOGS = [
-  {
-    appId: "app_fastmail_ai",
-    licenseKey: "TT-FAST-8812-C7NV",
-    provider: "gemini" as const,
-    model: "gemini-1.5-flash",
-    prompt: 340,
-    completion: 120,
-    latency: 38,
-    agoMin: 35,
-  },
-  {
-    appId: "app_autoreels_ai",
-    licenseKey: "TT-REEL-7734-P4KM",
-    provider: "openai" as const,
-    model: "gpt-4o-mini",
-    prompt: 520,
-    completion: 280,
-    latency: 44,
-    agoMin: 15,
-  },
-];
-
 export async function seed() {
   console.log("🌱 Mulai seeding database PostgreSQL tertautv2...");
 
@@ -302,11 +269,6 @@ export async function seed() {
   await db.delete(revokedTokens);
   await db.delete(licenseActivations);
   await db.delete(creditLedger);
-  await db.delete(aiUsageLogs);
-  await db.delete(aiAppConfigs);
-  await db.delete(aiProviderKeys);
-  await db.delete(aiProxyLogs);
-  await db.delete(aiVaultCredentials);
   await db.delete(coupons);
   await db.delete(licenses);
   await db.delete(transactions);
@@ -772,117 +734,6 @@ export async function seed() {
     ])
     .returning();
   console.log(`✅ ${evRows.length} Audit event tersimpan.`);
-
-  // 13. AI Vault Credentials & Provider Keys
-  const geminiEnc = CryptoService.encrypt("AIzaSyB3-SAMPLE-REALISTIC-KEY-FOR-VAULT-TESTING");
-  const openaiEnc = CryptoService.encrypt("sk-proj-sample-encrypted-key-secure-vault-12345");
-
-  const [geminiKey] = await db
-    .insert(aiProviderKeys)
-    .values({
-      id: "key_gemini_prod",
-      builderId: primaryBuilder.id,
-      providerName: "GEMINI",
-      keyName: "Google Gemini Production",
-      encryptedApiKey: geminiEnc.cipherText,
-      ivVector: geminiEnc.iv,
-      authTag: geminiEnc.authTag,
-      isActive: true,
-    })
-    .returning();
-
-  const [openaiKey] = await db
-    .insert(aiProviderKeys)
-    .values({
-      id: "key_openai_prod",
-      builderId: primaryBuilder.id,
-      providerName: "OPENAI",
-      keyName: "OpenAI GPT-4o Key",
-      encryptedApiKey: openaiEnc.cipherText,
-      ivVector: openaiEnc.iv,
-      authTag: openaiEnc.authTag,
-      isActive: true,
-    })
-    .returning();
-
-  await db.insert(aiAppConfigs).values([
-    {
-      id: "cfg_fastmail_summary",
-      appId: "app_fastmail_ai",
-      providerKeyId: geminiKey.id,
-      modelAlias: "fastmail-summary",
-      targetModelName: "gemini-1.5-flash",
-      maxRequestsPerMin: 30,
-      dailyTokenLimit: 250000,
-      monthlyBudgetIdr: 500000,
-    },
-    {
-      id: "cfg_autoreels_script",
-      appId: "app_autoreels_ai",
-      providerKeyId: openaiKey.id,
-      modelAlias: "autoreels-generator",
-      targetModelName: "gpt-4o-mini",
-      maxRequestsPerMin: 20,
-      dailyTokenLimit: 500000,
-      monthlyBudgetIdr: 1000000,
-    },
-  ]);
-
-  await db.insert(aiVaultCredentials).values(
-    AI_VAULT.map((v) => {
-      const enc = v.provider === "gemini" ? geminiEnc : openaiEnc;
-      return {
-        appId: v.appId,
-        provider: v.provider,
-        encryptedApiKey: enc.cipherText,
-        iv: enc.iv,
-        authTag: enc.authTag,
-        monthlyBudgetLimit: v.budget,
-        currentMonthlyUsage: v.usage,
-        isKillSwitchActive: false,
-      };
-    })
-  );
-
-  await db.insert(aiProxyLogs).values(
-    AI_LOGS.map((l) => ({
-      appId: l.appId,
-      licenseKey: l.licenseKey,
-      provider: l.provider,
-      model: l.model,
-      promptTokens: l.prompt,
-      completionTokens: l.completion,
-      totalTokens: l.prompt + l.completion,
-      latencyMs: l.latency,
-      createdAt: new Date(Date.now() - l.agoMin * 60 * 1000),
-    }))
-  );
-
-  await db.insert(aiUsageLogs).values([
-    {
-      id: "log_usage_fastmail_01",
-      licenseId: "lic_fastmail_04",
-      appId: "app_fastmail_ai",
-      modelAlias: "fastmail-summary",
-      promptTokens: 340,
-      completionTokens: 120,
-      totalTokens: 460,
-      responseTimeMs: 38,
-      createdAt: new Date(Date.now() - 35 * 60 * 1000),
-    },
-    {
-      id: "log_usage_autoreels_01",
-      licenseId: "lic_reels_02",
-      appId: "app_autoreels_ai",
-      modelAlias: "autoreels-generator",
-      promptTokens: 520,
-      completionTokens: 280,
-      totalTokens: 800,
-      responseTimeMs: 44,
-      createdAt: new Date(Date.now() - 15 * 60 * 1000),
-    },
-  ]);
-  console.log("✅ Kredensial AI Vault, Model Configs, & Log Penggunaan Token tersimpan.");
 
   // 17. Platform Settings & Payment Gateway Sandbox Credentials
   await ensurePlatformSettings();

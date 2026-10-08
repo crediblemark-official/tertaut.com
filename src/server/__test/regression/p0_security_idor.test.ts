@@ -177,25 +177,6 @@ describe("P0 Security & IDOR Regression Tests", () => {
     expect(body.error).toContain("Forbidden");
   });
 
-  it("IDOR-4: Builder B TIDAK boleh menyimpan/mengakses kredensial AI Vault milik App A (403)", async () => {
-    const res = await app.handle(
-      new Request("http://localhost:8081/api/v1/ai-proxy/vault", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          cookie: cookieB,
-        },
-        body: JSON.stringify({
-          appId: appA.id,
-          provider: "openai",
-          rawApiKey: "sk-proj-stolen-key",
-        }),
-      })
-    );
-
-    expect(res.status).toBe(403);
-  });
-
   it("IDOR-5: Builder B TIDAK boleh membuat atau menghapus kupon untuk App A (403)", async () => {
     // Coba create kupon
     const createRes = await app.handle(

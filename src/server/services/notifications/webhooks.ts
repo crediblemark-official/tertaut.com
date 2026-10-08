@@ -4,13 +4,15 @@ import { webhookEndpoints, webhookDeliveries, apps } from "../../db/schema";
 import { eq, and, inArray, lte } from "drizzle-orm";
 import { config } from "../../config";
 import type { License } from "../../db/schema/licenses";
-import type { App } from "../../db/schema/apps";
+import type { App } from "../../db/schema/projects";
 
 /**
  * Daftar peristiwa lifecycle lisensi yang dikirimkan ke webhook builder.
  * `credits.insufficient` dikirim saat debit kredit gagal (saldo tidak cukup).
  */
 export const WEBHOOK_EVENTS = [
+  "payment.success",
+  "payment.failed",
   "license.issued",
   "license.activated",
   "license.deactivated",
@@ -95,6 +97,75 @@ export class WebhookService {
     } catch (err: any) {
       // Webhook tidak boleh mengganggu jalur kritis (best-effort).
       console.error("[Webhook] gagal mengantre event:", err?.message || err);
+      return 0;
+    }
+  }
+
+  /**
+   * Antrekan event transaksi pembayaran ke endpoint builder
+   */
+  static async emitPayment(
+    event: "payment.success" | "payment.failed",
+    ctx: {
+      transaction: any;
+      app?: App | null;
+      payload?: Record<string, any>;
+    }
+  ): Promise<number> {
+    try {
+      const app =
+        ctx.app || (await db.query.apps.findFirst({ where: eq(apps.id, ctx.transaction.appId) }));
+      if (!app) return 0;
+
+      const rawPayload: Record<string, any> = {
+        event,
+        timestamp: new Date().toISOString(),
+        data: {
+          transactionId: ctx.transaction.id,
+          appId: app.id,
+          appName: app.name,
+          orderId: ctx.transaction.externalId || ctx.transaction.id,
+          amount: ctx.transaction.grossAmount,
+          netAmount: ctx.transaction.netAmount,
+          platformFee: ctx.transaction.platformFee,
+          paymentChannel: ctx.transaction.paymentChannel || "QRIS",
+          customerEmail: ctx.transaction.customerEmail,
+          customerName: ctx.transaction.customerName || undefined,
+          metadata: ctx.transaction.metadata || undefined,
+          status: ctx.transaction.paymentStatus,
+          paidAt: ctx.transaction.paidAt,
+          ...(ctx.payload || {}),
+        },
+      };
+
+      const endpoints = await db.query.webhookEndpoints.findMany({
+        where: eq(webhookEndpoints.builderId, app.builderId),
+      });
+
+      const rawBody = JSON.stringify(rawPayload);
+      let queued = 0;
+
+      for (const endpoint of endpoints) {
+        if (!endpoint.isActive) continue;
+        if (endpoint.events.length > 0 && !endpoint.events.includes(event)) continue;
+
+        const signature = this.sign(endpoint.secret, rawBody);
+        await db.insert(webhookDeliveries).values({
+          id: `whd_${randomBytes(8).toString("hex")}`,
+          endpointId: endpoint.id,
+          event,
+          payload: rawPayload,
+          signature,
+          status: "PENDING",
+          attempts: 0,
+          nextRetryAt: new Date(),
+        });
+        queued += 1;
+      }
+
+      return queued;
+    } catch (err: any) {
+      console.error("[Webhook] gagal mengantre event payment:", err?.message || err);
       return 0;
     }
   }
@@ -249,6 +320,50 @@ export class WebhookService {
       .where(and(eq(webhookEndpoints.id, endpointId), eq(webhookEndpoints.builderId, builderId)))
       .returning();
     return updated || null;
+  }
+
+  static async listDeliveries(builderId: string, limit = 50) {
+    const endpoints = await db.query.webhookEndpoints.findMany({
+      where: eq(webhookEndpoints.builderId, builderId),
+    });
+    if (endpoints.length === 0) return [];
+    const endpointIds = endpoints.map((e) => e.id);
+    return db.query.webhookDeliveries.findMany({
+      where: inArray(webhookDeliveries.endpointId, endpointIds),
+      orderBy: (d, { desc }) => [desc(d.createdAt)],
+      limit,
+    });
+  }
+
+  static async retryDelivery(builderId: string, deliveryId: string) {
+    const delivery = await db.query.webhookDeliveries.findFirst({
+      where: eq(webhookDeliveries.id, deliveryId),
+    });
+    if (!delivery || !delivery.endpointId) return { ok: false, error: "Delivery not found" };
+
+    const endpoint = await db.query.webhookEndpoints.findFirst({
+      where: and(
+        eq(webhookEndpoints.id, delivery.endpointId),
+        eq(webhookEndpoints.builderId, builderId)
+      ),
+    });
+    if (!endpoint) return { ok: false, error: "Forbidden: Not your endpoint" };
+
+    await db
+      .update(webhookDeliveries)
+      .set({
+        status: "PENDING",
+        nextRetryAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(webhookDeliveries.id, deliveryId));
+
+    await this.dispatchDue();
+
+    const refreshed = await db.query.webhookDeliveries.findFirst({
+      where: eq(webhookDeliveries.id, deliveryId),
+    });
+    return { ok: true, delivery: refreshed };
   }
 
   private static generateSecret(): string {

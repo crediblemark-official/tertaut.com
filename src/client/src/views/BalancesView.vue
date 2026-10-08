@@ -14,6 +14,7 @@ import {
   Landmark,
   CheckCircle2,
   ArrowDownLeft,
+  Wallet,
 } from "lucide-vue-next";
 import TableSkeleton from "../components/common/TableSkeleton.vue";
 
@@ -233,7 +234,7 @@ function formatDate(dateStr?: string | null): string {
       class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-0"
     >
       <div class="flex items-center gap-2">
-        <h1 class="text-xs font-bold uppercase tracking-wider text-white">Balances</h1>
+        <Wallet class="w-3.5 h-3.5 text-gold shrink-0" />
         <span
           class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
         >

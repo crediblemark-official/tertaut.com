@@ -20,18 +20,21 @@ async function sendLicenseIssuedEmail(result: any): Promise<void> {
         }
       : undefined;
 
+    const isLicenseKeyEnabled = delivery?.licenseKey?.enabled !== false;
+
     await EmailService.sendLicenseIssued({
       to: result.customerEmail,
-      appName: app?.name || "Lisensi",
+      appName: app?.name || "Produk Digital",
       licenseKey: result.licenseKey,
       expiresAt: result.expiresAt,
       deliveryDetails: delivery
         ? {
+            licenseKeyEnabled: isLicenseKeyEnabled,
             fileDownload: delivery.fileDownload?.enabled ? delivery.fileDownload : undefined,
             privateNote: delivery.privateNote?.enabled ? delivery.privateNote : undefined,
             apiAccess: apiAccessConfig,
           }
-        : undefined,
+        : { licenseKeyEnabled: true },
     });
   } catch (err: any) {
     // Pengiriman email tidak boleh menggagalkan fulfillment pembayaran.
@@ -79,6 +82,9 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
 
       // Baca konfigurasi delivery produk untuk seat dan durasi
       const app = await trx.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
+      const isSaasWeb = app?.appType === "saas_web";
+      const shouldIssueLicense = !(isSaasWeb && app?.deliveryConfig?.licenseKey?.enabled === false);
+
       const productGrantDays = app?.deliveryConfig?.licenseKey?.expiresInDays;
       const grantDays =
         typeof productGrantDays === "number" && productGrantDays > 0
@@ -87,56 +93,61 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
       const expiresAt = new Date(now.getTime() + grantDays * 24 * 60 * 60 * 1000);
       const maxSeats = app?.deliveryConfig?.licenseKey?.maxSeats ?? 3;
 
-      // Generate Universal License Key (Modul 3 Integration)
-      const licenseKey = LicenseService.generateLicenseKey();
-      const features = app?.deliveryConfig?.licenseKey?.defaultFeatures || {};
-      const offlineToken = LicenseService.createOfflineGraceToken(
-        licenseKey,
-        tx.appId,
-        null,
-        tx.customerEmail,
-        maxSeats,
-        features
-      );
-
-      // P4 & P5: Generate auto-provisioned API key jika apiAccess aktif
+      let licenseKey: string | null = null;
+      let licId: string | null = null;
       let generatedApiKey: string | undefined = undefined;
-      if (app?.deliveryConfig?.apiAccess?.enabled) {
-        generatedApiKey = `tt_cust_${randomBytes(16).toString("hex")}`;
-      }
-
-      const licId = `lic_${randomBytes(8).toString("hex")}`;
-      await trx.insert(licenses).values({
-        id: licId,
-        appId: tx.appId,
-        transactionId: tx.id,
-        licenseKey,
-        customerEmail: tx.customerEmail,
-        status: "ACTIVE",
-        licenseVersion: 1,
-        features,
-        maxSeats,
-        expiresAt,
-        offlineJwtGraceToken: offlineToken,
-        apiKey: generatedApiKey,
-      });
-
-      // Tambahkan kredit lisensi (jika paket membawa grantCredits) ke ledger.
       const grantedCredits = tx.grantCredits || 0;
       let creditBalance = 0;
-      if (grantedCredits > 0) {
-        creditBalance = await CreditService.grant(
-          { licenseId: licId, appId: tx.appId, customerEmail: tx.customerEmail },
-          grantedCredits,
-          {
-            reference: tx.id,
-            description: `Pembelian paket (${tx.id})`,
-            executor: trx,
-          }
+
+      if (shouldIssueLicense) {
+        // Generate Universal License Key (Modul 3 Integration)
+        licenseKey = LicenseService.generateLicenseKey();
+        const features = app?.deliveryConfig?.licenseKey?.defaultFeatures || {};
+        const offlineToken = LicenseService.createOfflineGraceToken(
+          licenseKey,
+          tx.appId,
+          null,
+          tx.customerEmail,
+          maxSeats,
+          features
         );
+
+        // P4 & P5: Generate auto-provisioned API key jika apiAccess aktif
+        if (app?.deliveryConfig?.apiAccess?.enabled) {
+          generatedApiKey = `tt_cust_${randomBytes(16).toString("hex")}`;
+        }
+
+        licId = `lic_${randomBytes(8).toString("hex")}`;
+        await trx.insert(licenses).values({
+          id: licId,
+          appId: tx.appId,
+          transactionId: tx.id,
+          licenseKey,
+          customerEmail: tx.customerEmail,
+          status: "ACTIVE",
+          licenseVersion: 1,
+          features,
+          maxSeats,
+          expiresAt,
+          offlineJwtGraceToken: offlineToken,
+          apiKey: generatedApiKey,
+        });
+
+        // Tambahkan kredit lisensi (jika paket membawa grantCredits) ke ledger.
+        if (grantedCredits > 0) {
+          creditBalance = await CreditService.grant(
+            { licenseId: licId, appId: tx.appId, customerEmail: tx.customerEmail },
+            grantedCredits,
+            {
+              reference: tx.id,
+              description: `Pembelian paket (${tx.id})`,
+              executor: trx,
+            }
+          );
+        }
       }
 
-      const maskedKey = licenseKey ? `${licenseKey.slice(0, 4)}****` : "N/A";
+      const maskedKey = licenseKey ? `${licenseKey.slice(0, 4)}****` : "N/A (SaaS Web)";
       console.log(`[Webhook] Payment confirmed for TX: ${tx.id}, License issued: ${maskedKey}`);
 
       return {
@@ -165,6 +176,17 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         customerEmail: tx.customerEmail,
         paymentChannel,
       }).catch(() => null);
+
+      // Emit Webhook payment.success untuk integrasi developer SaaS
+      await WebhookService.emitPayment("payment.success", {
+        transaction: {
+          ...tx,
+          paymentChannel,
+          paymentStatus: "PAID",
+          paidAt: now,
+        },
+        app,
+      });
 
       // BUG B1: lisensi hasil pembayaran (jalur revenue utama) harus memicu
       // webhook license.issued + audit — konsisten dengan LicenseService.issueDirect.
