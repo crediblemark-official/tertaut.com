@@ -28,6 +28,24 @@ export async function handleSandboxPaymentWebhook({ body, set }: any) {
       return { success: false, error: "Transaksi sandbox tidak ditemukan" };
     }
 
+    // PROTEKSI KEAMANAN (BUG-5):
+    // Pastikan transaksi BENAR-BENAR ber-mode sandbox.
+    // Transaksi riil (live) mutlak dilarang dilunasi melalui webhook simulasi sandbox!
+    const isSandboxTx =
+      tx.paymentProvider === "sandbox" ||
+      Boolean(tx.xenditInvoiceId?.startsWith("inv_sandbox_")) ||
+      Boolean(tx.xenditExternalId?.startsWith("sb_")) ||
+      Boolean(tx.xenditExternalId?.startsWith("demo_"));
+
+    if (!isSandboxTx) {
+      set.status = 403;
+      return {
+        success: false,
+        error:
+          "Operasi ditolak: Transaksi ini adalah transaksi LIVE dan tidak dapat disimulasikan.",
+      };
+    }
+
     if (tx.paymentStatus === "PAID") {
       return { success: true, message: "Transaksi sudah lunas sebelumnya" };
     }

@@ -160,6 +160,16 @@ export async function resolveMetadataForPath(pathname: string): Promise<PageMeta
   return STATIC_ROUTE_META["/"];
 }
 
+function escapeHtml(str: string): string {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function injectDynamicSeo(
   html: string,
   meta: PageMeta,
@@ -169,53 +179,58 @@ export function injectDynamicSeo(
     meta.title
   )}&desc=${encodeURIComponent(meta.description)}&badge=${encodeURIComponent(meta.badge)}`;
 
+  const safeTitle = escapeHtml(meta.title);
+  const safeDescription = escapeHtml(meta.description);
+  const safeCanonical = escapeHtml(meta.canonical);
+  const safeOgUrl = escapeHtml(dynamicOgUrl);
+
   let result = html;
 
   // Replace Title
-  result = result.replace(/<title>.*?<\/title>/i, `<title>${meta.title}</title>`);
+  result = result.replace(/<title>.*?<\/title>/i, `<title>${safeTitle}</title>`);
 
   // Replace Description
   result = result.replace(
     /<meta\s+name=["']description["']\s+content=["'][^"']*["']\s*\/?>/i,
-    `<meta name="description" content="${meta.description}" />`
+    `<meta name="description" content="${safeDescription}" />`
   );
 
   // Replace Canonical Link
   result = result.replace(
     /<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/i,
-    `<link rel="canonical" href="${meta.canonical}" />`
+    `<link rel="canonical" href="${safeCanonical}" />`
   );
 
   // Replace Open Graph Title & Description & Image & URL
   result = result.replace(
     /<meta\s+property=["']og:title["']\s+content=["'][^"']*["']\s*\/?>/i,
-    `<meta property="og:title" content="${meta.title}" />`
+    `<meta property="og:title" content="${safeTitle}" />`
   );
   result = result.replace(
     /<meta\s+property=["']og:description["']\s+content=["'][^"']*["']\s*\/?>/i,
-    `<meta property="og:description" content="${meta.description}" />`
+    `<meta property="og:description" content="${safeDescription}" />`
   );
   result = result.replace(
     /<meta\s+property=["']og:url["']\s+content=["'][^"']*["']\s*\/?>/i,
-    `<meta property="og:url" content="${meta.canonical}" />`
+    `<meta property="og:url" content="${safeCanonical}" />`
   );
   result = result.replace(
     /<meta\s+property=["']og:image["']\s+content=["'][^"']*["']\s*\/?>/i,
-    `<meta property="og:image" content="${dynamicOgUrl}" />`
+    `<meta property="og:image" content="${safeOgUrl}" />`
   );
 
   // Replace Twitter Title & Description & Image
   result = result.replace(
     /<meta\s+name=["']twitter:title["']\s+content=["'][^"']*["']\s*\/?>/i,
-    `<meta name="twitter:title" content="${meta.title}" />`
+    `<meta name="twitter:title" content="${safeTitle}" />`
   );
   result = result.replace(
     /<meta\s+name=["']twitter:description["']\s+content=["'][^"']*["']\s*\/?>/i,
-    `<meta name="twitter:description" content="${meta.description}" />`
+    `<meta name="twitter:description" content="${safeDescription}" />`
   );
   result = result.replace(
     /<meta\s+name=["']twitter:image["']\s+content=["'][^"']*["']\s*\/?>/i,
-    `<meta name="twitter:image" content="${dynamicOgUrl}" />`
+    `<meta name="twitter:image" content="${safeOgUrl}" />`
   );
 
   // Jika crawler terdeteksi dan halaman memiliki textual fallback (misal /privacy atau /terms),

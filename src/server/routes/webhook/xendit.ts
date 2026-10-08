@@ -118,6 +118,30 @@ export async function handleXenditInvoiceWebhook({ request, headers, body, set }
     normalizedStatus === "SUCCEEDED" ||
     normalizedStatus === "COMPLETED"
   ) {
+    // Verifikasi nominal pembayaran untuk mencegah pemalsuan/underpayment (BUG-4)
+    const rawAmountValue = body?.paid_amount ?? body?.amount;
+    const amountPresent = rawAmountValue !== undefined;
+    const paidAmount = Number.isFinite(Number(rawAmountValue))
+      ? Math.round(Number(rawAmountValue))
+      : NaN;
+
+    if (
+      tx.paymentStatus === "PENDING" &&
+      (!amountPresent || !Number.isFinite(paidAmount) || paidAmount !== tx.grossAmount)
+    ) {
+      console.warn(
+        `[XenditWebhook] Amount mismatch: received=${paidAmount} vs expected=${tx.grossAmount} (tx: ${tx.id}, external_id: ${externalId}) — callback ditolak demi keamanan.`
+      );
+      return {
+        success: false,
+        status: "error",
+        message: "AMOUNT_MISMATCH",
+        transactionId: tx.id,
+        expected: tx.grossAmount,
+        received: paidAmount,
+      };
+    }
+
     const channel = payment_method || payment_channel || "XENDIT";
     const result = await fulfillPaymentTransaction(tx, channel);
     return { success: result.status === "success", ...result };
