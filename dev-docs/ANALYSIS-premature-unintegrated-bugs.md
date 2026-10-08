@@ -311,13 +311,13 @@ export interface WebhookEndpointItem {
 
 ### Prioritas Tinggi (Short-term)
 
-9. Implement CSRF protection
+9. Implement CSRF protection (cookie auth saat ini dilindungi `sameSite: "lax"`, origin validation, dan CORS dynamic anchor)
 10. **[SELESAI] Add security headers** - HSTS, nosniff, Referrer-Policy, dan X-Frame-Options aktif di seluruh response (`src/server/index.ts`)
 11. **[SUDAH ADA] Add database indexes** - Index composite `transactions`, foreign keys, dan rate limiter sudah terpasang
-12. Implement graceful shutdown
-13. Add request ID tracing
-14. Standardize error responses
-15. Add proper transaction handling
+12. **[SELESAI] Implement graceful shutdown** - Handler `SIGINT`/`SIGTERM` membersihkan timer interval, menghentikan server, dan mengakhiri pool PostgreSQL (`src/server/index.ts`)
+13. **[SELESAI] Add request ID tracing** - Header `X-Request-Id` digenerate / dipropagasi otomatis pada setiap response (`src/server/index.ts`)
+14. **[SUDAH ADA] Standardize error responses** - Error handler global Elysia memformat seragam `{ error: { code, message } }` (`src/server/index.ts`)
+15. **[SUDAH ADA] Add proper transaction handling** - Proteksi rollback dan kuota kupon atomik aktif di alur checkout (`src/server/routes/checkout/session.ts`)
 
 ### Prioritas Sedang (Medium-term)
 
