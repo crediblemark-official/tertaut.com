@@ -44,6 +44,11 @@ const BASE_PLATFORM_SETTINGS: Array<{ key: string; value: string; description: s
     value: "hosted",
     description: "Mode checkout default (custom/hosted)",
   },
+  {
+    key: "active_payment_gateway",
+    value: "xendit",
+    description: "Payment gateway aktif default (xendit; opsional: dana, xenithpay, sandbox)",
+  },
 ];
 
 /** Deskripsi kolom kredensial, ditulis dari nama gateway di registry. */
@@ -123,12 +128,37 @@ export async function ensurePlatformSettings(): Promise<void> {
     const envGateway = normalizeGatewayId(
       process.env.ACTIVE_PAYMENT_GATEWAY || process.env.PAYMENT_GATEWAY
     );
+    const { eq } = await import("drizzle-orm");
     if (envGateway && (GATEWAY_IDS as readonly string[]).includes(envGateway)) {
-      const { eq } = await import("drizzle-orm");
       await db
-        .update(platformSettings)
-        .set({ value: envGateway })
-        .where(eq(platformSettings.key, "active_payment_gateway"));
+        .insert(platformSettings)
+        .values({
+          key: "active_payment_gateway",
+          value: envGateway,
+          description: "Payment gateway aktif default (xendit; opsional: dana, xenithpay, sandbox)",
+        })
+        .onConflictDoUpdate({
+          target: platformSettings.key,
+          set: { value: envGateway },
+        });
+    } else {
+      const existing = await db.query.platformSettings.findFirst({
+        where: eq(platformSettings.key, "active_payment_gateway"),
+      });
+      if (!existing || !existing.value) {
+        await db
+          .insert(platformSettings)
+          .values({
+            key: "active_payment_gateway",
+            value: "xendit",
+            description:
+              "Payment gateway aktif default (xendit; opsional: dana, xenithpay, sandbox)",
+          })
+          .onConflictDoUpdate({
+            target: platformSettings.key,
+            set: { value: "xendit" },
+          });
+      }
     }
   } catch (err: any) {
     console.warn("[Settings] Gagal memastikan default platform settings:", err?.message || err);

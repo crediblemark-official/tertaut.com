@@ -12,21 +12,21 @@
  * adapter-nya). Tipe `GatewayId` ikut menyempit sendiri.
  */
 
-/** Id gateway yang terdaftar. Hapus satu baris untuk mencabut satu gateway. */
-export const GATEWAY_IDS = ["dana", "xendit", "xenithpay", "sandbox"] as const;
+/** Id gateway yang terdaftar. Xendit adalah gateway default; DANA dan XenithPay adalah opsional. */
+export const GATEWAY_IDS = ["xendit", "dana", "xenithpay", "sandbox"] as const;
 
 export type GatewayId = (typeof GATEWAY_IDS)[number];
 
 /** Alias yang diterima untuk menunjuk gateway tertentu. */
 const GATEWAY_ALIASES: Record<string, GatewayId> = {
-  dana: "dana",
   xendit: "xendit",
+  dana: "dana",
   xenith: "xenithpay",
   xenithpay: "xenithpay",
   sandbox: "sandbox",
 };
 
-export const DEFAULT_GATEWAY_ID: GatewayId = GATEWAY_IDS[0];
+export const DEFAULT_GATEWAY_ID: GatewayId = "xendit";
 
 /**
  * Metadata gateway yang dibutuhkan logika bisnis, supaya tidak lagi bercabang

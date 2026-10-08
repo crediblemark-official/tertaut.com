@@ -134,7 +134,7 @@ import { app } from "../index";
  * Test yang butuh gateway lain (mis. 25_multi_gateway_xendit) menimpanya sendiri
  * setelah hook ini berjalan, jadi keduanya tetap ter-cover.
  */
-const FALLBACK_TEST_GATEWAY: GatewayId = DEFAULT_GATEWAY_ID;
+const FALLBACK_TEST_GATEWAY: GatewayId = "dana";
 
 function resolveTestGateway(): GatewayId {
   // Hanya `TERTAUT_TEST_GATEWAY` yang dihormati (bukan ACTIVE_PAYMENT_GATEWAY /
