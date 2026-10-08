@@ -2,13 +2,14 @@ import { db } from "../../db";
 import { transactions } from "../../db/schema";
 import { eq, or } from "drizzle-orm";
 import { fulfillPaymentTransaction } from "./fulfill";
+import type { WebhookSimpleContext } from "./types";
 
 /**
  * Webhook callback handler untuk simulasi pembayaran internal Tertaut Sandbox.
  * Endpoint ini memungkinkan sistem eksternal atau test runner memicu pelunasan
  * transaksi sandbox tanpa uang riil.
  */
-export async function handleSandboxPaymentWebhook({ body, set }: any) {
+export async function handleSandboxPaymentWebhook({ body, set }: WebhookSimpleContext) {
   try {
     const transactionId = body?.transactionId || body?.id || body?.externalId;
     if (!transactionId) {

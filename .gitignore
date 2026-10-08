@@ -60,4 +60,5 @@ coverage/
 .vitepress/cache/
 docs/.vitepress/cache/
 scripts/dana-uat/
-
+*.xlsx
+mcp-config.json

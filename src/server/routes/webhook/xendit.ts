@@ -4,11 +4,12 @@ import { eq, and, inArray } from "drizzle-orm";
 import { XenditService } from "../../services/payments/xendit";
 import { enforceRateLimit } from "../../services/security/rateLimiter";
 import { fulfillPaymentTransaction } from "./fulfill";
+import type { WebhookContext, WebhookHeaderContext } from "./types";
 
 /**
  * Handler untuk Xendit Invoice webhook (Idempotent & Secured via x-callback-token)
  */
-export async function handleXenditInvoiceWebhook({ request, headers, body, set }: any) {
+export async function handleXenditInvoiceWebhook({ request, headers, body, set }: WebhookContext) {
   const rl = enforceRateLimit(request, "webhook:xendit", 120, 60_000);
   if (!rl.allowed) {
     set.status = 429;
@@ -176,7 +177,11 @@ export async function handleXenditInvoiceWebhook({ request, headers, body, set }
   return { received: true, status: normalizedStatus };
 }
 
-export async function handleXenditDisbursementWebhook({ headers, body, set }: any) {
+export async function handleXenditDisbursementWebhook({
+  headers,
+  body,
+  set,
+}: WebhookHeaderContext) {
   const callbackToken =
     headers["x-callback-token"] ||
     headers["X-CALLBACK-TOKEN"] ||

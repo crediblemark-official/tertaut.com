@@ -5,11 +5,17 @@ import { DanaService } from "../../services/payments/dana/dana";
 import { config } from "../../config";
 import { enforceRateLimit } from "../../services/security/rateLimiter";
 import { fulfillPaymentTransaction } from "./fulfill";
+import type { WebhookContext } from "./types";
 
 /**
  * Handler untuk DANA Finish Notify API (Finish Payment URL)
  */
-export async function handleDanaFinishPaymentWebhook({ request, headers, body, set }: any) {
+export async function handleDanaFinishPaymentWebhook({
+  request,
+  headers,
+  body,
+  set,
+}: WebhookContext) {
   const rl = enforceRateLimit(request, "webhook:dana:finish", 120, 60_000);
   if (!rl.allowed) {
     set.status = 429;
@@ -217,7 +223,12 @@ export async function handleDanaFinishPaymentWebhook({ request, headers, body, s
 /**
  * Handler untuk DANA Disburse to Bank Notify API
  */
-export async function handleDanaDisburseNotifyWebhook({ request, headers, body, set }: any) {
+export async function handleDanaDisburseNotifyWebhook({
+  request,
+  headers,
+  body,
+  set,
+}: WebhookContext) {
   const rl = enforceRateLimit(request, "webhook:dana:disburse", 120, 60_000);
   if (!rl.allowed) {
     set.status = 429;

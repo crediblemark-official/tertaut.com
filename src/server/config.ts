@@ -27,6 +27,9 @@ const isTest = nodeEnv === "test";
 
 const DEFAULT_JWT_SECRET = "tertaut_default_jwt_secret_change_me_in_production";
 
+/** Persentase fee potongan Merchant of Record resmi (5% platform, 95% net builder). */
+export const PLATFORM_FEE_PERCENT = 5;
+
 /**
  * Secret kritis hanya boleh berasal dari environment (.env / process.env).
  * Default fallback publik hanya dipakai di development; di production startup
@@ -424,14 +427,14 @@ export const config = {
           resolveKeyOrFile("DANA_PRIVATE_KEY", "keys/dana_production_private.pem") ||
           (isTest ? cleanPemKey(DEFAULT_TEST_SANDBOX_PRIVATE_KEY) : "")
         : resolveKeyOrFile("DANA_PRIVATE_KEY", "keys/dana_production_private.pem"),
-      platformFeePercent: 5, // 5% Merchant of Record platform fee
+      platformFeePercent: PLATFORM_FEE_PERCENT,
     };
   })(),
 
   xendit: {
     secretKey: getEnv("XENDIT_SECRET_KEY"),
     webhookToken: getEnv("XENDIT_WEBHOOK_VERIFICATION_TOKEN") || getEnv("XENDIT_WEBHOOK_TOKEN"),
-    platformFeePercent: 5,
+    platformFeePercent: PLATFORM_FEE_PERCENT,
   },
 
   xenithpay: {
@@ -442,7 +445,7 @@ export const config = {
     sandboxAccessKey: getEnv("XENITHPAY_SANDBOX_ACCESS_KEY"),
     sandboxSecretKey: getEnv("XENITHPAY_SANDBOX_SECRET_KEY"),
     sandboxWebhookSecret: getEnv("XENITHPAY_SANDBOX_WEBHOOK_SECRET"),
-    platformFeePercent: 5,
+    platformFeePercent: PLATFORM_FEE_PERCENT,
   },
 
   admin: {

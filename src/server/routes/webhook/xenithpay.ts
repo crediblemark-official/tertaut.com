@@ -13,6 +13,7 @@ import { transactions } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { enforceRateLimit } from "../../services/security/rateLimiter";
 import { fulfillPaymentTransaction } from "./fulfill";
+import type { WebhookContext } from "./types";
 
 /**
  * Handler untuk XenithPay Payment & Payout callback.
@@ -21,7 +22,7 @@ import { fulfillPaymentTransaction } from "./fulfill";
  * (`xenithpayGateway.verifyWebhook`); path ikut menjadi bagian dari signature,
  * jadi callback payout dibedakan dari payment callback lewat `isPayout`.
  */
-export async function handleXenithPayWebhook({ request, headers, body, set }: any) {
+export async function handleXenithPayWebhook({ request, headers, body, set }: WebhookContext) {
   const rl = enforceRateLimit(request, "webhook:xenithpay", 120, 60_000);
   if (!rl.allowed) {
     set.status = 429;
