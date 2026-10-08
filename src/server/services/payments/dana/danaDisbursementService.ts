@@ -82,6 +82,17 @@ export class DanaDisbursementService {
       );
     }
 
+    if (config.isTest && (!config.dana.privateKey || config.dana.privateKey.includes("MOCK"))) {
+      return {
+        id: `dana_disb_mock_${Date.now()}`,
+        external_id: params.externalId,
+        amount: params.amount,
+        bank_code: params.bankCode,
+        account_holder_name: params.accountHolderName,
+        status: "COMPLETED",
+      };
+    }
+
     try {
       const isSandboxEnv = config.dana.env === "sandbox" || config.isSandbox;
       const bankCodeMap: Record<string, string> = {

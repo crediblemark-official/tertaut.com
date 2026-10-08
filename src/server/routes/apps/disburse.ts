@@ -50,11 +50,7 @@ export async function handleDisburse({
     return { error: "Pencairan sudah selesai atau sedang dalam proses" };
   }
 
-  // Di test kita kunci ke gateway default agar deterministik; nama gateway
-  // diambil dari registry, bukan ditulis literal.
-  const gateway = config.isTest
-    ? (await import("../../services/payments/gateways")).getPaymentGateway(DEFAULT_GATEWAY_ID)
-    : await getActiveGateway();
+  const gateway = await getActiveGateway();
 
   // Hanya gateway yang mendeklarasikan `sandboxPayoutAccountNumber` yang
   // mengizinkan pencairan dari aplikasi mode sandbox (XenithPay punya simulasi

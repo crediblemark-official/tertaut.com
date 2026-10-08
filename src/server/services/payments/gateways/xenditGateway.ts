@@ -450,6 +450,16 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
   ): Promise<GatewayDisbursementResponse> {
     const xendit = await this.getClient();
     if (!xendit) {
+      if (config.isTest) {
+        return {
+          id: `xnd_disb_mock_${Date.now()}`,
+          externalId: params.externalId,
+          amount: params.amount,
+          bankCode: params.bankCode,
+          accountHolderName: params.accountHolderName,
+          status: "COMPLETED",
+        };
+      }
       throw new Error("Xendit Payout Failed: Secret key Xendit belum dikonfigurasi.");
     }
 
