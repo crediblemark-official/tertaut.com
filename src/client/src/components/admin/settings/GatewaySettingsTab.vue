@@ -489,11 +489,11 @@ function copyXenithWebhookUrl() {
                   <span>🏦 Virtual Account</span>
                   <span
                     class="text-[9px] px-1.5 py-0.2 rounded bg-blue-200 text-blue-800 font-extrabold uppercase"
-                    >7 Bank</span
+                    >6 Bank</span
                   >
                 </div>
                 <div class="text-[10px] text-blue-700/80 pt-0.5">
-                  BCA, Mandiri, BRI, BNI, BSI...
+                  Mandiri, BRI, BNI, Permata, BSI, CIMB
                 </div>
               </div>
               <Check class="w-4 h-4 text-blue-600 shrink-0" />
@@ -501,20 +501,34 @@ function copyXenithWebhookUrl() {
 
             <!-- Retail Card -->
             <div
-              class="p-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 flex items-center justify-between"
+              class="p-2.5 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-between"
             >
               <div>
-                <div class="font-bold text-amber-950 flex items-center gap-1">
+                <div class="font-bold text-slate-800 flex items-center gap-1">
                   <span>🏪 Minimarket</span>
                   <span
-                    class="text-[9px] px-1.5 py-0.2 rounded bg-amber-200 text-amber-800 font-extrabold uppercase"
-                    >2 Gerai</span
+                    class="text-[9px] px-1.5 py-0.2 rounded bg-slate-200 text-slate-600 font-extrabold uppercase"
+                    >Nonaktif</span
                   >
                 </div>
-                <div class="text-[10px] text-amber-700/80 pt-0.5">Alfamart &amp; Indomaret</div>
+                <div class="text-[10px] text-slate-500 pt-0.5">
+                  Alfamart &amp; Indomaret belum diajukan
+                </div>
               </div>
-              <Check class="w-4 h-4 text-amber-600 shrink-0" />
+              <span class="text-[11px] text-slate-400 font-medium shrink-0">—</span>
             </div>
+          </div>
+
+          <!-- BCA Payment Tip -->
+          <div
+            class="p-2.5 rounded-lg bg-blue-50 border border-blue-200/80 text-[11px] text-blue-900 leading-relaxed flex items-start gap-2"
+          >
+            <span class="text-blue-600 font-bold shrink-0">💡 Info Nasabah BCA:</span>
+            <span
+              >BCA VA memerlukan aktivasi add-on merchant khusus di BCA. Nasabah Bank BCA dapat
+              membayar langsung tanpa biaya admin melalui <strong>QRIS Instan</strong> (bisa di-scan
+              dari BCA Mobile, myBCA, atau Blu BCA).</span
+            >
           </div>
 
           <div

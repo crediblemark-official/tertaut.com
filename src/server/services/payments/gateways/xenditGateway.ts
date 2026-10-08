@@ -320,14 +320,20 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
       .filter((c) => c.channelCategory === "VIRTUAL_ACCOUNT" && c.isEnabled)
       .map((c) => c.channelCode);
     if (activeBanks.length === 0 && vaSettingVal !== "false") {
-      activeBanks = ["BCA", "MANDIRI", "BNI", "BRI", "PERMATA", "BSI", "CIMB"];
+      // Pada Xendit Indonesia: Mandiri, BNI, BRI, Permata, BSI, dan CIMB aktif langsung.
+      // BCA membutuhkan perjanjian & aktivasi merchant BCA khusus ke Xendit (BANK_NOT_ACTIVATED_ERROR).
+      // Nasabah BCA dapat membayar secara instan dan bebas biaya admin melalui QRIS Instan (BCA Mobile/myBCA/Blu).
+      const isProd = secretKey.startsWith("xnd_production_");
+      activeBanks = isProd
+        ? ["MANDIRI", "BNI", "BRI", "PERMATA", "BSI", "CIMB"]
+        : ["BCA", "MANDIRI", "BNI", "BRI", "PERMATA", "BSI", "CIMB"];
     }
 
     // 3. Evaluasi Retail Outlet:
     let activeRetails: string[] = channels
       .filter((c) => c.channelCategory === "RETAIL_OUTLET" && c.isEnabled)
       .map((c) => c.channelCode);
-    if (activeRetails.length === 0 && retailSettingVal !== "false") {
+    if (activeRetails.length === 0 && retailSettingVal === "true") {
       activeRetails = ["ALFAMART", "INDOMARET"];
     }
 
