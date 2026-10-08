@@ -551,6 +551,7 @@ export async function handleGetInvoiceData({ params, query, request, set }: any)
       },
       buyer: {
         email: tx.customerEmail,
+        name: tx.customerName || undefined,
       },
       item: {
         name: app?.name || tx.appId,
@@ -576,6 +577,7 @@ export async function handleGetInvoiceData({ params, query, request, set }: any)
         createdAt: tx.createdAt.toISOString(),
       },
       licenseKey: license?.licenseKey || null,
+      metadata: (tx.metadata as Record<string, unknown> | null) || null,
       verificationUrl: `${resolveRequestOrigin(request)}/invoice/${tx.id}?ticket=${ticket || ""}`,
     },
   };

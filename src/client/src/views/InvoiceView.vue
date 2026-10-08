@@ -206,7 +206,18 @@ onMounted(() => {
           <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"
             >Ditagihkan Kepada (Pembeli)</span
           >
-          <div class="font-bold text-black text-sm">{{ invoice.buyer.email }}</div>
+          <div v-if="invoice.buyer.name" class="font-bold text-black text-sm">
+            {{ invoice.buyer.name }}
+          </div>
+          <div
+            :class="
+              invoice.buyer.name
+                ? 'text-[11px] font-medium text-slate-600'
+                : 'font-bold text-black text-sm'
+            "
+          >
+            {{ invoice.buyer.email }}
+          </div>
           <div class="text-[11px] text-slate-500">
             Kanal Pembayaran: {{ invoice.payment.channel }}
           </div>
@@ -267,28 +278,53 @@ onMounted(() => {
       <div
         class="flex flex-col sm:flex-row justify-between items-start gap-6 pt-4 border-t border-slate-200"
       >
-        <!-- License Key Highlight Card -->
-        <div
-          v-if="invoice.licenseKey"
-          class="w-full sm:max-w-xs p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5"
-        >
+        <!-- Left Column: License Key & Metadata Cards -->
+        <div class="w-full sm:max-w-xs space-y-3">
+          <!-- License Key Highlight Card -->
           <div
-            class="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider"
+            v-if="invoice.licenseKey"
+            class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5"
           >
-            <span>Kunci Lisensi Anda</span>
-            <button
-              @click="copy(invoice.licenseKey)"
-              class="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 transition cursor-pointer"
+            <div
+              class="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider"
             >
-              <Check v-if="copied" class="w-3 h-3" />
-              <Copy v-else class="w-3 h-3" />
-              <span>{{ copied ? "Tersalin!" : "Salin" }}</span>
-            </button>
+              <span>Kunci Lisensi Anda</span>
+              <button
+                @click="copy(invoice.licenseKey)"
+                class="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 transition cursor-pointer"
+              >
+                <Check v-if="copied" class="w-3 h-3" />
+                <Copy v-else class="w-3 h-3" />
+                <span>{{ copied ? "Tersalin!" : "Salin" }}</span>
+              </button>
+            </div>
+            <div
+              class="font-mono text-xs font-bold text-black bg-white px-2 py-1 rounded border border-slate-200 select-all break-all"
+            >
+              {{ invoice.licenseKey }}
+            </div>
           </div>
+
+          <!-- Metadata / Subscription Detail Card -->
           <div
-            class="font-mono text-xs font-bold text-black bg-white px-2 py-1 rounded border border-slate-200 select-all break-all"
+            v-if="invoice.metadata && Object.keys(invoice.metadata).length > 0"
+            class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs"
           >
-            {{ invoice.licenseKey }}
+            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Metadata / Info Langganan
+            </div>
+            <div class="space-y-1 font-mono text-[11px]">
+              <div
+                v-for="(val, key) in invoice.metadata"
+                :key="key"
+                class="flex items-start justify-between gap-2 border-b border-slate-200/60 last:border-none pb-1 last:pb-0"
+              >
+                <span class="text-slate-500 font-medium">{{ key }}:</span>
+                <span class="font-bold text-slate-800 break-all text-right">{{
+                  typeof val === "object" ? JSON.stringify(val) : val
+                }}</span>
+              </div>
+            </div>
           </div>
         </div>
 
