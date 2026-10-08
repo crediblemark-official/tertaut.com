@@ -121,6 +121,27 @@ export const app = new Elysia()
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     })
   )
+  // HTTP Security Headers
+  .onAfterHandle(({ request, set }) => {
+    set.headers["X-Content-Type-Options"] = "nosniff";
+    set.headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    set.headers["X-XSS-Protection"] = "0";
+
+    const url = request?.url ? new URL(request.url) : null;
+    const isEmbedPath =
+      url &&
+      (url.pathname.includes("/embed.js") ||
+        url.pathname.startsWith("/api/v1/badge") ||
+        url.pathname.startsWith("/badge"));
+
+    if (!isEmbedPath) {
+      set.headers["X-Frame-Options"] = "SAMEORIGIN";
+    }
+
+    if (config.isProd) {
+      set.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload";
+    }
+  })
 
   // Interactive Swagger / OpenAPI Documentation
   .use(
