@@ -159,17 +159,6 @@ const categorizedNav = computed(() => {
         <ExternalLink class="w-3 h-3 text-jetblack/40" />
       </router-link>
 
-      <!-- Engine Rail Info -->
-      <div class="p-2.5 rounded-lg bg-jetblack text-white space-y-1 text-[11px] shadow-sm">
-        <div class="flex items-center justify-between">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-gold">Admin Rail</span>
-          <span
-            class="w-1.5 h-1.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40 animate-pulse"
-          ></span>
-        </div>
-        <div class="text-[10px] text-white/75 font-mono">Bun + PostgreSQL Live</div>
-      </div>
-
       <!-- Super Admin Profile & Logout -->
       <div class="pt-2 border-t border-jetblack/10 space-y-1.5">
         <div class="p-2 rounded-lg bg-jetblack/5 space-y-2">
