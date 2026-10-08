@@ -12,6 +12,7 @@ import {
   Percent,
 } from "lucide-vue-next";
 import type { PanelCouponItem } from "../../types/panel";
+import TableSkeleton from "../common/TableSkeleton.vue";
 
 const props = defineProps<{
   coupons: PanelCouponItem[];
@@ -148,12 +149,18 @@ const activeCount = computed(() => props.coupons.filter((c) => c.isActive).lengt
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
-          <tr v-if="filteredCoupons.length === 0">
+          <TableSkeleton v-if="loading" :columns="8" :rows="4" />
+          <tr v-else-if="filteredCoupons.length === 0">
             <td colspan="8" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
               Tidak ada kupon diskon ditemukan.
             </td>
           </tr>
-          <tr v-for="c in filteredCoupons" :key="c.id" class="hover:bg-jetblack/[0.02] transition">
+          <tr
+            v-else
+            v-for="c in filteredCoupons"
+            :key="c.id"
+            class="hover:bg-jetblack/[0.02] transition"
+          >
             <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">
               <div class="flex items-center gap-1.5">
                 <Ticket class="w-3.5 h-3.5 text-gold shrink-0" />

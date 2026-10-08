@@ -69,6 +69,7 @@ function submitCreate() {
     <CouponTable
       :apps-list="appsList"
       :coupons-list="couponsList"
+      :loading="loading"
       v-model:search-query="searchQuery"
       v-model:filter-app-id="filterAppId"
       @toggle="emit('toggle', $event)"

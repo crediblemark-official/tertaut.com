@@ -19,6 +19,7 @@ import {
   ArrowLeftRight,
   Layers,
 } from "lucide-vue-next";
+import TableSkeleton from "../common/TableSkeleton.vue";
 
 const props = defineProps<{
   apps: AppItem[];
@@ -177,7 +178,8 @@ function getPricingBadge(app: AppItem): string {
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
-          <tr v-if="filteredApps.length === 0">
+          <TableSkeleton v-if="loading" :columns="7" :rows="5" />
+          <tr v-else-if="filteredApps.length === 0">
             <td colspan="7" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
               <p class="font-semibold text-xs text-jetblack/60">Tidak ada produk ditemukan.</p>
               <p class="text-[11px] text-jetblack/40" v-if="searchQuery">
@@ -185,7 +187,12 @@ function getPricingBadge(app: AppItem): string {
               </p>
             </td>
           </tr>
-          <tr v-for="app in filteredApps" :key="app.id" class="hover:bg-jetblack/[0.02] transition">
+          <tr
+            v-else
+            v-for="app in filteredApps"
+            :key="app.id"
+            class="hover:bg-jetblack/[0.02] transition"
+          >
             <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-bold text-jetblack">
               <div class="flex items-center gap-2">
                 <div

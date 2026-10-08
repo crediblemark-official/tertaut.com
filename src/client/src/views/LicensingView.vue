@@ -16,7 +16,7 @@ import LicenseActivityPanel from "../components/licensing/LicenseActivityPanel.v
 const activeTab = ref<"licenses" | "webhooks">("licenses");
 const appsList = ref<AppItem[]>([]);
 const licensesList = ref<LicenseItem[]>([]);
-const loadingLicenses = ref(false);
+const loadingLicenses = ref(true);
 const actionFeedback = ref<string | null>(null);
 let feedbackTimer: ReturnType<typeof setTimeout> | null = null;
 const { copy: writeClipboard } = useClipboard();

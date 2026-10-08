@@ -4,11 +4,18 @@ import { Ticket, Plus, Power, Trash2, Search, TicketPercent, Clock } from "lucid
 import type { AppItem } from "../../types/app";
 import type { CouponItem } from "../../types/coupon";
 import SearchPicker from "../common/SearchPicker.vue";
+import TableSkeleton from "../common/TableSkeleton.vue";
 
-const props = defineProps<{
-  appsList: AppItem[];
-  couponsList: CouponItem[];
-}>();
+const props = withDefaults(
+  defineProps<{
+    appsList: AppItem[];
+    couponsList: CouponItem[];
+    loading?: boolean;
+  }>(),
+  {
+    loading: false,
+  }
+);
 
 const emit = defineEmits<{
   (e: "toggle", coupon: CouponItem): void;
@@ -90,7 +97,8 @@ function isExpiringSoon(c: CouponItem): boolean {
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
-          <tr v-if="filteredCoupons.length === 0">
+          <TableSkeleton v-if="loading" :columns="7" :rows="4" />
+          <tr v-else-if="filteredCoupons.length === 0">
             <td colspan="7" class="py-12 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
               <div class="space-y-1.5 max-w-xs mx-auto">
                 <Ticket class="w-6 h-6 mx-auto opacity-30 text-jetblack" />
@@ -112,6 +120,7 @@ function isExpiringSoon(c: CouponItem): boolean {
             </td>
           </tr>
           <tr
+            v-else
             v-for="c in filteredCoupons"
             :key="c.id"
             class="hover:bg-jetblack/[0.02] transition-colors"

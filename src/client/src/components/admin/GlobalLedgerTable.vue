@@ -2,9 +2,11 @@
 import { computed } from "vue";
 import { Search, Download, RotateCcw, Receipt } from "lucide-vue-next";
 import type { PanelTransactionItem } from "../../types/panel";
+import TableSkeleton from "../common/TableSkeleton.vue";
 
 const props = defineProps<{
   transactions: PanelTransactionItem[];
+  loading?: boolean;
 }>();
 
 const statusFilter = defineModel<string>("statusFilter", { default: "" });
@@ -99,12 +101,14 @@ const filteredTransactions = computed(() => {
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
-          <tr v-if="filteredTransactions.length === 0">
+          <TableSkeleton v-if="loading" :columns="11" :rows="5" />
+          <tr v-else-if="filteredTransactions.length === 0">
             <td colspan="11" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
               Tidak ada transaksi ditemukan.
             </td>
           </tr>
           <tr
+            v-else
             v-for="tx in filteredTransactions"
             :key="tx.id"
             class="hover:bg-jetblack/[0.02] transition"

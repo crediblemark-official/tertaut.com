@@ -2,9 +2,11 @@
 import { ref, computed } from "vue";
 import { Search, Building2, Download, ShieldAlert, ShieldCheck } from "lucide-vue-next";
 import type { PanelBuilderItem } from "../../types/panel";
+import TableSkeleton from "../common/TableSkeleton.vue";
 
 const props = defineProps<{
   builders: PanelBuilderItem[];
+  loading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -81,12 +83,18 @@ const filteredBuilders = computed(() => {
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
-          <tr v-if="filteredBuilders.length === 0">
+          <TableSkeleton v-if="loading" :columns="9" :rows="5" />
+          <tr v-else-if="filteredBuilders.length === 0">
             <td colspan="9" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
               Tidak ada data builder ditemukan.
             </td>
           </tr>
-          <tr v-for="b in filteredBuilders" :key="b.id" class="hover:bg-jetblack/[0.02] transition">
+          <tr
+            v-else
+            v-for="b in filteredBuilders"
+            :key="b.id"
+            class="hover:bg-jetblack/[0.02] transition"
+          >
             <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-bold text-jetblack">
               {{ b.name || "Builder" }}
             </td>

@@ -10,7 +10,7 @@ const props = defineProps<{
 }>();
 
 const statsDays = ref(7);
-const statsLoading = ref(false);
+const statsLoading = ref(true);
 const stats = ref<{
   totalRedemptions: number;
   totalDiscountIdr: number;

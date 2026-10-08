@@ -11,7 +11,7 @@ interface UseAppsReturn {
 
 export function useApps(mode?: "sandbox" | "live" | "all"): UseAppsReturn {
   const appsList = ref<AppItem[]>([]);
-  const loading = ref(false);
+  const loading = ref(true);
   const error = ref<string | null>(null);
 
   async function fetchApps(force = false) {

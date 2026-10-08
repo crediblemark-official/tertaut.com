@@ -12,6 +12,7 @@ import {
   ChevronRight,
 } from "lucide-vue-next";
 import type { PanelAuditLogItem } from "../../types/panel";
+import TableSkeleton from "../common/TableSkeleton.vue";
 
 const props = defineProps<{
   logs: PanelAuditLogItem[];
@@ -129,12 +130,13 @@ const filteredLogs = computed(() => {
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
-          <tr v-if="filteredLogs.length === 0">
+          <TableSkeleton v-if="loading" :columns="7" :rows="5" />
+          <tr v-else-if="filteredLogs.length === 0">
             <td colspan="7" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
               Tidak ada log aktivitas ditemukan.
             </td>
           </tr>
-          <template v-for="log in filteredLogs" :key="log.id">
+          <template v-else v-for="log in filteredLogs" :key="log.id">
             <tr
               @click="toggleRow(log.id)"
               class="hover:bg-jetblack/[0.02] transition cursor-pointer"

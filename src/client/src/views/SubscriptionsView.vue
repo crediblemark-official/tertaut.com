@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   Ban,
 } from "lucide-vue-next";
+import TableSkeleton from "../components/common/TableSkeleton.vue";
 
 export interface SubscriptionItem extends LicenseItem {
   ltv: number;
@@ -35,7 +36,7 @@ export interface SubscriptionItem extends LicenseItem {
 }
 
 const env = dashboardEnv;
-const loading = ref(false);
+const loading = ref(true);
 const licenses = ref<LicenseItem[]>([]);
 const transactions = ref<TransactionItem[]>([]);
 const appsList = ref<AppItem[]>([]);
@@ -421,7 +422,8 @@ function formatSubDate(dateStr?: string | null): string {
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
-          <tr v-if="filteredSubscriptions.length === 0">
+          <TableSkeleton v-if="loading" :columns="8" :rows="5" />
+          <tr v-else-if="filteredSubscriptions.length === 0">
             <td colspan="8" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
               <div class="space-y-1">
                 <p class="font-semibold text-xs text-jetblack/60">Tidak ada langganan ditemukan.</p>
@@ -432,6 +434,7 @@ function formatSubDate(dateStr?: string | null): string {
             </td>
           </tr>
           <tr
+            v-else
             v-for="sub in filteredSubscriptions"
             :key="sub.id"
             class="hover:bg-slate-50/70 transition group cursor-pointer"

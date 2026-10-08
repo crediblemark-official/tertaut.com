@@ -15,9 +15,10 @@ import {
   CheckCircle2,
   ArrowDownLeft,
 } from "lucide-vue-next";
+import TableSkeleton from "../components/common/TableSkeleton.vue";
 
 const env = dashboardEnv;
-const loading = ref(false);
+const loading = ref(true);
 const transactions = ref<TransactionItem[]>([]);
 
 const isPayoutModalOpen = ref(false);
@@ -419,7 +420,8 @@ function formatDate(dateStr?: string | null): string {
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
-          <tr v-if="disbursementGroups.length === 0 && !loading">
+          <TableSkeleton v-if="loading" :columns="4" :rows="4" />
+          <tr v-else-if="disbursementGroups.length === 0">
             <td colspan="4" class="py-10 px-3.5 sm:px-4 md:px-6 text-center">
               <div class="space-y-2">
                 <Landmark class="w-7 h-7 text-jetblack/20 mx-auto" />
@@ -429,10 +431,6 @@ function formatDate(dateStr?: string | null): string {
                 </p>
               </div>
             </td>
-          </tr>
-
-          <tr v-if="loading">
-            <td colspan="4" class="py-8 text-center text-jetblack/40 text-xs">Memuat data...</td>
           </tr>
 
           <tr

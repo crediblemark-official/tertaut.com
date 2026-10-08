@@ -12,6 +12,7 @@ import {
   RotateCcw,
 } from "lucide-vue-next";
 import type { PanelLicenseItem } from "../../types/panel";
+import TableSkeleton from "../common/TableSkeleton.vue";
 
 const props = defineProps<{
   licenses: PanelLicenseItem[];
@@ -146,12 +147,14 @@ const expiredCount = computed(() => props.licenses.filter((l) => l.status === "E
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
-          <tr v-if="filteredLicenses.length === 0">
+          <TableSkeleton v-if="loading" :columns="9" :rows="5" />
+          <tr v-else-if="filteredLicenses.length === 0">
             <td colspan="9" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
               Tidak ada lisensi ditemukan.
             </td>
           </tr>
           <tr
+            v-else
             v-for="lic in filteredLicenses"
             :key="lic.id"
             class="hover:bg-jetblack/[0.02] transition"

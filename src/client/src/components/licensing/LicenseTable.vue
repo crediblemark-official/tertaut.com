@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { RefreshCw, Search, Copy, Monitor, Plus, Activity } from "lucide-vue-next";
 import type { LicenseItem } from "../../types/licensing";
 import StatusBadge from "../common/StatusBadge.vue";
+import TableSkeleton from "../common/TableSkeleton.vue";
 
 const props = defineProps<{
   licensesList: LicenseItem[];
@@ -163,7 +164,8 @@ const filteredLicenses = computed(() => {
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
-          <tr v-if="filteredLicenses.length === 0">
+          <TableSkeleton v-if="loading" :columns="7" :rows="6" />
+          <tr v-else-if="filteredLicenses.length === 0">
             <td colspan="7" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
               <div class="space-y-1">
                 <p class="font-semibold text-xs text-jetblack/60">
@@ -178,7 +180,7 @@ const filteredLicenses = computed(() => {
               </div>
             </td>
           </tr>
-          <tr v-for="lic in filteredLicenses" :key="lic.id" class="hover:bg-jetblack/[0.02]">
+          <tr v-else v-for="lic in filteredLicenses" :key="lic.id" class="hover:bg-jetblack/[0.02]">
             <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-mono">
               <div class="inline-flex items-center gap-1.5 font-bold text-jetblack">
                 <span>{{ lic.licenseKey }}</span>

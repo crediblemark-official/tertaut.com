@@ -11,6 +11,7 @@ import {
   Unlock,
 } from "lucide-vue-next";
 import type { PanelUserItem } from "../../types/panel";
+import TableSkeleton from "../common/TableSkeleton.vue";
 
 const props = defineProps<{
   users: PanelUserItem[];
@@ -119,12 +120,18 @@ const bannedCount = computed(() => props.users.filter((u) => u.banned).length);
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
-          <tr v-if="filteredUsers.length === 0">
+          <TableSkeleton v-if="loading" :columns="7" :rows="5" />
+          <tr v-else-if="filteredUsers.length === 0">
             <td colspan="7" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
               Tidak ada pengguna ditemukan.
             </td>
           </tr>
-          <tr v-for="u in filteredUsers" :key="u.id" class="hover:bg-jetblack/[0.02] transition">
+          <tr
+            v-else
+            v-for="u in filteredUsers"
+            :key="u.id"
+            class="hover:bg-jetblack/[0.02] transition"
+          >
             <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">
               <div class="font-bold text-jetblack flex items-center gap-1.5">
                 <User class="w-3.5 h-3.5 text-gold" />

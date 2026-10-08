@@ -3,10 +3,12 @@ import { RefreshCw, CheckCircle2 } from "lucide-vue-next";
 import type { AiProxyLogItem } from "../../types/aiproxy";
 import type { AppItem } from "../../types/app";
 import SearchPicker from "../common/SearchPicker.vue";
+import TableSkeleton from "../common/TableSkeleton.vue";
 
 defineProps<{
   proxyLogs: AiProxyLogItem[];
   appsList?: AppItem[];
+  loading?: boolean;
 }>();
 
 const selectedAppId = defineModel<string>("selectedAppId", { default: "" });
@@ -60,12 +62,13 @@ const emit = defineEmits<{
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
-          <tr v-if="proxyLogs.length === 0">
+          <TableSkeleton v-if="loading" :columns="6" :rows="5" />
+          <tr v-else-if="proxyLogs.length === 0">
             <td colspan="6" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
               Belum ada panggilan AI proxy tercatat untuk aplikasi ini.
             </td>
           </tr>
-          <tr v-for="log in proxyLogs" :key="log.id" class="hover:bg-jetblack/[0.02]">
+          <tr v-else v-for="log in proxyLogs" :key="log.id" class="hover:bg-jetblack/[0.02]">
             <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-mono text-[11px] text-jetblack/60">
               {{ new Date(log.createdAt).toLocaleTimeString("id-ID") }}
             </td>

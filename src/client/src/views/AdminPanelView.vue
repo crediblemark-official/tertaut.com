@@ -580,6 +580,7 @@ onMounted(() => {
             </div>
             <BuilderDirectoryTable
               :builders="builders"
+              :loading="loading"
               @toggle-suspend="handleToggleSuspendBuilder"
             />
           </div>
@@ -594,7 +595,11 @@ onMounted(() => {
                 >{{ apps.length }} Software Tercatat</span
               >
             </div>
-            <AppsDirectoryTable :apps="apps" @toggle-suspend="handleToggleSuspendApp" />
+            <AppsDirectoryTable
+              :apps="apps"
+              :loading="loading"
+              @toggle-suspend="handleToggleSuspendApp"
+            />
           </div>
 
           <!-- TAB 4: GLOBAL LICENSES -->
@@ -609,6 +614,7 @@ onMounted(() => {
             </div>
             <GlobalLicensesTable
               :licenses="licenses"
+              :loading="loading"
               @revoke="handleRevokeLicense"
               @reactivate="handleReactivateLicense"
             />
@@ -624,6 +630,7 @@ onMounted(() => {
             </div>
             <GlobalLedgerTable
               :transactions="transactions"
+              :loading="loading"
               v-model:status-filter="txStatusFilter"
               v-model:search-query="txSearchQuery"
               @filter-change="loadAllData"
@@ -643,6 +650,7 @@ onMounted(() => {
             </div>
             <GlobalCouponsTable
               :coupons="coupons"
+              :loading="loading"
               @create="handleCreateCoupon"
               @toggle="handleToggleCoupon"
               @delete="handleDeleteCoupon"
@@ -659,7 +667,7 @@ onMounted(() => {
                 >{{ auditLogs.length }} Aktivitas Terekam</span
               >
             </div>
-            <AuditLogsTable :logs="auditLogs" @refresh="loadAllData" />
+            <AuditLogsTable :logs="auditLogs" :loading="loading" @refresh="loadAllData" />
           </div>
 
           <!-- TAB 8: USERS DIRECTORY -->
@@ -674,6 +682,7 @@ onMounted(() => {
             </div>
             <UsersDirectoryTable
               :users="users"
+              :loading="loading"
               :current-admin-email="adminEmail"
               @update-role="handleUpdateUserRole"
               @toggle-ban="handleToggleUserBan"

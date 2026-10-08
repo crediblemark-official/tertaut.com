@@ -22,7 +22,7 @@ const selectedAppId = ref("");
 
 const vaultCreds = ref<VaultCredentialItem[]>([]);
 const proxyLogs = ref<AiProxyLogItem[]>([]);
-const loadingVault = ref(false);
+const loadingVault = ref(true);
 
 // Add/Edit Vault Key State
 const newProvider = ref<AiProvider>("gemini");
@@ -356,6 +356,7 @@ watch(dashboardEnv, () => {
       <AiProxyAuditTable
         :proxy-logs="proxyLogs"
         :apps-list="appsList"
+        :loading="loadingVault"
         v-model:selected-app-id="selectedAppId"
         @app-change="onAppChange"
         @refresh="fetchData"

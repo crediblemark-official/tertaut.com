@@ -26,6 +26,7 @@ import {
   Check,
   Plus,
 } from "lucide-vue-next";
+import TableSkeleton from "../common/TableSkeleton.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -43,7 +44,7 @@ const emit = defineEmits<{
 }>();
 
 const env = dashboardEnv;
-const loading = ref(false);
+const loading = ref(true);
 const transactions = ref<TransactionItem[]>([]);
 const appsList = ref<AppItem[]>([]);
 const overviewStats = ref<DashboardStats | null>(null);
@@ -403,7 +404,8 @@ defineExpose({
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15 bg-white">
-          <tr v-if="filteredTransactions.length === 0">
+          <TableSkeleton v-if="loading" :columns="10" :rows="6" />
+          <tr v-else-if="filteredTransactions.length === 0">
             <td colspan="10" class="py-10 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
               <div class="space-y-1">
                 <Receipt class="w-7 h-7 mx-auto text-jetblack/30" />
@@ -417,6 +419,7 @@ defineExpose({
             </td>
           </tr>
           <tr
+            v-else
             v-for="tx in filteredTransactions"
             :key="tx.id"
             class="hover:bg-slate-50/70 transition group cursor-pointer"
