@@ -176,11 +176,12 @@ export class SandboxGatewayAdapter implements PaymentGatewayAdapter {
           name: "GoPay (Sandbox)",
         },
       ],
-      activeRails: ["va", "qris", "retail", "ewallet"],
+      activeRails: ["va", "qris", "retail", "ewallet", "card"],
       activeBanks: ["BCA", "MANDIRI", "BNI", "BRI", "PERMATA", "CIMB", "BSI"],
       activeEwallets: ["DANA", "GOPAY", "OVO", "SHOPEEPAY", "LINKAJA"],
       activeRetails: ["ALFAMART", "INDOMARET"],
       qrisEnabled: true,
+      cardEnabled: true,
     };
   }
 }

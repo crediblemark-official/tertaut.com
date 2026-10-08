@@ -64,6 +64,7 @@ export interface AvailableChannels {
   activeEwallets: string[];
   activeRetails: string[];
   qrisEnabled: boolean;
+  cardEnabled?: boolean;
 }
 
 export interface AppItem {

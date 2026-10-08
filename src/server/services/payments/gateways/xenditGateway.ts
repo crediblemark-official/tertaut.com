@@ -180,6 +180,7 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
         activeEwallets: [],
         activeRetails: ["ALFAMART", "INDOMARET"],
         qrisEnabled: false,
+        cardEnabled: false,
       };
     }
 
@@ -209,6 +210,7 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
             activeEwallets: [],
             activeRetails: ["ALFAMART", "INDOMARET"],
             qrisEnabled: false,
+            cardEnabled: false,
           }
         );
       }
@@ -224,6 +226,13 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
         : [];
 
       const qrisEnabled = channels.some((c) => c.channelCategory === "QRIS" && c.isEnabled);
+      const cardEnabled = channels.some(
+        (c) =>
+          (c.channelCategory === "CREDIT_CARD" ||
+            c.channelCategory === "CARDS" ||
+            c.channelCategory === "CARD") &&
+          c.isEnabled
+      );
       const activeBanks = channels
         .filter((c) => c.channelCategory === "VIRTUAL_ACCOUNT" && c.isEnabled)
         .map((c) => c.channelCode);
@@ -236,6 +245,7 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
 
       const activeRails: Array<"qris" | "va" | "ewallet" | "card" | "retail"> = [];
       if (qrisEnabled) activeRails.push("qris");
+      if (cardEnabled) activeRails.push("card");
       if (activeBanks.length > 0) activeRails.push("va");
       if (activeEwallets.length > 0) activeRails.push("ewallet");
       if (activeRetails.length > 0) activeRails.push("retail");
@@ -247,6 +257,7 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
         activeEwallets,
         activeRetails,
         qrisEnabled,
+        cardEnabled,
       };
 
       this.channelsCache = {

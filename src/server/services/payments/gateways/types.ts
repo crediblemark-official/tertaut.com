@@ -123,4 +123,5 @@ export interface GatewayChannelsResponse {
   activeEwallets: string[];
   activeRetails: string[];
   qrisEnabled: boolean;
+  cardEnabled?: boolean;
 }

@@ -113,8 +113,14 @@ const isRetailActive = computed(() => {
   return availableChannels.value.activeRetails.length > 0;
 });
 
-// 5. Ketersediaan Kartu Kredit (3D Secure memerlukan mode live)
-const isCardActive = computed(() => props.product?.mode === "live");
+// 5. Ketersediaan Kartu Kredit (3D Secure memerlukan mode live & channel aktif di gateway)
+const isCardActive = computed(() => {
+  if (props.product?.mode === "sandbox") return false;
+  if (!availableChannels.value) return false;
+  return Boolean(
+    availableChannels.value.cardEnabled || availableChannels.value.activeRails?.includes("card")
+  );
+});
 
 const currentBank = computed({
   get: () => {
@@ -717,7 +723,7 @@ function onPayClicked() {
                     v-if="!isCardActive"
                     class="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-slate-200 text-slate-600"
                   >
-                    Hanya Mode Live
+                    {{ product?.mode === "sandbox" ? "Hanya Mode Live" : "Nonaktif" }}
                   </span>
                   <span
                     v-else
@@ -730,12 +736,17 @@ function onPayClicked() {
                   {{
                     isCardActive
                       ? "Visa, Mastercard, JCB, American Express"
-                      : "Pembayaran kartu memerlukan akun live"
+                      : product?.mode === "sandbox"
+                        ? "Pembayaran kartu memerlukan akun live"
+                        : "Metode kartu kredit/debit belum aktif pada akun gateway pembayaran ini"
                   }}
                 </p>
               </div>
             </div>
             <div class="flex items-center gap-1 shrink-0">
+              <span v-if="!isCardActive" class="text-[11px] font-medium text-slate-400 mr-1">
+                Belum Aktif
+              </span>
               <span
                 class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200"
                 >VISA</span
