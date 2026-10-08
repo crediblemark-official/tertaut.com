@@ -160,221 +160,78 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
 
   private cachedClient: InstanceType<typeof Xendit> | null = null;
   private cachedSecretKey: string | null = null;
-  private channelsCache: {
-    timestamp: number;
-    key: string;
-    data: GatewayChannelsResponse;
-  } | null = null;
 
   /**
-   * Menghapus cache payment channels agar perubahan segera aktif.
+   * Menghapus cache payment channels (no-op untuk konfigurasi statis).
    */
-  clearChannelsCache() {
-    this.channelsCache = null;
-  }
+  clearChannelsCache() {}
 
   /**
-   * Tes dinamis koneksi API QRIS langsung ke Xendit (Live/Sandbox Probe).
-   * Memastikan endpoint POST /qr_codes aktif & siap menerima transaksi.
+   * Mengambil daftar channel pembayaran resmi yang aktif sesuai dashboard Xendit Live:
+   * - QRIS: Activated (Mendukung semua m-Banking termasuk BCA Mobile/myBCA & E-Wallet)
+   * - Virtual Account: Mandiri, BNI, BRI, Permata, BSI, CIMB, dan Bank Sahabat Sampoerna (BSS)
+   * - Retail Outlet: Indomaret
    */
-  async probeQrisLive(): Promise<{ success: boolean; status?: string; message: string }> {
-    const { secretKey } = await this.getCredentials();
-    if (!secretKey) {
-      return { success: false, message: "Secret key Xendit belum disetel." };
-    }
-    try {
-      const resp = await fetch("https://api.xendit.co/qr_codes", {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${Buffer.from(`${secretKey}:`).toString("base64")}`,
-          "Content-Type": "application/json",
+  async getPaymentChannels(_forceRefresh = false): Promise<GatewayChannelsResponse> {
+    return {
+      channels: [
+        { channelCode: "QRIS", channelCategory: "QRIS", isEnabled: true, name: "QRIS Instan" },
+        {
+          channelCode: "MANDIRI",
+          channelCategory: "VIRTUAL_ACCOUNT",
+          isEnabled: true,
+          name: "Mandiri Virtual Account",
         },
-        body: JSON.stringify({
-          external_id: `probe_check_${Date.now()}`,
-          type: "DYNAMIC",
-          amount: 10000,
-          callback_url: "https://tertaut.com/api/v1/payments/xendit/webhook",
-        }),
-      });
-
-      if (!resp.ok) {
-        const errJson: any = await resp.json().catch(() => ({}));
-        return {
-          success: false,
-          message: errJson.message || `Xendit API mengembalikan HTTP ${resp.status}`,
-        };
-      }
-
-      const data: any = await resp.json();
-      return {
-        success: true,
-        status: data.status,
-        message: `Koneksi QRIS Xendit aktif (${data.type || "DYNAMIC"}).`,
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.message || "Gagal menghubungi Xendit API.",
-      };
-    }
-  }
-
-  /**
-   * Mengambil daftar channel pembayaran yang aktif langsung dari API resmi Xendit
-   * dan database platform_settings secara dinamis.
-   */
-  async getPaymentChannels(forceRefresh = false): Promise<GatewayChannelsResponse> {
-    const { secretKey } = await this.getCredentials();
-    if (!secretKey || !secretKey.startsWith("xnd_")) {
-      return {
-        channels: [],
-        activeRails: ["va", "qris"],
-        activeBanks: ["BCA", "MANDIRI", "BNI", "BRI", "PERMATA", "BSI", "CIMB"],
-        activeEwallets: [],
-        activeRetails: ["ALFAMART", "INDOMARET"],
-        qrisEnabled: true,
-        cardEnabled: false,
-      };
-    }
-
-    const now = Date.now();
-    if (
-      !forceRefresh &&
-      this.channelsCache &&
-      this.channelsCache.key === secretKey &&
-      now - this.channelsCache.timestamp < 300_000
-    ) {
-      return this.channelsCache.data;
-    }
-
-    // Ambil konfigurasi override dinamis dari database platform_settings
-    let qrisSettingVal: string | null = null;
-    let vaSettingVal: string | null = null;
-    let retailSettingVal: string | null = null;
-    try {
-      const [qrisSettingRow, vaSettingRow, retailSettingRow] = await Promise.all([
-        db.query.platformSettings.findFirst({
-          where: eq(platformSettings.key, "xendit_qris_enabled"),
-        }),
-        db.query.platformSettings.findFirst({
-          where: eq(platformSettings.key, "xendit_va_enabled"),
-        }),
-        db.query.platformSettings.findFirst({
-          where: eq(platformSettings.key, "xendit_retail_enabled"),
-        }),
-      ]);
-      qrisSettingVal = qrisSettingRow?.value ?? null;
-      vaSettingVal = vaSettingRow?.value ?? null;
-      retailSettingVal = retailSettingRow?.value ?? null;
-    } catch (dbErr) {
-      console.warn("[XenditGateway] Gagal membaca platform_settings channel override:", dbErr);
-    }
-
-    let channels: any[] = [];
-    try {
-      const resp = await fetch("https://api.xendit.co/payment_channels", {
-        headers: {
-          Authorization: `Basic ${Buffer.from(`${secretKey}:`).toString("base64")}`,
+        {
+          channelCode: "BNI",
+          channelCategory: "VIRTUAL_ACCOUNT",
+          isEnabled: true,
+          name: "BNI Virtual Account",
         },
-      });
-
-      if (resp.ok) {
-        const rawList: any[] = await resp.json();
-        if (Array.isArray(rawList)) {
-          channels = rawList.map((c) => ({
-            channelCode: String(c.channel_code || "").toUpperCase(),
-            channelCategory: String(c.channel_category || "").toUpperCase(),
-            isEnabled: Boolean(c.is_enabled),
-            name: String(c.name || ""),
-          }));
-        }
-      } else {
-        console.warn(`[XenditGateway] Gagal mengambil payment channels: HTTP ${resp.status}`);
-      }
-    } catch (err) {
-      console.warn("[XenditGateway] Error fetching payment channels:", err);
-    }
-
-    // 1. Evaluasi QRIS secara dinamis:
-    // - Jika disetel manual di platform_settings ("true" atau "false"), patuhi setting admin.
-    // - Jika "auto" atau belum disetel:
-    //   Periksa apakah endpoint legacy menyatakan true. JIKA endpoint legacy mengembalikan false
-    //   (karena endpoint legacy hanya melacak invoice lama, bukan API QR modern),
-    //   kita aktifkan secara otomatis untuk akun produksi terverifikasi (xnd_production_*)
-    //   atau akun development yang aktif.
-    let qrisEnabled: boolean;
-    if (qrisSettingVal === "true") {
-      qrisEnabled = true;
-    } else if (qrisSettingVal === "false") {
-      qrisEnabled = false;
-    } else {
-      const legacyQrisEnabled = channels.some((c) => c.channelCategory === "QRIS" && c.isEnabled);
-      qrisEnabled =
-        legacyQrisEnabled ||
-        secretKey.startsWith("xnd_production_") ||
-        secretKey.startsWith("xnd_development_");
-    }
-
-    // 2. Evaluasi Virtual Account:
-    let activeBanks: string[] = channels
-      .filter((c) => c.channelCategory === "VIRTUAL_ACCOUNT" && c.isEnabled)
-      .map((c) => c.channelCode);
-    if (activeBanks.length === 0 && vaSettingVal !== "false") {
-      // Pada Xendit Indonesia: Mandiri, BNI, BRI, Permata, BSI, dan CIMB aktif langsung.
-      // BCA membutuhkan perjanjian & aktivasi merchant BCA khusus ke Xendit (BANK_NOT_ACTIVATED_ERROR).
-      // Nasabah BCA dapat membayar secara instan dan bebas biaya admin melalui QRIS Instan (BCA Mobile/myBCA/Blu).
-      const isProd = secretKey.startsWith("xnd_production_");
-      activeBanks = isProd
-        ? ["MANDIRI", "BNI", "BRI", "PERMATA", "BSI", "CIMB"]
-        : ["BCA", "MANDIRI", "BNI", "BRI", "PERMATA", "BSI", "CIMB"];
-    }
-
-    // 3. Evaluasi Retail Outlet:
-    let activeRetails: string[] = channels
-      .filter((c) => c.channelCategory === "RETAIL_OUTLET" && c.isEnabled)
-      .map((c) => c.channelCode);
-    if (activeRetails.length === 0 && retailSettingVal === "true") {
-      activeRetails = ["ALFAMART", "INDOMARET"];
-    }
-
-    // 4. Evaluasi E-Wallets:
-    const activeEwallets = channels
-      .filter((c) => c.channelCategory === "EWALLET" && c.isEnabled)
-      .map((c) => c.channelCode);
-
-    // 5. Evaluasi Kartu Kredit:
-    const cardEnabled = channels.some(
-      (c) =>
-        (c.channelCategory === "CREDIT_CARD" ||
-          c.channelCategory === "CARDS" ||
-          c.channelCategory === "CARD") &&
-        c.isEnabled
-    );
-
-    const activeRails: Array<"qris" | "va" | "ewallet" | "card" | "retail"> = [];
-    if (qrisEnabled) activeRails.push("qris");
-    if (cardEnabled) activeRails.push("card");
-    if (activeBanks.length > 0) activeRails.push("va");
-    if (activeEwallets.length > 0) activeRails.push("ewallet");
-    if (activeRetails.length > 0) activeRails.push("retail");
-
-    const result: GatewayChannelsResponse = {
-      channels,
-      activeRails,
-      activeBanks,
-      activeEwallets,
-      activeRetails,
-      qrisEnabled,
-      cardEnabled,
+        {
+          channelCode: "BRI",
+          channelCategory: "VIRTUAL_ACCOUNT",
+          isEnabled: true,
+          name: "BRI Virtual Account",
+        },
+        {
+          channelCode: "PERMATA",
+          channelCategory: "VIRTUAL_ACCOUNT",
+          isEnabled: true,
+          name: "Permata Virtual Account",
+        },
+        {
+          channelCode: "BSI",
+          channelCategory: "VIRTUAL_ACCOUNT",
+          isEnabled: true,
+          name: "BSI Virtual Account",
+        },
+        {
+          channelCode: "CIMB",
+          channelCategory: "VIRTUAL_ACCOUNT",
+          isEnabled: true,
+          name: "CIMB Virtual Account",
+        },
+        {
+          channelCode: "BSS",
+          channelCategory: "VIRTUAL_ACCOUNT",
+          isEnabled: true,
+          name: "Bank Sahabat Sampoerna",
+        },
+        {
+          channelCode: "INDOMARET",
+          channelCategory: "RETAIL_OUTLET",
+          isEnabled: true,
+          name: "Indomaret",
+        },
+      ],
+      activeRails: ["qris", "va", "retail"],
+      activeBanks: ["MANDIRI", "BNI", "BRI", "PERMATA", "BSI", "CIMB", "BSS"],
+      activeEwallets: [],
+      activeRetails: ["INDOMARET"],
+      qrisEnabled: true,
+      cardEnabled: false,
     };
-
-    this.channelsCache = {
-      timestamp: now,
-      key: secretKey,
-      data: result,
-    };
-
-    return result;
   }
 
   /**
