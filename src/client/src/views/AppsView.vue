@@ -40,8 +40,8 @@ async function loadData() {
   loading.value = true;
   try {
     const [appsRes, statsRes] = await Promise.all([
-      api.getApps("all", true),
-      api.getCatalogStats("all").catch((err) => {
+      api.getApps(dashboardEnv.value, true),
+      api.getCatalogStats(dashboardEnv.value).catch((err) => {
         console.error("Failed to load catalog stats:", err);
         return null;
       }),

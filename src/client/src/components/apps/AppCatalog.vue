@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { computed } from "vue";
 import type { AppItem, CatalogKPIStats } from "../../types/app";
 import { dashboardEnv, envPath } from "../../lib/environment";
 import { formatRupiah } from "../../lib/utils";
-import { api } from "../../lib/api";
 import {
   Plus,
   ExternalLink,
@@ -34,62 +33,22 @@ const emit = defineEmits<{
   "toggle-mode": [app: AppItem];
 }>();
 
-// Filter tab: default sinkron dengan environment dashboard aktif
-const selectedModeTab = ref<"live" | "sandbox" | "all">(
-  dashboardEnv.value === "sandbox" ? "sandbox" : "live"
-);
-
-const modeStats = ref<CatalogKPIStats | null>(props.stats || null);
-watch(
-  () => props.stats,
-  (val) => {
-    if (val) modeStats.value = val;
-  }
-);
-
-// Sinkronkan tab saat dashboardEnv berubah (mis. user klik toggle environment di sidebar)
-watch(dashboardEnv, (newEnv) => {
-  selectedModeTab.value = newEnv === "sandbox" ? "sandbox" : "live";
-});
-
-// Update KPI stats saat user berpindah tab mode
-watch(
-  selectedModeTab,
-  async (newMode) => {
-    try {
-      const s = await api.getCatalogStats(newMode);
-      if (s) modeStats.value = s;
-    } catch {}
-  },
-  { immediate: true }
-);
-
-const liveCount = computed(() => props.apps.filter((a) => a.mode === "live").length);
-const sandboxCount = computed(() => props.apps.filter((a) => a.mode === "sandbox").length);
-
 const filteredApps = computed(() => {
+  if (!props.searchQuery.trim()) return props.apps;
+  const q = props.searchQuery.toLowerCase().trim();
   return props.apps.filter((app) => {
-    // Mode filter
-    if (selectedModeTab.value !== "all" && app.mode !== selectedModeTab.value) {
-      return false;
-    }
-    // Search query
-    if (props.searchQuery.trim()) {
-      const q = props.searchQuery.toLowerCase().trim();
-      const matchName = app.name.toLowerCase().includes(q);
-      const matchSlug = app.slug.toLowerCase().includes(q);
-      if (!matchName && !matchSlug) return false;
-    }
-    return true;
+    const matchName = app.name.toLowerCase().includes(q);
+    const matchSlug = app.slug.toLowerCase().includes(q);
+    return matchName || matchSlug;
   });
 });
 
 const activeProductsCount = computed(() => filteredApps.value.length);
-const archivedProductsCount = computed(() => modeStats.value?.archivedProducts ?? 0);
-const salesCount = computed(() => modeStats.value?.sales30d ?? 0);
-const activeSubscriptionsCount = computed(() => modeStats.value?.activeSubscriptions ?? 0);
+const archivedProductsCount = computed(() => props.stats?.archivedProducts ?? 0);
+const salesCount = computed(() => props.stats?.sales30d ?? 0);
+const activeSubscriptionsCount = computed(() => props.stats?.activeSubscriptions ?? 0);
 const acrossProductsCount = computed(() => (filteredApps.value.length > 0 ? 1 : 0));
-const customersCount = computed(() => modeStats.value?.customers30d ?? 0);
+const customersCount = computed(() => props.stats?.customers30d ?? 0);
 
 function confirmToggleMode(app: AppItem) {
   const targetMode = app.mode === "sandbox" ? "LIVE" : "SANDBOX";
@@ -121,58 +80,17 @@ function getPricingBadge(app: AppItem): string {
   <div>
     <!-- Unified Header & Toolbar -->
     <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-2 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col md:flex-row md:items-center justify-between gap-2.5 shadow-xs mb-3"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-2 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xs mb-3"
     >
-      <div class="flex items-center gap-2.5 flex-wrap">
+      <div class="flex items-center gap-2.5">
         <h1 class="text-xs font-bold uppercase tracking-wider text-white">
           Katalog Produk &amp; Monetisasi
         </h1>
-
-        <!-- Mode Filter Segmented Tabs -->
-        <div
-          class="inline-flex items-center p-0.5 rounded-lg bg-white/10 border border-white/15 text-xs"
+        <span
+          class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
         >
-          <button
-            type="button"
-            @click="selectedModeTab = 'live'"
-            class="px-2.5 py-1 rounded-md text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer"
-            :class="
-              selectedModeTab === 'live'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-white/60 hover:text-white hover:bg-white/5'
-            "
-          >
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
-            <span>Live ({{ liveCount }})</span>
-          </button>
-
-          <button
-            type="button"
-            @click="selectedModeTab = 'sandbox'"
-            class="px-2.5 py-1 rounded-md text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer"
-            :class="
-              selectedModeTab === 'sandbox'
-                ? 'bg-amber-500 text-slate-900 shadow-xs font-extrabold'
-                : 'text-white/60 hover:text-white hover:bg-white/5'
-            "
-          >
-            <FlaskConical class="w-3 h-3 text-amber-900" />
-            <span>Sandbox ({{ sandboxCount }})</span>
-          </button>
-
-          <button
-            type="button"
-            @click="selectedModeTab = 'all'"
-            class="px-2.5 py-1 rounded-md text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
-            :class="
-              selectedModeTab === 'all'
-                ? 'bg-white/25 text-white shadow-xs'
-                : 'text-white/60 hover:text-white hover:bg-white/5'
-            "
-          >
-            <span>Semua ({{ apps.length }})</span>
-          </button>
-        </div>
+          {{ apps.length }} produk
+        </span>
       </div>
 
       <div class="flex items-center gap-2">
