@@ -59,7 +59,7 @@ export async function handleListApps({ query, request: { headers } }: ModeQueryC
   if (query?.mode === "sandbox" || query?.mode === "live") {
     conditions.push(eq(apps.mode, query.mode));
   }
-  if (builder && !isAdmin) {
+  if (builder) {
     conditions.push(eq(apps.builderId, builder.id));
   }
 
@@ -89,7 +89,7 @@ export async function handleStatsOverview({ query, request: { headers } }: ModeQ
   if (query?.mode === "sandbox" || query?.mode === "live") {
     appConditions.push(eq(apps.mode, query.mode));
   }
-  if (builder && !isAdmin) {
+  if (builder) {
     appConditions.push(eq(apps.builderId, builder.id));
   }
 
@@ -164,7 +164,7 @@ export async function handleStatsCatalog({ query, request: { headers } }: ModeQu
   if (query?.mode === "sandbox" || query?.mode === "live") {
     appConditions.push(eq(apps.mode, query.mode));
   }
-  if (builder && !isAdmin) {
+  if (builder) {
     appConditions.push(eq(apps.builderId, builder.id));
   }
 
