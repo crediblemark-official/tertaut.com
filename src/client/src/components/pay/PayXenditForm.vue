@@ -445,9 +445,9 @@ function onPayClicked() {
                   </span>
                   <span
                     v-if="!isQrisActive"
-                    class="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-amber-100 text-amber-800"
+                    class="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-slate-200 text-slate-600"
                   >
-                    Nonaktif di Sandbox
+                    Nonaktif
                   </span>
                   <span
                     v-else
@@ -460,7 +460,7 @@ function onPayClicked() {
                   {{
                     isQrisActive
                       ? "BCA, Mandiri, BRI, BNI, GoPay, OVO, ..."
-                      : "Metode QRIS belum aktif pada akun Xendit ini"
+                      : "Metode QRIS belum aktif pada akun gateway pembayaran ini"
                   }}
                 </p>
               </div>
@@ -606,7 +606,7 @@ function onPayClicked() {
                     v-if="!isEwalletActive"
                     class="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-slate-200 text-slate-600"
                   >
-                    Nonaktif di Sandbox
+                    Nonaktif
                   </span>
                   <span
                     v-else
@@ -619,7 +619,7 @@ function onPayClicked() {
                   {{
                     isEwalletActive
                       ? activeEwalletList.map((e) => e.label).join(", ")
-                      : "E-Wallet belum diaktifkan pada akun Xendit ini"
+                      : "E-Wallet belum aktif pada akun gateway pembayaran ini"
                   }}
                 </p>
               </div>
