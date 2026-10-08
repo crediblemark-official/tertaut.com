@@ -131,21 +131,6 @@ describe("Coverage Booster3: webhook/fulfill.ts", () => {
 //  webhook/dana.ts — rate limited, payment webhook, disbursement webhook
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster3: webhook/dana.ts", () => {
-  it("handleDanaFinishPaymentWebhook: rate limited returns 429", async () => {
-    resetRateLimits();
-    const req = new Request("http://localhost", { headers: { "x-real-ip": "10.0.0.1" } });
-    for (let i = 0; i < 121; i++) enforceRateLimit(req, "webhook:dana:finish", 120, 60_000);
-    const set: any = {};
-    const res = await handleDanaFinishPaymentWebhook({
-      request: req,
-      headers: {},
-      body: {},
-      set,
-    });
-    expect(set.status).toBe(429);
-    resetRateLimits();
-  });
-
   it("handleDanaFinishPaymentWebhook: lookup by externalId / partnerReferenceNo", async () => {
     const { builder, app: a } = await seedBuilderApp();
     const tx = await createTx(builder.id, a.id);

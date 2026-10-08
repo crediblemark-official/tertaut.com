@@ -12,12 +12,10 @@ import { LicenseTokenService } from "./services/licensing/licenseToken";
 import { existsSync, statSync } from "fs";
 import { resolve } from "path";
 import { db } from "./db";
-import { licenses, user, account } from "./db/schema";
-import { eq, and, lt, asc } from "drizzle-orm";
+import { user, account } from "./db/schema";
+import { eq, and, asc } from "drizzle-orm";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
-import { LicenseLeaseService } from "./services/licensing/licenseLease";
-import { AuditService } from "./services/security/audit";
-import { WebhookService } from "./services/notifications/webhooks";
+import { startScheduledTasks } from "./tasks/scheduler";
 import { ensureDemoData } from "./db/ensureDemo";
 import { ensurePlatformSettings } from "./db/ensureSettings";
 import { randomBytes } from "crypto";
@@ -484,65 +482,6 @@ if (hasBuiltClient) {
   });
 }
 
-async function expireLicenses(): Promise<void> {
-  try {
-    const now = new Date();
-    const expired = await db
-      .update(licenses)
-      .set({ status: "EXPIRED", updatedAt: now })
-      .where(and(eq(licenses.status, "ACTIVE"), lt(licenses.expiresAt, now)))
-      .returning({
-        id: licenses.id,
-        licenseKey: licenses.licenseKey,
-        appId: licenses.appId,
-        customerEmail: licenses.customerEmail,
-        status: licenses.status,
-      });
-    if (expired.length > 0) {
-      console.log(`[Expiry] ${expired.length} license(s) marked EXPIRED.`);
-    }
-    // Fase 4/3: audit trail + webhook license.expired (best-effort, di luar transaction).
-    for (const lic of expired) {
-      await AuditService.record(
-        "license.expired",
-        { licenseId: lic.id, licenseKey: lic.licenseKey, appId: lic.appId, actorType: "SYSTEM" },
-        { expiresAt: now.toISOString() }
-      );
-      await WebhookService.emit("license.expired", {
-        license: lic as any,
-        actorType: "SYSTEM",
-        payload: { expiresAt: now.toISOString() },
-      });
-    }
-  } catch (err: any) {
-    console.error("[Expiry] failed:", err?.message || err);
-  }
-}
-
-/** Fase 2: lepas lease floating yang tidak pernah heartbeat sampai TTL habis. */
-async function expireLeases(): Promise<void> {
-  try {
-    const released = await LicenseLeaseService.deleteExpired();
-    if (released > 0) {
-      console.log(`[Lease] ${released} floating lease(s) expired & released.`);
-    }
-  } catch (err: any) {
-    console.error("[Lease] failed:", err?.message || err);
-  }
-}
-
-/** Fase 3: deliverer outbox webhook (retry exponential backoff). */
-async function dispatchWebhooks(): Promise<void> {
-  try {
-    const sent = await WebhookService.dispatchDue();
-    if (sent > 0) {
-      console.log(`[Webhook] ${sent} delivery(ies) diproses.`);
-    }
-  } catch (err: any) {
-    console.error("[Webhook] dispatcher failed:", err?.message || err);
-  }
-}
-
 /** Jalankan migrasi skema database secara otomatis pada startup jika tabel belum ada */
 async function runAutoMigrations(): Promise<void> {
   try {
@@ -654,12 +593,7 @@ if (!config.isTest) {
     await ensureDemoData();
   }
 
-  expireLicenses();
-  const licenseInterval = setInterval(expireLicenses, 10 * 60 * 1000); // 10 menit
-  expireLeases();
-  const leaseInterval = setInterval(expireLeases, 2 * 60 * 1000); // 2 menit
-  dispatchWebhooks();
-  const webhookInterval = setInterval(dispatchWebhooks, 60 * 1000); // 1 menit
+  const scheduledTasks = startScheduledTasks();
 
   const serverInstance = app.listen(config.port, () => {
     console.log(`\n🚀 tertaut.com Engine is running at http://localhost:${config.port}`);
@@ -670,9 +604,7 @@ if (!config.isTest) {
   // Graceful Shutdown (Item 12)
   const shutdown = async (signal: string) => {
     console.log(`\n🛑 Menerima sinyal ${signal}. Memulai proses graceful shutdown...`);
-    clearInterval(licenseInterval);
-    clearInterval(leaseInterval);
-    clearInterval(webhookInterval);
+    scheduledTasks.stop();
 
     try {
       serverInstance.stop();
