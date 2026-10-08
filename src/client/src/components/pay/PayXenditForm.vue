@@ -918,7 +918,7 @@ function onPayClicked() {
       >
         <span>{{
           selectedPaymentRail === "va"
-            ? "Nomor VA otomatis terverifikasi tanpa upload struk"
+            ? "Nomor VA otomatis terverifikasi"
             : selectedPaymentRail === "ewallet"
               ? "Buka aplikasi e-wallet Anda untuk konfirmasi"
               : selectedPaymentRail === "card"
