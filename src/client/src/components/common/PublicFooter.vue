@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import logoUrl from "@/assets/logo.svg";
 import { COMPANY_INFO } from "../../constants/company";
 
 defineProps<{
@@ -58,41 +59,41 @@ const socialLinks = [
 </script>
 
 <template>
-  <footer class="mt-auto border-t border-slate-200/80 bg-white text-slate-700">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-6">
+  <footer class="mt-auto border-t border-jetblack/10 bg-white text-jetblack">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7 sm:py-8 space-y-5">
       <!-- Row 1: Nav Links & Social Icons -->
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <!-- Links with vertical dividers -->
         <nav
-          class="flex flex-wrap items-center gap-x-2.5 sm:gap-x-3.5 gap-y-2 text-xs sm:text-[13px] font-medium text-slate-600"
+          class="flex flex-wrap items-center gap-x-2.5 sm:gap-x-3.5 gap-y-2 text-xs sm:text-[13px] font-medium text-jetblack/75"
           aria-label="Footer Navigation"
         >
           <template v-for="(link, idx) in footerLinks" :key="link.label">
-            <span v-if="idx > 0" class="text-slate-300 select-none">|</span>
+            <span v-if="idx > 0" class="text-jetblack/20 select-none">|</span>
             <router-link
               v-if="link.href.startsWith('/') && !link.href.includes('#')"
               :to="link.href"
-              class="hover:text-slate-950 transition-colors"
+              class="hover:text-forest transition-colors font-medium"
             >
               {{ link.label }}
             </router-link>
-            <a v-else :href="link.href" class="hover:text-slate-950 transition-colors">
+            <a v-else :href="link.href" class="hover:text-forest transition-colors font-medium">
               {{ link.label }}
             </a>
           </template>
 
           <template v-if="isAdmin">
-            <span class="text-slate-300 select-none">|</span>
+            <span class="text-jetblack/20 select-none">|</span>
             <router-link
               to="/panel"
-              class="text-amber-600 hover:text-amber-700 font-semibold transition-colors"
+              class="text-forest font-bold hover:underline transition-colors"
             >
               Admin Panel
             </router-link>
           </template>
         </nav>
 
-        <!-- Social Media Circle Buttons -->
+        <!-- Social Media Circle Buttons (Tertaut Theme) -->
         <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
           <a
             v-for="item in socialLinks"
@@ -101,7 +102,7 @@ const socialLinks = [
             target="_blank"
             rel="noopener noreferrer"
             :aria-label="item.name"
-            class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition-all hover:scale-105"
+            class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-jetblack/5 border border-jetblack/10 text-jetblack/70 hover:bg-forest hover:text-white hover:border-forest flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95 shadow-2xs"
           >
             <!-- Facebook -->
             <svg
@@ -175,17 +176,30 @@ const socialLinks = [
         </div>
       </div>
 
-      <!-- Divider -->
-      <div class="h-px w-full bg-slate-100"></div>
+      <!-- Crisp Divider Line (Tertaut Jetblack/10) -->
+      <div class="h-px w-full bg-jetblack/10"></div>
 
-      <!-- Row 2: Brand/Entity & Copyright -->
+      <!-- Row 2: Brand/Entity & Copyright (Tertaut Identity) -->
       <div
         class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs"
       >
-        <div class="font-bold text-slate-900 tracking-tight">
-          {{ COMPANY_INFO.brandName }} — {{ COMPANY_INFO.legalName }}
+        <div class="flex items-center gap-2 flex-wrap">
+          <router-link to="/" class="flex items-center gap-1.5 group">
+            <img
+              :src="logoUrl"
+              alt="tertaut.com"
+              class="w-4 h-4 rounded-xs shadow-2xs group-hover:scale-105 transition"
+            />
+            <span class="font-extrabold text-jetblack font-mono tracking-tight text-xs sm:text-sm">
+              tertaut<span class="text-gold">.com</span>
+            </span>
+          </router-link>
+          <span class="text-jetblack/30 font-mono">—</span>
+          <span class="font-bold text-jetblack tracking-tight text-xs sm:text-sm">
+            {{ COMPANY_INFO.legalName }}
+          </span>
         </div>
-        <div class="text-slate-500 font-normal">
+        <div class="text-jetblack/50 font-mono text-2xs sm:text-xs">
           Copyright &copy; {{ currentYear }} {{ COMPANY_INFO.brandName }}. All Rights Reserved.
         </div>
       </div>
