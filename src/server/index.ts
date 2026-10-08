@@ -127,6 +127,10 @@ export const app = new Elysia()
     set.headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     set.headers["X-XSS-Protection"] = "0";
 
+    // Request ID Tracing (Item 13)
+    const reqId = request?.headers?.get("x-request-id") || crypto.randomUUID();
+    set.headers["X-Request-Id"] = reqId;
+
     const url = request?.url ? new URL(request.url) : null;
     const isEmbedPath =
       url &&
@@ -651,17 +655,39 @@ if (!config.isTest) {
   }
 
   expireLicenses();
-  setInterval(expireLicenses, 10 * 60 * 1000); // 10 menit (was 5 menit)
+  const licenseInterval = setInterval(expireLicenses, 10 * 60 * 1000); // 10 menit
   expireLeases();
-  setInterval(expireLeases, 2 * 60 * 1000); // 2 menit (was 1 menit)
+  const leaseInterval = setInterval(expireLeases, 2 * 60 * 1000); // 2 menit
   dispatchWebhooks();
-  setInterval(dispatchWebhooks, 60 * 1000); // 1 menit (was 30 detik)
+  const webhookInterval = setInterval(dispatchWebhooks, 60 * 1000); // 1 menit
 
-  app.listen(config.port, () => {
+  const serverInstance = app.listen(config.port, () => {
     console.log(`\n🚀 tertaut.com Engine is running at http://localhost:${config.port}`);
     console.log(`📖 Interactive Swagger Docs: http://localhost:${config.port}/swagger`);
     console.log(`⚡ Runtime: Bun ${Bun.version} | Single Container Architecture ready\n`);
   });
+
+  // Graceful Shutdown (Item 12)
+  const shutdown = async (signal: string) => {
+    console.log(`\n🛑 Menerima sinyal ${signal}. Memulai proses graceful shutdown...`);
+    clearInterval(licenseInterval);
+    clearInterval(leaseInterval);
+    clearInterval(webhookInterval);
+
+    try {
+      serverInstance.stop();
+      const { queryClient } = await import("./db");
+      await queryClient.end();
+      console.log("✅ Koneksi server dan database PostgreSQL berhasil ditutup.");
+      process.exit(0);
+    } catch (err) {
+      console.error("❌ Gagal saat graceful shutdown:", err);
+      process.exit(1);
+    }
+  };
+
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
 export type App = typeof app;
