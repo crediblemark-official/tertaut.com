@@ -1143,6 +1143,18 @@ export const api = {
     return parseJson(res);
   },
 
+  async syncPaymentChannels(): Promise<{
+    success: boolean;
+    channels?: any;
+    qrisProbe?: { success: boolean; status?: string; message: string };
+    error?: string;
+  }> {
+    const res = await apiFetch("/api/v1/panel/settings/sync-channels", {
+      method: "POST",
+    });
+    return parseJson(res);
+  },
+
   async getPublicAnnouncement(): Promise<{
     success: boolean;
     hasAnnouncement: boolean;

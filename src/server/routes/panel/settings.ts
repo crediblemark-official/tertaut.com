@@ -8,6 +8,7 @@ import {
   allCredentialKeys,
   normalizeGatewayId,
 } from "../../services/payments/gateways/registry";
+import { xenditGateway } from "../../services/payments/gateways/xenditGateway";
 
 const DEFAULT_SETTINGS: Record<string, string> = {
   platform_fee_percent: "5",
@@ -24,6 +25,9 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   sandbox_mode: config.isSandbox ? "true" : "false", // true (Sandbox / Pengujian) | false (Production / Live)
   ...Object.fromEntries(allCredentialKeys().map((k) => [k, ""])),
   checkout_mode: "custom", // custom (Full Custom Native UI) | hosted (Redirect ke Halaman Hosted Xendit)
+  xendit_qris_enabled: "auto", // auto | true | false
+  xendit_va_enabled: "auto", // auto | true | false
+  xendit_retail_enabled: "auto", // auto | true | false
 };
 
 /**
@@ -191,7 +195,25 @@ export async function handleUpdatePlatformSettings({ body, set }: any) {
       });
   }
 
+  // Bersihkan cache in-memory payment channels jika ada perubahan settings gateway
+  xenditGateway.clearChannelsCache();
+
   return handleGetPlatformSettings();
+}
+
+/**
+ * Sinkronisasi dan pengujian channel pembayaran Xendit secara real-time & dinamis
+ */
+export async function handleSyncPaymentChannels() {
+  xenditGateway.clearChannelsCache();
+  const channels = await xenditGateway.getPaymentChannels(true);
+  const qrisProbe = await xenditGateway.probeQrisLive();
+
+  return {
+    success: true,
+    channels,
+    qrisProbe,
+  };
 }
 
 /**

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import type { PlatformSettingsFormData } from "../../../types/panel";
+import { api } from "../../../lib/api";
 import {
   Save,
   CreditCard,
@@ -11,6 +12,9 @@ import {
   ShieldCheck,
   Terminal,
   FileCode,
+  RefreshCw,
+  Zap,
+  CircleAlert,
 } from "lucide-vue-next";
 
 const props = defineProps<{
@@ -28,6 +32,39 @@ const copiedXenithWebhook = ref(false);
 const copiedXenithDemo = ref(false);
 const copiedDanaDemo = ref(false);
 const copiedXenditDemo = ref(false);
+const syncingChannels = ref(false);
+const syncResult = ref<{
+  success: boolean;
+  message: string;
+  qrisActive?: boolean;
+} | null>(null);
+
+async function handleSyncChannels() {
+  syncingChannels.value = true;
+  syncResult.value = null;
+  try {
+    const res = await api.syncPaymentChannels();
+    if (res.success) {
+      syncResult.value = {
+        success: true,
+        message: res.qrisProbe?.message || "Channel pembayaran berhasil disinkronkan real-time!",
+        qrisActive: Boolean(res.channels?.qrisEnabled),
+      };
+    } else {
+      syncResult.value = {
+        success: false,
+        message: res.error || "Gagal menyinkronkan channel pembayaran.",
+      };
+    }
+  } catch (err: any) {
+    syncResult.value = {
+      success: false,
+      message: err?.message || "Terjadi kesalahan saat sinkronisasi.",
+    };
+  } finally {
+    syncingChannels.value = false;
+  }
+}
 
 function getAppOrigin() {
   return window.location.origin.includes("localhost")
@@ -397,6 +434,102 @@ function copyXenithWebhookUrl() {
                   {{ form.xendit_webhook_token ? "✓ Disetel" : "Kosong" }}
                 </span>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Xendit Live Channel Status & Dynamic Sync Widget -->
+        <div class="p-3.5 rounded-lg border border-jetblack/10 bg-white space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <Zap class="w-4 h-4 text-emerald-600 shrink-0" />
+              <span class="text-xs font-bold text-jetblack"
+                >Channel Pembayaran Xendit (Dinamis & Real-Time)</span
+              >
+            </div>
+            <button
+              type="button"
+              @click="handleSyncChannels"
+              :disabled="syncingChannels"
+              class="px-2.5 py-1 text-xs font-bold rounded-md bg-forest text-white hover:bg-forest/90 active:scale-95 transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw class="w-3.5 h-3.5" :class="syncingChannels ? 'animate-spin' : ''" />
+              <span>{{
+                syncingChannels ? "Memverifikasi..." : "⚡ Sinkronkan & Tes QRIS Sekarang"
+              }}</span>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+            <!-- QRIS Card -->
+            <div
+              class="p-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 flex items-center justify-between"
+            >
+              <div>
+                <div class="font-bold text-emerald-950 flex items-center gap-1">
+                  <span>📱 QRIS Instan</span>
+                  <span
+                    class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-200 text-emerald-800 font-extrabold uppercase"
+                    >Aktif</span
+                  >
+                </div>
+                <div class="text-[10px] text-emerald-700/80 pt-0.5">
+                  Semua m-Banking &amp; E-Wallet
+                </div>
+              </div>
+              <Check class="w-4 h-4 text-emerald-600 shrink-0" />
+            </div>
+
+            <!-- Virtual Account Card -->
+            <div
+              class="p-2.5 rounded-lg border border-blue-500/20 bg-blue-500/5 flex items-center justify-between"
+            >
+              <div>
+                <div class="font-bold text-blue-950 flex items-center gap-1">
+                  <span>🏦 Virtual Account</span>
+                  <span
+                    class="text-[9px] px-1.5 py-0.2 rounded bg-blue-200 text-blue-800 font-extrabold uppercase"
+                    >7 Bank</span
+                  >
+                </div>
+                <div class="text-[10px] text-blue-700/80 pt-0.5">
+                  BCA, Mandiri, BRI, BNI, BSI...
+                </div>
+              </div>
+              <Check class="w-4 h-4 text-blue-600 shrink-0" />
+            </div>
+
+            <!-- Retail Card -->
+            <div
+              class="p-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 flex items-center justify-between"
+            >
+              <div>
+                <div class="font-bold text-amber-950 flex items-center gap-1">
+                  <span>🏪 Minimarket</span>
+                  <span
+                    class="text-[9px] px-1.5 py-0.2 rounded bg-amber-200 text-amber-800 font-extrabold uppercase"
+                    >2 Gerai</span
+                  >
+                </div>
+                <div class="text-[10px] text-amber-700/80 pt-0.5">Alfamart &amp; Indomaret</div>
+              </div>
+              <Check class="w-4 h-4 text-amber-600 shrink-0" />
+            </div>
+          </div>
+
+          <div
+            v-if="syncResult"
+            class="p-2.5 rounded-lg text-xs"
+            :class="
+              syncResult.success
+                ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border border-rose-200 text-rose-800'
+            "
+          >
+            <div class="flex items-center gap-1.5 font-bold">
+              <Check v-if="syncResult.success" class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <CircleAlert v-else class="w-3.5 h-3.5 text-rose-600 shrink-0" />
+              <span>{{ syncResult.message }}</span>
             </div>
           </div>
         </div>

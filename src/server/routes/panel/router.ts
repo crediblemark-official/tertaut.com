@@ -22,7 +22,11 @@ import {
   handleExportApps,
   handleExportLicenses,
 } from "./export";
-import { handleGetPlatformSettings, handleUpdatePlatformSettings } from "./settings";
+import {
+  handleGetPlatformSettings,
+  handleUpdatePlatformSettings,
+  handleSyncPaymentChannels,
+} from "./settings";
 
 export const panelRoutes = new Elysia({ prefix: "/panel" })
   .onBeforeHandle(async ({ request: { headers }, status }) => {
@@ -304,5 +308,14 @@ export const panelRoutes = new Elysia({ prefix: "/panel" })
     detail: {
       tags: ["Admin Panel"],
       summary: "Update Platform Configuration & Settings (Patch)",
+    },
+  })
+  /**
+   * Pengaturan Platform: Sinkronisasi & Tes Real-time Channel Gateway
+   */
+  .post("/settings/sync-channels", handleSyncPaymentChannels, {
+    detail: {
+      tags: ["Admin Panel"],
+      summary: "Sync & Test Payment Gateway Channels Real-time",
     },
   });
