@@ -19,11 +19,9 @@ import { enforceRateLimit, resetRateLimits } from "../../services/security/rateL
 import { LicenseLeaseService } from "../../services/licensing/licenseLease";
 import { LicenseService } from "../../services/licensing/license";
 import { DanaService } from "../../services/payments/dana/dana";
-import {
-  handleListSeats,
-  handleHeartbeat,
-  handleVerifyLicense,
-} from "../../routes/licensing/device";
+import { handleListSeats } from "../../routes/licensing/device/seats";
+import { handleHeartbeat } from "../../routes/licensing/device/heartbeat";
+import { handleVerifyLicense } from "../../routes/licensing/device/verify";
 import { handleListEvents, handleListLicenses } from "../../routes/licensing/admin";
 import { handleListWebhooks, handleCreateWebhook } from "../../routes/licensing/adminWebhooks";
 import { handleBatchPayout } from "../../routes/panel/payouts";

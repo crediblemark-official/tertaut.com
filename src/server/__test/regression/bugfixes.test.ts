@@ -28,11 +28,9 @@ import { LicenseService } from "../../services/licensing/license";
 import { LicenseTokenService } from "../../services/licensing/licenseToken";
 import { CreditService } from "../../services/monetization/credits";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
-import {
-  handleActivateLicense,
-  handleValidateLicense,
-  handleListSeats,
-} from "../../routes/licensing/device";
+import { handleActivateLicense } from "../../routes/licensing/device/activate";
+import { handleValidateLicense } from "../../routes/licensing/device/validate";
+import { handleListSeats } from "../../routes/licensing/device/seats";
 import { fulfillPaymentTransaction } from "../../routes/webhook/fulfill";
 import { handleDisburse } from "../../routes/apps/disburse";
 import { DanaService } from "../../services/payments/dana/dana";

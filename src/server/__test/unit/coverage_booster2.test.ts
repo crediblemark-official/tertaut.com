@@ -28,12 +28,10 @@ import {
   handleDanaDisburseNotifyWebhook,
 } from "../../routes/webhook/dana";
 import { fulfillPaymentTransaction } from "../../routes/webhook/fulfill";
-import {
-  handleHeartbeat,
-  handleVerifyLicense,
-  handleValidateLicense,
-  handleUnbindHardware,
-} from "../../routes/licensing/device";
+import { handleHeartbeat } from "../../routes/licensing/device/heartbeat";
+import { handleVerifyLicense } from "../../routes/licensing/device/verify";
+import { handleValidateLicense } from "../../routes/licensing/device/validate";
+import { handleUnbindHardware } from "../../routes/licensing/device/unbind";
 import { handleListWebhooks, handleCreateWebhook } from "../../routes/licensing/adminWebhooks";
 import { authenticate, authenticateSecretApiKey } from "../../middleware/auth";
 import { LicenseTokenService } from "../../services/licensing/licenseToken";

@@ -1,13 +1,11 @@
 import { Elysia, t } from "elysia";
-import {
-  handleActivateLicense,
-  handleVerifyLicense,
-  handleDeactivateLicense,
-  handleValidateLicense,
-  handleUnbindHardware,
-  handleHeartbeat,
-  handleListSeats,
-} from "./device";
+import { handleActivateLicense } from "./device/activate";
+import { handleVerifyLicense } from "./device/verify";
+import { handleDeactivateLicense } from "./device/deactivate";
+import { handleValidateLicense } from "./device/validate";
+import { handleUnbindHardware } from "./device/unbind";
+import { handleHeartbeat } from "./device/heartbeat";
+import { handleListSeats } from "./device/seats";
 import { handleCreditBalance, handleConsumeCredits, handleCreditHistory } from "./credits";
 import { handleVerifyOfflineToken } from "./token";
 import {

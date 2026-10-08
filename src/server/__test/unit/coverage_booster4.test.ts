@@ -12,12 +12,10 @@ import {
 } from "../../db/schema";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
 import { LicenseService } from "../../services/licensing/license";
-import {
-  handleActivateLicense,
-  handleValidateLicense,
-  handleHeartbeat,
-  handleListSeats,
-} from "../../routes/licensing/device";
+import { handleActivateLicense } from "../../routes/licensing/device/activate";
+import { handleValidateLicense } from "../../routes/licensing/device/validate";
+import { handleHeartbeat } from "../../routes/licensing/device/heartbeat";
+import { handleListSeats } from "../../routes/licensing/device/seats";
 import {
   handleConsumeCredits,
   handleCreditBalance,

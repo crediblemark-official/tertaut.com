@@ -8,12 +8,10 @@ import {
   handleRotateApiKey,
   handleRotateBuilderSecret,
 } from "../../routes/apps/mutations";
-import {
-  handleUnbindHardware,
-  handleDeactivateLicense,
-  handleValidateLicense,
-  handleHeartbeat,
-} from "../../routes/licensing/device";
+import { handleUnbindHardware } from "../../routes/licensing/device/unbind";
+import { handleDeactivateLicense } from "../../routes/licensing/device/deactivate";
+import { handleValidateLicense } from "../../routes/licensing/device/validate";
+import { handleHeartbeat } from "../../routes/licensing/device/heartbeat";
 import { handleAiChat } from "../../routes/aiproxy/chat";
 import { LicenseService } from "../../services/licensing/license";
 import { db } from "../../db";

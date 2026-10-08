@@ -18,12 +18,10 @@ import {
 } from "../../routes/webhook/dana";
 import { fulfillPaymentTransaction } from "../../routes/webhook/fulfill";
 import { handleBatchPayout } from "../../routes/panel/payouts";
-import {
-  handleActivateLicense,
-  handleDeactivateLicense,
-  handleValidateLicense,
-  handleVerifyLicense,
-} from "../../routes/licensing/device";
+import { handleActivateLicense } from "../../routes/licensing/device/activate";
+import { handleDeactivateLicense } from "../../routes/licensing/device/deactivate";
+import { handleValidateLicense } from "../../routes/licensing/device/validate";
+import { handleVerifyLicense } from "../../routes/licensing/device/verify";
 import { enforceRateLimit, resetRateLimits } from "../../services/security/rateLimiter";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
