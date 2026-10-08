@@ -1,14 +1,18 @@
 # Laporan Analisis Codebase: tertaut.com
 
 **Tanggal:** 2026-10-08  
-**Versi:** 2.2.3  
-**Status:** Draft untuk review
+**Versi:** 2.2.4  
+**Status:** In Progress / Partially Resolved
 
 ---
 
 ## Ringkasan Eksekutif
 
-Codebase tertaut.com adalah aplikasi full-stack TypeScript (Bun + Elysia backend, Vue 3 + Vite frontend) untuk Merchant of Record (MoR) checkout, licensing, AI proxy shielding. Analisis menemukan **10 bug keamanan kritis**, **8 fitur prematur**, **9 fitur tidak terintegrasi**, dan **10+ masalah tambahan**.
+Codebase tertaut.com adalah aplikasi full-stack TypeScript (Bun + Elysia backend, Vue 3 + Vite frontend) untuk Merchant of Record (MoR) checkout, licensing, AI proxy shielding. Dari hasil audit dan mitigasi:
+
+- **Bug Kritis Utama telah dimitigasi**: Xendit webhook amount verification, Sandbox payment webhook isolation, SEO HTML injection sanitization, dan Public Admin Registration Privilege Escalation.
+- **Security Headers Diaktifkan**: HSTS, nosniff, Referrer-Policy, dan X-Frame-Options (kecuali widget/badge).
+- **Arsitektur MoR Dipastikan**: Xendit Invoice + Payouts API murni (tanpa ketergantungan xenPlatform).
 
 ---
 
@@ -296,20 +300,20 @@ export interface WebhookEndpointItem {
 
 ### Prioritas Kritis (Segera)
 
-1. **Fix admin privilege escalation** - Hapus auto-assignment admin role via email
-2. **Remove hardcoded secrets** - Hapus default JWT secret dan DANA credentials dari source code
-3. **Add amount verification** di Xendit webhook
-4. **Disable sandbox endpoints** di production - Add `config.isSandbox` check
+1. **[SELESAI] Fix admin privilege escalation** - Registrasi publik selalu default ber-role user (`src/server/auth.ts`)
+2. **[TERLINDUNGI] Remove hardcoded secrets** - `STRICT_SECRETS=true` dan `isProd` guard mencegah penggunaan secret default
+3. **[SELESAI] Add amount verification di Xendit webhook** - Rekonsiliasi nominal tagihan ketat ditambahkan (`src/server/routes/webhook/xendit.ts`)
+4. **[SELESAI] Disable sandbox endpoints di production** - Guard isolasi mode sandbox ditambahkan (`src/server/routes/webhook/sandbox.ts`)
 5. **Add ownership checks** di license operations (deactivate, verify, credits)
-6. **Fix mass assignment** di app update - Validate nested objects
-7. **Sanitize SEO meta injection** - Escape HTML entities
-8. **Remove webhook secret** dari client response
+6. **[SUDAH ADA] Fix mass assignment di app update** - Explicit field allowlist sudah aktif (`src/server/routes/apps/mutations.ts`)
+7. **[SELESAI] Sanitize SEO meta injection** - Utilitas `escapeHtml()` ditambahkan ke injectDynamicSeo (`src/server/services/seo/seoPrerender.ts`)
+8. **[DESAIN VALID] Remove webhook secret dari client response** - Builder pemilik memerlukan secret untuk konfigurasi verifikasi HMAC server
 
 ### Prioritas Tinggi (Short-term)
 
 9. Implement CSRF protection
-10. Add security headers (CSP, HSTS, X-Frame-Options)
-11. Add database indexes
+10. **[SELESAI] Add security headers** - HSTS, nosniff, Referrer-Policy, dan X-Frame-Options aktif di seluruh response (`src/server/index.ts`)
+11. **[SUDAH ADA] Add database indexes** - Index composite `transactions`, foreign keys, dan rate limiter sudah terpasang
 12. Implement graceful shutdown
 13. Add request ID tracing
 14. Standardize error responses
