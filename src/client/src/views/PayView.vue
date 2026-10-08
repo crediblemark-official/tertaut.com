@@ -116,16 +116,21 @@ const payableAmount = computed(() =>
   product.value ? Math.max(0, product.value.targetPrice - estimatedDiscount.value) : 0
 );
 
+let pollStartTime = 0;
+
 function stopPolling() {
   if (pollTimer) {
+    clearTimeout(pollTimer);
     clearInterval(pollTimer);
     pollTimer = null;
   }
 }
 
-function startPolling(txId: string) {
+function startPolling(txId: string, isQris = false) {
   stopPolling();
-  pollTimer = setInterval(async () => {
+  pollStartTime = Date.now();
+
+  const pollStep = async () => {
     try {
       const res = await api.getPaymentStatus(txId, currentTicket);
       if (res && res.paymentStatus === "PAID") {
@@ -135,13 +140,26 @@ function startPolling(txId: string) {
           licenseKey: res.licenseKey || undefined,
           message: "Pembayaran berhasil diverifikasi secara instan.",
         };
+        return;
       } else if (res && (res.paymentStatus === "EXPIRED" || res.paymentStatus === "FAILED")) {
         stopPolling();
         errorMessage.value = "Sesi pembayaran ini telah kedaluwarsa atau gagal. Silakan coba lagi.";
         activeCustomOrder.value = null;
+        return;
       }
     } catch {}
-  }, 2500);
+
+    // Short-polling adaptif:
+    // Pada 30 detik pertama saat QRIS dibuka, interval dinaikkan ke 1.5 detik (1500ms)
+    // agar layar sukses muncul lebih cepat saat pembeli selesai scan.
+    // Setelah 30 detik atau untuk rail selain QRIS, interval normal 2.5 detik (2500ms).
+    const elapsed = Date.now() - pollStartTime;
+    const nextInterval = isQris && elapsed < 30_000 ? 1500 : 2500;
+    pollTimer = setTimeout(pollStep, nextInterval);
+  };
+
+  const initialDelay = isQris ? 1500 : 2500;
+  pollTimer = setTimeout(pollStep, initialDelay);
 }
 
 function onPaymentSuccess(result: { licenseKey?: string; message?: string }) {
@@ -230,7 +248,8 @@ async function loadCheckoutData() {
             checkoutUrl: statusRes.checkoutUrl,
             ticket: currentTicket,
           };
-          startPolling(statusRes.transactionId || externalIdParam);
+          const isQris = !statusRes.channel?.toLowerCase().includes("va");
+          startPolling(statusRes.transactionId || externalIdParam, isQris);
         }
       }
     }
@@ -408,7 +427,8 @@ async function handlePay(payload?: {
         ticket: currentTicket,
       };
       if (data.transactionId) {
-        startPolling(data.transactionId);
+        const isQris = (data.paymentRail || rail) === "qris";
+        startPolling(data.transactionId, isQris);
       }
     } else if (data.checkoutUrl) {
       // Hosted Mode: dialihkan ke invoice resmi Xendit
@@ -446,16 +466,152 @@ onUnmounted(() => {
       ></div>
     </div>
 
-    <!-- Loading State -->
-    <div
-      v-if="loading"
-      class="relative z-10 flex flex-col items-center justify-center text-white/70 text-xs gap-3 p-8 my-auto"
-    >
+    <!-- 1. Skeleton Loading State (CLS = 0, Exact 50/50 Luxury Split Outline) -->
+    <template v-if="loading">
+      <!-- Top Navigation Bar Skeleton -->
       <div
-        class="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin"
-      ></div>
-      <span class="font-mono text-[11px]">Menyiapkan sesi checkout aman tertaut.com...</span>
-    </div>
+        class="relative z-10 w-full max-w-4xl mb-2 sm:mb-3 flex items-center justify-between px-1 shrink-0 animate-pulse"
+      >
+        <div class="h-4 w-28 rounded bg-white/10"></div>
+        <div class="flex items-center gap-3">
+          <div class="h-5 w-24 rounded-full bg-emerald-500/10 border border-emerald-500/20"></div>
+          <span class="w-1 h-1 rounded-full bg-white/20"></span>
+          <div class="h-3.5 w-16 rounded bg-white/10"></div>
+        </div>
+      </div>
+
+      <!-- Master Unified Skeleton Card (Exact same dimensions & split as active card) -->
+      <div
+        class="relative z-10 w-full max-w-4xl h-auto lg:h-[560px] lg:max-h-[calc(100vh-4rem)] rounded-2xl border border-slate-200/90 bg-white shadow-[0_25px_70px_rgba(0,0,0,0.6)] overflow-hidden grid grid-cols-1 lg:grid-cols-2 shrink-0 my-auto animate-pulse"
+      >
+        <!-- Mobile Header Skeleton (Mobile-only) -->
+        <div class="lg:hidden p-3.5 border-b border-slate-200 bg-slate-50/80 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="space-y-1">
+              <div class="h-2.5 w-20 bg-amber-200 rounded"></div>
+              <div class="h-4 w-36 bg-slate-300 rounded"></div>
+            </div>
+            <div class="h-6 w-24 bg-slate-300 rounded"></div>
+          </div>
+        </div>
+
+        <!-- LEFT PANE SKELETON: Desktop Order Summary -->
+        <div
+          class="hidden lg:flex flex-col justify-between p-6 xl:p-7 border-r border-slate-200 bg-slate-50/70 h-full overflow-hidden shrink-0 space-y-5"
+        >
+          <div class="space-y-4 my-auto py-1">
+            <div class="space-y-2">
+              <div class="h-7 w-3/4 bg-slate-200 rounded-lg"></div>
+              <div class="h-4 w-5/6 bg-slate-200/70 rounded"></div>
+              <div class="h-3.5 w-1/2 bg-slate-200/60 rounded"></div>
+            </div>
+
+            <!-- Benefits Bullets -->
+            <div class="space-y-2.5 pt-2">
+              <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded-full bg-emerald-100 shrink-0"></div>
+                <div class="h-3.5 w-48 bg-slate-200 rounded"></div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded-full bg-emerald-100 shrink-0"></div>
+                <div class="h-3.5 w-40 bg-slate-200 rounded"></div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded-full bg-emerald-100 shrink-0"></div>
+                <div class="h-3.5 w-52 bg-slate-200 rounded"></div>
+              </div>
+            </div>
+
+            <!-- Email Input -->
+            <div class="space-y-1.5 pt-3 border-t border-slate-200">
+              <div class="h-3 w-36 bg-slate-200 rounded"></div>
+              <div class="h-10 w-full rounded-xl bg-white border border-slate-300"></div>
+            </div>
+
+            <!-- Coupon Box -->
+            <div class="pt-2 border-t border-slate-200 space-y-1.5">
+              <div class="h-3 w-24 bg-slate-200 rounded"></div>
+              <div class="flex items-center gap-2">
+                <div class="h-9 flex-1 bg-white border border-slate-300 rounded-xl"></div>
+                <div class="h-9 w-16 bg-slate-200 rounded-xl"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Total & Trust Info -->
+          <div class="space-y-3 pt-3 border-t border-slate-200 shrink-0">
+            <div class="flex items-center justify-between">
+              <div class="h-3.5 w-20 bg-slate-200 rounded"></div>
+              <div class="h-7 w-32 bg-slate-300 rounded-lg"></div>
+            </div>
+            <div class="flex items-center justify-between pt-1">
+              <div class="h-3 w-28 bg-slate-200 rounded"></div>
+              <div class="h-3 w-24 bg-slate-200 rounded"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT PANE SKELETON: Payment Multi-Rail Form -->
+        <div
+          class="flex flex-col h-full overflow-hidden bg-white text-slate-900 p-4 sm:p-6 lg:p-7 xl:p-8 justify-between space-y-5"
+        >
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="h-3.5 w-36 bg-slate-200 rounded"></div>
+              <div class="h-3.5 w-20 bg-emerald-100 rounded"></div>
+            </div>
+
+            <!-- Rail 1: QRIS -->
+            <div
+              class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 flex items-center justify-between"
+            >
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-emerald-100 shrink-0"></div>
+                <div class="space-y-1">
+                  <div class="h-3.5 w-24 bg-slate-200 rounded"></div>
+                  <div class="h-2.5 w-36 bg-slate-200/70 rounded"></div>
+                </div>
+              </div>
+              <div class="w-4 h-4 rounded-full bg-slate-200"></div>
+            </div>
+
+            <!-- Rail 2: Virtual Account -->
+            <div
+              class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 flex items-center justify-between"
+            >
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-blue-100 shrink-0"></div>
+                <div class="space-y-1">
+                  <div class="h-3.5 w-28 bg-slate-200 rounded"></div>
+                  <div class="h-2.5 w-44 bg-slate-200/70 rounded"></div>
+                </div>
+              </div>
+              <div class="w-4 h-4 rounded-full bg-slate-200"></div>
+            </div>
+
+            <!-- Rail 3: Retail Minimarket -->
+            <div
+              class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 flex items-center justify-between"
+            >
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-amber-100 shrink-0"></div>
+                <div class="space-y-1">
+                  <div class="h-3.5 w-20 bg-slate-200 rounded"></div>
+                  <div class="h-2.5 w-32 bg-slate-200/70 rounded"></div>
+                </div>
+              </div>
+              <div class="w-4 h-4 rounded-full bg-slate-200"></div>
+            </div>
+          </div>
+
+          <!-- Bottom Action Button -->
+          <div class="space-y-2 pt-2">
+            <div class="h-11 w-full rounded-xl bg-slate-900/80 shadow-xs"></div>
+            <div class="h-3 w-48 mx-auto bg-slate-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    </template>
 
     <!-- Not Found State -->
     <div
