@@ -129,12 +129,11 @@ import { app } from "../index";
  * Gateway yang dipakai test diambil dari `TERTAUT_TEST_GATEWAY` — nama vars
  * khusus test, sengaja terpisah dari `ACTIVE_PAYMENT_GATEWAY`/`PAYMENT_GATEWAY`
  * supaya tidak bisa tertimpa oleh `.env` dan supaya jelas ini knob test, bukan
- * konfigurasi produksi. Defaults ke "dana".
+ * konfigurasi produksi. Defaults ke DEFAULT_GATEWAY_ID ("xendit").
  *
- * Test yang butuh gateway lain (mis. 25_multi_gateway_xendit) menimpanya sendiri
- * setelah hook ini berjalan, jadi keduanya tetap ter-cover.
+ * Test yang butuh gateway lain menimpanya sendiri setelah hook ini berjalan.
  */
-const FALLBACK_TEST_GATEWAY: GatewayId = "dana";
+const FALLBACK_TEST_GATEWAY: GatewayId = DEFAULT_GATEWAY_ID;
 
 function resolveTestGateway(): GatewayId {
   // Hanya `TERTAUT_TEST_GATEWAY` yang dihormati (bukan ACTIVE_PAYMENT_GATEWAY /
