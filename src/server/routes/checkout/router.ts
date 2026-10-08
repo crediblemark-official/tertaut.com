@@ -1,7 +1,5 @@
 import { Elysia, t } from "elysia";
 import { authenticate } from "../../middleware/auth";
-import { handleDanaFinishPaymentWebhook } from "../webhook/dana";
-import { danaWebhookSchema } from "../webhook/schemas";
 import { handleCreateSession } from "./session";
 import {
   handleDanaFinish,
@@ -15,9 +13,8 @@ import {
   handleSimulateSandboxPayment,
 } from "./handlers";
 
-/** Endpoint checkout yang memang harus publik (webhook, buat sesi, preview kupon, redirect DANA, polling status, invoice, channels, simulate). */
+/** Endpoint checkout yang memang harus publik (buat sesi, preview kupon, redirect DANA, polling status, invoice, channels, simulate). */
 const PUBLIC_CHECKOUT_PATHS = [
-  "webhook",
   "/session",
   "preview-coupon",
   "dana/finish",
@@ -35,11 +32,6 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
     const res = await authenticate(headers);
     if ("status" in res) return status(res.status, { error: res.error });
   })
-  /**
-   * Webhook DANA Finish Payment Callback
-   */
-  .post("/webhook/dana", handleDanaFinishPaymentWebhook, danaWebhookSchema)
-  .post("/webhook/dana/finish-payment", handleDanaFinishPaymentWebhook, danaWebhookSchema)
   /**
    * Pemicu Dynamic & Headless Checkout Link (Gapura Custom & Hosted)
    */

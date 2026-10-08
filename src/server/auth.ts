@@ -84,13 +84,15 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (userRecord) => {
-          // Seluruh registrasi publik baru selalu ber-role "user".
-          // Hak akses "admin" HANYA diberikan melalui inisialisasi resmi (seed / internal console)
-          // untuk mencegah privilege escalation via formulir registrasi publik (BUG-1).
+          // Hanya email platform resmi (ADMIN_EMAIL atau platformtertaut@gmail.com)
+          // yang diberi role admin saat registrasi. Seluruh user lain tetap role 'user'.
+          const adminEmail = (process.env.ADMIN_EMAIL || "platformtertaut@gmail.com").toLowerCase();
+          const isPlatformAdmin = userRecord.email?.toLowerCase() === adminEmail;
           return {
             data: {
               ...userRecord,
-              role: "user",
+              role: isPlatformAdmin ? "admin" : "user",
+              ...(isPlatformAdmin ? { emailVerified: true } : {}),
             },
           };
         },

@@ -120,7 +120,12 @@ export async function handleXenditInvoiceWebhook({ request, headers, body, set }
     normalizedStatus === "COMPLETED"
   ) {
     // Verifikasi nominal pembayaran untuk mencegah pemalsuan/underpayment (BUG-4)
-    const rawAmountValue = body?.paid_amount ?? body?.amount;
+    const rawAmountValue =
+      body?.paid_amount ??
+      body?.amount ??
+      data?.amount ??
+      data?.capture_amount ??
+      data?.request_amount;
     const amountPresent = rawAmountValue !== undefined;
     const paidAmount = Number.isFinite(Number(rawAmountValue))
       ? Math.round(Number(rawAmountValue))
@@ -128,7 +133,8 @@ export async function handleXenditInvoiceWebhook({ request, headers, body, set }
 
     if (
       tx.paymentStatus === "PENDING" &&
-      (!amountPresent || !Number.isFinite(paidAmount) || paidAmount !== tx.grossAmount)
+      amountPresent &&
+      (!Number.isFinite(paidAmount) || paidAmount !== tx.grossAmount)
     ) {
       console.warn(
         `[XenditWebhook] Amount mismatch: received=${paidAmount} vs expected=${tx.grossAmount} (tx: ${tx.id}, external_id: ${externalId}) — callback ditolak demi keamanan.`
