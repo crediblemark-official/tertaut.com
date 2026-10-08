@@ -4,6 +4,7 @@ import type { PanelStats } from "../../types/panel";
 
 defineProps<{
   stats: PanelStats | null;
+  loading?: boolean;
 }>();
 </script>
 
@@ -17,12 +18,18 @@ defineProps<{
         <span>Total Platform GMV</span>
         <TrendingUp class="w-4 h-4 text-jetblack" />
       </div>
-      <div class="text-2xl font-black text-jetblack font-mono">
-        Rp {{ (stats?.totalGMV || 0).toLocaleString("id-ID") }}
+      <div v-if="loading || !stats" class="space-y-1.5 py-1">
+        <div class="h-7 w-32 bg-jetblack/10 rounded-md animate-pulse"></div>
+        <div class="h-3 w-28 bg-jetblack/5 rounded animate-pulse"></div>
       </div>
-      <div class="text-[11px] text-jetblack/50">
-        {{ stats?.paidTransactions || 0 }} transaksi berhasil
-      </div>
+      <template v-else>
+        <div class="text-2xl font-black text-jetblack font-mono">
+          Rp {{ (stats.totalGMV || 0).toLocaleString("id-ID") }}
+        </div>
+        <div class="text-[11px] text-jetblack/50">
+          {{ stats.paidTransactions || 0 }} transaksi berhasil
+        </div>
+      </template>
     </div>
 
     <!-- 2. Platform MoR Fee (5%) -->
@@ -31,10 +38,16 @@ defineProps<{
         <span>MoR Fee Pendapatan (5%)</span>
         <DollarSign class="w-4 h-4 text-gold" />
       </div>
-      <div class="text-2xl font-black text-jetblack font-mono">
-        Rp {{ (stats?.platformFeeRevenue || 0).toLocaleString("id-ID") }}
+      <div v-if="loading || !stats" class="space-y-1.5 py-1">
+        <div class="h-7 w-28 bg-jetblack/10 rounded-md animate-pulse"></div>
+        <div class="h-3 w-32 bg-jetblack/5 rounded animate-pulse"></div>
       </div>
-      <div class="text-[11px] text-jetblack/50">Pendapatan kotor platform</div>
+      <template v-else>
+        <div class="text-2xl font-black text-jetblack font-mono">
+          Rp {{ (stats.platformFeeRevenue || 0).toLocaleString("id-ID") }}
+        </div>
+        <div class="text-[11px] text-jetblack/50">Pendapatan kotor platform</div>
+      </template>
     </div>
 
     <!-- 3. Net Builder Share (95%) -->
@@ -43,12 +56,18 @@ defineProps<{
         <span>Porsi Bersih Builder (95%)</span>
         <Users class="w-4 h-4 text-forest" />
       </div>
-      <div class="text-2xl font-black text-forest font-mono">
-        Rp {{ (stats?.netBuilderShare || 0).toLocaleString("id-ID") }}
+      <div v-if="loading || !stats" class="space-y-1.5 py-1">
+        <div class="h-7 w-32 bg-forest/15 rounded-md animate-pulse"></div>
+        <div class="h-3 w-28 bg-forest/10 rounded animate-pulse"></div>
       </div>
-      <div class="text-[11px] text-forest font-medium">
-        {{ stats?.totalBuilders || 0 }} builders terdaftar
-      </div>
+      <template v-else>
+        <div class="text-2xl font-black text-forest font-mono">
+          Rp {{ (stats.netBuilderShare || 0).toLocaleString("id-ID") }}
+        </div>
+        <div class="text-[11px] text-forest font-medium">
+          {{ stats.totalBuilders || 0 }} builders terdaftar
+        </div>
+      </template>
     </div>
 
     <!-- 4. Pending Disbursements -->
@@ -57,12 +76,18 @@ defineProps<{
         <span>Pending Payout</span>
         <Send class="w-4 h-4 text-gold" />
       </div>
-      <div class="text-2xl font-black text-jetblack font-mono">
-        Rp {{ (stats?.pendingDisbursementsAmount || 0).toLocaleString("id-ID") }}
+      <div v-if="loading || !stats" class="space-y-1.5 py-1">
+        <div class="h-7 w-28 bg-jetblack/10 rounded-md animate-pulse"></div>
+        <div class="h-3 w-36 bg-jetblack/5 rounded animate-pulse"></div>
       </div>
-      <div class="text-[11px] text-jetblack/50">
-        {{ stats?.pendingDisbursementsCount || 0 }} transaksi siap dicairkan
-      </div>
+      <template v-else>
+        <div class="text-2xl font-black text-jetblack font-mono">
+          Rp {{ (stats.pendingDisbursementsAmount || 0).toLocaleString("id-ID") }}
+        </div>
+        <div class="text-[11px] text-jetblack/50">
+          {{ stats.pendingDisbursementsCount || 0 }} transaksi siap dicairkan
+        </div>
+      </template>
     </div>
   </section>
 </template>

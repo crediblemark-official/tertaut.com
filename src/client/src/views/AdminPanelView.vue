@@ -552,7 +552,7 @@ onMounted(() => {
             </div>
 
             <!-- Macro Platform KPI Cards Component -->
-            <PlatformKpiCards :stats="stats" />
+            <PlatformKpiCards :stats="stats" :loading="loading" />
 
             <!-- Quick Action Banner for Batch Payout Component -->
             <BatchPayoutBanner
@@ -566,6 +566,7 @@ onMounted(() => {
             <OverviewPreviews
               :builders="builders"
               :transactions="transactions"
+              :loading="loading"
               @select-tab="activeTab = $event"
             />
           </div>

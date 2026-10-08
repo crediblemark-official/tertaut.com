@@ -66,21 +66,25 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
         <span class="text-[10px] font-bold uppercase tracking-wider text-jetblack/50"
           >Total Software</span
         >
-        <div class="text-lg font-black text-jetblack">{{ apps.length }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-jetblack/10 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-jetblack">{{ apps.length }}</div>
       </div>
       <div class="p-3 rounded-xl border border-forest/20 bg-forest/5 space-y-1">
         <span class="text-[10px] font-bold uppercase tracking-wider text-forest">Mode Live</span>
-        <div class="text-lg font-black text-forest">{{ liveCount }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-forest/20 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-forest">{{ liveCount }}</div>
       </div>
       <div class="p-3 rounded-xl border border-gold/25 bg-gold/5 space-y-1">
         <span class="text-[10px] font-bold uppercase tracking-wider text-[#8a6d1f]"
           >Mode Sandbox</span
         >
-        <div class="text-lg font-black text-[#8a6d1f]">{{ sandboxCount }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-gold/25 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-[#8a6d1f]">{{ sandboxCount }}</div>
       </div>
       <div class="p-3 rounded-xl border border-red-200 bg-red-50/50 space-y-1">
         <span class="text-[10px] font-bold uppercase tracking-wider text-red-700">Dibekukan</span>
-        <div class="text-lg font-black text-red-700">{{ suspendedCount }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-red-200 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-red-700">{{ suspendedCount }}</div>
       </div>
     </div>
 

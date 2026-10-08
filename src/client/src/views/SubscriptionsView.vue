@@ -367,40 +367,66 @@ function formatSubDate(dateStr?: string | null): string {
     >
       <div class="space-y-0.5">
         <div class="text-xs font-semibold text-jetblack/60">Langganan Aktif</div>
-        <div class="text-2xl font-bold text-forest font-mono tracking-tight">
-          {{ kpiStats.activeCount }}
+        <div v-if="loading" class="space-y-1.5 py-1">
+          <div class="h-7 w-16 bg-forest/15 rounded animate-pulse"></div>
+          <div class="h-3 w-32 bg-forest/10 rounded animate-pulse"></div>
         </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">
-          dari total {{ kpiStats.totalCount }} entitas langganan
-        </div>
+        <template v-else>
+          <div class="text-2xl font-bold text-forest font-mono tracking-tight">
+            {{ kpiStats.activeCount }}
+          </div>
+          <div class="text-[11px] text-jetblack/50 font-medium">
+            dari total {{ kpiStats.totalCount }} entitas langganan
+          </div>
+        </template>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Estimasi MRR</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
-          {{ formatRupiah(kpiStats.mrr) }}
+        <div v-if="loading" class="space-y-1.5 py-1">
+          <div class="h-7 w-28 bg-jetblack/10 rounded animate-pulse"></div>
+          <div class="h-3 w-36 bg-jetblack/5 rounded animate-pulse"></div>
         </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">Monthly recurring revenue aktif</div>
+        <template v-else>
+          <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
+            {{ formatRupiah(kpiStats.mrr) }}
+          </div>
+          <div class="text-[11px] text-jetblack/50 font-medium">
+            Monthly recurring revenue aktif
+          </div>
+        </template>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Average LTV</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
-          {{ formatRupiah(kpiStats.avgLtv) }}
+        <div v-if="loading" class="space-y-1.5 py-1">
+          <div class="h-7 w-28 bg-jetblack/10 rounded animate-pulse"></div>
+          <div class="h-3 w-36 bg-jetblack/5 rounded animate-pulse"></div>
         </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">
-          Rata-rata akumulasi nilai per pelanggan
-        </div>
+        <template v-else>
+          <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
+            {{ formatRupiah(kpiStats.avgLtv) }}
+          </div>
+          <div class="text-[11px] text-jetblack/50 font-medium">
+            Rata-rata akumulasi nilai per pelanggan
+          </div>
+        </template>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Jatuh Tempo (7 Hari)</div>
-        <div class="text-2xl font-bold text-gold font-mono tracking-tight">
-          {{ kpiStats.expiringSoon }}
+        <div v-if="loading" class="space-y-1.5 py-1">
+          <div class="h-7 w-16 bg-gold/15 rounded animate-pulse"></div>
+          <div class="h-3 w-36 bg-gold/10 rounded animate-pulse"></div>
         </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">
-          Masa aktif lisensi akan berakhir dalam 7 hari
-        </div>
+        <template v-else>
+          <div class="text-2xl font-bold text-gold font-mono tracking-tight">
+            {{ kpiStats.expiringSoon }}
+          </div>
+          <div class="text-[11px] text-jetblack/50 font-medium">
+            Masa aktif lisensi akan berakhir dalam 7 hari
+          </div>
+        </template>
       </div>
     </div>
 

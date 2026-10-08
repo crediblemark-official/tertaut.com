@@ -301,38 +301,64 @@ function formatDate(dateStr?: string | null): string {
             >Simulasi</span
           >
         </div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
-          {{ formatRupiah(balanceKPIs.availableBalance) }}
+        <div v-if="loading" class="space-y-1.5 py-1">
+          <div class="h-7 w-28 bg-jetblack/10 rounded animate-pulse"></div>
+          <div class="h-3 w-36 bg-jetblack/5 rounded animate-pulse"></div>
         </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">
-          Dari {{ balanceKPIs.availableCount }} penjualan · Min tarik Rp 50.000
-        </div>
+        <template v-else>
+          <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
+            {{ formatRupiah(balanceKPIs.availableBalance) }}
+          </div>
+          <div class="text-[11px] text-jetblack/50 font-medium">
+            Dari {{ balanceKPIs.availableCount }} penjualan · Min tarik Rp 50.000
+          </div>
+        </template>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Sedang Diproses</div>
-        <div class="text-2xl font-bold text-gold font-mono tracking-tight">
-          {{ formatRupiah(balanceKPIs.processingBalance) }}
+        <div v-if="loading" class="space-y-1.5 py-1">
+          <div class="h-7 w-28 bg-gold/15 rounded animate-pulse"></div>
+          <div class="h-3 w-32 bg-gold/10 rounded animate-pulse"></div>
         </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">Dalam antrean settlement bank</div>
+        <template v-else>
+          <div class="text-2xl font-bold text-gold font-mono tracking-tight">
+            {{ formatRupiah(balanceKPIs.processingBalance) }}
+          </div>
+          <div class="text-[11px] text-jetblack/50 font-medium">Dalam antrean settlement bank</div>
+        </template>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Total Telah Dicairkan</div>
-        <div class="text-2xl font-bold text-forest font-mono tracking-tight">
-          {{ formatRupiah(balanceKPIs.totalPaidOut) }}
+        <div v-if="loading" class="space-y-1.5 py-1">
+          <div class="h-7 w-28 bg-forest/15 rounded animate-pulse"></div>
+          <div class="h-3 w-32 bg-forest/10 rounded animate-pulse"></div>
         </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">
-          {{ disbursementGroups.length }} batch transfer ke rekening
-        </div>
+        <template v-else>
+          <div class="text-2xl font-bold text-forest font-mono tracking-tight">
+            {{ formatRupiah(balanceKPIs.totalPaidOut) }}
+          </div>
+          <div class="text-[11px] text-jetblack/50 font-medium">
+            {{ disbursementGroups.length }} batch transfer ke rekening
+          </div>
+        </template>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Fee MoR Tertaut (5%)</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
-          {{ formatRupiah(balanceKPIs.totalFeeMoR) }}
+        <div v-if="loading" class="space-y-1.5 py-1">
+          <div class="h-7 w-28 bg-jetblack/10 rounded animate-pulse"></div>
+          <div class="h-3 w-36 bg-jetblack/5 rounded animate-pulse"></div>
         </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">Biaya platform & pajak terkelola</div>
+        <template v-else>
+          <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
+            {{ formatRupiah(balanceKPIs.totalFeeMoR) }}
+          </div>
+          <div class="text-[11px] text-jetblack/50 font-medium">
+            Biaya platform & pajak terkelola
+          </div>
+        </template>
       </div>
     </div>
 

@@ -55,25 +55,29 @@ const bannedCount = computed(() => props.users.filter((u) => u.banned).length);
         <span class="text-[10px] font-bold uppercase tracking-wider text-jetblack/50"
           >Total Pengguna</span
         >
-        <div class="text-lg font-black text-jetblack">{{ users.length }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-jetblack/10 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-jetblack">{{ users.length }}</div>
       </div>
       <div class="p-3 rounded-xl border border-gold/25 bg-gold/5 space-y-1">
         <span class="text-[10px] font-bold uppercase tracking-wider text-[#8a6d1f]"
           >Super Admin</span
         >
-        <div class="text-lg font-black text-[#8a6d1f]">{{ adminCount }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-gold/25 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-[#8a6d1f]">{{ adminCount }}</div>
       </div>
       <div class="p-3 rounded-xl border border-forest/20 bg-forest/5 space-y-1">
         <span class="text-[10px] font-bold uppercase tracking-wider text-forest"
           >Builder Terdaftar</span
         >
-        <div class="text-lg font-black text-forest">{{ builderCount }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-forest/20 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-forest">{{ builderCount }}</div>
       </div>
       <div class="p-3 rounded-xl border border-red-200 bg-red-50/50 space-y-1">
         <span class="text-[10px] font-bold uppercase tracking-wider text-red-700"
           >Akun Diblokir</span
         >
-        <div class="text-lg font-black text-red-700">{{ bannedCount }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-red-200 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-red-700">{{ bannedCount }}</div>
       </div>
     </div>
 

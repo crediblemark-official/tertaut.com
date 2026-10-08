@@ -97,8 +97,12 @@ function dayLabel(dayIso: string): string {
             <div class="text-[10px] font-bold uppercase tracking-wider text-jetblack/50">
               Penebusan ({{ statsDays }} hari)
             </div>
-            <div class="text-xl font-black font-mono text-jetblack mt-0.5">
-              {{ stats?.totalRedemptions ?? "—" }}
+            <div
+              v-if="statsLoading"
+              class="h-6 w-14 bg-jetblack/10 rounded animate-pulse mt-1"
+            ></div>
+            <div v-else class="text-xl font-black font-mono text-jetblack mt-0.5">
+              {{ stats?.totalRedemptions ?? 0 }}
               <span class="text-xs font-normal text-jetblack/50">x</span>
             </div>
           </div>
@@ -106,14 +110,25 @@ function dayLabel(dayIso: string): string {
             <div class="text-[10px] font-bold uppercase tracking-wider text-jetblack/50">
               Total Diskon Diberikan
             </div>
-            <div class="text-xl font-black font-mono text-crimson mt-0.5">
-              {{ stats ? formatRupiah(stats.totalDiscountIdr) : "—" }}
+            <div
+              v-if="statsLoading"
+              class="h-6 w-24 bg-jetblack/10 rounded animate-pulse mt-1"
+            ></div>
+            <div v-else class="text-xl font-black font-mono text-crimson mt-0.5">
+              {{ formatRupiah(stats?.totalDiscountIdr || 0) }}
             </div>
           </div>
         </div>
 
         <!-- Top Coupons -->
-        <div v-if="stats && stats.topCoupons.length > 0" class="pt-1">
+        <div v-if="statsLoading" class="pt-1 space-y-1.5">
+          <div class="h-3 w-28 bg-jetblack/10 rounded animate-pulse"></div>
+          <div class="flex gap-1.5">
+            <div class="h-5 w-20 bg-gold/15 rounded animate-pulse"></div>
+            <div class="h-5 w-20 bg-gold/15 rounded animate-pulse"></div>
+          </div>
+        </div>
+        <div v-else-if="stats && stats.topCoupons.length > 0" class="pt-1">
           <div class="text-[11px] font-bold text-jetblack/70 mb-1.5">Kupon Paling Populer:</div>
           <div class="flex flex-wrap items-center gap-1.5">
             <span
@@ -131,8 +146,27 @@ function dayLabel(dayIso: string): string {
       <!-- Kanan: Bar Chart Harian -->
       <div class="lg:col-span-7 flex flex-col justify-between">
         <div class="text-[11px] font-bold text-jetblack/70 mb-1">Tren Penebusan Harian</div>
+
+        <!-- Chart Skeleton when statsLoading -->
         <div
-          v-if="stats && stats.daily.length > 0"
+          v-if="statsLoading"
+          class="flex items-end gap-2 h-24 px-3 pt-3 pb-1 bg-jetblack/[0.01] border border-jetblack/10 rounded-xl"
+        >
+          <div
+            v-for="h in [28, 44, 20, 56, 36, 48, 64]"
+            :key="`c-sk-${h}`"
+            class="flex-1 flex flex-col items-center justify-end gap-1.5 h-full"
+          >
+            <div
+              class="w-full max-w-[28px] rounded-t bg-jetblack/10 animate-pulse"
+              :style="{ height: `${h}%` }"
+            ></div>
+            <div class="w-5 h-2 bg-jetblack/5 rounded animate-pulse"></div>
+          </div>
+        </div>
+
+        <div
+          v-else-if="stats && stats.daily.length > 0"
           class="flex items-end gap-1.5 h-24 px-2 pt-3 pb-1 bg-jetblack/[0.01] border border-jetblack/10 rounded-xl overflow-x-auto no-scrollbar"
         >
           <div

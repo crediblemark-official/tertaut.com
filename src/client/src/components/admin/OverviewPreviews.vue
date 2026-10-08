@@ -4,6 +4,7 @@ import type { PanelBuilderItem, PanelTransactionItem } from "../../types/panel";
 defineProps<{
   builders: PanelBuilderItem[];
   transactions: PanelTransactionItem[];
+  loading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -28,7 +29,22 @@ const emit = defineEmits<{
           Buka Direktori ({{ builders.length }}) →
         </button>
       </div>
-      <div class="space-y-2 divide-y divide-jetblack/10">
+
+      <!-- Loading Skeleton Rows -->
+      <div v-if="loading" class="space-y-3 pt-1">
+        <div v-for="i in 4" :key="`sb-${i}`" class="flex items-center justify-between py-1">
+          <div class="space-y-1">
+            <div class="h-3.5 w-28 bg-jetblack/10 rounded animate-pulse"></div>
+            <div class="h-2.5 w-36 bg-jetblack/5 rounded animate-pulse"></div>
+          </div>
+          <div class="space-y-1 text-right">
+            <div class="h-3.5 w-20 bg-jetblack/10 rounded animate-pulse ml-auto"></div>
+            <div class="h-2.5 w-12 bg-jetblack/5 rounded animate-pulse ml-auto"></div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="space-y-2 divide-y divide-jetblack/10">
         <div
           v-for="b in builders.slice(0, 5)"
           :key="b.id"
@@ -64,7 +80,22 @@ const emit = defineEmits<{
           Buka Ledger ({{ transactions.length }}) →
         </button>
       </div>
-      <div class="space-y-2 divide-y divide-jetblack/10">
+
+      <!-- Loading Skeleton Rows -->
+      <div v-if="loading" class="space-y-3 pt-1">
+        <div v-for="i in 4" :key="`st-${i}`" class="flex items-center justify-between py-1">
+          <div class="space-y-1">
+            <div class="h-3.5 w-32 bg-jetblack/10 rounded animate-pulse"></div>
+            <div class="h-2.5 w-24 bg-jetblack/5 rounded animate-pulse"></div>
+          </div>
+          <div class="space-y-1 text-right">
+            <div class="h-3.5 w-20 bg-jetblack/10 rounded animate-pulse ml-auto"></div>
+            <div class="h-2.5 w-14 bg-jetblack/5 rounded animate-pulse ml-auto"></div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="space-y-2 divide-y divide-jetblack/10">
         <div
           v-for="t in transactions.slice(0, 5)"
           :key="t.id"

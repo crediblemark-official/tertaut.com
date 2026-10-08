@@ -70,25 +70,29 @@ const expiredCount = computed(() => props.licenses.filter((l) => l.status === "E
         <span class="text-[10px] font-bold uppercase tracking-wider text-jetblack/50"
           >Total Lisensi</span
         >
-        <div class="text-lg font-black text-jetblack">{{ licenses.length }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-jetblack/10 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-jetblack">{{ licenses.length }}</div>
       </div>
       <div class="p-3 rounded-xl border border-forest/20 bg-forest/5 space-y-1">
         <span class="text-[10px] font-bold uppercase tracking-wider text-forest"
           >Aktif (Valid)</span
         >
-        <div class="text-lg font-black text-forest">{{ activeCount }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-forest/20 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-forest">{{ activeCount }}</div>
       </div>
       <div class="p-3 rounded-xl border border-red-200 bg-red-50/50 space-y-1">
         <span class="text-[10px] font-bold uppercase tracking-wider text-red-700"
           >Dicabut (Revoked)</span
         >
-        <div class="text-lg font-black text-red-700">{{ revokedCount }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-red-200 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-red-700">{{ revokedCount }}</div>
       </div>
       <div class="p-3 rounded-xl border border-amber-200 bg-amber-50/50 space-y-1">
         <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700"
           >Kedaluwarsa</span
         >
-        <div class="text-lg font-black text-amber-700">{{ expiredCount }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-amber-200 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-amber-700">{{ expiredCount }}</div>
       </div>
     </div>
 

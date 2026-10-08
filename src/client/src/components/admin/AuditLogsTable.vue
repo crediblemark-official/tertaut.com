@@ -58,19 +58,22 @@ const filteredLogs = computed(() => {
         <span class="text-[10px] font-bold uppercase tracking-wider text-jetblack/50"
           >Total Log Terekam</span
         >
-        <div class="text-lg font-black text-jetblack">{{ logs.length }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-jetblack/10 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-jetblack">{{ logs.length }}</div>
       </div>
       <div class="p-3 rounded-xl border border-gold/25 bg-gold/5 space-y-1">
         <span class="text-[10px] font-bold uppercase tracking-wider text-[#8a6d1f]"
           >Aksi Admin</span
         >
-        <div class="text-lg font-black text-[#8a6d1f]">
+        <div v-if="loading" class="h-6 w-10 bg-gold/25 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-[#8a6d1f]">
           {{ logs.filter((l) => l.actorType === "ADMIN").length }}
         </div>
       </div>
       <div class="p-3 rounded-xl border border-forest/20 bg-forest/5 space-y-1">
         <span class="text-[10px] font-bold uppercase tracking-wider text-forest">Aksi Builder</span>
-        <div class="text-lg font-black text-forest">
+        <div v-if="loading" class="h-6 w-10 bg-forest/20 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-forest">
           {{ logs.filter((l) => l.actorType === "BUILDER").length }}
         </div>
       </div>
@@ -78,7 +81,8 @@ const filteredLogs = computed(() => {
         <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700"
           >Client &amp; S2S</span
         >
-        <div class="text-lg font-black text-blue-700">
+        <div v-if="loading" class="h-6 w-10 bg-blue-200 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-blue-700">
           {{ logs.filter((l) => ["S2S", "CLIENT"].includes(l.actorType)).length }}
         </div>
       </div>

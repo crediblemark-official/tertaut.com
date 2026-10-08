@@ -75,17 +75,20 @@ const activeCount = computed(() => props.coupons.filter((c) => c.isActive).lengt
         <span class="text-[10px] font-bold uppercase tracking-wider text-jetblack/50"
           >Total Kupon</span
         >
-        <div class="text-lg font-black text-jetblack">{{ coupons.length }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-jetblack/10 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-jetblack">{{ coupons.length }}</div>
       </div>
       <div class="p-3 rounded-xl border border-gold/25 bg-gold/5 space-y-1">
         <span class="text-[10px] font-bold uppercase tracking-wider text-[#8a6d1f]"
           >Kupon Global</span
         >
-        <div class="text-lg font-black text-[#8a6d1f]">{{ globalCount }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-gold/25 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-[#8a6d1f]">{{ globalCount }}</div>
       </div>
       <div class="p-3 rounded-xl border border-forest/20 bg-forest/5 space-y-1">
         <span class="text-[10px] font-bold uppercase tracking-wider text-forest">Kupon Aktif</span>
-        <div class="text-lg font-black text-forest">{{ activeCount }}</div>
+        <div v-if="loading" class="h-6 w-10 bg-forest/20 rounded animate-pulse mt-0.5"></div>
+        <div v-else class="text-lg font-black text-forest">{{ activeCount }}</div>
       </div>
       <div
         class="p-3 rounded-xl border border-jetblack/10 bg-jetblack/5 flex items-center justify-between"

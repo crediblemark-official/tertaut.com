@@ -124,40 +124,67 @@ function getPricingBadge(app: AppItem): string {
     >
       <div class="space-y-0.5">
         <div class="text-xs font-semibold text-jetblack/60">Active products</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
-          {{ activeProductsCount }}
+        <div v-if="loading" class="space-y-1.5 py-1">
+          <div class="h-7 w-14 bg-jetblack/10 rounded animate-pulse"></div>
+          <div class="h-3 w-28 bg-jetblack/5 rounded animate-pulse"></div>
         </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">
-          {{
-            archivedProductsCount > 0 ? `${archivedProductsCount} diarsipkan` : "Semua Produk Aktif"
-          }}
-        </div>
+        <template v-else>
+          <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
+            {{ activeProductsCount }}
+          </div>
+          <div class="text-[11px] text-jetblack/50 font-medium">
+            {{
+              archivedProductsCount > 0
+                ? `${archivedProductsCount} diarsipkan`
+                : "Semua Produk Aktif"
+            }}
+          </div>
+        </template>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Sales</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
-          {{ salesCount }}
+        <div v-if="loading" class="space-y-1.5 py-1">
+          <div class="h-7 w-14 bg-jetblack/10 rounded animate-pulse"></div>
+          <div class="h-3 w-24 bg-jetblack/5 rounded animate-pulse"></div>
         </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">30 hari terakhir</div>
+        <template v-else>
+          <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
+            {{ salesCount }}
+          </div>
+          <div class="text-[11px] text-jetblack/50 font-medium">30 hari terakhir</div>
+        </template>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Active subscriptions</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
-          {{ activeSubscriptionsCount }}
+        <div v-if="loading" class="space-y-1.5 py-1">
+          <div class="h-7 w-14 bg-jetblack/10 rounded animate-pulse"></div>
+          <div class="h-3 w-28 bg-jetblack/5 rounded animate-pulse"></div>
         </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">
-          across {{ acrossProductsCount }} {{ acrossProductsCount === 1 ? "product" : "products" }}
-        </div>
+        <template v-else>
+          <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
+            {{ activeSubscriptionsCount }}
+          </div>
+          <div class="text-[11px] text-jetblack/50 font-medium">
+            across {{ acrossProductsCount }}
+            {{ acrossProductsCount === 1 ? "product" : "products" }}
+          </div>
+        </template>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
         <div class="text-xs font-semibold text-jetblack/60">Customers</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
-          {{ customersCount }}
+        <div v-if="loading" class="space-y-1.5 py-1">
+          <div class="h-7 w-14 bg-jetblack/10 rounded animate-pulse"></div>
+          <div class="h-3 w-24 bg-jetblack/5 rounded animate-pulse"></div>
         </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">30 hari terakhir</div>
+        <template v-else>
+          <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
+            {{ customersCount }}
+          </div>
+          <div class="text-[11px] text-jetblack/50 font-medium">30 hari terakhir</div>
+        </template>
       </div>
     </div>
 
