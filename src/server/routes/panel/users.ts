@@ -1,6 +1,7 @@
 import { db } from "../../db";
 import { user } from "../../db/schema/auth";
 import { eq, desc } from "drizzle-orm";
+import { DEFAULT_ADMIN_EMAIL } from "../../middleware/auth";
 
 /**
  * Daftar Seluruh Akun Pengguna Platform (Super Admin)
@@ -50,6 +51,15 @@ export async function handleUpdateUserRole({ params, body, set }: any) {
     return { success: false, error: "Pengguna tidak ditemukan." };
   }
 
+  const rootAdminEmail = (process.env.ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL).toLowerCase();
+  if (target.email?.toLowerCase() === rootAdminEmail) {
+    set.status = 403;
+    return {
+      success: false,
+      error: "Akun Super Admin platform utama tidak dapat diubah hak aksesnya.",
+    };
+  }
+
   const dbRole = newRole === "admin" ? "admin" : "user";
 
   await db.update(user).set({ role: dbRole, updatedAt: new Date() }).where(eq(user.id, target.id));
@@ -76,6 +86,15 @@ export async function handleToggleUserBan({ params, body, set }: any) {
   if (!target) {
     set.status = 404;
     return { success: false, error: "Pengguna tidak ditemukan." };
+  }
+
+  const rootAdminEmail = (process.env.ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL).toLowerCase();
+  if (target.email?.toLowerCase() === rootAdminEmail) {
+    set.status = 403;
+    return {
+      success: false,
+      error: "Akun Super Admin platform utama tidak dapat dibekukan.",
+    };
   }
 
   const newBanned = !target.banned;

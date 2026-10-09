@@ -26,10 +26,12 @@ import {
   handleListDeliveries,
   handleRetryDelivery,
 } from "./adminWebhooks";
+import { authMiddleware } from "../../middleware/auth";
 
 export function createLicensingRouter(prefix: string) {
   return (
     new Elysia({ prefix })
+      .use(authMiddleware)
       /**
        * Fase 2: Floating License Heartbeat (rolling seat keep-alive)
        */

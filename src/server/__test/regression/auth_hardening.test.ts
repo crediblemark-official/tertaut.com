@@ -353,4 +353,67 @@ describe("Admin Panel /api/v1/panel/* — hanya admin (role admin) yang boleh ak
       if (u) await db.delete(user).where(eq(user.id, u.id));
     }
   });
+
+  it("akun pengguna yang dibekukan (banned) ditolak dengan 403 pada authenticate()", async () => {
+    const email = `banneduser_${suffix()}@test.com`;
+    const password = "BannedUser123!";
+
+    const signUpRes = await auth.api.signUpEmail({
+      body: { email, password, name: "Banned User Test" },
+      asResponse: true,
+    });
+    const cookie = signUpRes.headers.get("set-cookie")?.split(";")[0] || "";
+
+    try {
+      // Tandai banned di database
+      await db
+        .update(user)
+        .set({ banned: true, banReason: "Pelanggaran Ketentuan Layanan" })
+        .where(eq(user.email, email));
+
+      const res = await app.handle(
+        new Request("http://localhost:8081/api/v1/apps", {
+          headers: { cookie },
+        })
+      );
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body.error).toBe("Pelanggaran Ketentuan Layanan");
+    } finally {
+      const [u] = await db.select().from(user).where(eq(user.email, email));
+      if (u) await db.delete(user).where(eq(user.id, u.id));
+    }
+  });
+
+  it("root platform admin dilindungi dari perubahan role dan pemblokiran", async () => {
+    const { authCookie } = await import("../setup");
+    const adminEmail = process.env.ADMIN_EMAIL || "platformtertaut@gmail.com";
+
+    const [adminRow] = await db.select().from(user).where(eq(user.email, adminEmail));
+    expect(adminRow).toBeDefined();
+
+    // Coba demote root admin
+    const demoteRes = await app.handle(
+      new Request(`http://localhost:8081/api/v1/panel/users/${adminRow!.id}/role`, {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: authCookie },
+        body: JSON.stringify({ role: "builder" }),
+      })
+    );
+    expect(demoteRes.status).toBe(403);
+    const demoteBody = await demoteRes.json();
+    expect(demoteBody.error).toContain("Super Admin platform utama");
+
+    // Coba ban root admin
+    const banRes = await app.handle(
+      new Request(`http://localhost:8081/api/v1/panel/users/${adminRow!.id}/toggle-ban`, {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: authCookie },
+        body: JSON.stringify({ reason: "Testing ban guard" }),
+      })
+    );
+    expect(banRes.status).toBe(403);
+    const banBody = await banRes.json();
+    expect(banBody.error).toContain("Super Admin platform utama");
+  });
 });

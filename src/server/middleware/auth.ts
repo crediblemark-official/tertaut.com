@@ -10,16 +10,27 @@ export interface AuthUser {
   email: string;
   name: string;
   role?: string | null;
+  banned?: boolean | null;
+  banReason?: string | null;
 }
 
 export type SecretApiKeyResult = { builder: Builder } | { status: 401; error: string };
 
+const sessionCache = new WeakMap<Headers, Promise<any>>();
+
 async function resolveSession(headers: Headers) {
-  try {
-    return await auth.api.getSession({ headers });
-  } catch {
-    return null;
+  let pending = sessionCache.get(headers);
+  if (!pending) {
+    pending = (async () => {
+      try {
+        return await auth.api.getSession({ headers });
+      } catch {
+        return null;
+      }
+    })();
+    sessionCache.set(headers, pending);
   }
+  return pending;
 }
 
 export type AuthResult =
@@ -50,6 +61,10 @@ export async function authenticate(headers: Headers, admin = false): Promise<Aut
   const session = await resolveSession(headers);
   const user = session?.user as AuthUser | undefined;
   if (!user) return { status: 401, error: "Unauthorized" };
+
+  if (user.banned) {
+    return { status: 403, error: user.banReason || "Akun Anda telah dinonaktifkan." };
+  }
 
   if (admin && !isAdminUser(user)) return { status: 403, error: "Forbidden" };
   return {
@@ -85,17 +100,24 @@ export const authMiddleware = new Elysia({ name: "auth" })
     requireAuth: {
       async resolve({ status, request: { headers } }) {
         const session = await resolveSession(headers);
-        if (session) return { user: session.user, session: session.session };
-        return status(401, { error: "Unauthorized" });
+        const user = session?.user as AuthUser | undefined;
+        if (!user) return status(401, { error: "Unauthorized" });
+        if (user.banned) {
+          return status(403, { error: user.banReason || "Akun Anda telah dinonaktifkan." });
+        }
+        return { user, session: session?.session ?? null };
       },
     },
     /** Wajib login + role `admin` (atau ADMIN_EMAIL yang dikonfigurasi). */
     requireAdmin: {
       async resolve({ status, request: { headers } }) {
         const session = await resolveSession(headers);
-        const user = session?.user;
+        const user = session?.user as AuthUser | undefined;
         if (!user) return status(401, { error: "Unauthorized" });
-        if (!isAdminUser(user as AuthUser)) {
+        if (user.banned) {
+          return status(403, { error: user.banReason || "Akun Anda telah dinonaktifkan." });
+        }
+        if (!isAdminUser(user)) {
           return status(403, { error: "Forbidden" });
         }
         return { user, session: session?.session ?? null };

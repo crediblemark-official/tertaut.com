@@ -48,7 +48,7 @@ export class LaunchService {
       throw new Error(`Aplikasi dengan ID / slug '${campaignId}' tidak ditemukan.`);
     }
 
-    // IDOR-6: Validasi kepemilikan builder
+    // IDOR-6: Validasi kepemilikan builder bila dipanggil dengan konteks builder
     if (params.builderId && !params.isAdmin && app.builderId !== params.builderId) {
       throw new Error("Forbidden: Anda bukan pemilik aplikasi ini.");
     }

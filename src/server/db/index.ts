@@ -39,9 +39,9 @@ function resolveSsl(url: string): boolean | "require" {
 const useSsl = resolveSsl(databaseUrl);
 
 export const queryClient = postgres(databaseUrl, {
-  max: 3,
-  idle_timeout: 15,
-  connect_timeout: 5,
+  max: Math.max(10, Number(process.env.DB_MAX_CONNECTIONS || 15)),
+  idle_timeout: 20,
+  connect_timeout: 10,
   ssl: useSsl,
   onnotice: () => {},
 });

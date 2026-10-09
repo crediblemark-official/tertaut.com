@@ -62,7 +62,7 @@ export async function handlePanelStats() {
     totalLicensesIssued: totalActiveLicenses,
     system: {
       nodeEnv: process.env.NODE_ENV || "development",
-      bunVersion: Bun.version,
+      bunVersion: typeof Bun !== "undefined" ? Bun.version : process.version,
       uptimeSeconds: Math.floor(process.uptime()),
       memoryUsageMB: {
         rss: Math.round((mem.rss / 1024 / 1024) * 100) / 100,

@@ -169,7 +169,7 @@ export async function handleUpdateApp({
     return { error: "App not found" };
   }
 
-  if (builder && existing.builderId !== builder.id && !isAdmin) {
+  if (!isAdmin && (!builder || existing.builderId !== builder.id)) {
     set.status = 403;
     return { error: "Forbidden: Anda tidak memiliki hak akses mengubah aplikasi ini" };
   }
@@ -264,7 +264,7 @@ export async function handleDeleteApp({
     return { error: "App not found" };
   }
 
-  if (builder && existing.builderId !== builder.id && !isAdmin) {
+  if (!isAdmin && (!builder || existing.builderId !== builder.id)) {
     set.status = 403;
     return { error: "Forbidden: Anda tidak memiliki hak akses menghapus aplikasi ini" };
   }
@@ -293,7 +293,7 @@ export async function handleUpdateMode({
     return { error: "App not found" };
   }
 
-  if (builder && currentApp.builderId !== builder.id && !isAdmin) {
+  if (!isAdmin && (!builder || currentApp.builderId !== builder.id)) {
     set.status = 403;
     return { error: "Forbidden: Anda tidak memiliki hak akses mengubah mode aplikasi ini" };
   }
@@ -325,7 +325,7 @@ export async function handleRotateApiKey({
     return { error: "App not found" };
   }
 
-  if (builder && existing.builderId !== builder.id && !isAdmin) {
+  if (!isAdmin && (!builder || existing.builderId !== builder.id)) {
     set.status = 403;
     return { error: "Forbidden: Anda tidak memiliki hak akses aplikasi ini" };
   }
