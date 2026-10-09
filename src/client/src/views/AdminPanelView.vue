@@ -158,7 +158,11 @@ async function loadAllData() {
       users.value = usersRes.users;
     }
   } catch (err: any) {
-    showAlert("error", err.message || "Gagal memuat data Super Admin Panel.");
+    const msg =
+      typeof err?.message === "object"
+        ? JSON.stringify(err.message)
+        : String(err?.message || "Gagal memuat data Super Admin Panel.");
+    showAlert("error", msg);
   } finally {
     loading.value = false;
     refreshing.value = false;

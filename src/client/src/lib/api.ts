@@ -124,10 +124,16 @@ async function parseJson<T = any>(res: Response): Promise<T> {
   }
 
   if (!res.ok) {
-    const errorMsg =
+    let errorMsg =
       (typeof data === "object" && (data?.error || data?.message)) ||
       `Permintaan gagal dengan status HTTP ${res.status}`;
-    throw new ApiError(res.status, errorMsg, data);
+    if (typeof errorMsg === "object" && errorMsg !== null) {
+      errorMsg =
+        errorMsg?.message ||
+        errorMsg?.error ||
+        (errorMsg?.status ? `HTTP ${errorMsg.status}` : JSON.stringify(errorMsg));
+    }
+    throw new ApiError(res.status, String(errorMsg), data);
   }
 
   return data as T;
