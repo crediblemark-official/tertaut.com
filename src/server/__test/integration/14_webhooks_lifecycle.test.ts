@@ -86,7 +86,7 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
       grantDays: 30,
       maxSeats: 3,
     });
-    const sent = await WebhookService.dispatchDue();
+    const sent = await WebhookService.dispatchDue({ endpointId: endpoint.id });
     expect(sent).toBeGreaterThan(0);
 
     await new Promise((r) => setTimeout(r, 200));
@@ -142,7 +142,7 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
     });
     await LicenseService.revoke({ licenseId: issued.license.id, actor: { type: "ADMIN" } });
 
-    await WebhookService.dispatchDue();
+    await WebhookService.dispatchDue({ endpointId: endpoint.id });
     let delivery = await db.query.webhookDeliveries.findFirst({
       where: and(
         eq(webhookDeliveries.endpointId, endpoint.id),
@@ -160,7 +160,7 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
       .set({ nextRetryAt: new Date(Date.now() - 1000) })
       .where(eq(webhookDeliveries.id, delivery!.id));
 
-    await WebhookService.dispatchDue();
+    await WebhookService.dispatchDue({ endpointId: endpoint.id });
     delivery = await db.query.webhookDeliveries.findFirst({
       where: eq(webhookDeliveries.id, delivery!.id),
     });
@@ -173,13 +173,13 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
       .set({ nextRetryAt: new Date(Date.now() - 1000) })
       .where(eq(webhookDeliveries.id, delivery!.id));
 
-    await WebhookService.dispatchDue();
+    await WebhookService.dispatchDue({ endpointId: endpoint.id });
     delivery = await db.query.webhookDeliveries.findFirst({
       where: eq(webhookDeliveries.id, delivery!.id),
     });
     expect(delivery!.status).toBe("SENT");
     expect(delivery!.attempts).toBe(3);
-  });
+  }, 15_000);
 
   it("konsumsi kredit melebihi saldo memicu webhook credits.insufficient", async () => {
     const email = `wci_${suffix()}@test.tertaut.com`;
@@ -198,7 +198,7 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
       targetPrice: 0,
     });
 
-    await WebhookService.create(b.id, {
+    const endpoint = await WebhookService.create(b.id, {
       url: `http://127.0.0.1:${receiver.port}/hooks/credits`,
       events: ["credits.insufficient"],
       secret: "credit-secret",
@@ -238,7 +238,7 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
     });
     expect(res.status).toBe(402);
 
-    await WebhookService.dispatchDue();
+    await WebhookService.dispatchDue({ endpointId: endpoint.id });
     await new Promise((r) => setTimeout(r, 200));
 
     const got = captured.slice(before).find((c) => c.event === "credits.insufficient");

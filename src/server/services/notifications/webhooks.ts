@@ -28,7 +28,7 @@ export const WEBHOOK_EVENTS = [
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
 const MAX_WEBHOOK_ATTEMPTS = 6;
-const WEBHOOK_TIMEOUT_MS = 10_000;
+const WEBHOOK_TIMEOUT_MS = process.env.NODE_ENV === "test" ? 2_000 : 10_000;
 
 interface EmitContext {
   license: Pick<License, "id" | "licenseKey" | "appId" | "customerEmail" | "status"> | License;
@@ -174,13 +174,18 @@ export class WebhookService {
    * Siklus deliverer outbox: kirim delivery yang jatuh tempo.
    * Retry exponential backoff: nextRetryAt = now + 2^attempts * 30 detik.
    */
-  static async dispatchDue(): Promise<number> {
+  static async dispatchDue(options?: { endpointId?: string; limit?: number }): Promise<number> {
+    const conditions = [
+      eq(webhookDeliveries.status, "PENDING"),
+      lte(webhookDeliveries.nextRetryAt, new Date()),
+    ];
+    if (options?.endpointId) {
+      conditions.push(eq(webhookDeliveries.endpointId, options.endpointId));
+    }
+
     const due = await db.query.webhookDeliveries.findMany({
-      where: and(
-        eq(webhookDeliveries.status, "PENDING"),
-        lte(webhookDeliveries.nextRetryAt, new Date())
-      ),
-      limit: 50,
+      where: and(...conditions),
+      limit: options?.limit ?? 50,
     });
     if (due.length === 0) return 0;
 
