@@ -236,8 +236,9 @@ export async function handleListDeliveries({ request, query, set }: any) {
     return { success: false, error: "Profil builder tidak ditemukan" };
   }
 
-  const limit = typeof query?.limit === "number" ? query.limit : 50;
-  const deliveries = await WebhookService.listDeliveries(actor.builder.id, limit);
+  const limit = Math.min(Number(query?.limit) || 100, 500);
+  const endpointId = query?.endpointId;
+  const deliveries = await WebhookService.listDeliveries(actor.builder.id, limit, endpointId);
   return { success: true, deliveries };
 }
 

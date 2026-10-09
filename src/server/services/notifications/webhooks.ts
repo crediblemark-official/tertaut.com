@@ -322,9 +322,11 @@ export class WebhookService {
     return updated || null;
   }
 
-  static async listDeliveries(builderId: string, limit = 50) {
+  static async listDeliveries(builderId: string, limit = 100, endpointId?: string) {
     const endpoints = await db.query.webhookEndpoints.findMany({
-      where: eq(webhookEndpoints.builderId, builderId),
+      where: endpointId
+        ? and(eq(webhookEndpoints.builderId, builderId), eq(webhookEndpoints.id, endpointId))
+        : eq(webhookEndpoints.builderId, builderId),
     });
     if (endpoints.length === 0) return [];
     const endpointIds = endpoints.map((e) => e.id);
