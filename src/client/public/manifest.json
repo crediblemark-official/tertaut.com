@@ -1,7 +1,7 @@
 {
   "name": "Tertaut — Developer Infrastructure & Merchant of Record",
   "short_name": "Tertaut",
-  "description": "Platform Merchant of Record (MoR) resmi, lisensi software Ed25519, dan AI proxy shield untuk software builder di Indonesia.",
+  "description": "Platform Merchant of Record (MoR) resmi dan lisensi software Ed25519 untuk software builder di Indonesia.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { db } from "../../db";
 import { coupons, apps, transactions } from "../../db/schema";
-import { eq, and, desc, gte, isNotNull, sql, inArray } from "drizzle-orm";
+import { eq, and, or, isNull, desc, gte, isNotNull, sql, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { authenticate } from "../../middleware/auth";
 import { resolveCurrentBuilder } from "../apps/builder";
@@ -50,14 +50,18 @@ export const couponRoutes = new Elysia({ prefix: "/coupons" })
           .from(apps)
           .where(eq(apps.mode, query.mode));
         if (appRows.length === 0) {
-          return { success: true, count: 0, coupons: [] };
+          conditions.push(isNull(coupons.appId));
+        } else {
+          conditions.push(
+            or(
+              inArray(
+                coupons.appId,
+                appRows.map((a) => a.id)
+              ),
+              isNull(coupons.appId)
+            )
+          );
         }
-        conditions.push(
-          inArray(
-            coupons.appId,
-            appRows.map((a) => a.id)
-          )
-        );
       }
 
       const rows = await db.query.coupons.findMany({

@@ -102,8 +102,9 @@ import { CheckCircle2 } from "lucide-vue-next";
           <li class="flex items-start gap-2.5">
             <CheckCircle2 class="w-4 h-4 text-forest shrink-0 mt-0.5" />
             <span
-              ><strong>AI Proxy Terenkripsi:</strong> Master key tersimpan di server vault. Batasi
-              token harian dan jual paket kredit tanpa kebocoran.</span
+              ><strong>Hosted Checkout &amp; Kupon:</strong> Halaman pembayaran instan, kupon
+              diskon, dan faktur pajak PPN 11% otomatis tanpa perlu bikin frontend billing
+              sendiri.</span
             >
           </li>
         </ul>

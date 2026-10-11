@@ -87,7 +87,7 @@ function isCodeLike(value: unknown): value is string {
  * Server memakai lebih dari satu bentuk envelope, jadi normalisasi dulu:
  * - `{ success:false, error:"pesan" }`            → pesan di `error`
  * - `{ valid:false, reason:"KODE", message:"…" }`  → kode di `reason`
- * - `{ success:false, error:"KODE", message:"…" }` → AI proxy, kode di `error`
+ * - `{ success:false, error:"KODE", message:"…" }` → kode di `error`
  * - `{ error:{ code, message } }`                  → envelope global Elysia
  */
 export function parseErrorPayload(payload: any): { code?: string; message?: string } {

@@ -3,10 +3,9 @@
  *
  * Menegakkan kontrak yang sebelumnya menyimpang antara SDK dan server:
  *  1. Pipeline error bertipe (semula `errors.ts` adalah dead code).
- *  2. `modelAlias` default AI Proxy harus "default", bukan alias fiktif.
- *  3. `grantCredits` tidak boleh pernah dikirim dari klien.
- *  4. `environment` untuk secret key.
- *  5. Verifikasi offline token secara online.
+ *  2. `grantCredits` tidak boleh pernah dikirim dari klien.
+ *  3. `environment` untuk secret key.
+ *  4. Verifikasi offline token secara online.
  */
 
 import { describe, it, expect, afterEach } from "bun:test";
@@ -57,7 +56,7 @@ describe("SDK error pipeline", () => {
       });
     });
 
-    it("membaca error UPPER_SNAKE sebagai kode, bukan pesan (AI proxy)", () => {
+    it("membaca error UPPER_SNAKE sebagai kode, bukan pesan", () => {
       expect(
         parseErrorPayload({
           success: false,

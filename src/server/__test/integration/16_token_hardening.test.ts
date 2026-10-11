@@ -81,7 +81,7 @@ describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)
     expect(claims.exp - claims.iat).toBe(5 * 24 * 60 * 60);
   });
 
-  it("rotasi via /validate: jti lama di-denylist, token lama ditolak (TOKEN_REVOKED)", async () => {
+  it("rotasi via /verify: jti lama di-denylist, token lama ditolak (TOKEN_REVOKED)", async () => {
     const { appId } = await makeApp();
     const issued = await LicenseService.issueDirect({
       appId,
@@ -95,8 +95,8 @@ describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)
     const oldDecoded = LicenseTokenService.verify(oldToken);
     expect(oldDecoded.valid).toBe(true);
 
-    // Panggil /validate (online) → token dirotasi oleh server
-    const res = await fetch(`${BASE}/api/v1/licensing/validate`, {
+    // Panggil /verify (online) → token dirotasi oleh server
+    const res = await fetch(`${BASE}/api/v1/licensing/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey: issued.license.licenseKey, appId }),

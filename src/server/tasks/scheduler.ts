@@ -4,6 +4,7 @@ import { licenses } from "../db/schema";
 import { AuditService } from "../services/security/audit";
 import { WebhookService } from "../services/notifications/webhooks";
 import { LicenseLeaseService } from "../services/licensing/licenseLease";
+import { logger } from "../lib/logger";
 
 export async function expireLicenses(): Promise<void> {
   try {
@@ -20,7 +21,7 @@ export async function expireLicenses(): Promise<void> {
         status: licenses.status,
       });
     if (expired.length > 0) {
-      console.log(`[Expiry] ${expired.length} license(s) marked EXPIRED.`);
+      logger.info(`[Expiry] ${expired.length} license(s) marked EXPIRED.`);
     }
     // Audit trail + webhook license.expired (best-effort, di luar transaction).
     for (const lic of expired) {
@@ -36,7 +37,7 @@ export async function expireLicenses(): Promise<void> {
       });
     }
   } catch (err: any) {
-    console.error("[Expiry] failed:", err?.message || err);
+    logger.error("[Expiry] failed", err);
   }
 }
 
@@ -45,10 +46,10 @@ export async function expireLeases(): Promise<void> {
   try {
     const released = await LicenseLeaseService.deleteExpired();
     if (released > 0) {
-      console.log(`[Lease] ${released} floating lease(s) expired & released.`);
+      logger.info(`[Lease] ${released} floating lease(s) expired & released.`);
     }
   } catch (err: any) {
-    console.error("[Lease] failed:", err?.message || err);
+    logger.error("[Lease] failed", err);
   }
 }
 
@@ -57,10 +58,10 @@ export async function dispatchWebhooks(): Promise<void> {
   try {
     const sent = await WebhookService.dispatchDue();
     if (sent > 0) {
-      console.log(`[Webhook] ${sent} delivery(ies) diproses.`);
+      logger.info(`[Webhook] ${sent} delivery(ies) diproses.`);
     }
   } catch (err: any) {
-    console.error("[Webhook] dispatcher failed:", err?.message || err);
+    logger.error("[Webhook] dispatcher failed", err);
   }
 }
 

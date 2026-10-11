@@ -27,10 +27,11 @@ const trustedOrigins = [
  *  - tidak dimatikan eksplisit via REQUIRE_EMAIL_VERIFICATION=false.
  */
 const verifyEmailEnabled =
-  EmailService.isConfigured() &&
-  EmailService.isDeliveryEnabled() &&
   config.nodeEnv !== "test" &&
-  process.env.REQUIRE_EMAIL_VERIFICATION !== "false";
+  (process.env.REQUIRE_EMAIL_VERIFICATION === "true" ||
+    (EmailService.isConfigured() &&
+      EmailService.isDeliveryEnabled() &&
+      process.env.REQUIRE_EMAIL_VERIFICATION !== "false"));
 
 export const auth = betterAuth({
   appName: "tertaut.com",

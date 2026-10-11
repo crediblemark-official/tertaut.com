@@ -5,7 +5,7 @@ import { WebhookParser } from "dana-node/webhook/v1";
 /**
  * Verifikasi Webhook DANA Finish Payment & Disburse Notify menggunakan WebhookParser dana-node
  *
- * Aturan keamanan (BUG-3): begitu public key DANA dikonfigurasi, signature webhook
+ * Aturan keamanan: begitu public key DANA dikonfigurasi, signature webhook
  * WAJIB diverifikasi di SEMUA environment — termasuk sandbox. Sebelumnya sandbox
  * menerima webhook tanpa signature meskipun public key sudah dipasang, sehingga
  * webhook palsu bisa diterima di deployment non-produksi.

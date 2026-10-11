@@ -391,15 +391,17 @@ export class LicenseService {
 
   /**
    * Cek apakah lisensi sudah kedaluwarsa. Jika ya, perbarui status ke "EXPIRED" di database secara konsisten.
+   * Mengembalikan true jika status berubah menjadi EXPIRED.
+   * Event audit & webhook license.expired di-emit best-effort.
    */
   static async checkAndMarkExpired(
     lic: {
       id: string;
       status: string;
       expiresAt: Date | null;
-      licenseKey?: string;
-      appId?: string;
-      customerEmail?: string | null;
+      licenseKey: string;
+      appId: string;
+      customerEmail: string;
     },
     dbOrTrx: any = db
   ): Promise<boolean> {
@@ -411,23 +413,30 @@ export class LicenseService {
         .where(eq(licenses.id, lic.id));
       lic.status = "EXPIRED";
 
-      // BUG B2: flip EXPIRED di luar cron tidak pernah emit webhook/audit.
-      // Cron (index.ts) hanya memindai baris dengan status ACTIVE, jadi begitu
-      // status diubah di sini, event license.expired tidak akan pernah dilaporkan.
+      // Emit audit & webhook license.expired (best-effort, non-blocking).
+      // Dipanggil dari dalam transaksi (mis. saat aktivasi/validasi) atau dari cron job.
       try {
-        const ctxLic = lic as any;
+        // Buat object license bersih untuk webhook (hindari UNDEFINED_VALUE di jsonb).
+        const licenseForWebhook = {
+          id: lic.id,
+          licenseKey: lic.licenseKey,
+          appId: lic.appId,
+          customerEmail: lic.customerEmail,
+          status: "EXPIRED" as const,
+        };
+
         await AuditService.record(
           "license.expired",
           {
-            licenseId: ctxLic.id,
-            licenseKey: ctxLic.licenseKey || null,
-            appId: ctxLic.appId || null,
+            licenseId: licenseForWebhook.id,
+            licenseKey: licenseForWebhook.licenseKey,
+            appId: licenseForWebhook.appId,
             actorType: "SYSTEM",
           },
           { expiresAt: now.toISOString() }
         );
         await WebhookService.emit("license.expired", {
-          license: ctxLic,
+          license: licenseForWebhook,
           actorType: "SYSTEM",
           payload: { expiresAt: now.toISOString() },
         });

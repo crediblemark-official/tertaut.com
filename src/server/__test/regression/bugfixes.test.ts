@@ -193,8 +193,8 @@ describe("Regression #1: /checkout/session tidak lagi menerima grantCredits dari
 // ─────────────────────────────────────────────────────────────────────────────
 // Bug #2: /validate merotasi token dua kali
 // ─────────────────────────────────────────────────────────────────────────────
-describe("Regression #2: /validate mengembalikan tepat token yang tersimpan di DB", () => {
-  it("token respons == token DB, dan hanya SATU jti baru diterbitkan per panggilan", async () => {
+describe("Regression #2: /validate mengembalikan token yang tersimpan di DB (TIDAK merotasi)", () => {
+  it("token respons == token DB, token TIDAK berubah (no rotation) per panggilan", async () => {
     const { app: a } = await seedBuilderApp();
     const issued = await LicenseService.issueDirect({
       appId: a.id,
@@ -217,10 +217,11 @@ describe("Regression #2: /validate mengembalikan tepat token yang tersimpan di D
     const fresh = await db.query.licenses.findFirst({ where: eq(licenses.licenseKey, licKey) });
     expect(fresh!.offlineJwtGraceToken).toBe(res.offlineGraceToken);
 
-    // Token yang dikembalikan valid sebagai offline token
+    // Token yang dikembalikan SAMA dengan token di DB (tidak dirotasi)
+    expect(res.offlineGraceToken).toBe(oldToken);
     const decoded = LicenseTokenService.verify(res.offlineGraceToken);
     expect(decoded.valid).toBe(true);
-    expect(decoded.claims!.jti).not.toBe(oldJti);
+    expect(decoded.claims!.jti).toBe(oldJti);
   });
 
   it("revoke() men-denylist token yang dipegang client setelah /validate", async () => {

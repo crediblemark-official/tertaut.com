@@ -112,22 +112,10 @@ export async function handleValidateLicense({ body, set, request }: DeviceValida
 
   await db.update(licenses).set({ lastValidatedAt: now }).where(eq(licenses.id, lic.id));
 
-  // Fase 5: rotate offline token (denylist jti lama, terbitkan yang baru).
-  const appRowV = await db.query.apps.findFirst({ where: eq(apps.id, lic.appId) });
-  const offlineGraceDays = appRowV?.deliveryConfig?.licenseKey?.offlineGraceDays;
-  const offlineToken = await LicenseService.rotateOfflineToken(
-    {
-      id: lic.id,
-      licenseKey: lic.licenseKey,
-      appId: lic.appId,
-      customerEmail: lic.customerEmail,
-      maxSeats: lic.maxSeats || 3,
-      features: lic.features || null,
-      offlineJwtGraceToken: lic.offlineJwtGraceToken,
-      hardwareId: lic.hardwareId || null,
-    },
-    offlineGraceDays
-  );
+  // Token offline HANYA di-rotate saat /activate atau /verify (bukan di /validate).
+  // Menghindari token thrashing & JTI denylist pollution dari validasi paralel.
+  // Gunakan token yang sudah ada (lic.offlineJwtGraceToken) untuk response.
+  const offlineToken = lic.offlineJwtGraceToken;
 
   return {
     valid: true,

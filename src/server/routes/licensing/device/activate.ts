@@ -67,7 +67,15 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
     };
   }
 
+  const hwidHash = LicenseService.hashHardwareIdSecure(hwid);
+  const lookupHashes = LicenseService.hwidLookupHashes(hwid);
+  const maxSeats = lic.maxSeats || 3;
+  const ipAddress = getClientIp(request);
   const now = new Date();
+
+  // Cek expiration SEBELUM transaksi (seperti kode asli).
+  // checkAndMarkExpired akan UPDATE status ke EXPIRED dan emit webhook/audit
+  // menggunakan default db (bukan transaksi), agar webhook tidak terblokir lock.
   if (await LicenseService.checkAndMarkExpired(lic)) {
     set.status = 403;
     return {
@@ -76,11 +84,6 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
       errorCode: "LICENSE_EXPIRED",
     };
   }
-
-  const hwidHash = LicenseService.hashHardwareIdSecure(hwid);
-  const lookupHashes = LicenseService.hwidLookupHashes(hwid);
-  const maxSeats = lic.maxSeats || 3;
-  const ipAddress = getClientIp(request);
 
   try {
     const outcome = await db.transaction(async (trx) => {
@@ -94,6 +97,8 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
       if (!locked || locked.status !== "ACTIVE") {
         return { error: `License is ${locked?.status || "UNKNOWN"}` };
       }
+
+      const activeMaxSeats = locked.maxSeats || maxSeats;
 
       const appRow = await trx.query.apps.findFirst({ where: eq(apps.id, lic.appId) });
       const floating = resolveFloatingConfig(appRow);
@@ -143,9 +148,9 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
 
           if (!hasLiveLease) {
             const liveLeases = await LicenseLeaseService.countLive(lic.id, trx);
-            if (liveLeases >= maxSeats) {
+            if (liveLeases >= activeMaxSeats) {
               return {
-                error: `Device seats quota exceeded (${liveLeases}/${maxSeats}). Please wait for another lease to expire or deactivate another device first.`,
+                error: `Device seats quota exceeded (${liveLeases}/${activeMaxSeats}). Please wait for another lease to expire or deactivate another device first.`,
                 seatFull: true,
               };
             }
@@ -164,9 +169,9 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
         if (floating.enabled) {
           // Floating: kuota dihitung dari lease yang masih hidup (rolling seat).
           const liveLeases = await LicenseLeaseService.countLive(lic.id, trx);
-          if (liveLeases >= maxSeats) {
+          if (liveLeases >= activeMaxSeats) {
             return {
-              error: `Device seats quota exceeded (${liveLeases}/${maxSeats}). Please wait for another lease to expire or deactivate another device first.`,
+              error: `Device seats quota exceeded (${liveLeases}/${activeMaxSeats}). Please wait for another lease to expire or deactivate another device first.`,
               seatFull: true,
             };
           }
@@ -202,9 +207,9 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
             where: eq(licenseActivations.licenseId, lic.id),
           });
 
-          if (allActivations.length >= maxSeats) {
+          if (allActivations.length >= activeMaxSeats) {
             return {
-              error: `Device seats quota exceeded (${allActivations.length}/${maxSeats}). Please deactivate another device first.`,
+              error: `Device seats quota exceeded (${allActivations.length}/${activeMaxSeats}). Please deactivate another device first.`,
               seatFull: true,
             };
           }
@@ -251,7 +256,7 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
         lic.appId,
         hwidHash,
         lic.customerEmail,
-        maxSeats,
+        activeMaxSeats,
         lic.features,
         offlineGraceDays
       );

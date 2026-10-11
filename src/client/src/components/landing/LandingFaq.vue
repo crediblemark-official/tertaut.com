@@ -19,8 +19,8 @@ const faqs = [
     a: "Pembeli Anda dapat membayar instan melalui QRIS (GoPay, OVO, ShopeePay, BCA Mobile, Dana, dsb) atau Virtual Account bank utama. Setelah transaksi berhasil, 95% dana bersih langsung masuk ke saldo Anda dan dapat dicairkan kapan saja ke rekening bank Anda.",
   },
   {
-    q: "Apakah API Key AI (OpenAI / Claude / Gemini) saya aman?",
-    a: "Sangat aman. API Key master Anda disimpan dengan enkripsi AES-256 di vault server Tertaut dan tidak pernah dikirim ke aplikasi klien pengguna. Sistem AI Proxy kami juga memberlakukan rate limit 15 req/menit dan daily token cap agar terhindar dari tagihan membengkak.",
+    q: "Apakah saya perlu membuat halaman pembayaran dan sistem kupon sendiri?",
+    a: "Tidak perlu. Tertaut menyediakan halaman checkout siap pakai (hosted pay link) dan mesin kupon diskon persentase/potongan harga yang bisa langsung Anda bagikan ke pembeli.",
   },
   {
     q: "Bagaimana kebijakan pengembalian dana (refund) dan pembatalan lisensi?",

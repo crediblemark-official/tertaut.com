@@ -3,7 +3,7 @@
   "version": "2.2.3",
   "private": true,
   "type": "module",
-  "description": "Headless Developer Infrastructure Engine (Monetization, Licensing, AI Protection, Validation & Launch Kit)",
+  "description": "Headless Developer Infrastructure Engine (Monetization, Licensing, Metering, Validation & Launch Kit)",
   "scripts": {
     "dev": "concurrently -k -n \"SERVER,CLIENT,DOCS\" -c \"cyan,yellow,green\" \"bun run dev:server\" \"bun run dev:client\" \"bun run dev:docs\"",
     "dev:server": "bun --watch src/server/index.ts",
@@ -17,6 +17,7 @@
     "start": "NODE_ENV=production bun src/server/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "bun src/server/db/migrate.ts",
+    "db:rollback": "bun src/server/db/rollback.ts",
     "db:seed": "bun src/server/db/seed.ts",
     "db:reset": "bun src/server/db/reset.ts",
     "db:push": "drizzle-kit push",

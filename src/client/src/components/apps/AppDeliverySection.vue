@@ -332,8 +332,7 @@ watch(
                   </h4>
                 </div>
                 <p class="text-[10px] text-jetblack/60">
-                  Parameter batas pemakaian &amp; kuota kredit yang terhubung dengan SDK/AI Proxy
-                  Tertaut.
+                  Parameter batas pemakaian &amp; kuota kredit yang terhubung dengan SDK Tertaut.
                 </p>
               </div>
               <button

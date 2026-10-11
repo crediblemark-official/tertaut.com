@@ -1,5 +1,11 @@
 import { db } from "../../../db";
-import { licenses, licenseActivations, licenseLeases, apps } from "../../../db/schema";
+import {
+  licenses,
+  licenseActivations,
+  licenseLeases,
+  apps,
+  revokedTokens,
+} from "../../../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { LicenseService } from "../../../services/licensing/license";
 import { LicenseTokenService } from "../../../services/licensing/licenseToken";
@@ -104,10 +110,46 @@ export async function handleVerifyLicense({ body, set, request }: DeviceVerifyCo
 
   await db.update(licenses).set({ lastValidatedAt: now }).where(eq(licenses.id, lic.id));
 
-  // Hitung sisa hari offline grace dari token tertanda (jika tersedia)
-  let gracePeriodRemainingDays: number | null = null;
+  // Rotasi token offline (Fase 5): denylist jti lama bila ada, lalu terbitkan yang baru.
+  // Dilakukan saat /verify (validasi online dengan HWID) untuk memastikan token
+  // yang beredar selalu terbaru dan mencegah replay.
+  let offlineGraceToken: string | null = null;
   if (lic.offlineJwtGraceToken) {
     const decoded = LicenseTokenService.verify(lic.offlineJwtGraceToken);
+    if (decoded.valid && decoded.claims) {
+      await db
+        .insert(revokedTokens)
+        .values({
+          jti: decoded.claims.jti,
+          licenseId: lic.id,
+          licenseKey: lic.licenseKey,
+          reason: "ROTATED",
+          expiresAt: decoded.claims.exp ? new Date(decoded.claims.exp * 1000) : null,
+        })
+        .onConflictDoNothing();
+    }
+  }
+
+  const appRowV = await db.query.apps.findFirst({ where: eq(apps.id, lic.appId) });
+  const offlineGraceDays = appRowV?.deliveryConfig?.licenseKey?.offlineGraceDays;
+  offlineGraceToken = await LicenseService.rotateOfflineToken(
+    {
+      id: lic.id,
+      licenseKey: lic.licenseKey,
+      appId: lic.appId,
+      customerEmail: lic.customerEmail,
+      maxSeats: lic.maxSeats || 3,
+      features: lic.features || null,
+      offlineJwtGraceToken: lic.offlineJwtGraceToken,
+      hardwareId: lic.hardwareId || null,
+    },
+    offlineGraceDays
+  );
+
+  // Hitung sisa hari offline grace dari token tertanda (jika tersedia)
+  let gracePeriodRemainingDays: number | null = null;
+  if (offlineGraceToken) {
+    const decoded = LicenseTokenService.verify(offlineGraceToken);
     if (decoded.valid && decoded.claims?.exp) {
       gracePeriodRemainingDays = Math.max(
         0,
@@ -125,5 +167,6 @@ export async function handleVerifyLicense({ body, set, request }: DeviceVerifyCo
     credits,
     entitlements: lic.features || {},
     licenseVersion: lic.licenseVersion || 1,
+    offlineGraceToken,
   };
 }

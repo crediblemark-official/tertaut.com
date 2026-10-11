@@ -147,6 +147,33 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
     expect(embedRes.headers.get("content-type")).toContain("javascript");
     const scriptText = await embedRes.text();
     expect(scriptText).toContain("tertaut-badge");
+
+    // 6. GET /badge/:slug/click (redirects & tracks click)
+    const clickRes = await fetch(`http://localhost:3001/badge/${testApp.slug}/click`, {
+      redirect: "manual",
+    });
+    expect([302, 301, 307, 308]).toContain(clickRes.status);
+    expect(clickRes.headers.get("location")).toContain(`/pay/${testApp.slug}`);
+
+    // 7. POST /api/v1/widgets/badge/:app_slug/click (tracks widget click)
+    const widgetClickRes = await fetch(
+      `http://localhost:3001/api/v1/widgets/badge/${testApp.slug}/click`,
+      { method: "POST" }
+    );
+    expect(widgetClickRes.status).toBe(200);
+    const widgetClickData: any = await widgetClickRes.json();
+    expect(widgetClickData.success).toBe(true);
+
+    // 8. GET /api/v1/widgets/badge/:app_slug/stats (retrieves analytics)
+    const statsBadgeRes = await fetch(
+      `http://localhost:3001/api/v1/widgets/badge/${testApp.slug}/stats`
+    );
+    expect(statsBadgeRes.status).toBe(200);
+    const statsBadgeData: any = await statsBadgeRes.json();
+    expect(statsBadgeData.success).toBe(true);
+    expect(statsBadgeData.data.appSlug).toBe(testApp.slug);
+    expect(statsBadgeData.data.views).toBeGreaterThanOrEqual(1);
+    expect(statsBadgeData.data.clicks).toBeGreaterThanOrEqual(1);
   });
 
   it("should test Coupons router CRUD & stats over HTTP app.handle", async () => {

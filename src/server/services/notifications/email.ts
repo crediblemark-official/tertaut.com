@@ -63,6 +63,7 @@ export class EmailService {
    */
   static isDeliveryEnabled(): boolean {
     if (this.sendOverride !== null) return this.sendOverride;
+    if (process.env.ENABLE_EMAIL_DELIVERY === "true") return true;
     return config.isProd;
   }
 

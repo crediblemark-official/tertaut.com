@@ -206,13 +206,15 @@ export async function handleTestWebhook({ params, request, set }: any) {
     data: { message: "Test delivery dari tertaut.com", version: "2.3.0" },
   };
   const rawBody = JSON.stringify(payload);
+  // Bersihkan undefined untuk jsonb payload column.
+  const cleanPayload = JSON.parse(rawBody);
   const [delivery] = await db
     .insert(webhookDeliveries)
     .values({
       id: `whd_${randomBytes(8).toString("hex")}`,
       endpointId: endpoint.id,
       event: "license.test",
-      payload,
+      payload: cleanPayload,
       signature: WebhookService.sign(endpoint.secret, rawBody),
       status: "PENDING",
       attempts: 0,

@@ -38,9 +38,9 @@ export async function handleDanaFinishPaymentWebhook({
   // Flatten so we can access fields uniformly.
   const data = (raw?.request?.body ? { ...raw.request.body, _legacy: true } : raw) as any;
 
-  // *** Verifikasi signature WAJIB dilakukan SEBELUM memproses skenario apa pun ***
+  // Verifikasi signature WAJIB dilakukan SEBELUM memproses skenario apa pun
   // (termasuk branch UAT) supaya webhook palsu tidak bisa mengeksploitasi jalur
-  // pengujian sandbox — BUG-3.
+  // pengujian sandbox.
   const webhookMethod = request?.method || "POST";
   const webhookPath = request?.url ? new URL(request.url).pathname : "/v1.0/debit/notify";
   if (!DanaService.verifyWebhook(headers, body, { method: webhookMethod, path: webhookPath })) {
@@ -160,7 +160,7 @@ export async function handleDanaFinishPaymentWebhook({
     "DANA_WALLET";
 
   if (isSuccess) {
-    // Rekonsiliasi nominal (BUG-2): webhook tidak boleh mem-fully pay transaksi dengan
+    // Rekonsiliasi nominal: webhook tidak boleh mem-fully pay transaksi dengan
     // nominal yang tidak cocok (atau tanpa info nominal). DANA selalu menyertakan
     // amount pada finish notify; forged webhook tanpa verifikasi ini dulu bisa
     // mengubah transaksi 50rb menjadi PAID hanya dengan status "00".

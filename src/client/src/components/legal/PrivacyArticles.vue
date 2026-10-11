@@ -112,7 +112,8 @@ import { COMPANY_INFO } from "../../constants/company";
       <div class="space-y-3.5 text-slate-700 text-xs sm:text-sm leading-relaxed">
         <p>
           Untuk memfasilitasi infrastruktur Merchant of Record (MoR), validasi lisensi offline-first
-          kriptografis, dan layanan AI proxy shield, kami mengumpulkan kategori data berikut:
+          kriptografis, dan layanan hosted checkout software, kami mengumpulkan kategori data
+          berikut:
         </p>
         <div class="grid sm:grid-cols-2 gap-3.5">
           <div class="p-4 rounded-xl border border-slate-200/90 bg-white space-y-2">
@@ -151,13 +152,12 @@ import { COMPANY_INFO } from "../../constants/company";
           </div>
           <div class="p-4 rounded-xl border border-slate-200/90 bg-white space-y-2">
             <div class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-              <span>🛡️</span>
-              <span>4. Data AI Proxy Shield &amp; Metering</span>
+              <span>🚀</span>
+              <span>4. Data Launch Kit &amp; Webhook Transaksi</span>
             </div>
             <p class="text-slate-600 text-xs leading-relaxed">
-              Volume konsumsi token LLM (input/output), timestamp permintaan, dan status kuota rate
-              limit. Master API key pengembang disimpan di vault terenkripsi tingkat tinggi AES-256
-              GCM.
+              Log pengiriman webhook notifikasi pembayaran, penggunaan kode kupon diskon, serta
+              analitik impresi dan klik pada embeddable Trust Badge.
             </p>
           </div>
         </div>

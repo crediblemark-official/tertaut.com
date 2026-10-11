@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { enforceRateLimit, resetRateLimits } from "../../services/security/rateLimiter";
+import {
+  enforceRateLimit,
+  enforceRateLimitAsync,
+  resetRateLimits,
+} from "../../services/security/rateLimiter";
 
 describe("Unit Tests - RateLimiter Service", () => {
   beforeEach(() => {
@@ -70,5 +74,22 @@ describe("Unit Tests - RateLimiter Service", () => {
     expect(r4.allowed).toBe(false);
     expect(r4.retryAfter).toBeGreaterThan(0);
     expect(r4.retryAfter).toBeLessThanOrEqual(5);
+  });
+
+  it("should support enforceRateLimitAsync and RedisRateLimiterAdapter fallback", async () => {
+    const req = new Request("http://localhost/test", {
+      headers: { "x-real-ip": "192.0.2.1" },
+    });
+
+    // Test async path with memory fallback
+    const res1 = await enforceRateLimitAsync(req, "async-scope", 2, 5000);
+    expect(res1.allowed).toBe(true);
+
+    const res2 = await enforceRateLimitAsync(req, "async-scope", 2, 5000);
+    expect(res2.allowed).toBe(true);
+
+    const res3 = await enforceRateLimitAsync(req, "async-scope", 2, 5000);
+    expect(res3.allowed).toBe(false);
+    expect(res3.retryAfter).toBeGreaterThan(0);
   });
 });

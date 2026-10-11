@@ -66,6 +66,14 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
       couponCode: t.Optional(t.String({ maxLength: 64 })),
       startTrial: t.Optional(t.Boolean()),
       isTrial: t.Optional(t.Boolean()),
+      hwid: t.Optional(t.String({ description: "Hardware fingerprint ID perangkat untuk trial" })),
+      hardwareId: t.Optional(t.String()),
+      deviceFingerprint: t.Optional(t.String()),
+      deviceId: t.Optional(t.String()),
+      deviceName: t.Optional(t.String()),
+      customerName: t.Optional(t.String()),
+      paymentChannel: t.Optional(t.String()),
+      metadata: t.Optional(t.Any()),
     }),
     detail: {
       tags: ["MoR Checkout"],
@@ -190,9 +198,6 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
     query: t.Object({
       appId: t.Optional(t.String()),
       limit: t.Optional(t.Numeric({ default: 50 })),
-      // BUG D1: client mengirim `page`, tapi schema tidak mendeklarasikannya =>
-      // Elysia membuang param tsb secara diam-diam sehingga pagination selalu
-      // memakai halaman 1. Deklarasikan agar handler benar-benar menerimanya.
       page: t.Optional(t.Numeric({ default: 1 })),
       mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
     }),

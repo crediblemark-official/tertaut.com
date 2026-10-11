@@ -1,8 +1,11 @@
 import { Elysia, t } from "elysia";
 import { db } from "../../db";
-import { apps, licenses } from "../../db/schema";
-import { eq } from "drizzle-orm";
+import { apps, licenses, licenseEvents } from "../../db/schema";
+import { eq, and, inArray } from "drizzle-orm";
 import { LaunchService } from "../../services/monetization/launchService";
+import { AuditService } from "../../services/security/audit";
+import { getClientIp } from "../../lib/ip";
+import { config } from "../../config";
 
 export const badgeRoutes = new Elysia({ prefix: "/badge" })
   /**
@@ -10,11 +13,19 @@ export const badgeRoutes = new Elysia({ prefix: "/badge" })
    */
   .get(
     "/:slug",
-    async ({ params: { slug }, set }) => {
+    async ({ params: { slug }, set, request }) => {
       const cleanSlug = slug.replace(/\.svg$/i, "");
       const app = await db.query.apps.findFirst({
         where: eq(apps.slug, cleanSlug),
       });
+
+      if (app) {
+        await AuditService.record(
+          "badge_view",
+          { appId: app.id, actorType: "CLIENT", ipAddress: getClientIp(request) },
+          { slug: cleanSlug, type: "svg", referer: request?.headers?.get("referer") || undefined }
+        );
+      }
 
       const label = "tertaut.com";
       const statusText = !app
@@ -69,6 +80,39 @@ export const badgeRoutes = new Elysia({ prefix: "/badge" })
           "Generates dynamic SVG trust and launch status badges for external landing pages",
       },
     }
+  )
+
+  /**
+   * Track Badge Click & Redirect ke Checkout (FR-2.2 & Analytics)
+   */
+  .get(
+    "/:slug/click",
+    async ({ params: { slug }, request, redirect }) => {
+      const cleanSlug = slug.replace(/\.svg$/i, "");
+      const app = await db.query.apps.findFirst({
+        where: eq(apps.slug, cleanSlug),
+      });
+
+      if (!app) {
+        return redirect(`${config.publicAppUrl}`);
+      }
+
+      await AuditService.record(
+        "badge_click",
+        { appId: app.id, actorType: "CLIENT", ipAddress: getClientIp(request) },
+        { slug: cleanSlug, referer: request?.headers?.get("referer") || undefined }
+      );
+
+      const targetUrl = app.redirectUrl || `${config.publicAppUrl}/pay/${app.slug}`;
+      return redirect(targetUrl);
+    },
+    {
+      params: t.Object({ slug: t.String() }),
+      detail: {
+        tags: ["Launch Kit"],
+        summary: "Track badge click and redirect to checkout",
+      },
+    }
   );
 
 export const widgetRoutes = new Elysia({ prefix: "/widgets" })
@@ -77,7 +121,7 @@ export const widgetRoutes = new Elysia({ prefix: "/widgets" })
    */
   .get(
     "/badge/:app_slug",
-    async ({ params: { app_slug }, set }) => {
+    async ({ params: { app_slug }, set, request }) => {
       const data = await LaunchService.getWidgetData(app_slug);
 
       if (!data) {
@@ -87,6 +131,24 @@ export const widgetRoutes = new Elysia({ prefix: "/widgets" })
           error: "APP_NOT_FOUND",
           message: `Aplikasi dengan slug '${app_slug}' tidak ditemukan.`,
         };
+      }
+
+      // Record impression
+      const cleanSlug = app_slug.replace(/\.svg$/i, "").trim();
+      const app =
+        (await db.query.apps.findFirst({ where: eq(apps.slug, cleanSlug) })) ||
+        (await db.query.apps.findFirst({ where: eq(apps.id, cleanSlug) }));
+
+      if (app) {
+        await AuditService.record(
+          "badge_view",
+          { appId: app.id, actorType: "CLIENT", ipAddress: getClientIp(request) },
+          {
+            slug: cleanSlug,
+            type: "widget",
+            referer: request?.headers?.get("referer") || undefined,
+          }
+        );
       }
 
       return {
@@ -100,6 +162,84 @@ export const widgetRoutes = new Elysia({ prefix: "/widgets" })
         tags: ["Launch Kit"],
         summary: "Fetch Embeddable Widget Data",
         description: "Returns JSON metadata for embeddable badges and social proof widgets.",
+      },
+    }
+  )
+
+  /**
+   * Track Embeddable Widget Click (Beacon / Fetch)
+   */
+  .post(
+    "/badge/:app_slug/click",
+    async ({ params: { app_slug }, request }) => {
+      const cleanSlug = app_slug.replace(/\.svg$/i, "").trim();
+      const app =
+        (await db.query.apps.findFirst({ where: eq(apps.slug, cleanSlug) })) ||
+        (await db.query.apps.findFirst({ where: eq(apps.id, cleanSlug) }));
+
+      if (!app) {
+        return { success: false, error: "APP_NOT_FOUND" };
+      }
+
+      await AuditService.record(
+        "badge_click",
+        { appId: app.id, actorType: "CLIENT", ipAddress: getClientIp(request) },
+        { slug: cleanSlug, referer: request?.headers?.get("referer") || undefined }
+      );
+
+      return { success: true };
+    },
+    {
+      params: t.Object({ app_slug: t.String() }),
+      detail: {
+        tags: ["Launch Kit"],
+        summary: "Track embed badge click (beacon/fetch)",
+      },
+    }
+  )
+
+  /**
+   * Ringkasan Analitik Badge (Views, Clicks, CTR)
+   */
+  .get(
+    "/badge/:app_slug/stats",
+    async ({ params: { app_slug }, set }) => {
+      const cleanSlug = app_slug.replace(/\.svg$/i, "").trim();
+      const app =
+        (await db.query.apps.findFirst({ where: eq(apps.slug, cleanSlug) })) ||
+        (await db.query.apps.findFirst({ where: eq(apps.id, cleanSlug) }));
+
+      if (!app) {
+        set.status = 404;
+        return { success: false, error: "APP_NOT_FOUND" };
+      }
+
+      const events = await db.query.licenseEvents.findMany({
+        where: and(
+          eq(licenseEvents.appId, app.id),
+          inArray(licenseEvents.event, ["badge_view", "badge_click"])
+        ),
+      });
+
+      const views = events.filter((e) => e.event === "badge_view").length;
+      const clicks = events.filter((e) => e.event === "badge_click").length;
+      const ctr = views > 0 ? Number(((clicks / views) * 100).toFixed(2)) : 0;
+
+      return {
+        success: true,
+        data: {
+          appSlug: app.slug,
+          views,
+          clicks,
+          ctrPercent: ctr,
+        },
+      };
+    },
+    {
+      params: t.Object({ app_slug: t.String() }),
+      detail: {
+        tags: ["Launch Kit"],
+        summary: "Get badge analytics summary (impressions, clicks, CTR)",
       },
     }
   )
@@ -191,6 +331,19 @@ export const widgetRoutes = new Elysia({ prefix: "/widgets" })
             \${badgeContent}
           </a>
         \`;
+
+        const badgeLink = this.shadowRoot.querySelector('a.badge');
+        if (badgeLink) {
+          badgeLink.addEventListener('click', () => {
+            try {
+              if (navigator.sendBeacon) {
+                navigator.sendBeacon(\`\${host}/api/v1/widgets/badge/\${app}/click\`);
+              } else {
+                fetch(\`\${host}/api/v1/widgets/badge/\${app}/click\`, { method: 'POST', keepalive: true }).catch(function(){});
+              }
+            } catch (_) {}
+          });
+        }
       } catch (e) {
         console.warn('[tertaut-badge] Failed to render badge:', e);
       }

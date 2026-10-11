@@ -150,12 +150,39 @@ export class LicensingModule {
     let active = true;
     const intervalMs = (options.intervalSeconds || 60) * 1000;
 
-    /** Seat yang hilang berarti loop harus berhenti, bukan error selamanya. */
-    const handleFailure = (err: any) => {
+    let isReacquiring = false;
+
+    /** Seat yang hilang berarti loop berhenti atau mencoba reacquire bila autoReacquire aktif. */
+    const handleFailure = async (err: any) => {
       const code = err instanceof TertautError ? err.code : undefined;
-      if (err instanceof HeartbeatLeaseError || (code && LEASE_LOST_CODES.has(code))) {
-        active = false;
+      const isLeaseLost =
+        err instanceof HeartbeatLeaseError || (code && LEASE_LOST_CODES.has(code));
+
+      if (isLeaseLost) {
         options.onLeaseExpired?.(err);
+
+        if (options.autoReacquire && !isReacquiring) {
+          isReacquiring = true;
+          try {
+            const reacquired = await this.activate({
+              licenseKey: options.licenseKey,
+              hwid: options.hwid,
+              deviceName: options.deviceName,
+            });
+            if (reacquired?.success && reacquired.data?.leaseKey) {
+              currentLeaseKey = reacquired.data.leaseKey;
+              active = true;
+              options.onReacquired?.(currentLeaseKey);
+              isReacquiring = false;
+              return;
+            }
+          } catch {
+            // Reacquire gagal (kursi masih penuh), akan dicoba lagi pada heartbeat berikutnya
+          }
+          isReacquiring = false;
+        } else if (!options.autoReacquire) {
+          active = false;
+        }
       }
       options.onError?.(err);
     };
@@ -174,7 +201,7 @@ export class LicensingModule {
       } catch (err: any) {
         // `requestJson` sudah melempar error bertipe untuk status >= 400
         // (lease hilang dibalas 409 + `reason: "LEASE_MISMATCH"`).
-        handleFailure(err);
+        await handleFailure(err);
         throw err;
       }
 
@@ -185,7 +212,7 @@ export class LicensingModule {
           res.error || "Heartbeat failed",
           res.reason || res.errorCode || "LEASE_EXPIRED"
         );
-        handleFailure(err);
+        await handleFailure(err);
         throw err;
       }
 

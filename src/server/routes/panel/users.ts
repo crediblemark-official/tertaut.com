@@ -2,6 +2,7 @@ import { db } from "../../db";
 import { user } from "../../db/schema/auth";
 import { eq, desc } from "drizzle-orm";
 import { DEFAULT_ADMIN_EMAIL } from "../../middleware/auth";
+import { AuditService } from "../../services/security/audit";
 
 /**
  * Daftar Seluruh Akun Pengguna Platform (Super Admin)
@@ -33,7 +34,7 @@ export async function handlePanelUsers({ query }: any) {
 /**
  * Ubah Hak Akses / Role Pengguna (Super Admin)
  */
-export async function handleUpdateUserRole({ params, body, set }: any) {
+export async function handleUpdateUserRole({ params, body, set, request }: any) {
   const userId = params.userId;
   const newRole = (body?.role || "").trim().toLowerCase();
 
@@ -60,9 +61,34 @@ export async function handleUpdateUserRole({ params, body, set }: any) {
     };
   }
 
+  const oldRole = target.role;
   const dbRole = newRole === "admin" ? "admin" : "user";
 
   await db.update(user).set({ role: dbRole, updatedAt: new Date() }).where(eq(user.id, target.id));
+
+  // Audit log
+  try {
+    await AuditService.record(
+      "user.role_changed",
+      {
+        licenseId: null,
+        licenseKey: null,
+        appId: null,
+        actorType: "ADMIN",
+        actorId: request?.user?.id || null,
+        ipAddress:
+          request?.headers?.get("x-forwarded-for") || request?.headers?.get("x-real-ip") || null,
+      },
+      {
+        targetUserId: target.id,
+        targetUserEmail: target.email,
+        oldRole,
+        newRole: dbRole,
+      }
+    );
+  } catch (err: any) {
+    console.warn("[Audit] gagal catat user.role_changed:", err?.message || err);
+  }
 
   return {
     success: true,
@@ -75,7 +101,7 @@ export async function handleUpdateUserRole({ params, body, set }: any) {
 /**
  * Bekukan / Buka Blokir Pengguna (Super Admin)
  */
-export async function handleToggleUserBan({ params, body, set }: any) {
+export async function handleToggleUserBan({ params, body, set, request }: any) {
   const userId = params.userId;
   const reason = body?.reason || "Dibekukan oleh Super Admin";
 
@@ -97,7 +123,9 @@ export async function handleToggleUserBan({ params, body, set }: any) {
     };
   }
 
-  const newBanned = !target.banned;
+  const oldBanned = target.banned ?? false;
+  const newBanned = !oldBanned;
+
   await db
     .update(user)
     .set({
@@ -106,6 +134,31 @@ export async function handleToggleUserBan({ params, body, set }: any) {
       updatedAt: new Date(),
     })
     .where(eq(user.id, target.id));
+
+  // Audit log
+  try {
+    await AuditService.record(
+      "user.ban_toggled",
+      {
+        licenseId: null,
+        licenseKey: null,
+        appId: null,
+        actorType: "ADMIN",
+        actorId: request?.user?.id || null,
+        ipAddress:
+          request?.headers?.get("x-forwarded-for") || request?.headers?.get("x-real-ip") || null,
+      },
+      {
+        targetUserId: target.id,
+        targetUserEmail: target.email,
+        oldBanned,
+        newBanned,
+        reason: newBanned ? reason : null,
+      }
+    );
+  } catch (err: any) {
+    console.warn("[Audit] gagal catat user.ban_toggled:", err?.message || err);
+  }
 
   return {
     success: true,

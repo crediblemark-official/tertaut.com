@@ -58,8 +58,6 @@ export function createLicensingRouter(prefix: string) {
         requireAuth: true,
         query: t.Object({
           licenseKey: t.String(),
-          // BUG D2: client selalu menyisipkan `mode` via withMode(); tanpa
-          // deklarasi di schema, Elysia membuangnya diam-diam.
           mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
         }),
         detail: {
@@ -81,7 +79,6 @@ export function createLicensingRouter(prefix: string) {
           actorType: t.Optional(t.String()),
           limit: t.Optional(t.Numeric({ default: 50 })),
           offset: t.Optional(t.Numeric()),
-          // BUG D2: deklarasikan `mode` agar tidak dibuang diam-diam oleh Elysia.
           mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
         }),
         detail: {
@@ -406,8 +403,6 @@ export function createLicensingRouter(prefix: string) {
        */
       .get("/webhooks", handleListWebhooks, {
         requireAuth: true,
-        // BUG D2: schema sebelumnya t.Object({}) — semua query param (termasuk
-        // `mode` yang dikirim client via withMode()) dibuang diam-diam.
         query: t.Object({
           mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
         }),

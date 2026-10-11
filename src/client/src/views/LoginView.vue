@@ -239,10 +239,12 @@ async function submit() {
             </div>
             <div class="p-2 rounded-lg bg-white/[0.02] border border-white/[0.06]">
               <div class="flex items-center gap-1 text-cyan-400 font-semibold mb-0.5">
-                <Bot class="w-3 h-3 shrink-0" />
-                <span>AI Proxy</span>
+                <Zap class="w-3 h-3 shrink-0" />
+                <span>Hosted Pay</span>
               </div>
-              <div class="text-white/50 text-[8.5px] leading-tight">Cegah kebocoran key</div>
+              <div class="text-white/50 text-[8.5px] leading-tight">
+                Pay link &amp; kupon instan
+              </div>
             </div>
           </div>
         </div>

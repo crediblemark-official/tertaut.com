@@ -35,6 +35,11 @@ export async function handleDeactivateLicense({ body, set, request }: DeviceDeac
     return { success: false, error: "License key not found" };
   }
 
+  // Cek expiration sebelum deactivate (prevent deactivating already-expired license).
+  if (await LicenseService.checkAndMarkExpired(lic)) {
+    return { success: false, error: "License has expired", errorCode: "LICENSE_EXPIRED" };
+  }
+
   const lookupHashes = LicenseService.hwidLookupHashes(hwid);
 
   // Hapus seat aktivasi perangkat (mendukung hash salted maupun legacy)

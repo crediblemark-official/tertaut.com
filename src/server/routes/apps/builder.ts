@@ -14,7 +14,7 @@ export async function resolveCurrentBuilder(
   const user = authRes.user;
   const isAdmin = isAdminUser(user);
 
-  // 1. Cari builder berdasarkan userId
+  // 1. Cari builder berdasarkan userId (PRIORITAS UTAMA — paling aman)
   if (user.id && user.id !== "dev-user") {
     const b = await db.query.builders.findFirst({
       where: eq(builders.userId, user.id),
@@ -22,18 +22,20 @@ export async function resolveCurrentBuilder(
     if (b) return { builder: b, isAdmin };
   }
 
-  // 2. Cari builder berdasarkan email
+  // 2. Cari builder berdasarkan email — HANYA jika builder BELUM punya userId
+  //    (mencegah race condition: user B tidak bisa "mencuri" builder user A via email)
   if (user.email) {
     const b = await db.query.builders.findFirst({
       where: eq(builders.email, user.email),
     });
-    if (b) {
-      if (!b.userId && user.id && user.id !== "dev-user") {
-        await db.update(builders).set({ userId: user.id }).where(eq(builders.id, b.id));
-        b.userId = user.id;
-      }
+    if (b && !b.userId && user.id && user.id !== "dev-user") {
+      // Builder ini "unclaimed" (legacy/belum diklaim) → kaitkan ke user ini
+      await db.update(builders).set({ userId: user.id }).where(eq(builders.id, b.id));
+      b.userId = user.id;
       return { builder: b, isAdmin };
     }
+    // Jika builder SUDAH punya userId YANG BERBEDA → JANGAN kembalikan (security!)
+    // Lanjut ke step 3 untuk buat builder baru khusus user ini.
   }
 
   // 3. Jika user login belum memiliki profil builder, buatkan profil spesifik untuk user ini

@@ -22,15 +22,25 @@ export function clearGatewaySyncThrottle(txId?: string) {
   else gatewaySyncThrottleMap.clear();
 }
 
+export interface CheckoutHandlerSet {
+  status?: number | string;
+  headers?: any;
+  redirect?: string;
+  [key: string]: any;
+}
+
+export interface DanaFinishContext {
+  query?: { orderId?: string; externalId?: string; mock?: string; [key: string]: any };
+  request?: Request | any;
+  set?: CheckoutHandlerSet;
+  [key: string]: any;
+}
+
 /**
  * Endpoint Redirect pembeli setelah menyelesaikan pembayaran DANA (Finish Redirect URL)
  */
-export async function handleDanaFinish({ query, request, set }: any) {
-  const { orderId, externalId, mock } = query as {
-    orderId?: string;
-    externalId?: string;
-    mock?: string;
-  };
+export async function handleDanaFinish({ query = {}, request, set = {} }: DanaFinishContext) {
+  const { orderId, externalId, mock } = query;
 
   if (!externalId) {
     set.status = 400;
@@ -96,11 +106,24 @@ export async function handleDanaFinish({ query, request, set }: any) {
   };
 }
 
+export interface PaymentStatusContext {
+  params?: { txId?: string; [key: string]: any };
+  query?: { ticket?: string; sync?: string; refresh?: string; [key: string]: any };
+  request?: Request | any;
+  set?: CheckoutHandlerSet;
+  [key: string]: any;
+}
+
 /**
  * Polling status pembayaran untuk Gapura Custom Checkout
  */
-export async function handleGetPaymentStatus({ params, query, request, set }: any) {
-  const { txId } = params as { txId: string };
+export async function handleGetPaymentStatus({
+  params = {} as any,
+  query,
+  request,
+  set = {},
+}: PaymentStatusContext) {
+  const txId = params.txId;
   if (!txId) {
     set.status = 400;
     return { error: "txId parameter wajib disertakan" };
@@ -255,10 +278,17 @@ export async function handleGetPaymentStatus({ params, query, request, set }: an
   };
 }
 
+export interface ConsultPayContext {
+  query?: { amount?: string | number; [key: string]: any };
+  request?: Request | any;
+  set?: CheckoutHandlerSet;
+  [key: string]: any;
+}
+
 /**
  * Konsultasi opsi pembayaran DANA aktif
  */
-export async function handleConsultPay({ query, request, set }: any) {
+export async function handleConsultPay({ query, request, set = {} }: ConsultPayContext) {
   // BUG-6: endpoint publik tanpa rate limit sebelumnya bisa menembak gateway DANA
   // (setiap panggilan memicu HTTP ke DANA consultPay).
   const rl = enforceRateLimit(request, "checkout:consult-pay", 60, 60_000);
@@ -276,10 +306,16 @@ export async function handleConsultPay({ query, request, set }: any) {
   };
 }
 
+export interface PaymentChannelsContext {
+  request?: Request | any;
+  set?: CheckoutHandlerSet;
+  [key: string]: any;
+}
+
 /**
  * Mengambil daftar channel pembayaran yang aktif secara dinamis dari gateway yang aktif
  */
-export async function handleGetPaymentChannels({ request, set }: any) {
+export async function handleGetPaymentChannels({ request, set = {} }: PaymentChannelsContext) {
   const rl = enforceRateLimit(request, "checkout:channels", 60, 60_000);
   if (!rl.allowed) {
     set.status = 429;
@@ -320,10 +356,28 @@ export async function handleGetPaymentChannels({ request, set }: any) {
   }
 }
 
+export interface SimulateSandboxContext {
+  body?: {
+    transactionId?: string;
+    txId?: string;
+    ticket?: string;
+    scenario?: string;
+    failureReason?: string;
+    [key: string]: any;
+  };
+  request?: Request | any;
+  set?: CheckoutHandlerSet;
+  [key: string]: any;
+}
+
 /**
  * Simulasi pelunasan instan untuk transaksi Sandbox Tertaut (Testing & UAT)
  */
-export async function handleSimulateSandboxPayment({ body, request, set }: any) {
+export async function handleSimulateSandboxPayment({
+  body,
+  request,
+  set = {},
+}: SimulateSandboxContext) {
   const rl = enforceRateLimit(request, "checkout:simulate", 30, 60_000);
   if (!rl.allowed) {
     set.status = 429;
@@ -391,11 +445,21 @@ export async function handleSimulateSandboxPayment({ body, request, set }: any) 
   };
 }
 
+export interface PreviewCouponContext {
+  body?: { appId?: string; couponCode?: string; amount?: number; [key: string]: any };
+  set?: CheckoutHandlerSet;
+  [key: string]: any;
+}
+
 /**
  * Preview kupon tanpa membuat transaksi (dipakai halaman /pay/:slug)
  */
-export async function handlePreviewCoupon({ body, set }: any) {
+export async function handlePreviewCoupon({ body = {} as any, set = {} }: PreviewCouponContext) {
   const { appId, couponCode, amount } = body;
+  if (!appId || !couponCode) {
+    set.status = 400;
+    return { valid: false, message: "appId dan couponCode wajib disertakan" };
+  }
 
   const app = await db.query.apps.findFirst({ where: eq(apps.id, appId) });
   if (!app) {
@@ -420,10 +484,23 @@ export async function handlePreviewCoupon({ body, set }: any) {
   };
 }
 
+export interface ListTransactionsContext {
+  query?: {
+    appId?: string;
+    limit?: string | number;
+    offset?: string | number;
+    page?: string | number;
+    mode?: string;
+    [key: string]: any;
+  };
+  request?: Request | any;
+  [key: string]: any;
+}
+
 /**
  * Daftar riwayat transaksi MoR (scoped ke builder kecuali admin, dengan pagination & total count)
  */
-export async function handleListTransactions({ query, request }: any) {
+export async function handleListTransactions({ query, request }: ListTransactionsContext) {
   const { appId, limit = 200, offset = 0, page, mode } = query || {};
   const headers = request?.headers;
   const { builder, isAdmin } = headers
@@ -442,7 +519,10 @@ export async function handleListTransactions({ query, request }: any) {
   if (appId) {
     conditions.push(eq(transactions.appId, appId));
   } else if (mode) {
-    const appRows = await db.select({ id: apps.id }).from(apps).where(eq(apps.mode, mode));
+    const appRows = await db
+      .select({ id: apps.id })
+      .from(apps)
+      .where(eq(apps.mode, mode as "live" | "sandbox"));
     if (appRows.length === 0) {
       return { success: true, transactions: [], total: 0, hasMore: false };
     }
@@ -479,10 +559,17 @@ export async function handleListTransactions({ query, request }: any) {
   };
 }
 
+export interface DisburseTxContext {
+  params?: { txId?: string; [key: string]: any };
+  request?: Request | any;
+  set?: CheckoutHandlerSet;
+  [key: string]: any;
+}
+
 /**
  * Eksekusi pencairan saldo dari transaksi tunggal (DRY: delegasikan ke handleDisburse)
  */
-export async function handleDisburseTx(ctx: any) {
+export async function handleDisburseTx(ctx: DisburseTxContext) {
   return handleDisburse({
     params: { transactionId: ctx.params?.txId },
     set: ctx.set,
@@ -490,11 +577,29 @@ export async function handleDisburseTx(ctx: any) {
   });
 }
 
+export interface InvoiceDataContext {
+  params?: { txId?: string; [key: string]: any };
+  query?: { ticket?: string; [key: string]: any };
+  request?: Request | any;
+  set?: CheckoutHandlerSet;
+  [key: string]: any;
+}
+
 /**
  * Ambil data invoice resmi / E-Receipt untuk cetak dan unduh PDF
  */
-export async function handleGetInvoiceData({ params, query, request, set }: any) {
-  const txId = params.txId;
+export async function handleGetInvoiceData({
+  params = {} as any,
+  query,
+  request,
+  set = {},
+}: InvoiceDataContext) {
+  const txId = params?.txId;
+  if (!txId) {
+    set.status = 400;
+    return { success: false, error: "txId parameter wajib disertakan" };
+  }
+
   const ticket = query?.ticket;
 
   const tx = await db.query.transactions.findFirst({

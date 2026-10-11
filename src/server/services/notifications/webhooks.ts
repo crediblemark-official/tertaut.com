@@ -73,6 +73,9 @@ export class WebhookService {
       });
 
       const rawBody = JSON.stringify(rawPayload);
+      // Parse kembali untuk membersihkan nilai undefined (JSON tidak support undefined).
+      // payload column (jsonb) tidak menerima undefined.
+      const cleanPayload = JSON.parse(rawBody);
       let queued = 0;
 
       for (const endpoint of endpoints) {
@@ -84,7 +87,7 @@ export class WebhookService {
           id: `whd_${randomBytes(8).toString("hex")}`,
           endpointId: endpoint.id,
           event,
-          payload: rawPayload,
+          payload: cleanPayload,
           signature,
           status: "PENDING",
           attempts: 0,
@@ -143,6 +146,9 @@ export class WebhookService {
       });
 
       const rawBody = JSON.stringify(rawPayload);
+      // Parse kembali untuk membersihkan nilai undefined (JSON tidak support undefined).
+      // payload column (jsonb) tidak menerima undefined.
+      const cleanPayload = JSON.parse(rawBody);
       let queued = 0;
 
       for (const endpoint of endpoints) {
@@ -154,7 +160,7 @@ export class WebhookService {
           id: `whd_${randomBytes(8).toString("hex")}`,
           endpointId: endpoint.id,
           event,
-          payload: rawPayload,
+          payload: cleanPayload,
           signature,
           status: "PENDING",
           attempts: 0,

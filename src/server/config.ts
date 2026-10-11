@@ -61,7 +61,8 @@ function resolveDerivedSecret(envName: string, parent: string, label: string): s
     const message =
       `[config] ${envName} tidak disetel — mewarisi JWT_SECRET untuk ${label}. ` +
       `Tetapkan secret acak terpisah (lihat .env.example) agar satu kebocoran tidak memengaruhi semua domain.`;
-    if (isProd && getEnv("STRICT_SECRETS") === "true") {
+    const isStrict = getEnv("STRICT_SECRETS", isProd ? "true" : "false") === "true";
+    if (isProd && isStrict) {
       throw new Error(message);
     }
     console.warn(message);

@@ -19,9 +19,9 @@ export const SITE_SEO_DEFAULTS = {
   name: "Tertaut",
   legalName: COMPANY_INFO.legalName,
   defaultOrigin: COMPANY_INFO.websiteUrl,
-  defaultTitle: "Tertaut — Merchant of Record, Lisensi Software Ed25519 & AI Proxy Indonesia",
+  defaultTitle: "Tertaut — Merchant of Record & Lisensi Software Ed25519 Indonesia",
   defaultDescription:
-    "Platform Merchant of Record (MoR) resmi, sistem lisensi kriptografis offline-first Ed25519, dan AI proxy shield untuk software builder, desktop app, SaaS, dan developer AI di Indonesia.",
+    "Platform Merchant of Record (MoR) resmi dan sistem lisensi kriptografis offline-first Ed25519 untuk software builder, desktop app, SaaS, dan developer di Indonesia.",
   defaultKeywords: [
     "merchant of record indonesia",
     "mor software indonesia",
@@ -30,8 +30,8 @@ export const SITE_SEO_DEFAULTS = {
     "monetisasi software desktop",
     "qris software payment",
     "virtual account software billing",
-    "ai proxy shield",
-    "token metering llm",
+    "hosted checkout software",
+    "kupon diskon software",
     "tauri license manager",
     "electron license manager",
     "flutter desktop monetization",

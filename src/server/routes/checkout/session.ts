@@ -1,7 +1,9 @@
 import { db } from "../../db";
-import { apps, transactions, licenses, builders } from "../../db/schema";
+import { apps, transactions, licenses, builders, licenseActivations } from "../../db/schema";
 import { platformSettings } from "../../db/schema/settings";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
+import { getClientIp } from "../../lib/ip";
+import { logger } from "../../lib/logger";
 import { DanaService } from "../../services/payments/dana/dana";
 import { XenditService } from "../../services/payments/xendit";
 import { getActivePaymentGateway } from "../../services/payments/paymentGateway";
@@ -28,10 +30,51 @@ const DEFAULT_PRICE = checkoutConfig.defaultPrice;
 const formatIdr = (value: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(value);
 
+export interface CreateSessionBody {
+  appId?: string;
+  appSlug?: string;
+  slug?: string;
+  paymentGateway?: string;
+  demoMode?: boolean;
+  scenario?: "API" | "REDIRECT";
+  paymentRail?: "qris" | "va" | "ewallet" | "card" | "retail" | "";
+  preferredPaymentChannel?: string;
+  vaBank?: string;
+  bank?: string;
+  ewalletChannel?: string;
+  retailOutlet?: string;
+  amount?: number;
+  customAmount?: number;
+  customerEmail?: string;
+  buyerEmail?: string;
+  grantDays?: number;
+  redirectUrl?: string;
+  couponCode?: string;
+  startTrial?: boolean;
+  isTrial?: boolean;
+  hwid?: string;
+  hardwareId?: string;
+  deviceFingerprint?: string;
+  deviceId?: string;
+  customerName?: string;
+  paymentChannel?: string;
+  name?: string;
+  deviceName?: string;
+  grantCredits?: number;
+  metadata?: Record<string, any>;
+}
+
+export interface CreateSessionContext {
+  request?: Request | any;
+  body: CreateSessionBody;
+  set?: { status?: number | string; headers?: any; [key: string]: any };
+  [key: string]: any;
+}
+
 /**
  * Pemicu Dynamic & Headless Checkout Link
  */
-export async function handleCreateSession({ request, body, set }: any) {
+export async function handleCreateSession({ request, body, set = {} }: CreateSessionContext) {
   try {
     // BUG-6: batasi pembuatan sesi per IP agar endpoint publik ini tidak bisa
     // dipakai untuk brute-force / spam invoice.
@@ -93,30 +136,22 @@ export async function handleCreateSession({ request, body, set }: any) {
       });
     }
 
-    const DEMO_IDENTIFIERS = [
-      "app_fastmail_ai",
-      "fastmail-ai",
-      "app_saas_starter_kit",
-      "saas-starter-kit",
-      "app_indoocr_api",
-      "indoocr-api",
-      "app_vibecoder_vip",
-      "vibecoder-vip",
-      "app_smartai_proxy",
-      "smartai-proxy",
-    ];
-
-    if (!app && DEMO_IDENTIFIERS.includes(targetIdentifier)) {
+    if (!app) {
       try {
-        const { ensureDemoData } = await import("../../db/ensureDemo");
-        await ensureDemoData();
-        app = await db.query.apps.findFirst({
-          where: eq(apps.id, targetIdentifier),
-        });
-        if (!app) {
+        const { DEMO_APPS, ensureDemoData } = await import("../../db/ensureDemo");
+        const isDemo = DEMO_APPS.some(
+          (d) => d.id === targetIdentifier || d.slug === targetIdentifier
+        );
+        if (isDemo) {
+          await ensureDemoData();
           app = await db.query.apps.findFirst({
-            where: eq(apps.slug, targetIdentifier),
+            where: eq(apps.id, targetIdentifier),
           });
+          if (!app) {
+            app = await db.query.apps.findFirst({
+              where: eq(apps.slug, targetIdentifier),
+            });
+          }
         }
       } catch {}
     }
@@ -155,11 +190,29 @@ export async function handleCreateSession({ request, body, set }: any) {
       return { error: "Email pembeli tidak valid" };
     }
 
+    const rawHwid = String(
+      body.hwid ||
+        body.hardwareId ||
+        body.deviceFingerprint ||
+        body.deviceId ||
+        (typeof body.metadata === "object" && body.metadata !== null
+          ? body.metadata.hwid || body.metadata.hardwareId || body.metadata.deviceFingerprint
+          : "") ||
+        ""
+    ).trim();
+
+    const clientIp = getClientIp(request) || "127.0.0.1";
+
     // P1 & P2: Eksekusi Free Trial jika diminta dan produk memiliki trialPeriodDays > 0 (tidak butuh gateway pembayaran)
-    const isTrialRequested = Boolean(body.startTrial || body.isTrial);
+    const isTrialRequested = Boolean(
+      body.startTrial ||
+      body.isTrial ||
+      String(body.paymentChannel || "")
+        .trim()
+        .toUpperCase() === "FREE_TRIAL"
+    );
     if (isTrialRequested && (app.trialPeriodDays ?? 0) > 0) {
-      // Pre-check cepat (UX): 409 bila sudah pernah trial. Bukan pengaman utama —
-      // anti-race (TOCTOU) ditangani cek ulang di dalam transaksi + unique index.
+      // Pre-check cepat 1 (UX): 409 bila email sudah pernah trial
       const existingTrial = await db.query.transactions.findFirst({
         where: and(
           eq(transactions.appId, app.id),
@@ -173,7 +226,62 @@ export async function handleCreateSession({ request, body, set }: any) {
         return {
           success: false,
           error: "Email ini sudah pernah mengaktifkan masa uji coba untuk produk ini.",
+          errorCode: "TRIAL_EMAIL_ALREADY_USED",
         };
+      }
+
+      // Pre-check 2 (1.6 Device Fingerprinting Anti-Abuse):
+      // Jika HWID/Device Fingerprint disertakan, tolak bila perangkat sudah pernah klaim trial app ini
+      let lookupHashes: string[] = [];
+      if (rawHwid) {
+        lookupHashes = LicenseService.hwidLookupHashes(rawHwid);
+
+        // Pre-check 2a: Lisensi trial yang sudah mengikat hardwareId ini
+        const [existingHwidLic] = await db
+          .select({ id: licenses.id })
+          .from(licenses)
+          .innerJoin(transactions, eq(licenses.transactionId, transactions.id))
+          .where(
+            and(
+              eq(licenses.appId, app.id),
+              eq(transactions.paymentChannel, "FREE_TRIAL"),
+              inArray(licenses.hardwareId, lookupHashes)
+            )
+          )
+          .limit(1);
+
+        if (existingHwidLic) {
+          set.status = 409;
+          return {
+            success: false,
+            error: "Perangkat ini sudah pernah mengaktifkan masa uji coba untuk produk ini.",
+            errorCode: "TRIAL_DEVICE_ALREADY_USED",
+          };
+        }
+
+        // Pre-check 2b: Aktivasi perangkat pada lisensi trial
+        const [existingActivation] = await db
+          .select({ id: licenseActivations.id })
+          .from(licenseActivations)
+          .innerJoin(licenses, eq(licenseActivations.licenseId, licenses.id))
+          .innerJoin(transactions, eq(licenses.transactionId, transactions.id))
+          .where(
+            and(
+              eq(licenses.appId, app.id),
+              eq(transactions.paymentChannel, "FREE_TRIAL"),
+              inArray(licenseActivations.hwidHash, lookupHashes)
+            )
+          )
+          .limit(1);
+
+        if (existingActivation) {
+          set.status = 409;
+          return {
+            success: false,
+            error: "Perangkat ini sudah pernah mengaktifkan masa uji coba untuk produk ini.",
+            errorCode: "TRIAL_DEVICE_ALREADY_USED",
+          };
+        }
       }
 
       const trialDays = app.trialPeriodDays!;
@@ -192,12 +300,11 @@ export async function handleCreateSession({ request, body, set }: any) {
       const licId = `lic_${randomBytes(8).toString("hex")}`;
 
       let issued:
-        | { duplicate: true }
+        | { duplicate: true; reason: "email" | "device" }
         | { trialTx: typeof transactions.$inferSelect; newLic: typeof licenses.$inferSelect };
       try {
         issued = await db.transaction(async (trx) => {
-          // Cek ulang DI DALAM transaksi: tanpa ini, dua request paralel bisa
-          // sama-sama lolos pre-check lalu menerbitkan 2 lisensi trial (TOCTOU).
+          // Cek ulang DI DALAM transaksi: anti-race (TOCTOU)
           const dupCheck = await trx.query.transactions.findFirst({
             where: and(
               eq(transactions.appId, app.id),
@@ -205,7 +312,41 @@ export async function handleCreateSession({ request, body, set }: any) {
               eq(transactions.paymentChannel, "FREE_TRIAL")
             ),
           });
-          if (dupCheck) return { duplicate: true };
+          if (dupCheck) return { duplicate: true, reason: "email" };
+
+          // Cek ulang HWID DI DALAM transaksi
+          if (lookupHashes.length > 0) {
+            const [hwidDup] = await trx
+              .select({ id: licenses.id })
+              .from(licenses)
+              .innerJoin(transactions, eq(licenses.transactionId, transactions.id))
+              .where(
+                and(
+                  eq(licenses.appId, app.id),
+                  eq(transactions.paymentChannel, "FREE_TRIAL"),
+                  inArray(licenses.hardwareId, lookupHashes)
+                )
+              )
+              .limit(1);
+            if (hwidDup) return { duplicate: true, reason: "device" };
+
+            const [actDup] = await trx
+              .select({ id: licenseActivations.id })
+              .from(licenseActivations)
+              .innerJoin(licenses, eq(licenseActivations.licenseId, licenses.id))
+              .innerJoin(transactions, eq(licenses.transactionId, transactions.id))
+              .where(
+                and(
+                  eq(licenses.appId, app.id),
+                  eq(transactions.paymentChannel, "FREE_TRIAL"),
+                  inArray(licenseActivations.hwidHash, lookupHashes)
+                )
+              )
+              .limit(1);
+            if (actDup) return { duplicate: true, reason: "device" };
+          }
+
+          const primaryHwidHash = rawHwid ? LicenseService.hashHardwareIdSecure(rawHwid) : null;
 
           const [tTx] = await trx
             .insert(transactions)
@@ -224,6 +365,12 @@ export async function handleCreateSession({ request, body, set }: any) {
               disbursementStatus: "COMPLETED",
               grantDays: trialDays,
               grantCredits: trialGrantCredits,
+              metadata: {
+                ...(typeof metadata === "object" && metadata !== null ? metadata : {}),
+                hwidHash: primaryHwidHash,
+                clientIp,
+                deviceFingerprint: rawHwid || undefined,
+              },
             })
             .returning();
 
@@ -235,12 +382,23 @@ export async function handleCreateSession({ request, body, set }: any) {
               transactionId: tTx.id,
               customerEmail: email,
               licenseKey,
+              hardwareId: primaryHwidHash,
               status: "ACTIVE",
               expiresAt,
               maxSeats: app.deliveryConfig?.licenseKey?.maxSeats ?? 3,
               apiKey: trialApiKey,
             })
             .returning();
+
+          if (primaryHwidHash) {
+            await trx.insert(licenseActivations).values({
+              id: `act_${randomBytes(8).toString("hex")}`,
+              licenseId: licId,
+              hwidHash: primaryHwidHash,
+              deviceName: body.deviceName || "Primary Trial Device",
+              ipAddress: clientIp,
+            });
+          }
 
           return { trialTx: tTx, newLic: nLic };
         });
@@ -253,6 +411,7 @@ export async function handleCreateSession({ request, body, set }: any) {
             success: false,
             error:
               "Email ini sudah pernah mengaktifkan masa uji coba untuk produk ini (permintaan bersamaan).",
+            errorCode: "TRIAL_EMAIL_ALREADY_USED",
           };
         }
         throw err;
@@ -260,9 +419,13 @@ export async function handleCreateSession({ request, body, set }: any) {
 
       if ("duplicate" in issued) {
         set.status = 409;
+        const isDevice = issued.reason === "device";
         return {
           success: false,
-          error: "Email ini sudah pernah mengaktifkan masa uji coba untuk produk ini.",
+          error: isDevice
+            ? "Perangkat ini sudah pernah mengaktifkan masa uji coba untuk produk ini."
+            : "Email ini sudah pernah mengaktifkan masa uji coba untuk produk ini.",
+          errorCode: isDevice ? "TRIAL_DEVICE_ALREADY_USED" : "TRIAL_EMAIL_ALREADY_USED",
         };
       }
 
@@ -283,9 +446,9 @@ export async function handleCreateSession({ request, body, set }: any) {
             }
           );
         } catch (creditErr: any) {
-          console.error(
-            `[Checkout Trial] Gagal grant credits untuk lisensi ${newLic.id}:`,
-            creditErr?.message || creditErr
+          logger.error(
+            `[Checkout Trial] Gagal grant credits untuk lisensi ${newLic.id}`,
+            creditErr
           );
         }
       }
@@ -334,12 +497,11 @@ export async function handleCreateSession({ request, body, set }: any) {
     const requestedAmount = customAmount ?? amount ?? null;
 
     // Cek otentikasi S2S via Secret API Key builder
+    const reqHeaders: any = request?.headers;
     const authHeader =
-      request?.headers?.get?.("authorization") ||
-      request?.headers?.authorization ||
-      request?.headers?.get?.("x-api-key") ||
-      request?.headers?.["x-api-key"] ||
-      "";
+      (typeof reqHeaders?.get === "function"
+        ? reqHeaders.get("authorization") || reqHeaders.get("x-api-key")
+        : reqHeaders?.authorization || reqHeaders?.["x-api-key"]) || "";
     const bearerKey = authHeader.startsWith("Bearer ")
       ? authHeader.slice(7).trim()
       : authHeader.trim();
@@ -466,86 +628,99 @@ export async function handleCreateSession({ request, body, set }: any) {
       "BCA"
     ).toUpperCase();
 
-    const orderResult = await gatewayAdapter.createOrder({
-      externalId,
-      amount: grossAmount,
-      payerEmail: email,
-      description: `Lisensi ${app.name} (${grantDays} hari)`,
-      returnUrl: redirectUrl || app.redirectUrl || undefined,
-      finishRedirectUrl,
-      demoMode,
-      scenario: selectedScenario,
-      paymentRail: isHostedMode ? undefined : selectedRail || undefined,
-      vaBank: resolvedBank,
-      retailOutlet,
-    });
-
-    const hostedPayUrl = `${requestOrigin}/pay/${app.slug || targetIdentifier}?externalId=${externalId}`;
-    const invoiceUrl = effectiveGatewayId === "sandbox" ? hostedPayUrl : orderResult.checkoutUrl;
-    const invoiceId = orderResult.orderId;
-    const expiryDate = orderResult.expiryDate;
-
-    // Label paymentChannel disusun dari nama gateway di registry
-    const gatewayDescriptorForTx = gatewayDescriptor(effectiveGatewayId);
-    const gatewaySlug = effectiveGatewayId.replace(/[^a-z0-9]/gi, "").toUpperCase();
-    const savedChannel =
-      orderResult.paymentRail === "va"
-        ? `VA_${orderResult.vaBank || selectedBank}`
-        : orderResult.paymentRail === "qris"
-          ? (gatewayDescriptorForTx?.qrChannelLabel ?? "QRIS")
-          : orderResult.paymentRail === "card"
-            ? "CARD"
-            : orderResult.paymentRail === "retail"
-              ? "RETAIL"
-              : gatewaySlug;
-
-    // Simpan transaksi di database
-    const [newTx] = await db
-      .insert(transactions)
-      .values({
-        id: txId,
-        appId: app.id,
-        builderId: app.builderId,
-        paymentProvider: effectiveGatewayId,
-        providerReferenceId: invoiceId,
-        xenditInvoiceId: invoiceId,
-        xenditExternalId: externalId,
-        xenditInvoiceUrl: invoiceUrl,
-        customerEmail: email,
-        customerName: customerName || body.name || null,
-        metadata: metadata || null,
-        grossAmount,
-        platformFee,
-        netAmount,
-        paymentChannel: savedChannel,
-        couponCode: coupon?.code || null,
-        discountAmount,
-        paymentStatus: "PENDING",
-        disbursementStatus: "PENDING",
-        grantDays,
-        grantCredits,
-      })
-      .returning();
-
-    // Ticket polling status: bukti kepemilikan transaksi (BUG-5) supaya licenseKey
-    // tidak bisa diambil oleh siapa pun yang hanya mengetahui txId.
-    const pollTicket = createPollTicket(newTx.id);
-
-    // 3. Klaim kuota kupon ATOMIK hanya setelah transaksi tercatat.
-    // Jika kehabisan kuota di sini (race), hapus transaksi tadi dan gagalkan
-    // checkout — jangan sampai invoice terdiskon beredar tanpa kuota kupon.
+    // 3. Klaim kuota kupon ATOMIK SEBELUM membuat order di payment gateway (P0 Race Condition Fix).
+    // Ini menutup race window: jika 2 buyer paralel memperebutkan 1 sisa kuota,
+    // buyer kedua langsung ditolak tanpa sempat membuat invoice terdiskon liar di payment gateway.
+    let couponClaimed = false;
     if (coupon) {
-      const redeemed = await CouponService.redeem(coupon.id);
-      if (!redeemed) {
-        await db.delete(transactions).where(eq(transactions.id, newTx.id));
-        set.status = 409;
+      couponClaimed = await CouponService.redeem(coupon.id);
+      if (!couponClaimed) {
+        set.status = 400;
         return {
           success: false,
-          error: "Kuota kupon baru saja habis. Transaksi tidak dibuat.",
+          error: "Kuota penebusan kupon telah habis. Transaksi tidak dibuat.",
           errorCode: "COUPON_EXHAUSTED",
         };
       }
     }
+
+    const gatewayDescriptorForTx = gatewayDescriptor(effectiveGatewayId);
+    const hostedPayUrl = `${requestOrigin}/pay/${app.slug || targetIdentifier}?externalId=${externalId}`;
+
+    let orderResult: Awaited<ReturnType<typeof gatewayAdapter.createOrder>>;
+    let newTx: typeof transactions.$inferSelect;
+    let invoiceUrl: string;
+    let expiryDate: string | undefined;
+
+    try {
+      orderResult = await gatewayAdapter.createOrder({
+        externalId,
+        amount: grossAmount,
+        payerEmail: email,
+        description: `Lisensi ${app.name} (${grantDays} hari)`,
+        returnUrl: redirectUrl || app.redirectUrl || undefined,
+        finishRedirectUrl,
+        demoMode,
+        scenario: selectedScenario,
+        paymentRail: isHostedMode ? undefined : selectedRail || undefined,
+        vaBank: resolvedBank,
+        retailOutlet,
+      });
+
+      invoiceUrl = effectiveGatewayId === "sandbox" ? hostedPayUrl : orderResult.checkoutUrl;
+      const invoiceId = orderResult.orderId;
+      expiryDate = orderResult.expiryDate;
+
+      // Label paymentChannel disusun dari nama gateway di registry
+      const gatewaySlug = effectiveGatewayId.replace(/[^a-z0-9]/gi, "").toUpperCase();
+      const savedChannel =
+        orderResult.paymentRail === "va"
+          ? `VA_${orderResult.vaBank || selectedBank}`
+          : orderResult.paymentRail === "qris"
+            ? (gatewayDescriptorForTx?.qrChannelLabel ?? "QRIS")
+            : orderResult.paymentRail === "card"
+              ? "CARD"
+              : orderResult.paymentRail === "retail"
+                ? "RETAIL"
+                : gatewaySlug;
+
+      // Simpan transaksi di database
+      [newTx] = await db
+        .insert(transactions)
+        .values({
+          id: txId,
+          appId: app.id,
+          builderId: app.builderId,
+          paymentProvider: effectiveGatewayId,
+          providerReferenceId: invoiceId,
+          xenditInvoiceId: invoiceId,
+          xenditExternalId: externalId,
+          xenditInvoiceUrl: invoiceUrl,
+          customerEmail: email,
+          customerName: customerName || body.name || null,
+          metadata: metadata || null,
+          grossAmount,
+          platformFee,
+          netAmount,
+          paymentChannel: savedChannel,
+          couponCode: coupon?.code || null,
+          discountAmount,
+          paymentStatus: "PENDING",
+          disbursementStatus: "PENDING",
+          grantDays,
+          grantCredits,
+        })
+        .returning();
+    } catch (err) {
+      if (coupon && couponClaimed) {
+        await CouponService.rollback(coupon.id).catch(() => {});
+      }
+      throw err;
+    }
+
+    // Ticket polling status: bukti kepemilikan transaksi (BUG-5) supaya licenseKey
+    // tidak bisa diambil oleh siapa pun yang hanya mengetahui txId.
+    const pollTicket = createPollTicket(newTx.id);
 
     const gatewayLabel = gatewayDescriptorForTx?.displayName ?? selectedGateway;
 
@@ -589,7 +764,7 @@ export async function handleCreateSession({ request, body, set }: any) {
       netDisbursementAmount: netAmount,
     };
   } catch (err: any) {
-    console.error("[handleCreateSession Error]:", err);
+    logger.error("[handleCreateSession Error]", err);
     const msg = err?.message || "";
     set.status = 400;
     let errorMsg = "Terjadi kesalahan internal saat membuat sesi checkout. Silakan coba lagi.";

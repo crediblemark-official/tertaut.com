@@ -159,10 +159,14 @@ export interface HeartbeatSessionOptions {
   deviceName?: string;
   /** Interval pengiriman heartbeat dalam detik (default: 60 detik). */
   intervalSeconds?: number;
+  /** Otomatis coba aktivasi ulang (reacquire) saat lease terlepas bila kursi floating kembali tersedia. */
+  autoReacquire?: boolean;
   /** Callback saat heartbeat berhasil diperpanjang. */
   onSuccess?: (res: LicenseHeartbeatResult) => void;
   /** Callback saat lease telah hangus atau kedaluwarsa (dilempar sebagai `HeartbeatLeaseError`). */
   onLeaseExpired?: (err: Error) => void;
+  /** Callback saat lease berhasil diperoleh kembali melalui auto-reacquire. */
+  onReacquired?: (newLeaseKey: string) => void;
   /** Callback saat terjadi error jaringan atau HTTP error lainnya. */
   onError?: (err: Error) => void;
 }

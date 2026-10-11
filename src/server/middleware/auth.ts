@@ -3,7 +3,20 @@ import { auth } from "../auth";
 import { db } from "../db";
 import { builders } from "../db/schema";
 import { eq } from "drizzle-orm";
+import {
+  user as authUser,
+  session as authSession,
+  account as authAccount,
+  verification as authVerification,
+} from "../db/schema/auth";
 import type { Builder } from "../db/schema/builders";
+
+const authTables = {
+  user: authUser,
+  session: authSession,
+  account: authAccount,
+  verification: authVerification,
+};
 
 export interface AuthUser {
   id: string;
@@ -54,6 +67,24 @@ export function isAdminUser(user: { role?: string | null; email?: string | null 
 }
 
 /**
+ * Persist admin role ke database jika user memenuhi kriteria admin tapi DB masih 'user'.
+ * Dipanggil setelah autentikasi berhasil.
+ */
+export async function ensureAdminRolePersisted(user: AuthUser): Promise<void> {
+  if (isAdminUser(user) && user.role !== "admin") {
+    try {
+      await db
+        .update(authTables.user)
+        .set({ role: "admin", emailVerified: true })
+        .where(eq(authTables.user.id, user.id));
+      console.log(`[Auth] Role admin dipersist untuk user ${user.email}`);
+    } catch (err: any) {
+      console.warn("[Auth] Gagal persist admin role:", err?.message || err);
+    }
+  }
+}
+
+/**
  * Helper guard untuk dipakai di `onBeforeHandle` router yang seluruh endpoint-nya privat.
  * Menegakkan sesi autentikasi Better Auth yang valid untuk semua lingkungan.
  */
@@ -65,6 +96,9 @@ export async function authenticate(headers: Headers, admin = false): Promise<Aut
   if (user.banned) {
     return { status: 403, error: user.banReason || "Akun Anda telah dinonaktifkan." };
   }
+
+  // Persist admin role ke DB jika user adalah admin tapi DB belum terupdate
+  await ensureAdminRolePersisted(user);
 
   if (admin && !isAdminUser(user)) return { status: 403, error: "Forbidden" };
   return {

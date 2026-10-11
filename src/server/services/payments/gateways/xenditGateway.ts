@@ -1,4 +1,5 @@
 import Xendit from "xendit-node";
+import { timingSafeEqual } from "crypto";
 import type {
   PaymentGatewayAdapter,
   CreateGatewayOrderParams,
@@ -442,7 +443,10 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
       console.warn("[XenditGateway] XENDIT_WEBHOOK_VERIFICATION_TOKEN belum dikonfigurasi.");
       return false;
     }
-    return callbackTokenHeader === webhookToken;
+    if (!callbackTokenHeader) return false;
+    const received = Buffer.from(callbackTokenHeader);
+    const expected = Buffer.from(webhookToken);
+    return received.length === expected.length && timingSafeEqual(received, expected);
   }
 
   async createDisbursement(

@@ -22,6 +22,7 @@ import { randomBytes } from "crypto";
 import { hashPassword } from "better-auth/crypto";
 import { generateDynamicSitemap } from "./routes/seo/sitemap";
 import { isCrawler, resolveMetadataForPath, injectDynamicSeo } from "./services/seo/seoPrerender";
+import { logger } from "./lib/logger";
 
 const clientDistPath = resolve(import.meta.dir, "../../dist");
 const docsDistPath = resolve(clientDistPath, "docs");
@@ -63,11 +64,6 @@ export const app = new Elysia()
     cors({
       origin: (request: Request) => {
         const origin = request.headers.get("origin");
-        // Request tanpa header Origin (same-origin GET, curl, navigasi) diizinkan.
-        // Origin "null" (sandboxed iframe / data: URL) DITOLAK — kombinasi dengan
-        // credentials:true memperluas permukaan CSRF/cross-origin read.
-        if (!origin) return true;
-        if (origin === "null") return false;
 
         // Allow any origin for public embeddable endpoints (widgets, embed scripts, badges)
         try {
@@ -82,6 +78,10 @@ export const app = new Elysia()
         } catch {
           // URL request tidak dapat diparse, lanjut ke pemeriksaan origin berikutnya
         }
+
+        // Request tanpa header Origin (same-origin, cURL, s2s) atau Origin "null" (sandboxed iframe)
+        // TIDAK boleh memicu refleksi CORS wildcard dengan credentials:true.
+        if (!origin || origin === "null") return false;
 
         const detected = resolveRequestOrigin(request);
         if (detected) {
@@ -209,10 +209,10 @@ export const app = new Elysia()
           title: "tertaut.com Developer API",
           version: "0.2.0",
           description:
-            "Spesifikasi OpenAPI resmi untuk platform **tertaut.com** — Merchant of Record (MoR), Lisensi Kriptografis Offline-First (Ed25519), dan AI Proxy Shield untuk software builder di Indonesia.\n\n" +
+            "Spesifikasi OpenAPI resmi untuk platform **tertaut.com** — Merchant of Record (MoR), Lisensi Kriptografis Offline-First (Ed25519), dan Usage Credits Metering untuk software builder di Indonesia.\n\n" +
             "### 🛡️ Skema Autentikasi:\n" +
             "- **`BuilderSecretKey` (`Bearer tt_secret_...`)**: Wajib untuk seluruh endpoint Server-to-Server (`/api/v1/s2s/*`). Ambil secret key Anda di halaman Dashboard > Docs. Jangan pernah mengekspos secret key ini di aplikasi klien/frontend.\n" +
-            "- **`LicenseToken` (`Bearer <token>`)**: Digunakan oleh perangkat klien setelah aktivasi lisensi (`POST /api/v1/licensing/activate`) untuk mengakses AI Proxy Shield dan membuktikan kepemilikan lisensi secara offline.\n\n" +
+            "- **`LicenseToken` (`Bearer <token>`)**: Digunakan oleh perangkat klien setelah aktivasi lisensi (`POST /api/v1/licensing/activate`) untuk membuktikan kepemilikan lisensi secara offline.\n\n" +
             "### 📦 Integrasi SDK Resmi:\n" +
             "Gunakan library resmi [`@tertaut/sdk`](https://www.npmjs.com/package/@tertaut/sdk) (`npm install @tertaut/sdk`) untuk TypeScript/JavaScript, browser, Bun, Node.js, Tauri, dan Electron.",
         },
@@ -228,11 +228,6 @@ export const app = new Elysia()
               "Validasi lisensi multi-platform, binding hardware ID perangkat, aktivasi floating seat, dan token offline Ed25519.",
           },
           {
-            name: "AI API Proxy Shield",
-            description:
-              "Gateway AI aman tanpa kebocoran master API key, dilengkapi proteksi rate limit, daily token cap, dan relay SSE streaming.",
-          },
-          {
             name: "Credits",
             description:
               "Ledger saldo kredit dan pelaporan pemakaian konsumsi kredit lisensi secara atomik dan idempoten.",
@@ -241,11 +236,6 @@ export const app = new Elysia()
             name: "S2S API",
             description:
               "Endpoint Server-to-Server terproteksi secret API key untuk otomasi backend (issuance, revoke, batch ops, transfer, webhooks).",
-          },
-          {
-            name: "Launch Kit",
-            description:
-              "Web component trust badge embeddable dan widget penjualan penambah konversi.",
           },
         ],
         components: {
@@ -262,7 +252,7 @@ export const app = new Elysia()
               scheme: "bearer",
               bearerFormat: "JWT",
               description:
-                "Offline license token (JWT) hasil POST /api/v1/licensing/activate — atau sertakan licenseKey di body/query. Wajib untuk AI API Proxy Shield.",
+                "Offline license token (JWT) hasil POST /api/v1/licensing/activate — atau sertakan licenseKey di body/query untuk verifikasi lisensi offline.",
             },
           },
         },
@@ -292,7 +282,7 @@ export const app = new Elysia()
     const errorMessage =
       (error as any)?.message || String(error) || "Terjadi kesalahan internal server.";
     if (finalStatus >= 500) {
-      console.error(`[Server Error ${finalStatus}] ${path}:`, errorMessage);
+      logger.error(`[Server Error ${finalStatus}] ${path}: ${errorMessage}`, error);
     }
     return {
       error: {

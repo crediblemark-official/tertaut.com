@@ -9,11 +9,11 @@
     <title>tertaut.com — Merchant of Record &amp; Monetisasi Software Indonesia</title>
     <meta
       name="description"
-      content="Platform Merchant of Record (MoR), lisensi kriptografis offline-first (Ed25519), dan AI proxy shield untuk software builder, desktop app, SaaS, dan pengembang AI di Indonesia."
+      content="Platform Merchant of Record (MoR) resmi dan sistem lisensi kriptografis offline-first (Ed25519) untuk software builder, desktop app, dan SaaS di Indonesia."
     />
     <meta
       name="keywords"
-      content="merchant of record indonesia, mor software indonesia, lisensi software offline, ed25519 software license, monetisasi software desktop, qris software payment, virtual account software billing, ai proxy shield, tertaut, tertaut.com"
+      content="merchant of record indonesia, mor software indonesia, lisensi software offline, ed25519 software license, monetisasi software desktop, qris software payment, virtual account software billing, hosted checkout software, tertaut, tertaut.com"
     />
     <link rel="canonical" href="https://tertaut.com/" />
     <link rel="alternate" hreflang="id" href="https://tertaut.com/" />
@@ -37,7 +37,7 @@
     />
     <meta
       property="og:description"
-      content="Platform Merchant of Record (MoR), lisensi kriptografis offline-first (Ed25519), dan AI proxy shield untuk software builder, desktop app, SaaS, dan pengembang AI di Indonesia."
+      content="Platform Merchant of Record (MoR) resmi dan sistem lisensi kriptografis offline-first (Ed25519) untuk software builder, desktop app, dan SaaS di Indonesia."
     />
     <meta property="og:image" content="https://tertaut.com/logo.png" />
 
@@ -50,7 +50,7 @@
     />
     <meta
       name="twitter:description"
-      content="Jual software, SaaS &amp; tools AI di Indonesia tanpa ribet PT/CV atau pajak. Pembayaran QRIS &amp; Virtual Account instan, lisensi offline Ed25519, dan AI proxy shield."
+      content="Jual software &amp; SaaS di Indonesia tanpa ribet PT/CV atau pajak. Pembayaran QRIS &amp; Virtual Account instan, lisensi offline Ed25519, dan hosted checkout siap pakai."
     />
     <meta name="twitter:image" content="https://tertaut.com/logo.png" />
 
@@ -119,8 +119,9 @@
   <body
     class="bg-white text-jetblack antialiased selection:bg-gold selection:text-jetblack min-h-screen"
   >
-    <div id="app">
-      <!-- Fallback / Crawler Accessible Content (hydrated by Vue SPA) -->
+    <div id="app"></div>
+    <noscript>
+      <!-- Fallback / Crawler Accessible Content for non-JS clients -->
       <header
         style="
           max-width: 960px;
@@ -185,9 +186,9 @@
         </h1>
         <p style="font-size: 16px; color: #475569; margin-bottom: 24px">
           Tertaut adalah platform infrastruktur terintegrasi untuk software builders, aplikasi
-          desktop, SaaS, dan pengembang AI. Kami menangani pembayaran lokal Indonesia (QRIS &amp;
+          desktop, dan SaaS. Kami menangani pembayaran lokal Indonesia (QRIS &amp;
           Virtual Account), faktur pajak resmi (PPN 11%), lisensi kriptografis offline-first
-          (Ed25519), serta AI proxy shield.
+          (Ed25519), serta hosted checkout siap pakai.
           <strong
             >Seluruh informasi produk dan dokumentasi dapat diakses secara publik tanpa perlu
             login.</strong
@@ -243,11 +244,11 @@
             "
           >
             <h2 style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px">
-              🛡️ AI Proxy Shield &amp; Metering
+              🚀 Hosted Checkout &amp; Kupon Diskon
             </h2>
             <p style="font-size: 13px; color: #64748b; margin: 0">
-              Amankan master API key OpenAI/Claude di server vault AES-256. Batasi kuota harian
-              token LLM dan cegah pembobolan kredensial AI.
+              Halaman checkout instan dan mesin kupon diskon persentase/potongan harga untuk
+              mempermudah penjualan software Anda.
             </p>
           </div>
         </section>
@@ -274,7 +275,7 @@
           >.
         </div>
       </main>
-    </div>
+    </noscript>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
