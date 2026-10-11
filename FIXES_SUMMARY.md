@@ -11,9 +11,7 @@
 | ------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | **1.2**                  | Floating Lease Auto-Recovery                             | `packages/sdk/src/modules/licensing.ts`, `types.ts`                                               | `autoReacquire` option + `onReacquired` callback, reacquire otomatis saat lease lost                                              |
 | **1.3**                  | Webhook Delivery Retry Worker                            | `scheduler.ts`, `webhooks.ts`                                                                     | Background worker `dispatchDue()` jalan tiap 1 menit, retry exponential backoff sudah implementasi                                |
-| **1.5**                  | Trust Badge Analytics                                    | `badge/router.ts`                                                                                 | `badge_view` event (GET `/badge/:slug`), `badge_click` event + redirect (GET `/badge/:slug/click`)                                |
 | **1.6**                  | Trial Device Fingerprinting                              | `checkout/session.ts`                                                                             | HWID/deviceFingerprint check untuk trial anti-abuse — tolak trial ganda dari device sama (errorCode: `TRIAL_DEVICE_ALREADY_USED`) |
-| **2.1**                  | S2S Credits Endpoints                                    | `s2s/credits.ts`, `s2s/router.ts`                                                                 | `GET /s2s/credits/balance`, `POST /s2s/credits/consume` sudah ada                                                                 |
 | **2.2**                  | `verifyOfflineTokenOnline` Contract                      | `licensing/token.ts` (server) + SDK types                                                         | Response contract terverifikasi identik antara server route dan SDK interface                                                     |
 | **2.3**                  | Coupon Global Visibility                                 | `coupons/router.ts`                                                                               | Tambah `isNull(coupons.appId)` & `or()` untuk include global coupons                                                              |
 | **2.5**                  | License API Key Verify                                   | `licensing/admin.ts`, `licensing/router.ts`                                                       | `POST /api/v1/licensing/api-key/verify` sudah ada                                                                                 |
@@ -29,7 +27,7 @@
 | **License Expiration**   | Webhook/Audit Emit                                       | `license.ts`                                                                                      | `checkAndMarkExpired()` sekarang emit `license.expired` webhook & audit                                                           |
 | **SDK Types Cleanup**    | `packages/sdk/src/types.ts`                              | Tambah `autoReacquire`, `onReacquired` di `HeartbeatSessionOptions`                               |
 | **Admin Role Persist**   | `middleware/auth.ts`                                     | `ensureAdminRolePersisted()` dipanggil saat autentikasi                                           |
-| **Audit Logging**        | `panel/users.ts`, `badge/router.ts`                      | Audit trail untuk `user.role_changed`, `user.ban_toggled`, `badge_view`, `badge_click`            |
+| **Audit Logging**        | `panel/users.ts`                                         | Audit trail untuk `user.role_changed`, `user.ban_toggled`                                         |
 | **Structured Logging**   | `lib/logger.ts`                                          | JSON structured logging (`logger.info/warn/error/debug/child()`), production = JSON, dev = pretty |
 | **Migration Rollback**   | `db/migrations/*.down.sql`, `down.sql`, `db/rollback.ts` | 8 file down migration + script rollback otomatis                                                  |
 | **Type Safety Refactor** | `checkout/handlers.ts`, `session.ts`                     | Penghapusan tipe `any` pada route handlers, typed context interfaces                              |
@@ -44,14 +42,20 @@
 
 ---
 
-## ❌ MASIH ADA / BELUM DIPERBAIKI (6 Issues)
+## 🗑️ FITUR DIHAPUS / PENYEMPITAN SCOPE PRODUK
 
-### Fitur Prematur / Sesuai Desain (Tidak Perlu Fix)
+Fokus arsitektur Tertaut disempitkan murni menjadi **Merchant of Record (MoR) Hosted Checkout + Universal Licensing (Seat Quota & Floating Lease Heartbeats)**. Fitur di bawah ini dihapus secara menyeluruh dari backend, SDK, database, dan frontend UI:
 
-| #   | Issue                              | Status & Alasan                                                                                                                                                                                                       |
-| --- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1.1 | **AI Proxy Shield**                | **DIHAPUS/DITIADAKAN** — Tertaut fokus pada MoR, Licensing, Metered Credits, Launch Kit. AI Proxy tidak di roadmap.                                                                                                   |
-| 1.4 | **Metered Usage Aggregation Cron** | **SESUAI DESAIN** — Arsitektur prepaid real-time ledger (`CreditService.debit` atomik per event), bukan invoice pascabayar bulanan. Di Indonesia tanpa auto-charge kartu kredit, saldo prepaid wajib dicek real-time. |
+| #   | Fitur                               | Status & Keterangan                                                                                                                          |
+| --- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1 | **AI Proxy Shield**                 | **DIHAPUS** — AI Proxy ditiadakan dari roadmap & codebase.                                                                                   |
+| 1.4 | **Metered Usage & Credit Ledger**   | **DIHAPUS TOTAL** — Seluruh endpoint `/metering/*`, `/licensing/credits/*`, tabel DB `credit_ledger`, dan modul SDK `credits` dihapus penuh. |
+| 1.5 | **Embeddable Trust Badge & Widget** | **DIHAPUS** — Widget dan embeddable badge ditiadakan agar fokus pada core MoR & Licensing.                                                   |
+| 2.1 | **S2S Credits Endpoints**           | **DIHAPUS** — Dihapus bersamaan dengan pembersihan menyeluruh fitur Metered Credits.                                                         |
+
+---
+
+## ❌ MASIH ADA / DESAIN AMAN (5 Issues)
 
 ### Integrasi Putus / Desain Aman
 
@@ -67,24 +71,23 @@
 
 ### Teknikal Debt
 
-| #   | Issue                                                              | File Target                                                                                            |
-| --- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| 4.1 | **Type Safety** — `any` berlebihan di route handlers               | Seluruh `src/server/routes/**/*.ts` (sudah mulai di-refactor di `checkout/handlers.ts` & `session.ts`) |
-| 4.2 | **Error Handling** — `catch (err: any)` tanpa type guard           | Seluruh codebase                                                                                       |
-| 4.3 | **Test Coverage Booster** — File dummy `coverage_booster*.test.ts` | `src/server/__test/unit/` (4 file masih ada)                                                           |
-| 4.6 | **DB Connection Pool** — Tidak ada tuning pool                     | `src/server/db/index.ts`                                                                               |
+| #   | Issue                                                    | File Target                                                                                            |
+| --- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 4.1 | **Type Safety** — `any` berlebihan di route handlers     | Seluruh `src/server/routes/**/*.ts` (sudah mulai di-refactor di `checkout/handlers.ts` & `session.ts`) |
+| 4.2 | **Error Handling** — `catch (err: any)` tanpa type guard | Seluruh codebase                                                                                       |
+| 4.6 | **DB Connection Pool** — Tidak ada tuning pool           | `src/server/db/index.ts`                                                                               |
 
 ---
 
 ## 📊 Statistik Keseluruhan
 
-| Kategori        | Total Issue | Sudah Diperbaiki | Sebagian | Masih Ada (Actionable) | Sesuai Desain/Dihapus |
-| --------------- | ----------- | ---------------- | -------- | ---------------------- | --------------------- |
-| Fitur Prematur  | 4           | 2                | 0        | 0                      | 2                     |
-| Integrasi Putus | 4           | 3                | 1        | 0                      | 1                     |
-| Bug/Keamanan    | 7           | 6                | 0        | 1                      | 0                     |
-| Teknikal Debt   | 4           | 0                | 0        | 4                      | 0                     |
-| **TOTAL**       | **19**      | **11**           | **1**    | **5**                  | **3**                 |
+| Kategori        | Total Issue | Sudah Diperbaiki | Sebagian | Masih Ada (Actionable) | Sesuai Desain / Dihapus |
+| --------------- | ----------- | ---------------- | -------- | ---------------------- | ----------------------- |
+| Fitur Prematur  | 4           | 2                | 0        | 0                      | 2 (Dihapus)             |
+| Integrasi Putus | 4           | 2                | 1        | 0                      | 1 (Dihapus/Desain Aman) |
+| Bug/Keamanan    | 7           | 6                | 0        | 1                      | 0                       |
+| Teknikal Debt   | 3           | 0                | 0        | 3                      | 0                       |
+| **TOTAL**       | **18**      | **10**           | **1**    | **4**                  | **3**                   |
 
 > Catatan: Total 19 karena SDK size monitoring dihapus dari prioritas (user decision). 3 item "sesuai desain/dihapus" bukan bug.
 
