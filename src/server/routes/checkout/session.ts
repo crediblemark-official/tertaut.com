@@ -628,7 +628,12 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
         finishRedirectUrl,
         demoMode,
         scenario: selectedScenario,
-        paymentRail: isHostedMode ? undefined : selectedRail || undefined,
+        paymentRail:
+          selectedScenario === "API"
+            ? selectedRail || undefined
+            : isHostedMode
+              ? undefined
+              : selectedRail || undefined,
         vaBank: resolvedBank,
         retailOutlet,
       });

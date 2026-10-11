@@ -22,7 +22,6 @@ export const WEBHOOK_EVENTS = [
   "license.renewed",
   "license.transferred",
   "license.unbound",
-  "credits.insufficient",
 ] as const;
 
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
@@ -371,7 +370,7 @@ export class WebhookService {
       })
       .where(eq(webhookDeliveries.id, deliveryId));
 
-    await this.dispatchDue();
+    await this.dispatchDue({ endpointId: endpoint.id, limit: 1 });
 
     const refreshed = await db.query.webhookDeliveries.findFirst({
       where: eq(webhookDeliveries.id, deliveryId),
