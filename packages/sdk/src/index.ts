@@ -6,7 +6,6 @@
 
 import { executeCheckout, getPaymentStatus } from "./modules/checkout";
 import { LicensingModule } from "./modules/licensing";
-import { CreditsModule } from "./modules/credits";
 import { S2SModule } from "./modules/s2s";
 import { verifyWebhookSignature } from "./utils/crypto";
 import { createTertautError } from "./errors";
@@ -31,7 +30,6 @@ export class Tertaut {
   public timeoutMs: number;
 
   public licensing: LicensingModule;
-  public credits: CreditsModule;
   public s2s: S2SModule;
 
   constructor(config: TertautConfig) {
@@ -61,7 +59,6 @@ export class Tertaut {
     this.timeoutMs = config.timeoutMs || 15_000;
 
     this.licensing = new LicensingModule(this.executor());
-    this.credits = new CreditsModule(this.executor());
     this.s2s = new S2SModule(this.executor());
   }
 

@@ -2,7 +2,6 @@ import { db } from "../../db";
 import { apps, transactions, licenses, builders } from "../../db/schema";
 import { eq, inArray, or, and, sql } from "drizzle-orm";
 import { LicenseService } from "../../services/licensing/license";
-import { CreditService } from "../../services/monetization/credits";
 import { CouponService } from "../../services/monetization/coupon";
 import { config as checkoutConfig, resolveRequestOrigin } from "../../config";
 import QRCode from "qrcode";
@@ -664,7 +663,6 @@ export async function handleGetInvoiceData({
           app?.description || `Lisensi Penggunaan Perangkat Lunak (${tx.grantDays || 30} Hari)`,
         pricingType: app?.pricingType || "one_time",
         grantDays: tx.grantDays || 30,
-        grantCredits: tx.grantCredits || 0,
       },
       financials: {
         grossAmount: gross,

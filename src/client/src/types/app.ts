@@ -34,21 +34,6 @@ export interface DeliveryConfig {
   };
 }
 
-export interface MeteringConfig {
-  enabled: boolean;
-  template:
-    "llm_tokens" | "api_calls" | "compute_minutes" | "storage" | "active_seats" | "custom" | string;
-  name: string;
-  aggregation: string;
-  eventName?: string;
-  calculationType?: string;
-  unitLabel?: string;
-  filters?: Array<{ property: string; value: string }>;
-  unitPrice?: number;
-  metricUnit?: string;
-  freeAllowance?: number;
-}
-
 export type BillingPeriodType =
   "weekly" | "daily" | "monthly" | "every_3_months" | "every_6_months" | "yearly" | "custom";
 
@@ -92,7 +77,6 @@ export interface AppItem {
     | null;
   trialPeriodDays?: number | null;
   deliveryConfig?: DeliveryConfig | null;
-  meteringConfig?: MeteringConfig | null;
   description: string | null;
   headline?: string | null;
   subheadline?: string | null;

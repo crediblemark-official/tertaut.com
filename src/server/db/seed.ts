@@ -10,7 +10,6 @@ import {
   webhookEndpoints,
   webhookDeliveries,
   revokedTokens,
-  creditLedger,
   coupons,
   platformSettings,
 } from "./schema";
@@ -268,7 +267,6 @@ export async function seed() {
   await db.delete(licenseLeases);
   await db.delete(revokedTokens);
   await db.delete(licenseActivations);
-  await db.delete(creditLedger);
   await db.delete(coupons);
   await db.delete(licenses);
   await db.delete(transactions);
@@ -522,48 +520,7 @@ export async function seed() {
     });
   }
 
-  // 10. Ledger Kredit (Credits Ledger)
-  await db.insert(creditLedger).values([
-    {
-      id: "crl_devdocs_grant_01",
-      licenseId: "lic_devdocs_01",
-      appId: "app_devdocs_pro",
-      customerEmail: "budi.santoso@startup.id",
-      type: "GRANT",
-      delta: 1000,
-      balanceAfter: 1000,
-      reference: "tx_89a1c23f",
-      description: "Bonus kredit awal lisensi DevDocs Pro",
-      createdAt: new Date(Date.now() - 86400 * 1000),
-    },
-    {
-      id: "crl_devdocs_debit_01",
-      licenseId: "lic_devdocs_01",
-      appId: "app_devdocs_pro",
-      customerEmail: "budi.santoso@startup.id",
-      type: "DEBIT",
-      delta: -50,
-      balanceAfter: 950,
-      reference: "idx_query_sync_001",
-      description: "DevDocs AI Framework Indexing",
-      createdAt: new Date(Date.now() - 3600 * 1000),
-    },
-    {
-      id: "crl_fastmail_grant_01",
-      licenseId: "lic_fastmail_04",
-      appId: "app_fastmail_ai",
-      customerEmail: "early.adopter@gmail.com",
-      type: "GRANT",
-      delta: 500,
-      balanceAfter: 500,
-      reference: "early_signup_promo",
-      description: "Alokasi awal perangkum email FastMail AI",
-      createdAt: new Date(),
-    },
-  ]);
-  console.log(`✅ Riwayat saldo credit ledger tersimpan.`);
-
-  // 11. Webhook Endpoints & Deliveries (isActive: false agar outbox tidak melakukan retry loop ke domain dummy)
+  // 10. Webhook Endpoints & Deliveries (isActive: false agar outbox tidak melakukan retry loop ke domain dummy)
   const whEndpoints = await db
     .insert(webhookEndpoints)
     .values([

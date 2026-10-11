@@ -40,7 +40,7 @@ describe("S2S Server-to-Server API (secret API key)", () => {
     expect(badKey.status).toBe(401);
   });
 
-  it("end-to-end: info, apps, issue, saldo, konsumsi idempoten, list, revoke", async () => {
+  it("end-to-end: info, apps, issue, list, revoke", async () => {
     // Setup builder + app milik builder (secret API key khusus test)
     const email = `s2s_${suffix()}@test.tertaut.com`;
     secret = generateBuilderSecretApiKey();
@@ -74,47 +74,16 @@ describe("S2S Server-to-Server API (secret API key)", () => {
     const appsRes = await (await fetch(`${BASE}/apps`, { headers: authHeaders() })).json();
     expect(appsRes.some((a: any) => a.id === appId)).toBe(true);
 
-    // Terbitkan lisensi dengan 100 kredit
+    // Terbitkan lisensi
     const issueRes = await (
       await postJson("/licenses/issue", {
         appId,
         customerEmail: `cust_${suffix()}@test.tertaut.com`,
         grantDays: 30,
-        grantCredits: 100,
       })
     ).json();
     expect(issueRes.success).toBe(true);
-    expect(issueRes.creditBalance).toBe(100);
     licKey = issueRes.license.licenseKey;
-
-    // Saldo kredit
-    const bal = await (
-      await fetch(`${BASE}/credits/balance?licenseKey=${licKey}`, { headers: authHeaders() })
-    ).json();
-    expect(bal.balance).toBe(100);
-
-    // Konsumsi 5 kredit
-    const consume = await (
-      await postJson("/credits/consume", {
-        licenseKey: licKey,
-        amount: 5,
-        reference: "call-123",
-      })
-    ).json();
-    expect(consume.success).toBe(true);
-    expect(consume.consumed).toBe(5);
-    expect(consume.balance).toBe(95);
-
-    // Idempoten: reference sama tidak memotong dua kali
-    const consumeAgain = await (
-      await postJson("/credits/consume", {
-        licenseKey: licKey,
-        amount: 5,
-        reference: "call-123",
-      })
-    ).json();
-    expect(consumeAgain.consumed).toBe(0);
-    expect(consumeAgain.balance).toBe(95);
 
     // List lisensi per app
     const listLic = await (

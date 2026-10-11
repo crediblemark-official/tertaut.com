@@ -17,7 +17,6 @@ import {
 } from "../../services/payments/gateways/registry";
 import { CouponService } from "../../services/monetization/coupon";
 import { LicenseService } from "../../services/licensing/license";
-import { CreditService } from "../../services/monetization/credits";
 import { EmailService } from "../../services/notifications/email";
 import { config as checkoutConfig, resolveRequestOrigin } from "../../config";
 import { enforceRateLimit } from "../../services/security/rateLimiter";
@@ -60,7 +59,6 @@ export interface CreateSessionBody {
   paymentChannel?: string;
   name?: string;
   deviceName?: string;
-  grantCredits?: number;
   metadata?: Record<string, any>;
 }
 
@@ -285,10 +283,6 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
       }
 
       const trialDays = app.trialPeriodDays!;
-      const trialGrantCredits = Math.max(
-        0,
-        Math.floor(Number(app.meteringConfig?.freeAllowance) || 0)
-      );
       const trialApiKey = app.deliveryConfig?.apiAccess?.enabled
         ? `tt_cust_${randomBytes(16).toString("hex")}`
         : undefined;
@@ -364,7 +358,6 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
               paymentStatus: "PAID",
               disbursementStatus: "COMPLETED",
               grantDays: trialDays,
-              grantCredits: trialGrantCredits,
               metadata: {
                 ...(typeof metadata === "object" && metadata !== null ? metadata : {}),
                 hwidHash: primaryHwidHash,
@@ -431,28 +424,6 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
 
       const { trialTx, newLic } = issued;
 
-      if (trialGrantCredits > 0) {
-        try {
-          await CreditService.grant(
-            {
-              licenseId: newLic.id,
-              appId: app.id,
-              customerEmail: email,
-            },
-            trialGrantCredits,
-            {
-              reference: trialTx.id,
-              description: `Trial initial credits: ${trialGrantCredits}`,
-            }
-          );
-        } catch (creditErr: any) {
-          logger.error(
-            `[Checkout Trial] Gagal grant credits untuk lisensi ${newLic.id}`,
-            creditErr
-          );
-        }
-      }
-
       await EmailService.sendLicenseIssued({
         to: email,
         appName: app.name,
@@ -486,11 +457,6 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
     const productGrantDays = app.deliveryConfig?.licenseKey?.expiresInDays;
     const grantDays =
       typeof productGrantDays === "number" && productGrantDays > 0 ? productGrantDays : 365;
-
-    // Security fix: grantCredits adalah keputusan otoritatif produk (meteringConfig),
-    // BUKAN input klien. Sebelumnya nilai ini dibaca dari body publik sehingga pembeli
-    // anonim bisa mencetak kredit tak terbatas dengan sekali bayar.
-    const grantCredits = Math.max(0, Math.floor(Number(app.meteringConfig?.freeAllowance) || 0));
 
     // B1: Harga resmi aplikasi atau nominal dinamis dari backend S2S
     const appPrice = app.targetPrice ?? 0;
@@ -708,7 +674,6 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
           paymentStatus: "PENDING",
           disbursementStatus: "PENDING",
           grantDays,
-          grantCredits,
         })
         .returning();
     } catch (err) {

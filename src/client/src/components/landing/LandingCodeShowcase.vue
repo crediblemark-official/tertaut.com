@@ -5,7 +5,7 @@ import { Check, Copy, ExternalLink } from "lucide-vue-next";
 
 const { copy: writeClipboard } = useClipboard();
 
-const activeCodeTab = ref<"license" | "webhook" | "checkout" | "metering">("checkout");
+const activeCodeTab = ref<"license" | "webhook" | "checkout" | "floating">("checkout");
 const copiedCode = ref(false);
 
 const codeSnippets = {
@@ -54,20 +54,22 @@ if (result.valid) {
   console.log("Lisensi aktif untuk:", result.customerName);
   console.log("Device seat terpakai: 1 / 3");
 }`,
-  metering: `import { Tertaut } from "@tertaut/sdk";
+  floating: `import { Tertaut } from "@tertaut/sdk";
 
-const tertaut = new Tertaut({ appSlug: "saas-automate" });
-
-// Laporkan konsumsi kredit penggunaan (usage-based billing)
-await tertaut.credits.reportUsage({
-  licenseKey: "TT-PRO-9821-4412",
-  units: 5,
-  feature: "export_pdf_hd",
-  metadata: { pages: 12 },
+const tertaut = new Tertaut({
+  apiKey: "tt_live_...",
+  appId: "desktop-pro",
+  baseUrl: "https://tertaut.com",
 });
 
-const balance = await tertaut.credits.balance("TT-PRO-9821-4412");
-console.log("Sisa kredit lisensi:", balance.remainingCredits);`,
+// Kirim heartbeat berkala (rolling lease) untuk floating license
+const res = await tertaut.licensing.heartbeat({
+  licenseKey: "TT-PRO-9821-4412",
+  hwid: "macbook-pro-m2-hash",
+  leaseKey: "lease_99a8b7c6",
+});
+
+console.log("Lease valid:", res.valid, "Perpanjangan TTL aktif!");`,
 };
 
 function copyActiveCode() {
@@ -137,15 +139,15 @@ function copyActiveCode() {
               3. Validasi Lisensi
             </button>
             <button
-              @click="activeCodeTab = 'metering'"
+              @click="activeCodeTab = 'floating'"
               :class="[
                 'px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition cursor-pointer',
-                activeCodeTab === 'metering'
+                activeCodeTab === 'floating'
                   ? 'bg-white/15 text-white'
                   : 'text-white/60 hover:text-white',
               ]"
             >
-              4. Metered Billing
+              4. Floating Lease
             </button>
           </div>
 

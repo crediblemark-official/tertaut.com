@@ -219,16 +219,15 @@ async function handleCopyAppId(id: string) {
             <th class="py-2 pr-3 pl-3.5 sm:pl-4 md:pl-6">Nama Produk</th>
             <th class="py-2 px-3">Tipe &amp; Harga</th>
             <th class="py-2 px-3">Benefits</th>
-            <th class="py-2 px-3">Metering</th>
             <th class="py-2 px-3">Status Mode</th>
             <th class="py-2 px-3">Launch Link</th>
             <th class="py-2 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-jetblack/15">
-          <TableSkeleton v-if="loading" :columns="7" :rows="5" />
+          <TableSkeleton v-if="loading" :columns="6" :rows="5" />
           <tr v-else-if="filteredApps.length === 0">
-            <td colspan="7" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
+            <td colspan="6" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
               <p class="font-semibold text-xs text-jetblack/60">Tidak ada produk ditemukan.</p>
               <p class="text-[11px] text-jetblack/40" v-if="searchQuery">
                 Coba sesuaikan kata kunci pencarian.
@@ -363,16 +362,6 @@ async function handleCopyAppId(id: string) {
                   Standard
                 </span>
               </div>
-            </td>
-            <td class="py-2.5 px-3">
-              <span
-                v-if="app.meteringConfig?.enabled"
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-mono font-bold"
-              >
-                <Sparkles class="w-2.5 h-2.5" />
-                <span>{{ app.meteringConfig.name }}</span>
-              </span>
-              <span v-else class="text-jetblack/30 text-[10px] font-mono">—</span>
             </td>
             <td class="py-2.5 px-3">
               <button

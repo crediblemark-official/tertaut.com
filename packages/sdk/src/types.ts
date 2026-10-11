@@ -229,14 +229,12 @@ export interface LicenseValidateResult {
 
 /**
  * Respons `POST /api/v1/licensing/verify`.
- * `credits` adalah angka biasa (saldo), bukan objek.
  * Endpoint ini tidak mengembalikan seatsUsed/maxSeats.
  */
 export interface LicenseVerifyResult {
   valid: boolean;
   status: string;
   gracePeriodRemainingDays: number | null;
-  credits?: number;
   entitlements?: Record<string, any>;
   licenseVersion?: number;
   message?: string;
@@ -337,59 +335,6 @@ export interface OnlineOfflineTokenVerifyResult {
   reason?: string;
 }
 
-export interface CreditBalanceOptions {
-  licenseKey: string;
-  hwid?: string;
-}
-
-export interface CreditBalanceResult {
-  success: boolean;
-  balance: number;
-  licenseKey?: string;
-  reason?: string;
-  message?: string;
-}
-
-export interface CreditConsumeOptions {
-  licenseKey: string;
-  hwid: string;
-  amount: number;
-  reason?: string;
-  reference?: string;
-}
-
-export interface CreditConsumeResult {
-  success: boolean;
-  balance: number;
-  consumed?: number;
-  reason?: string;
-  message?: string;
-}
-
-export interface CreditHistoryOptions {
-  licenseKey: string;
-  hwid?: string;
-  limit?: number;
-}
-
-export interface CreditHistoryEntry {
-  id: string;
-  type: "GRANT" | "DEBIT" | "REFUND" | "ADJUSTMENT";
-  delta: number;
-  balanceAfter: number;
-  reference: string | null;
-  description: string | null;
-  createdAt: string;
-}
-
-export interface CreditHistoryResult {
-  success: boolean;
-  balance: number;
-  entries: CreditHistoryEntry[];
-  reason?: string;
-  message?: string;
-}
-
 // S2S Types
 export interface S2SIssueOptions {
   appId?: string;
@@ -397,7 +342,6 @@ export interface S2SIssueOptions {
   grantDays?: number;
   maxSeats?: number;
   platform?: "web" | "desktop" | "chrome_extension" | "android" | "general";
-  grantCredits?: number;
   features?: Record<string, any>;
   licenseVersion?: number;
 }
@@ -409,7 +353,6 @@ export interface S2SIssueBatchOptions {
     grantDays?: number;
     maxSeats?: number;
     platform?: "web" | "desktop" | "chrome_extension" | "android" | "general";
-    grantCredits?: number;
     features?: Record<string, any>;
   }>;
 }

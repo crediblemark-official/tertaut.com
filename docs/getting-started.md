@@ -92,12 +92,11 @@ curl -X POST https://tertaut.com/api/v1/s2s/licenses/issue \
     "customerEmail": "pembeli@example.com",
     "grantDays": 30,
     "maxSeats": 3,
-    "platform": "web",
-    "grantCredits": 100
+    "platform": "web"
   }'
 ```
 
-Respons: `{ "success": true, "license": { "licenseKey": "TT-...", "status": "ACTIVE", ... }, "creditBalance": 100 }`. Email konfirmasi lisensi otomatis dikirim ke `customerEmail`.
+Respons: `{ "success": true, "license": { "licenseKey": "TT-...", "status": "ACTIVE", ... } }`. Email konfirmasi lisensi otomatis dikirim ke `customerEmail`.
 
 ## 5. Validasi Lisensi
 
@@ -122,7 +121,7 @@ curl -X POST https://tertaut.com/api/v1/licensing/verify \
 Respons **valid**:
 
 ```json
-{ "valid": true, "status": "ACTIVE", "gracePeriodRemainingDays": 7, "credits": 95 }
+{ "valid": true, "status": "ACTIVE", "gracePeriodRemainingDays": 7 }
 ```
 
 Respons **tidak valid** (`valid: false` + `status`):
@@ -171,34 +170,7 @@ if (res.valid) console.log(res.claims);
 // Memanfaatkan Web Crypto API bawaan untuk verifikasi Ed25519 lokal. Lakukan validasi online berkala.
 ```
 
-## 7. Metered Credits
-
-Saldo kredit per lisensi (ledger append-only). Konsumsi **atomik** (tidak bisa minus) & **idempoten** lewat `reference`.
-
-```bash
-curl -X POST https://tertaut.com/api/v1/licensing/credits/consume \
-  -H "Content-Type: application/json" \
-  -d '{ "licenseKey": "TT-...", "hwid": "device-xxxx", "amount": 10, "reason": "10x generate", "reference": "job-00123" }'
-```
-
-```json
-{ "success": true, "balance": 85, "consumed": 10 }
-```
-
-Cek saldo & riwayat:
-
-```bash
-curl -X POST https://tertaut.com/api/v1/licensing/credits/balance \
-  -H "Content-Type: application/json" -d '{ "licenseKey": "TT-..." }'
-
-curl -X POST https://tertaut.com/api/v1/licensing/credits/history \
-  -H "Content-Type: application/json" \
-  -d '{ "licenseKey": "TT-...", "limit": 20 }'
-```
-
-> Untuk otomasi dari backend, versi `/api/v1/s2s/credits/balance` (GET) & `/api/v1/s2s/credits/consume` (POST) lebih ringkas — lihat [Server-to-Server](/server-to-server).
-
-## 8. Verifikasi Kunci API Pelanggan
+## 7. Verifikasi Kunci API Pelanggan
 
 Jika produk Anda mengaktifkan pengiriman API Access (`deliveryConfig.apiAccess.enabled`), pembeli akan menerima API key personal (`tt_cust_...`). Server Anda dapat memverifikasi kunci ini:
 
@@ -215,22 +187,20 @@ Respons:
   "valid": true,
   "status": "ACTIVE",
   "licenseKey": "TT-XXXX-XXXX-XXXX",
-  "credits": 100,
   "appId": "app_xxxx",
   "customerEmail": "pembeli@example.com"
 }
 ```
 
-## 9. Penanganan Error & Kode Status HTTP
+## 8. Penanganan Error & Kode Status HTTP
 
 API tertaut.com menggunakan kode status HTTP standar:
 
 | HTTP Code               | Arti                                     | Contoh Kasus                                                      |
 | ----------------------- | ---------------------------------------- | ----------------------------------------------------------------- |
-| `200 OK`                | Permintaan berhasil diproses.            | Validasi berhasil, saldo terbaca.                                 |
+| `200 OK`                | Permintaan berhasil diproses.            | Validasi berhasil, token diterbitkan.                             |
 | `400 Bad Request`       | Parameter input tidak valid.             | Format email salah, harga tidak cocok dengan list price.          |
 | `401 Unauthorized`      | Autentikasi gagal atau API key salah.    | Header `Authorization` S2S tidak valid.                           |
-| `402 Payment Required`  | Saldo kredit lisensi habis.              | Konsumsi kredit melewati batas saldo saat ini.                    |
 | `403 Forbidden`         | Akses ditolak.                           | Lisensi `REVOKED`/`EXPIRED`, atau kuota perangkat (_seat_) penuh. |
 | `404 Not Found`         | Resource tidak ditemukan.                | Kunci lisensi atau ID aplikasi tidak terdaftar.                   |
 | `409 Conflict`          | Terjadi konflik state atau balapan data. | Kuota kupon habis saat checkout, pendaftaran trial ganda.         |

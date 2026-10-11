@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
-import type { DeliveryConfig, MeteringConfig, BillingPeriodType, AppItem } from "../../types/app";
+import type { DeliveryConfig, BillingPeriodType, AppItem } from "../../types/app";
 import { dashboardEnv, envPath } from "../../lib/environment";
 import { useClipboard } from "../../composables/useClipboard";
 import {
@@ -25,7 +25,6 @@ import AppBenefitsForm from "./AppBenefitsForm.vue";
 import AppPricingSection from "./AppPricingSection.vue";
 import AppDeliverySection from "./AppDeliverySection.vue";
 import AppLivePreviewCard from "./AppLivePreviewCard.vue";
-import AppMeteringModal, { type MeteringModalResult } from "./AppMeteringModal.vue";
 
 const emit = defineEmits<{
   cancel: [];
@@ -117,21 +116,6 @@ const returnUrl = ref("");
 const abandonedCartRecovery = ref(false);
 const autoAffiliateRegistration = ref(false);
 
-// Metering (Usage-based pricing)
-const meteringEnabled = ref(false);
-const isMeteringModalOpen = ref(false);
-
-const meterTemplateId = ref("llm_tokens");
-const meterName = ref("Token LLM");
-const meterEventName = ref("ai_usage");
-const meterCalcType = ref<"count" | "sum" | "max" | "unique">("count");
-const meterUnitLabel = ref("tokens");
-const meterFilters = ref<Array<{ property: string; value: string }>>([]);
-const meteringAggregation = ref("count on ai_usage");
-const meteringUnitPrice = ref<string | number>("20.00");
-const meteringMetricUnit = ref("per tokens");
-const meteringFreeAllowance = ref<number>(0);
-
 watch(newAppName, (val) => {
   if (!slugManuallyEdited.value) {
     newAppSlug.value = val
@@ -140,24 +124,6 @@ watch(newAppName, (val) => {
       .replace(/^-|-$/g, "");
   }
 });
-
-function handleMeteringApply(result: MeteringModalResult) {
-  meteringEnabled.value = true;
-  meterTemplateId.value = result.template;
-  meterName.value = result.name;
-  meterEventName.value = result.eventName;
-  meterCalcType.value = result.calculationType;
-  meterUnitLabel.value = result.unitLabel;
-  meterFilters.value = result.filters;
-  meteringAggregation.value = result.aggregation;
-  meteringUnitPrice.value = result.unitPrice;
-  meteringMetricUnit.value = result.metricUnit;
-  meteringFreeAllowance.value = result.freeAllowance;
-}
-
-function removeMetering() {
-  meteringEnabled.value = false;
-}
 
 function resetForm() {
   appType.value = "saas_web";
@@ -180,17 +146,6 @@ function resetForm() {
     "Lisensi komersial software",
     "Update berkala & perbaikan bug",
   ];
-  meteringEnabled.value = false;
-  meterTemplateId.value = "llm_tokens";
-  meterName.value = "Token LLM";
-  meterEventName.value = "ai_usage";
-  meterCalcType.value = "count";
-  meterUnitLabel.value = "tokens";
-  meterFilters.value = [];
-  meteringAggregation.value = "count on ai_usage";
-  meteringUnitPrice.value = "20.00";
-  meteringMetricUnit.value = "per tokens";
-  meteringFreeAllowance.value = 0;
   returnUrl.value = "";
   abandonedCartRecovery.value = false;
   autoAffiliateRegistration.value = false;
@@ -207,15 +162,6 @@ const deliveryConfigState = ref<DeliveryConfig>({
   fileDownload: { enabled: false },
   privateNote: { enabled: false },
 });
-
-watch(
-  () => deliveryConfigState.value.apiAccess?.enabled,
-  (enabled) => {
-    if (!enabled && meteringEnabled.value) {
-      removeMetering();
-    }
-  }
-);
 
 function loadApp(app: AppItem) {
   appType.value = (app.appType as any) || "saas_web";
@@ -262,22 +208,6 @@ function loadApp(app: AppItem) {
       privateNote: { enabled: false },
     };
   }
-
-  if (app.meteringConfig?.enabled) {
-    meteringEnabled.value = true;
-    meterTemplateId.value = app.meteringConfig.template || "custom";
-    meterName.value = app.meteringConfig.name || "Metered Usage";
-    meterEventName.value = app.meteringConfig.eventName || "usage";
-    meterCalcType.value = (app.meteringConfig.calculationType as any) || "count";
-    meterUnitLabel.value = app.meteringConfig.unitLabel || "units";
-    meterFilters.value = app.meteringConfig.filters ? [...app.meteringConfig.filters] : [];
-    meteringAggregation.value = app.meteringConfig.aggregation || "";
-    meteringUnitPrice.value = String(app.meteringConfig.unitPrice || "0");
-    meteringMetricUnit.value = (app.meteringConfig as any).metricUnit || "per unit";
-    meteringFreeAllowance.value = (app.meteringConfig as any).freeAllowance || 0;
-  } else {
-    meteringEnabled.value = false;
-  }
 }
 
 watch(
@@ -296,24 +226,6 @@ async function handleSubmitProduct() {
   if (!newAppName.value || !newAppSlug.value) return;
   isCreating.value = true;
   createError.value = null;
-
-  const meteringConfig: MeteringConfig | undefined = meteringEnabled.value
-    ? {
-        enabled: true,
-        template: meterTemplateId.value,
-        name: meterName.value,
-        aggregation: meteringAggregation.value,
-        eventName: meterEventName.value,
-        calculationType: meterCalcType.value,
-        unitLabel: meterUnitLabel.value,
-        filters: meterFilters.value.filter(
-          (f) => f.property.trim().length > 0 && f.value.trim().length > 0
-        ),
-        unitPrice: Number(meteringUnitPrice.value) || 0,
-        metricUnit: meteringMetricUnit.value,
-        freeAllowance: Number(meteringFreeAllowance.value) || 0,
-      }
-    : undefined;
 
   const payload: Record<string, any> = {
     name: newAppName.value,
@@ -350,7 +262,6 @@ async function handleSubmitProduct() {
       pricingType.value === "subscription" && hasTrialPeriod.value ? trialPeriodDays.value || 7 : 0;
     payload.valueProps = benefits.value.filter((b) => b.trim().length > 0);
     payload.deliveryConfig = deliveryConfigState.value;
-    payload.meteringConfig = meteringConfig;
   }
 
   try {
@@ -947,17 +858,7 @@ async function handleSubmitProduct() {
           />
 
           <!-- 4. PENGIRIMAN DIGITAL (DELIVERY CONFIG) -->
-          <AppDeliverySection
-            v-model="deliveryConfigState"
-            :meteringEnabled="meteringEnabled"
-            :meterName="meterName"
-            :meterAggregation="meteringAggregation"
-            :meteringUnitPrice="meteringUnitPrice"
-            :meteringMetricUnit="meteringMetricUnit"
-            :meteringFreeAllowance="meteringFreeAllowance"
-            @openMeteringModal="isMeteringModalOpen = true"
-            @removeMetering="removeMetering"
-          />
+          <AppDeliverySection v-model="deliveryConfigState" />
 
           <!-- 5. ALUR CHECKOUT & RETENSI -->
           <div class="space-y-4">
@@ -1024,10 +925,6 @@ async function handleSubmitProduct() {
           :hasTrialPeriod="hasTrialPeriod"
           :trialPeriodDays="trialPeriodDays"
           :benefits="benefits"
-          :meteringEnabled="meteringEnabled"
-          :meteringAggregation="meteringAggregation"
-          :meteringUnitPrice="meteringUnitPrice"
-          :meteringMetricUnit="meteringMetricUnit"
           :dashboardEnv="initialApp ? initialApp.mode : dashboardEnv"
           :isCreating="isCreating"
           :canPublish="Boolean(newAppName && newAppSlug)"
@@ -1042,20 +939,5 @@ async function handleSubmitProduct() {
         />
       </div>
     </div>
-
-    <!-- Usage-based Pricing Modal -->
-    <AppMeteringModal
-      v-model="isMeteringModalOpen"
-      :initialTemplateId="meterTemplateId"
-      :initialName="meterName"
-      :initialEventName="meterEventName"
-      :initialCalcType="meterCalcType"
-      :initialUnitLabel="meterUnitLabel"
-      :initialFilters="meterFilters"
-      :initialUnitPrice="meteringUnitPrice"
-      :initialMetricUnit="meteringMetricUnit"
-      :initialFreeAllowance="meteringFreeAllowance"
-      @apply="handleMeteringApply"
-    />
   </div>
 </template>

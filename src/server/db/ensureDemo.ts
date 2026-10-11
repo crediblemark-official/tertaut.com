@@ -1,5 +1,5 @@
 import { db } from "./index";
-import { user, builders, apps, coupons, type DeliveryConfig, type MeteringConfig } from "./schema";
+import { user, builders, apps, coupons, type DeliveryConfig } from "./schema";
 import { eq } from "drizzle-orm";
 import { auth } from "../auth";
 import { randomBytes } from "crypto";
@@ -19,7 +19,6 @@ export interface DemoAppSpec {
   ctaText: string;
   valueProps: string[];
   deliveryConfig: DeliveryConfig;
-  meteringConfig?: MeteringConfig;
 }
 
 /**
@@ -28,7 +27,7 @@ export interface DemoAppSpec {
  * 2. fileDownload     : Next.js SaaS Enterprise Boilerplate (Digital Asset / Source Code)
  * 3. apiAccess        : IndoOCR Cloud Vision API (Developer API Access)
  * 4. privateNote      : VibeCoder VIP Community & Mastermind (Private Community / Secret)
- * 5. meteringConfig   : SmartAI LLM Proxy Gateway (Metered / Usage-Based Pricing)
+ * 5. apiAccess (Subscription): SmartAI LLM Gateway (Dedicated API Access)
  */
 export const DEMO_APPS: DemoAppSpec[] = [
   // 1. Jenis: Lisensi Software (licenseKey)
@@ -154,35 +153,26 @@ export const DEMO_APPS: DemoAppSpec[] = [
     },
   },
 
-  // 5. Jenis: Metered / Usage-Based Pricing (meteringConfig)
+  // 5. Jenis: Akses API Pengembang (Subscription)
   {
     id: "app_smartai_proxy",
     slug: "smartai-proxy",
-    name: "SmartAI Gateway (Pay-As-You-Go)",
-    targetPrice: 25000,
-    pricingType: "one_time",
+    name: "SmartAI Gateway Pro",
+    targetPrice: 99000,
+    pricingType: "subscription",
+    billingPeriod: "monthly",
     headline: "SmartAI High-Performance LLM Proxy Gateway",
-    subheadline: "Unified AI proxy dengan penagihan fleksibel berbasis pemakaian token riil.",
+    subheadline: "Unified AI proxy terkelola untuk akses stabil ke model AI unggulan.",
     description:
-      "Gerbang proxy terpadu kompatibel OpenAI untuk Gemini 2.0 Flash dan Claude 3.5 Sonnet. Bayar hanya sebesar token yang Anda konsumsi.",
+      "Gerbang proxy terpadu kompatibel OpenAI untuk Gemini 2.0 Flash dan Claude 3.5 Sonnet dengan throughput tinggi dan pemantauan latensi.",
     mediaUrl:
       "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=800&q=80",
-    ctaText: "Beli Kuota Awal",
+    ctaText: "Langganan API",
     valueProps: [
-      "Deposit kuota awal Rp 25.000 (Bonus 50.000 token gratis)",
-      "Tarif transparan Rp 150 per 10.000 token LLM",
-      "Dashboard audit log latensi & pemakaian token real-time",
+      "Akses penuh endpoint proxy terkelola tanpa batas",
+      "Kompatibel langsung dengan OpenAI SDK (ganti baseURL)",
+      "Dashboard metrik latensi dan status ketersediaan 99.9%",
     ],
-    meteringConfig: {
-      enabled: true,
-      template: "llm_tokens",
-      name: "Token AI Gemini 2.0 Flash",
-      aggregation: "sum(tokens) on ai_usage",
-      metricUnit: "tokens",
-      unitLabel: "10K Token",
-      unitPrice: 150,
-      freeAllowance: 50000,
-    },
     deliveryConfig: {
       apiAccess: {
         enabled: true,
@@ -301,7 +291,6 @@ export async function ensureDemoData(): Promise<void> {
           valueProps: spec.valueProps,
           ctaText: spec.ctaText,
           deliveryConfig: spec.deliveryConfig,
-          meteringConfig: spec.meteringConfig,
         });
         console.log(`✅ [Demo] Aplikasi demo (${spec.slug}) berhasil disiapkan.`);
       } else if (existing.mode !== "sandbox") {

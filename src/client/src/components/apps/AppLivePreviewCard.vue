@@ -25,10 +25,6 @@ const props = withDefaults(
     hasTrialPeriod?: boolean;
     trialPeriodDays?: number;
     benefits?: string[];
-    meteringEnabled?: boolean;
-    meteringAggregation?: string;
-    meteringUnitPrice?: string | number;
-    meteringMetricUnit?: string;
     dashboardEnv: "sandbox" | "live";
     isCreating: boolean;
     canPublish: boolean;
@@ -47,7 +43,6 @@ const props = withDefaults(
     hasTrialPeriod: false,
     trialPeriodDays: 7,
     benefits: () => [],
-    meteringEnabled: false,
     appType: "saas_web",
     brandColor: "#0D9488",
   }
@@ -225,16 +220,6 @@ const emit = defineEmits<{
           >
             <Sparkles class="w-3 h-3 text-gold" />
             <span>{{ trialPeriodDays }} Hari Uji Coba Gratis</span>
-          </div>
-
-          <div v-if="meteringEnabled" class="mt-2 pt-2 border-t border-dashed border-jetblack/15">
-            <div class="text-[10px] text-[#8a6d1f] flex items-center gap-1 font-mono font-bold">
-              <Sparkles class="w-3 h-3 text-gold" />
-              <span>+ Meter: {{ meteringAggregation }}</span>
-            </div>
-            <div class="text-[10px] text-jetblack/60 font-mono">
-              Rp {{ meteringUnitPrice }} / {{ meteringMetricUnit }}
-            </div>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { db } from "../../db";
 import { projects, apps, builders } from "../../db/schema";
-import type { DeliveryConfig, MeteringConfig, CaptureConfig } from "../../db/schema/projects";
+import type { DeliveryConfig, CaptureConfig } from "../../db/schema/projects";
 import { eq } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { resolveCurrentBuilder } from "./builder";
@@ -24,7 +24,6 @@ export interface CreateAppBody {
   billingPeriod?: string | null;
   trialPeriodDays?: number | null;
   deliveryConfig?: DeliveryConfig | null;
-  meteringConfig?: MeteringConfig | null;
   appType?: "saas_web" | "desktop_onprem" | null;
   brandColor?: string | null;
   logoUrl?: string | null;
@@ -90,7 +89,6 @@ export async function handleCreateApp({ body, set, request: { headers } }: Creat
     billingPeriod,
     trialPeriodDays,
     deliveryConfig,
-    meteringConfig,
     appType = "saas_web",
     brandColor = "#0D9488",
     logoUrl,
@@ -129,7 +127,6 @@ export async function handleCreateApp({ body, set, request: { headers } }: Creat
       billingPeriod: billingPeriod || null,
       trialPeriodDays: typeof trialPeriodDays === "number" ? trialPeriodDays : 0,
       deliveryConfig: deliveryConfig || null,
-      meteringConfig: meteringConfig || null,
       description: description || null,
       headline: headline || name,
       subheadline: subheadline || description || null,
@@ -206,7 +203,6 @@ export async function handleUpdateApp({
     billingPeriod,
     trialPeriodDays,
     deliveryConfig,
-    meteringConfig,
     appType,
     brandColor,
     logoUrl,
@@ -223,7 +219,6 @@ export async function handleUpdateApp({
   if (billingPeriod !== undefined) updateData.billingPeriod = billingPeriod;
   if (trialPeriodDays !== undefined) updateData.trialPeriodDays = trialPeriodDays;
   if (deliveryConfig !== undefined) updateData.deliveryConfig = deliveryConfig;
-  if (meteringConfig !== undefined) updateData.meteringConfig = meteringConfig;
   if (description !== undefined) updateData.description = description;
   if (headline !== undefined) updateData.headline = headline;
   if (subheadline !== undefined) updateData.subheadline = subheadline;

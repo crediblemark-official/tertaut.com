@@ -17,7 +17,6 @@ import {
   LicenseRevokedError,
   SeatLimitExceededError,
   HeartbeatLeaseError,
-  InsufficientCreditsError,
   VersionFloorError,
   createTertautError,
   parseErrorPayload,
@@ -122,16 +121,6 @@ describe("SDK error pipeline", () => {
       );
     });
 
-    it("INSUFFICIENT_CREDITS → InsufficientCreditsError (402 maupun 409)", () => {
-      expect(createTertautError(402, { reason: "INSUFFICIENT_CREDITS" })).toBeInstanceOf(
-        InsufficientCreditsError
-      );
-      // S2S memakai 409 untuk kondisi yang sama.
-      expect(createTertautError(409, { reason: "INSUFFICIENT_CREDITS" })).toBeInstanceOf(
-        InsufficientCreditsError
-      );
-    });
-
     it("429 tanpa kode eksplisit tetap menjadi TertautRateLimitError + retryAfter", () => {
       const err = createTertautError(429, {
         success: false,
@@ -140,12 +129,6 @@ describe("SDK error pipeline", () => {
       });
       expect(err).toBeInstanceOf(TertautRateLimitError);
       expect((err as TertautRateLimitError).retryAfter).toBe(42);
-    });
-
-    it("status 402 tanpa kode tetap menjadi InsufficientCreditsError", () => {
-      expect(createTertautError(402, { error: "Saldo kurang" })).toBeInstanceOf(
-        InsufficientCreditsError
-      );
     });
 
     it("kode tak dikenal → TertautError generik dengan status & payload", () => {
@@ -202,24 +185,6 @@ describe("SDK error pipeline", () => {
       ).rejects.toBeInstanceOf(HeartbeatLeaseError);
     });
 
-    it("credits.consume dengan saldo kurang → InsufficientCreditsError", async () => {
-      mockJson(
-        { success: false, reason: "INSUFFICIENT_CREDITS", balance: 0, message: "Saldo kurang" },
-        402
-      );
-      const sdk = makeSdk();
-      await expect(
-        sdk.credits.consume({ licenseKey: "TT-1", hwid: "HW-1", amount: 10 })
-      ).rejects.toBeInstanceOf(InsufficientCreditsError);
-    });
-
-    it("credits.balance yang kena rate limit → TertautRateLimitError", async () => {
-      mockJson({ success: false, reason: "RATE_LIMITED", message: "Terlalu cepat" }, 429);
-      const sdk = makeSdk();
-      const err = await sdk.credits.balance({ licenseKey: "TT-1" }).catch((e) => e);
-      expect(err).toBeInstanceOf(TertautRateLimitError);
-    });
-
     it("validate dengan versi usang → VersionFloorError", async () => {
       mockJson(
         {
@@ -252,7 +217,6 @@ describe("SDK error pipeline", () => {
         LicenseRevokedError,
         SeatLimitExceededError,
         HeartbeatLeaseError,
-        InsufficientCreditsError,
         VersionFloorError,
         TertautRateLimitError,
       ]) {

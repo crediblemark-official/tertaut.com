@@ -60,14 +60,12 @@ export async function handleS2SIssueLicense({ builder, body, set }: any) {
     grantDays: body.grantDays,
     maxSeats: body.maxSeats,
     platform: body.platform,
-    grantCredits: body.grantCredits,
     features: body.features,
     licenseVersion: body.licenseVersion,
-    creditDescription: "Penerbitan lisensi via S2S",
     actor: { type: "S2S", id: builder.id },
   });
 
-  return { success: true, license: result.license, creditBalance: result.creditBalance };
+  return { success: true, license: result.license };
 }
 
 /**
@@ -365,9 +363,7 @@ export async function handleS2SIssueBatch({ builder, body, set }: any) {
         grantDays: item.grantDays,
         maxSeats: item.maxSeats,
         platform: item.platform,
-        grantCredits: item.grantCredits,
         features: item.features,
-        creditDescription: "Penerbitan batch via S2S",
         actor: { type: "S2S", id: builder.id },
       });
       results.push({

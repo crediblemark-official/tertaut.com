@@ -64,7 +64,7 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
     }
   });
 
-  it("should create product with subscription pricing, multi-delivery config, and usage-based metering", async () => {
+  it("should create product with subscription pricing and multi-delivery config", async () => {
     const builder = await db.query.builders.findFirst();
     if (!builder) return;
 
@@ -99,14 +99,6 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
               note: "Private invite link and activation secret",
             },
           },
-          meteringConfig: {
-            enabled: true,
-            template: "llm_tokens",
-            name: "Token LLM",
-            aggregation: "sum(tokens) on ai_usage",
-            unitPrice: 15,
-            metricUnit: "per 1.000 token",
-          },
         }),
       });
 
@@ -118,9 +110,6 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
       expect(json.app.deliveryConfig.licenseKey.enabled).toBe(true);
       expect(json.app.deliveryConfig.fileDownload.enabled).toBe(true);
       expect(json.app.deliveryConfig.privateNote.enabled).toBe(true);
-      expect(json.app.meteringConfig.enabled).toBe(true);
-      expect(json.app.meteringConfig.template).toBe("llm_tokens");
-      expect(json.app.meteringConfig.aggregation).toBe("sum(tokens) on ai_usage");
       createdAppId = json.app.id;
 
       // Update via PATCH
@@ -130,21 +119,12 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
         body: JSON.stringify({
           pricingType: "one_time",
           billingPeriod: null,
-          meteringConfig: {
-            enabled: true,
-            template: "api_calls",
-            name: "Permintaan API",
-            aggregation: "count on api_call",
-            unitPrice: 5,
-            metricUnit: "per panggilan",
-          },
         }),
       });
 
       const patchJson: any = await patchRes.json();
       expect(patchRes.status).toBe(200);
       expect(patchJson.app.pricingType).toBe("one_time");
-      expect(patchJson.app.meteringConfig.template).toBe("api_calls");
     } finally {
       if (createdAppId) await db.delete(apps).where(eq(apps.id, createdAppId));
     }

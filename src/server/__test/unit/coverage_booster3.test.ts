@@ -117,7 +117,6 @@ describe("Coverage Booster3: webhook/fulfill.ts", () => {
       appId: "app_fake",
       customerEmail: "fake@fake.com",
       grantDays: 30,
-      grantCredits: 0,
     };
     const res = await fulfillPaymentTransaction(fakeTx, "QRIS");
     // locked will be null → returns error status
@@ -276,91 +275,6 @@ describe("Coverage Booster3: panel/payouts.ts handleBatchPayout", () => {
     const res = await handleBatchPayout();
     expect(res.success).toBe(true);
   }, 20000);
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  metering/router.ts — lines 92-94 (debit non-insufficient error)
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster3: metering/router.ts edge cases", () => {
-  it("GET /metering/usage/:licenseKey: 404 for unknown license", async () => {
-    const res = await app.handle(
-      new Request("http://localhost:3001/api/v1/metering/usage/TT-FAKE-METERING")
-    );
-    expect(res.status).toBe(404);
-  });
-
-  it("GET /metering/usage/:licenseKey: returns history for known license", async () => {
-    const { app: a } = await seedBuilderApp();
-    const issueRes = await issueLicense(a.id);
-    const res = await app.handle(
-      new Request(`http://localhost:3001/api/v1/metering/usage/${issueRes.license.licenseKey}`)
-    );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as any;
-    expect(body.success).toBe(true);
-    expect(Array.isArray(body.history)).toBe(true);
-  });
-
-  it("POST /metering/events: 403 when license not ACTIVE", async () => {
-    const { app: a } = await seedBuilderApp();
-    await db
-      .update(apps)
-      .set({
-        meteringConfig: {
-          enabled: true,
-          unitPrice: 1,
-          template: "test",
-          name: "Test",
-          aggregation: "sum",
-        } as any,
-      })
-      .where(eq(apps.id, a.id));
-    const issueRes = await issueLicense(a.id);
-    await db
-      .update(licenses)
-      .set({ status: "REVOKED" })
-      .where(eq(licenses.id, issueRes.license.id));
-    const res = await app.handle(
-      new Request("http://localhost:3001/api/v1/metering/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ licenseKey: issueRes.license.licenseKey, eventName: "test" }),
-      })
-    );
-    expect(res.status).toBe(403);
-  });
-
-  it("GET /metering/stats: empty apps returns 0 stats", async () => {
-    // Create a builder with no apps under their account
-    const { auth } = await import("../../auth");
-    const email = `noapp_${suffix()}@test.com`;
-    const signRes = await auth.api.signUpEmail({
-      body: { email, password: "Passw0rd!123", name: "NoAppUser" },
-      asResponse: true,
-    });
-    const cookie = signRes.headers.get("set-cookie")?.split(";")[0] || "";
-    // Create a builder with this user's email but no apps
-    const [b] = await db
-      .insert(builders)
-      .values({
-        name: "NoAppBuilder",
-        email,
-        apiKey: generateAppApiKey("live"),
-        secretApiKey: generateBuilderSecretApiKey(),
-      })
-      .returning();
-
-    const res = await app.handle(
-      new Request("http://localhost:3001/api/v1/metering/stats", {
-        headers: { cookie },
-      })
-    );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as any;
-    expect(body.success).toBe(true);
-    expect(body.totalEvents).toBe(0);
-    expect(body.appsCount).toBe(0);
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -884,25 +798,6 @@ describe("Coverage Booster3: services/coupon.ts", () => {
     const result = await CouponService.validate("NONEXISTENT_COUPON_XYZ", "app_fake", 100000);
     expect(result.valid).toBe(false);
     expect(result.errorCode).toBe("COUPON_NOT_FOUND");
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  services/credits.ts — line 26 (credits insufficient non-standard)
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster3: services/credits.ts", () => {
-  it("CreditService.debit: returns INSUFFICIENT_CREDITS for zero balance", async () => {
-    const { CreditService } = await import("../../services/monetization/credits");
-    const { app: a } = await seedBuilderApp();
-    const issueRes = await issueLicense(a.id);
-    // Debit more than available (0 balance)
-    const result = await CreditService.debit(
-      { licenseId: issueRes.license.id, appId: a.id, customerEmail: "test@test.com" },
-      100,
-      { reference: null, description: "test debit" }
-    );
-    expect(result.ok).toBe(false);
-    expect((result as any).reason).toBe("INSUFFICIENT_CREDITS"); // DebitResult union - cast needed
   });
 });
 

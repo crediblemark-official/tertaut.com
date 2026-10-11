@@ -175,39 +175,6 @@ describe("Unit Tests - Tertaut SDK", () => {
     }
   });
 
-  it("should wrap credits API: balance, consume, and history", async () => {
-    const sdk = new Tertaut({
-      apiKey: "tt_test_credits",
-      appId: "app_credits_sdk",
-      baseUrl: "http://localhost:3001",
-    });
-    const originalFetch = globalThis.fetch;
-
-    globalThis.fetch = (async (url: string) => {
-      if (url.endsWith("/credits/balance")) {
-        return new Response(JSON.stringify({ balance: 100 }), { status: 200 });
-      }
-      if (url.endsWith("/credits/consume")) {
-        return new Response(JSON.stringify({ balance: 80, consumed: 20 }), { status: 200 });
-      }
-      if (url.endsWith("/credits/history")) {
-        return new Response(JSON.stringify({ balance: 80, entries: [] }), { status: 200 });
-      }
-      return new Response("{}", { status: 200 });
-    }) as any;
-
-    const bal = await sdk.credits.balance({ licenseKey: "TT-CRED", hwid: "HW-1" });
-    expect(bal.balance).toBe(100);
-
-    const con = await sdk.credits.consume({ licenseKey: "TT-CRED", hwid: "HW-1", amount: 20 });
-    expect(con.consumed).toBe(20);
-
-    const hist = await sdk.credits.history({ licenseKey: "TT-CRED", hwid: "HW-1" });
-    expect(hist.balance).toBe(80);
-
-    globalThis.fetch = originalFetch;
-  });
-
   it("should manage automatic heartbeat sessions for floating licenses", async () => {
     const sdk = new Tertaut({
       apiKey: "tt_test_session",
@@ -381,7 +348,6 @@ describe("Unit Tests - Tertaut SDK", () => {
       LicenseRevokedError,
       SeatLimitExceededError,
       HeartbeatLeaseError,
-      InsufficientCreditsError,
       VersionFloorError,
     } = require("../../../../packages/sdk/src/errors");
 
@@ -417,10 +383,6 @@ describe("Unit Tests - Tertaut SDK", () => {
 
     const leaseInv = new HeartbeatLeaseError("Invalid lease", "LEASE_INVALID");
     expect(leaseInv.status).toBe(403);
-
-    const cred = new InsufficientCreditsError();
-    expect(cred.name).toBe("InsufficientCreditsError");
-    expect(cred.code).toBe("INSUFFICIENT_CREDITS");
 
     const vfl = new VersionFloorError("Too old", "2.0.0");
     expect(vfl.name).toBe("VersionFloorError");
@@ -717,14 +679,6 @@ describe("Unit Tests - Tertaut SDK", () => {
       event: "license.issued",
       actorType: "api",
       limit: 20,
-    });
-
-    // credits.balance & credits.consume
-    await s2sClient.s2s.credits.balance("TT-CRED-S2S");
-    await s2sClient.s2s.credits.consume({
-      licenseKey: "TT-CRED-S2S",
-      amount: 50,
-      reason: "Bulk generation",
     });
 
     // webhooks: create, update, delete, rotateSecret, test, verifySignature

@@ -72,21 +72,6 @@ export interface DeliveryConfig {
   };
 }
 
-export interface MeteringConfig {
-  enabled: boolean;
-  template:
-    "llm_tokens" | "api_calls" | "compute_minutes" | "storage" | "active_seats" | "custom" | string;
-  name: string;
-  aggregation: string; // e.g. "sum(tokens) on ai_usage"
-  eventName?: string;
-  calculationType?: string;
-  unitLabel?: string;
-  filters?: Array<{ property: string; value: string }>;
-  unitPrice?: number;
-  metricUnit?: string;
-  freeAllowance?: number;
-}
-
 export const projects = pgTable(
   "projects",
   {
@@ -115,7 +100,6 @@ export const projects = pgTable(
     billingPeriod: text("billing_period"),
     trialPeriodDays: integer("trial_period_days").default(0),
     deliveryConfig: jsonb("delivery_config").$type<DeliveryConfig>(),
-    meteringConfig: jsonb("metering_config").$type<MeteringConfig>(),
     description: text("description"),
     headline: text("headline"),
     subheadline: text("subheadline"),

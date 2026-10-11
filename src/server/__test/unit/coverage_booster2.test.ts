@@ -18,12 +18,6 @@ import { LaunchService } from "../../services/monetization/launchService";
 import { handleDisburse } from "../../routes/apps/disburse";
 import { handleVerifyOfflineToken } from "../../routes/licensing/token";
 import {
-  authorizeLicense,
-  handleConsumeCredits,
-  handleCreditBalance,
-  handleCreditHistory,
-} from "../../routes/licensing/credits";
-import {
   handleDanaFinishPaymentWebhook,
   handleDanaDisburseNotifyWebhook,
 } from "../../routes/webhook/dana";
@@ -279,85 +273,6 @@ describe("Coverage Booster2: licensing/token.ts", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  licensing/credits.ts — authorizeLicense branches (lines 28, 32, 37-41, 46)
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster2: licensing/credits.ts authorizeLicense", () => {
-  it("returns LICENSE_NOT_FOUND for unknown key", async () => {
-    const res = await authorizeLicense("TT-FAKE-FAKE", undefined, false);
-    expect(res.ok).toBe(false);
-    expect((res as any).reason).toBe("LICENSE_NOT_FOUND");
-  });
-
-  it("returns LICENSE_REVOKED for revoked license", async () => {
-    const { app: a } = await seedBuilderApp();
-    const issueRes = await issueLicense(a.id);
-    await db
-      .update(licenses)
-      .set({ status: "REVOKED" })
-      .where(eq(licenses.id, issueRes.license.id));
-    const res = await authorizeLicense(issueRes.license.licenseKey, undefined, false);
-    expect(res.ok).toBe(false);
-    expect((res as any).reason).toContain("LICENSE_");
-  });
-
-  it("returns LICENSE_EXPIRED when license is past expiry", async () => {
-    const { app: a } = await seedBuilderApp();
-    const issueRes = await issueLicense(a.id);
-    await db
-      .update(licenses)
-      .set({ expiresAt: new Date(Date.now() - 10000) })
-      .where(eq(licenses.id, issueRes.license.id));
-    const res = await authorizeLicense(issueRes.license.licenseKey, undefined, false);
-    expect(res.ok).toBe(false);
-    expect((res as any).reason).toBe("LICENSE_EXPIRED");
-  });
-
-  it("returns HWID_REQUIRED when requireHwid=true but no hwid provided", async () => {
-    const { app: a } = await seedBuilderApp();
-    const issueRes = await issueLicense(a.id);
-    const res = await authorizeLicense(issueRes.license.licenseKey, undefined, true);
-    expect(res.ok).toBe(false);
-    expect((res as any).reason).toBe("HWID_REQUIRED");
-  });
-
-  it("returns DEVICE_NOT_ACTIVATED when hwid not in activations", async () => {
-    const { app: a } = await seedBuilderApp();
-    const issueRes = await issueLicense(a.id);
-    const res = await authorizeLicense(
-      issueRes.license.licenseKey,
-      "HWID_NOT_REGISTERED_XYZ",
-      false
-    );
-    expect(res.ok).toBe(false);
-    expect((res as any).reason).toBe("DEVICE_NOT_ACTIVATED");
-  });
-
-  it("handleCreditBalance: rate limited returns 429", async () => {
-    const { resetRateLimits } = await import("../../services/security/rateLimiter");
-    resetRateLimits();
-    const req = new Request("http://localhost", { headers: { "x-real-ip": "6.6.6.6" } });
-    const { enforceRateLimit } = await import("../../services/security/rateLimiter");
-    for (let i = 0; i < 121; i++) enforceRateLimit(req, "licensing:credits:balance", 120, 60_000);
-    const set: any = {};
-    const res = await handleCreditBalance({ body: { licenseKey: "TT-X" }, set, request: req });
-    expect(set.status).toBe(429);
-    resetRateLimits();
-  });
-
-  it("handleCreditHistory: rate limited returns 429", async () => {
-    const { resetRateLimits } = await import("../../services/security/rateLimiter");
-    resetRateLimits();
-    const req = new Request("http://localhost", { headers: { "x-real-ip": "7.7.7.7" } });
-    const { enforceRateLimit } = await import("../../services/security/rateLimiter");
-    for (let i = 0; i < 61; i++) enforceRateLimit(req, "licensing:credits:history", 60, 60_000);
-    const set: any = {};
-    const res = await handleCreditHistory({ body: { licenseKey: "TT-X" }, set, request: req });
-    expect(set.status).toBe(429);
-    resetRateLimits();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 //  webhook/dana.ts — uncovered branches (lines 15-16, 25-26, 117-118, etc.)
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster2: webhook/dana.ts", () => {
@@ -509,13 +424,12 @@ describe("Coverage Booster2: webhook/fulfill.ts", () => {
     expect((res as any).message).toContain("idempotent");
   });
 
-  it("fulfillPaymentTransaction: grantCredits > 0 grants credits", async () => {
+  it("fulfillPaymentTransaction: fulfills pending transaction and issues license", async () => {
     const { builder, app: a } = await seedBuilderApp();
-    const tx = await createTx(builder.id, a.id, { paymentStatus: "PENDING", grantCredits: 100 });
+    const tx = await createTx(builder.id, a.id, { paymentStatus: "PENDING" });
     const res = await fulfillPaymentTransaction(tx, "CREDIT_CARD");
     expect((res as any).status).toBe("success");
-    expect((res as any).grantedCredits).toBe(100);
-    expect((res as any).creditBalance).toBeGreaterThanOrEqual(100);
+    expect((res as any).licenseKey).toBeDefined();
   });
 });
 
@@ -934,90 +848,6 @@ describe("Coverage Booster2: licensing/admin.ts additional handlers", () => {
     });
     expect((res as any).success).toBe(true);
     expect((res as any).webhook).toBeDefined();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  metering/router.ts — uncovered: 51-52, 92-94, 162-163, 173-178
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster2: metering/router.ts", () => {
-  it("POST /metering/events: 404 when app not found for license", async () => {
-    // Create a license with a non-existent app
-    const { app: a } = await seedBuilderApp();
-    const issueRes = await issueLicense(a.id);
-    // Delete the app
-    await db.delete(apps).where(eq(apps.id, a.id));
-
-    const res = await app.handle(
-      new Request("http://localhost:3001/api/v1/metering/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          licenseKey: issueRes.license.licenseKey,
-          eventName: "test.event",
-          units: 1,
-        }),
-      })
-    );
-    expect(res.status).toBe(404);
-  });
-
-  it("POST /metering/events: 400 when metering not enabled", async () => {
-    const { app: a } = await seedBuilderApp();
-    const issueRes = await issueLicense(a.id);
-    // App has no meteringConfig by default
-    const res = await app.handle(
-      new Request("http://localhost:3001/api/v1/metering/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          licenseKey: issueRes.license.licenseKey,
-          eventName: "test.event",
-          units: 1,
-        }),
-      })
-    );
-    expect(res.status).toBe(400);
-  });
-
-  it("POST /metering/events: 402 when insufficient credits", async () => {
-    const { app: a, appApiKey } = await seedBuilderApp();
-    // Enable metering on the app
-    await db
-      .update(apps)
-      .set({ meteringConfig: { enabled: true, unitPrice: 10, unitLabel: "unit" } as any })
-      .where(eq(apps.id, a.id));
-    const issueRes = await issueLicense(a.id);
-
-    const res = await app.handle(
-      new Request("http://localhost:3001/api/v1/metering/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": appApiKey },
-        body: JSON.stringify({
-          licenseKey: issueRes.license.licenseKey,
-          eventName: "test.event",
-          units: 100,
-        }),
-      })
-    );
-    expect(res.status).toBe(402);
-  });
-
-  it("GET /metering/stats: unauthorized returns 401", async () => {
-    const res = await app.handle(new Request("http://localhost:3001/api/v1/metering/stats"));
-    expect(res.status).toBe(401);
-  });
-
-  it("GET /metering/stats: authenticated returns stats", async () => {
-    const res = await app.handle(
-      new Request("http://localhost:3001/api/v1/metering/stats", {
-        headers: { cookie: authCookie },
-      })
-    );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as any;
-    expect(body.success).toBe(true);
-    expect(typeof body.totalEvents).toBe("number");
   });
 });
 

@@ -1,5 +1,5 @@
 /**
- * Label Indonesia resmi untuk seluruh event lifecycle webhook lisensi & metering
+ * Label Indonesia resmi untuk seluruh event lifecycle webhook lisensi
  */
 export const WEBHOOK_EVENT_LABELS: Record<string, string> = {
   "license.issued": "License Diterbitkan",
@@ -11,7 +11,6 @@ export const WEBHOOK_EVENT_LABELS: Record<string, string> = {
   "license.renewed": "License Diperpanjang",
   "license.transferred": "License Dipindah",
   "license.unbound": "Hardware Unbound",
-  "credits.insufficient": "Kredit Tidak Cukup",
 };
 
 /**

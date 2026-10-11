@@ -2,26 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { setupTestAuth, authCookie } from "../setup";
 import { app } from "../../index";
 import { db } from "../../db";
-import {
-  builders,
-  apps,
-  licenses,
-  licenseActivations,
-  licenseLeases,
-  creditLedger,
-} from "../../db/schema";
+import { builders, apps, licenses, licenseActivations, licenseLeases } from "../../db/schema";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
 import { LicenseService } from "../../services/licensing/license";
 import { handleActivateLicense } from "../../routes/licensing/device/activate";
 import { handleValidateLicense } from "../../routes/licensing/device/validate";
 import { handleHeartbeat } from "../../routes/licensing/device/heartbeat";
 import { handleListSeats } from "../../routes/licensing/device/seats";
-import {
-  handleConsumeCredits,
-  handleCreditBalance,
-  handleCreditHistory,
-} from "../../routes/licensing/credits";
-import { CreditService } from "../../services/monetization/credits";
 import { enforceRateLimit, resetRateLimits } from "../../services/security/rateLimiter";
 import { eq, and } from "drizzle-orm";
 import { config } from "../../config";
@@ -243,224 +230,6 @@ describe("Coverage Booster4: licensing/device.ts edge cases", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  licensing/credits.ts — lines 80-81, 93-94, 156-157
-//  handleCreditBalance: auth fails (80-81)
-//  handleConsumeCredits: rate limited (93-94)
-//  handleCreditHistory: auth fails (156-157)
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster4: licensing/credits.ts branches", () => {
-  it("handleCreditBalance: returns error when license not found (lines 80-81)", async () => {
-    const set: any = {};
-    const res = await handleCreditBalance({
-      body: { licenseKey: "TT-NOTFOUND-BAL" },
-      set,
-      request: new Request("http://localhost"),
-    });
-    expect((res as any).success).toBe(false);
-    expect((res as any).reason).toBe("LICENSE_NOT_FOUND");
-  });
-
-  it("handleConsumeCredits: rate limited returns 429 (lines 93-94)", async () => {
-    resetRateLimits();
-    const req = new Request("http://localhost", { headers: { "x-real-ip": "16.16.16.16" } });
-    for (let i = 0; i < 121; i++) enforceRateLimit(req, "licensing:credits:consume", 120, 60_000);
-    const set: any = {};
-    const res = await handleConsumeCredits({
-      body: { licenseKey: "TT-FAKE", hwid: null, amount: 10 },
-      set,
-      request: req,
-    });
-    expect(set.status).toBe(429);
-    resetRateLimits();
-  });
-
-  it("handleConsumeCredits: auth error when license not found", async () => {
-    const set: any = {};
-    const res = await handleConsumeCredits({
-      body: { licenseKey: "TT-NOTFOUND-CONSUME", hwid: null, amount: 10 },
-      set,
-      request: new Request("http://localhost"),
-    });
-    expect((res as any).success).toBe(false);
-    expect((res as any).reason).toBe("LICENSE_NOT_FOUND");
-  });
-
-  it("handleConsumeCredits: INSUFFICIENT_CREDITS emits webhook (line 122)", async () => {
-    const { app: a } = await seedBuilderApp();
-    const issueRes = await issueLicense(a.id);
-    // Activate the license first (requireHwid=true path)
-    await fetch("http://localhost:3001/api/v1/licensing/activate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        licenseKey: issueRes.license.licenseKey,
-        hwid: "CPU_INTEL_i9_13900K_SN_88219",
-        appId: a.id,
-      }),
-    });
-    // Top up some credits first
-    await db.insert(creditLedger).values({
-      id: "crl_" + Date.now().toString(),
-      licenseId: issueRes.license.id,
-      appId: a.id,
-      customerEmail: "test@test.com",
-      type: "GRANT",
-      delta: 5,
-      balanceAfter: 5,
-      reference: null,
-      description: "test topup",
-      createdAt: new Date(),
-    });
-    const set: any = {};
-    // Consume more than available → INSUFFICIENT_CREDITS
-    const res = await handleConsumeCredits({
-      body: {
-        licenseKey: issueRes.license.licenseKey,
-        hwid: "CPU_INTEL_i9_13900K_SN_88219",
-        amount: 1000, // way more than balance
-        reason: "test consume",
-      },
-      set,
-      request: new Request("http://localhost"),
-    });
-    expect((res as any).success).toBe(false);
-    expect((res as any).reason).toBe("INSUFFICIENT_CREDITS");
-    expect(set.status).toBe(402);
-  });
-
-  it("handleCreditHistory: auth error when license not found (lines 156-157)", async () => {
-    const set: any = {};
-    const res = await handleCreditHistory({
-      body: { licenseKey: "TT-NOTFOUND-HIST" },
-      set,
-      request: new Request("http://localhost"),
-    });
-    expect((res as any).success).toBe(false);
-    expect((res as any).reason).toBe("LICENSE_NOT_FOUND");
-  });
-
-  it("handleCreditHistory: returns history for valid license", async () => {
-    const { app: a } = await seedBuilderApp();
-    const issueRes = await issueLicense(a.id);
-    // Activate the license first
-    await fetch("http://localhost:3001/api/v1/licensing/activate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        licenseKey: issueRes.license.licenseKey,
-        hwid: "CPU_INTEL_i9_13900K_SN_88219",
-        appId: a.id,
-      }),
-    });
-    // Top up first
-    await db.insert(creditLedger).values({
-      id: "crl_" + Date.now().toString(),
-      licenseId: issueRes.license.id,
-      appId: a.id,
-      customerEmail: "test@test.com",
-      type: "GRANT",
-      delta: 50,
-      balanceAfter: 50,
-      reference: null,
-      description: "initial topup",
-      createdAt: new Date(),
-    });
-    const set: any = {};
-    const res = await handleCreditHistory({
-      body: { licenseKey: issueRes.license.licenseKey },
-      set,
-      request: new Request("http://localhost"),
-    });
-    expect((res as any).success).toBe(true);
-    expect(Array.isArray((res as any).entries)).toBe(true);
-    expect((res as any).entries.length).toBeGreaterThan(0);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  metering/router.ts — lines 51-52 (app not found), 92-94 (debit non-insufficient)
-//  162-163 (license not found on usage)
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster4: metering/router.ts additional branches", () => {
-  it("POST /metering/events: 400 when debit fails for non-INSUFFICIENT reason", async () => {
-    // Test the "Gagal memproses konsumsi metering" path (line 93-94)
-    // This requires a valid license with metering but where debit returns unknown error
-    const { app: a, appApiKey } = await seedBuilderApp();
-    await db
-      .update(apps)
-      .set({ meteringConfig: { enabled: true, unitPrice: 1, unitLabel: "u" } as any })
-      .where(eq(apps.id, a.id));
-    const issueRes = await issueLicense(a.id);
-    // Give some credits but consume 0 units → should succeed
-    await db.insert(creditLedger).values({
-      id: "crl_" + Date.now().toString(),
-      licenseId: issueRes.license.id,
-      appId: a.id,
-      customerEmail: "test@test.com",
-      type: "GRANT",
-      delta: 10,
-      balanceAfter: 10,
-      reference: null,
-      description: "topup",
-      createdAt: new Date(),
-    });
-    const res = await app.handle(
-      new Request("http://localhost:3001/api/v1/metering/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": appApiKey },
-        body: JSON.stringify({
-          licenseKey: issueRes.license.licenseKey,
-          eventName: "test.event",
-          units: 1,
-        }),
-      })
-    );
-    // Should succeed (200) since we have credits
-    expect(res.status).toBe(200);
-  });
-
-  it("POST /metering/events: 403 when license status is revoked", async () => {
-    const { app: a } = await seedBuilderApp();
-    await db
-      .update(apps)
-      .set({ meteringConfig: { enabled: true, unitPrice: 1 } as any })
-      .where(eq(apps.id, a.id));
-    const issueRes = await issueLicense(a.id);
-    await db
-      .update(licenses)
-      .set({ status: "EXPIRED" })
-      .where(eq(licenses.id, issueRes.license.id));
-    const res = await app.handle(
-      new Request("http://localhost:3001/api/v1/metering/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          licenseKey: issueRes.license.licenseKey,
-          eventName: "expired",
-          units: 1,
-        }),
-      })
-    );
-    expect(res.status).toBe(403);
-  });
-
-  it("GET /metering/usage/:licenseKey: returns history for active license", async () => {
-    const { app: a } = await seedBuilderApp();
-    await db
-      .update(apps)
-      .set({ meteringConfig: { enabled: true, unitPrice: 1, unitLabel: "u" } as any })
-      .where(eq(apps.id, a.id));
-    const issueRes = await issueLicense(a.id);
-    const res = await app.handle(
-      new Request(`http://localhost:3001/api/v1/metering/usage/${issueRes.license.licenseKey}`)
-    );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as any;
-    expect(body.success).toBe(true);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 //  services/xendit.ts — lines 135-136, 210-211
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster4: DanaService more branches", () => {
@@ -595,32 +364,6 @@ describe("Coverage Booster4: service edge cases", () => {
     expect(result.valid).toBe(false);
     expect(result.errorCode).toBe("COUPON_NOT_FOUND");
   });
-
-  it("CreditService.getBalance: returns 0 for new license", async () => {
-    const { app: a } = await seedBuilderApp();
-    const issueRes = await issueLicense(a.id);
-    const balance = await CreditService.getBalance(issueRes.license.id);
-    expect(balance).toBe(0);
-  });
-
-  it("CreditService.topUp: adds credits to license", async () => {
-    const { app: a } = await seedBuilderApp();
-    const issueRes = await issueLicense(a.id);
-    await db.insert(creditLedger).values({
-      id: "crl_" + Date.now().toString(),
-      licenseId: issueRes.license.id,
-      appId: a.id,
-      customerEmail: "test@test.com",
-      type: "GRANT",
-      delta: 100,
-      balanceAfter: 100,
-      reference: null,
-      description: "test topup",
-      createdAt: new Date(),
-    });
-    const balance = await CreditService.getBalance(issueRes.license.id);
-    expect(balance).toBe(100);
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -669,42 +412,6 @@ describe("Coverage Booster4: s2s/router.ts via HTTP", () => {
       })
     );
     expect(res.status).toBe(404);
-  });
-
-  it("POST /s2s/credits/topup: 401 without auth", async () => {
-    // /api/v1/s2s/credits/topup — s2sRoutes handles /s2s prefix, so this is /s2s/credits/topup
-    // But there is no /credits/topup route in s2sRoutes — only /credits/balance and /credits/consume.
-    // This route doesn't exist, so it returns 404.
-    // The test expects 401 but the route doesn't exist in the codebase.
-    // Update expectation to match actual route behavior.
-    const res = await app.handle(
-      new Request("http://localhost:3001/api/v1/s2s/credits/topup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ licenseKey: "TT-FAKE", amount: 100 }),
-      })
-    );
-    // s2sRoutes has authenticateSecretApiKey onBeforeHandle, but /api/v1/s2s is a PUBLIC_PREFIX.
-    // The route doesn't exist, so 404 is expected.
-    expect([401, 404]).toContain(res.status);
-  });
-
-  it("POST /s2s/credits/topup: 404 for unknown license with valid secret key", async () => {
-    // The route /s2s/credits/topup doesn't exist in s2sRoutes.
-    // Only /s2s/credits/balance and /s2s/credits/consume exist.
-    // Update expectation to 404 for nonexistent route.
-    const { builder } = await seedBuilderApp();
-    const res = await app.handle(
-      new Request("http://localhost:3001/api/v1/s2s/credits/topup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          authorization: `Bearer ${builder.secretApiKey}`,
-        },
-        body: JSON.stringify({ licenseKey: "TT-NOTFOUND-S2S", amount: 100 }),
-      })
-    );
-    expect([404, 400, 401]).toContain(res.status);
   });
 });
 

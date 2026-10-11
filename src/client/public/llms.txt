@@ -16,4 +16,3 @@
 
 1. **Merchant of Record (MoR):** Handles local Indonesian payments (instant dynamic QRIS, bank Virtual Accounts) and automatically generates compliant Indonesian tax invoices (PPN 11%). Software creators receive net 95% automated payouts to their bank accounts.
 2. **Universal Licensing Engine (@tertaut/sdk):** Offline-first cryptographic licensing using Ed25519 digital signatures. Supports 30-day offline validation, floating seat quotas, and salted Hardware ID device seat locking for Tauri, Electron, Flutter, C#, and SaaS apps.
-3. **AI Proxy Shield & Quota Metering:** Protects upstream AI provider API keys (OpenAI, Claude) inside AES-256 encrypted server vaults. Provides daily token caps, per-minute rate limiting (15 req/min), and real-time usage telemetry.

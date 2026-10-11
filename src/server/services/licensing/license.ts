@@ -4,7 +4,6 @@ import { licenses, apps, revokedTokens } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { LicenseTokenService } from "./licenseToken";
 import { EmailService } from "../notifications/email";
-import { CreditService } from "../monetization/credits";
 import { AuditService } from "../security/audit";
 import { WebhookService } from "../notifications/webhooks";
 import { config } from "../../config";
@@ -26,8 +25,6 @@ export interface IssueDirectLicenseParams {
   grantDays?: number;
   maxSeats?: number;
   platform?: "web" | "desktop" | "chrome_extension" | "android" | "general";
-  grantCredits?: number;
-  creditDescription?: string;
   features?: Record<string, any>;
   licenseVersion?: number;
   /** Pelaku penerbitan (untuk audit log). */
@@ -37,7 +34,6 @@ export interface IssueDirectLicenseParams {
 
 export interface IssueDirectLicenseResult {
   license: typeof licenses.$inferSelect;
-  creditBalance: number;
 }
 
 export interface RevokeLicenseParams {
@@ -198,7 +194,6 @@ export class LicenseService {
     const grantDays = params.grantDays ?? 30;
     const maxSeats = params.maxSeats ?? 3;
     const platform = params.platform ?? "general";
-    const grantCredits = params.grantCredits ?? 0;
 
     const licenseKey = LicenseService.generateLicenseKey();
     const expiresAt = new Date();
@@ -242,15 +237,6 @@ export class LicenseService {
       })
       .returning();
 
-    let creditBalance = 0;
-    if (grantCredits > 0) {
-      creditBalance = await CreditService.grant(
-        { licenseId, appId: params.appId, customerEmail: params.customerEmail },
-        grantCredits,
-        { description: params.creditDescription || "Penerbitan lisensi manual" }
-      );
-    }
-
     await EmailService.sendLicenseIssued({
       to: params.customerEmail,
       appName: app?.name || "Lisensi",
@@ -286,7 +272,6 @@ export class LicenseService {
         customerEmail: params.customerEmail,
         grantDays,
         maxSeats: newLic.maxSeats,
-        grantCredits,
         platform: newLic.platform,
         expiresAt: expiresAt.toISOString(),
       }
@@ -298,12 +283,11 @@ export class LicenseService {
       actorType: actor.type,
       actorId: actor.id,
       ipAddress: params.ipAddress,
-      payload: { customerEmail: params.customerEmail, grantDays, grantCredits, platform },
+      payload: { customerEmail: params.customerEmail, grantDays, platform },
     });
 
     return {
       license: newLic,
-      creditBalance,
     };
   }
 

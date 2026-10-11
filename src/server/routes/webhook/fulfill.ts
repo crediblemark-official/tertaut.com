@@ -3,7 +3,6 @@ import { transactions, licenses, apps } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { LicenseService } from "../../services/licensing/license";
 import { EmailService } from "../../services/notifications/email";
-import { CreditService } from "../../services/monetization/credits";
 import { WebhookService } from "../../services/notifications/webhooks";
 import { AuditService } from "../../services/security/audit";
 import { randomBytes } from "crypto";
@@ -96,8 +95,6 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
       let licenseKey: string | null = null;
       let licId: string | null = null;
       let generatedApiKey: string | undefined = undefined;
-      const grantedCredits = tx.grantCredits || 0;
-      let creditBalance = 0;
 
       if (shouldIssueLicense) {
         // Generate Universal License Key (Modul 3 Integration)
@@ -132,19 +129,6 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
           offlineJwtGraceToken: offlineToken,
           apiKey: generatedApiKey,
         });
-
-        // Tambahkan kredit lisensi (jika paket membawa grantCredits) ke ledger.
-        if (grantedCredits > 0) {
-          creditBalance = await CreditService.grant(
-            { licenseId: licId, appId: tx.appId, customerEmail: tx.customerEmail },
-            grantedCredits,
-            {
-              reference: tx.id,
-              description: `Pembelian paket (${tx.id})`,
-              executor: trx,
-            }
-          );
-        }
       }
 
       const maskedKey = licenseKey ? `${licenseKey.slice(0, 4)}****` : "N/A (SaaS Web)";
@@ -152,7 +136,7 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
 
       return {
         status: "success",
-        message: "Transaction verified and balance updated",
+        message: "Transaction verified and license issued",
         transactionId: tx.id,
         licenseKey,
         expiresAt: expiresAt.toISOString(),
@@ -160,8 +144,6 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         appId: tx.appId,
         apiKey: generatedApiKey,
         newlyFulfilled: true,
-        grantedCredits,
-        creditBalance,
       };
     });
 
@@ -207,7 +189,6 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
             paymentChannel,
             transactionId: tx.id,
             expiresAt: result.expiresAt,
-            grantCredits: result.grantedCredits || 0,
           }
         );
         await WebhookService.emit("license.issued", {
@@ -219,7 +200,6 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
             paymentChannel,
             transactionId: tx.id,
             expiresAt: result.expiresAt,
-            grantCredits: result.grantedCredits || 0,
           },
         });
       }

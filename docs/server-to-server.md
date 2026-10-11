@@ -29,8 +29,6 @@ Tanpa/`tt_secret_` salah → `401 { "error": "..." }`. Secret key didapat & diro
 | POST   | `/api/v1/s2s/licenses/recover`           | Pulihkan lisensi dari device hilang (reset seluruh seat) |
 | POST   | `/api/v1/s2s/licenses/transfer`          | Pindah kepemilikan lisensi ke customer lain              |
 | GET    | `/api/v1/s2s/licenses/events`            | Audit trail lisensi (event-sourced)                      |
-| GET    | `/api/v1/s2s/credits/balance`            | Saldo kredit lisensi                                     |
-| POST   | `/api/v1/s2s/credits/consume`            | Konsumsi kredit (idempoten, atomik)                      |
 | GET    | `/api/v1/s2s/webhooks`                   | Daftar webhook endpoint + event tersedia                 |
 | POST   | `/api/v1/s2s/webhooks`                   | Daftarkan webhook endpoint                               |
 | PATCH  | `/api/v1/s2s/webhooks/:id`               | Perbarui webhook endpoint                                |
@@ -113,8 +111,7 @@ curl -X POST https://tertaut.com/api/v1/s2s/licenses/issue \
     "customerEmail": "pembeli@example.com",
     "grantDays": 30,
     "maxSeats": 3,
-    "platform": "web",
-    "grantCredits": 100
+    "platform": "web"
   }'
 ```
 
@@ -129,12 +126,11 @@ curl -X POST https://tertaut.com/api/v1/s2s/licenses/issue \
     "status": "ACTIVE",
     "maxSeats": 3,
     "expiresAt": "2026-10-18T00:00:00.000Z"
-  },
-  "creditBalance": 100
+  }
 }
 ```
 
-- `grantDays` default 30, `maxSeats` default 3, `platform` default `general`, `grantCredits` default 0.
+- `grantDays` default 30, `maxSeats` default 3, `platform` default `general`.
 - Email lisensi otomatis ke `customerEmail`. Jika `deliveryConfig.apiAccess.enabled` di app, lisensi ikut membawa `apiKey` (`tt_cust_...`).
 - App bukan milik builder → `404`.
 
@@ -363,8 +359,7 @@ curl "https://tertaut.com/api/v1/s2s/webhooks" \
     "license.expired",
     "license.renewed",
     "license.transferred",
-    "license.unbound",
-    "credits.insufficient"
+    "license.unbound"
   ],
   "webhooks": [
     {
@@ -444,34 +439,6 @@ if (sig !== expected) return res.status(401).send("Invalid signature");
 
 **Pengiriman & retry:** outbox — maksimum 6 percobaan, backoff eksponensial (`30s`, `60s`, `120s`, ...), timeout HTTP 10 detik. Balas `2xx` untuk konfirmasi sukses; selain itu akan masuk antrean retry. Delivery yang telah melewati batas diberi status `FAILED`. Job beda proses dijalankan (daemon `start()`).
 
-## Metered Credits
-
-### Cek saldo
-
-```bash
-curl "https://tertaut.com/api/v1/s2s/credits/balance?licenseKey=TT-..." \
-  -H "Authorization: Bearer tt_secret_..."
-```
-
-```json
-{ "success": true, "licenseKey": "TT-...", "balance": 95 }
-```
-
-### Konsumsi
-
-```bash
-curl -X POST https://tertaut.com/api/v1/s2s/credits/consume \
-  -H "Authorization: Bearer tt_secret_..." -H "Content-Type: application/json" \
-  -d '{ "licenseKey": "TT-...", "amount": 5, "reference": "call-000123", "reason": "10x generate" }'
-```
-
-```json
-{ "success": true, "balance": 90, "consumed": 5 }
-```
-
-- **Idempoten terhadap `reference`**: retry yang sama → `consumed: 0`, saldo tidak berubah.
-- Saldo tidak bisa negatif: konsumsi berlebih → HTTP `409` `{ "success": false, "reason": "INSUFFICIENT_CREDITS", "balance": 5 }`.
-
 ## Otorisasi & Keamanan
 
 - Semua query di-scope ke **builder pemilik** secret key — key milik builder lain ditolak (`404`/`401`).
@@ -481,13 +448,12 @@ curl -X POST https://tertaut.com/api/v1/s2s/credits/consume \
 
 API Server-to-Server mengembalikan kode status HTTP standar:
 
-| HTTP Code          | Arti                                                   | Contoh Kasus                                                                                                             |
-| ------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `200 OK`           | Permintaan berhasil diproses.                          | Lisensi terbit, saldo didapatkan.                                                                                        |
-| `400 Bad Request`  | Payload atau parameter tidak valid.                    | Format email pembeli salah atau parameter wajib kosong.                                                                  |
-| `401 Unauthorized` | Autentikasi secret key gagal.                          | Header `Authorization: Bearer tt_secret_...` tidak disertakan atau key tidak valid/sudah dirotasi.                       |
-| `404 Not Found`    | Resource tidak ditemukan atau bukan milik builder.     | ID aplikasi (`appId`) atau kunci lisensi tidak ditemukan di bawah akun Anda.                                             |
-| `409 Conflict`     | Saldo kredit tidak mencukupi (_Insufficient Credits_). | Konsumsi kredit melebihi saldo aktif lisensi (`{ "success": false, "reason": "INSUFFICIENT_CREDITS", "balance": ... }`). |
+| HTTP Code          | Arti                                               | Contoh Kasus                                                                                       |
+| ------------------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `200 OK`           | Permintaan berhasil diproses.                      | Lisensi terbit, seat diperbarui.                                                                   |
+| `400 Bad Request`  | Payload atau parameter tidak valid.                | Format email pembeli salah atau parameter wajib kosong.                                            |
+| `401 Unauthorized` | Autentikasi secret key gagal.                      | Header `Authorization: Bearer tt_secret_...` tidak disertakan atau key tidak valid/sudah dirotasi. |
+| `404 Not Found`    | Resource tidak ditemukan atau bukan milik builder. | ID aplikasi (`appId`) atau kunci lisensi tidak ditemukan di bawah akun Anda.                       |
 
 ## Referensi Lengkap
 

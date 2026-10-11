@@ -14,10 +14,3 @@ export const BILLING_PERIOD_OPTIONS: BillingPeriodOption[] = [
   { id: "yearly", label: "Yearly" },
   { id: "custom", label: "Custom" },
 ];
-
-export const METERING_CALC_OPTIONS = [
-  { id: "count" as const, label: "Hitung", code: "count" },
-  { id: "sum" as const, label: "Jumlah", code: "sum" },
-  { id: "max" as const, label: "Maksimum", code: "max" },
-  { id: "unique" as const, label: "Nilai unik", code: "unique" },
-];

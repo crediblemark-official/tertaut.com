@@ -9,7 +9,6 @@ import {
 import { eq, and, inArray } from "drizzle-orm";
 import { LicenseService } from "../../../services/licensing/license";
 import { LicenseTokenService } from "../../../services/licensing/licenseToken";
-import { CreditService } from "../../../services/monetization/credits";
 import { resolveFloatingConfig } from "../../../services/licensing/licenseLease";
 import { enforceRateLimit } from "../../../services/security/rateLimiter";
 import { isVersionOlder } from "../../../lib/semver";
@@ -158,13 +157,10 @@ export async function handleVerifyLicense({ body, set, request }: DeviceVerifyCo
     }
   }
 
-  const credits = await CreditService.getBalance(lic.id);
-
   return {
     valid: true,
     status: "ACTIVE",
     gracePeriodRemainingDays,
-    credits,
     entitlements: lic.features || {},
     licenseVersion: lic.licenseVersion || 1,
     offlineGraceToken,

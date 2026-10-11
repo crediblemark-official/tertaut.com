@@ -9,7 +9,6 @@ import { badgeRoutes, widgetRoutes } from "./badge/router";
 import { launchRoutes } from "./launch";
 import { panelRoutes } from "./panel/router";
 import { couponRoutes } from "./coupons/router";
-import { meteringRoutes } from "./metering/router";
 import { s2sRoutes } from "./s2s/router";
 import { handleGetPublicAnnouncement } from "./panel/settings";
 import { authMiddleware, authenticate } from "../middleware/auth";
@@ -40,11 +39,8 @@ const PUBLIC_PREFIXES = [
   "/api/v1/licensing/deactivate",
   "/api/v1/licensing/heartbeat",
   "/api/v1/license/heartbeat",
-  "/api/v1/licensing/credits/",
   "/api/v1/licensing/api-key",
   "/api/v1/license/api-key",
-  "/api/v1/metering/events",
-  "/api/v1/metering/usage",
 ];
 
 export const apiV1Routes = new Elysia({ prefix: "/api/v1" })
@@ -67,7 +63,6 @@ export const apiV1Routes = new Elysia({ prefix: "/api/v1" })
   .use(launchRoutes)
   .use(panelRoutes)
   .use(couponRoutes)
-  .use(meteringRoutes)
   .use(s2sRoutes)
   .get("/announcement", handleGetPublicAnnouncement)
   .get("/og", ({ query, set }: any) => {

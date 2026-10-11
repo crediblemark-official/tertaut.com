@@ -202,7 +202,6 @@ describe("Multi-Payment Gateway Integration (DANA & Xendit)", () => {
       paymentStatus: "PENDING",
       disbursementStatus: "PENDING",
       grantDays: 365,
-      grantCredits: 100,
     });
 
     // Kirim webhook Xendit PAID
@@ -258,7 +257,6 @@ describe("Multi-Payment Gateway Integration (DANA & Xendit)", () => {
       paymentStatus: "PENDING",
       disbursementStatus: "PENDING",
       grantDays: 30,
-      grantCredits: 0,
       xenditExternalId: extId,
     });
 

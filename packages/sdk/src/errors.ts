@@ -52,13 +52,6 @@ export class HeartbeatLeaseError extends TertautError {
   }
 }
 
-export class InsufficientCreditsError extends TertautError {
-  constructor(message = "Saldo kredit lisensi tidak mencukupi.", details?: any) {
-    super(message, { code: "INSUFFICIENT_CREDITS", status: 402, details });
-    this.name = "InsufficientCreditsError";
-  }
-}
-
 export class VersionFloorError extends TertautError {
   constructor(message = "Versi aplikasi terlalu lama untuk lisensi ini.", minVersion?: string) {
     super(message, { code: "APP_VERSION_TOO_OLD", status: 403, details: { minVersion } });
@@ -146,8 +139,6 @@ export function createTertautError(
     case "LEASE_EXPIRED":
     case "LEASE_INVALID":
       return new HeartbeatLeaseError(msg, code, details);
-    case "INSUFFICIENT_CREDITS":
-      return new InsufficientCreditsError(msg, details);
     case "APP_VERSION_TOO_OLD":
       return new VersionFloorError(msg, payload?.minVersion);
     case "RATE_LIMITED":
@@ -157,7 +148,6 @@ export function createTertautError(
   }
 
   if (status === 429) return new TertautRateLimitError(msg, details);
-  if (status === 402) return new InsufficientCreditsError(msg, details);
 
   return new TertautError(msg, { code, status, details });
 }

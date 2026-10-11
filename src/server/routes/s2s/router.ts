@@ -16,7 +16,6 @@ import {
   handleS2SIssueBatch,
   handleS2SRevokeBatch,
 } from "./licenses";
-import { handleS2SCreditBalance, handleS2SCreditConsume } from "./credits";
 import {
   handleS2SListWebhooks,
   handleS2SCreateWebhook,
@@ -158,9 +157,6 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
           t.Literal("general"),
         ])
       ),
-      grantCredits: t.Optional(
-        t.Numeric({ default: 0, description: "Saldo kredit awal yang diberikan" })
-      ),
       features: t.Optional(
         t.Record(t.String(), t.Any(), { description: "Entitlements / feature flags kustom" })
       ),
@@ -195,48 +191,6 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
       responses: {
         200: { description: "Lisensi berhasil dicabut" },
         404: { description: "Lisensi tidak ditemukan" },
-      },
-    },
-  })
-
-  /**
-   * Cek saldo kredit lisensi milik builder
-   */
-  .get("/credits/balance", handleS2SCreditBalance, {
-    query: t.Object({ licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }) }),
-    detail: {
-      tags: ["S2S API"],
-      summary: "Saldo kredit lisensi",
-      description:
-        "Memeriksa sisa unit kredit aktif yang dimiliki lisensi tertentu dari sisi server.",
-      security: [{ BuilderSecretKey: [] }],
-      responses: {
-        200: { description: "Informasi saldo kredit lisensi" },
-      },
-    },
-  })
-
-  /**
-   * Konsumsi kredit lisensi milik builder (metering server-to-server, idempoten via reference)
-   */
-  .post("/credits/consume", handleS2SCreditConsume, {
-    body: t.Object({
-      licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }),
-      amount: t.Numeric({ description: "Jumlah unit kredit yang ingin didebit" }),
-      reference: t.Optional(
-        t.String({ description: "Idempotency key unik untuk mencegah duplikasi potongan" })
-      ),
-      reason: t.Optional(t.String({ description: "Alasan atau nama fitur yang dikonsumsi" })),
-    }),
-    detail: {
-      tags: ["S2S API"],
-      summary: "Konsumsi kredit lisensi",
-      description:
-        "Mendebit saldo kredit lisensi secara aman dan idempoten (anti saldo negatif) dari backend builder.",
-      security: [{ BuilderSecretKey: [] }],
-      responses: {
-        200: { description: "Kredit berhasil didebit" },
-        402: { description: "Saldo kredit tidak cukup" },
       },
     },
   })
@@ -360,7 +314,6 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
               t.Literal("general"),
             ])
           ),
-          grantCredits: t.Optional(t.Numeric({ default: 0 })),
           features: t.Optional(t.Record(t.String(), t.Any())),
         }),
         { description: "Maksimal 200 lisensi dalam satu batch" }

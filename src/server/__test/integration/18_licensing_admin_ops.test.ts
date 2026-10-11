@@ -69,7 +69,6 @@ describe("Licensing Admin Routes & Operations", () => {
         grantDays: 14,
         maxSeats: 3,
         platform: "desktop",
-        grantCredits: 250,
         features: { pro_export: true, cloud_sync: true },
       },
     });
@@ -77,7 +76,6 @@ describe("Licensing Admin Routes & Operations", () => {
     expect(issueRes.success).toBe(true);
     expect(issueRes.license).toBeDefined();
     expect(issueRes.license!.appId).toBe(testApp.id);
-    expect(issueRes.creditBalance).toBe(250);
 
     const issuedKey = issueRes.license!.licenseKey;
     const issuedApiKey = issueRes.license!.apiKey;
@@ -112,7 +110,6 @@ describe("Licensing Admin Routes & Operations", () => {
     const verifySuccess = await handleVerifyApiKey({ body: { apiKey: testApiKey }, set: {} });
     expect(verifySuccess.valid).toBe(true);
     expect(verifySuccess.customerEmail).toBe("admin_tester@tertaut.com");
-    expect(verifySuccess.credits).toBe(250);
 
     // 4. Renew License
     const renewMissing = await handleRenewLicense({ body: {}, set: {} });

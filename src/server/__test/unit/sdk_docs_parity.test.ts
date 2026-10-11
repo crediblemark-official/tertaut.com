@@ -33,17 +33,10 @@ const REQUIRED_DOCS: Array<{ label: string; needle: string }> = [
   { label: "licensing.verifyOfflineTokenOnline", needle: "verifyOfflineTokenOnline" },
   { label: "licensing.verifyApiKey", needle: "verifyApiKey" },
   { label: "licensing.getJwks", needle: "getJwks" },
-  // Kredit
-  { label: "credits.balance", needle: "credits.balance" },
-  { label: "credits.consume", needle: "credits.consume" },
-  { label: "credits.history", needle: "credits.history" },
-  { label: "credits.reportUsage", needle: "reportUsage" },
-  { label: "credits.getUsage", needle: "getUsage" },
   // S2S
   { label: "s2s.info", needle: "s2s.info" },
   { label: "s2s.apps", needle: "s2s.apps" },
   { label: "s2s.licenses", needle: "s2s.licenses" },
-  { label: "s2s.credits", needle: "s2s.credits" },
   { label: "s2s.webhooks", needle: "s2s.webhooks" },
   // Utilitas
   { label: "verifyWebhookSignature", needle: "verifyWebhookSignature" },
@@ -52,7 +45,6 @@ const REQUIRED_DOCS: Array<{ label: string; needle: string }> = [
   { label: "LicenseExpiredError", needle: "LicenseExpiredError" },
   { label: "SeatLimitExceededError", needle: "SeatLimitExceededError" },
   { label: "HeartbeatLeaseError", needle: "HeartbeatLeaseError" },
-  { label: "InsufficientCreditsError", needle: "InsufficientCreditsError" },
   { label: "VersionFloorError", needle: "VersionFloorError" },
   { label: "TertautRateLimitError", needle: "TertautRateLimitError" },
 ];

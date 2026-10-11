@@ -1,22 +1,14 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { KeyRound, Zap, Wifi, Sparkles, Plus, Trash2 } from "lucide-vue-next";
+import { KeyRound, Zap, Wifi } from "lucide-vue-next";
 import type { DeliveryConfig } from "../../types/app";
 
 const props = defineProps<{
   modelValue: DeliveryConfig;
-  meteringEnabled?: boolean;
-  meterName?: string;
-  meterAggregation?: string;
-  meteringUnitPrice?: string | number;
-  meteringMetricUnit?: string;
-  meteringFreeAllowance?: number;
 }>();
 
 const emit = defineEmits<{
   "update:modelValue": [val: DeliveryConfig];
-  openMeteringModal: [];
-  removeMetering: [];
 }>();
 
 // Reactive states for Developer Fulfillment
@@ -317,82 +309,6 @@ watch(
               placeholder="Authorization: Bearer <API_KEY>"
               class="w-full px-2.5 py-1.5 rounded-lg bg-white border border-jetblack/15 text-xs text-jetblack font-mono placeholder:text-jetblack/30 focus:outline-none focus:border-emerald-600"
             />
-          </div>
-
-          <!-- Biaya Berbasis Penggunaan (Metered Billing) Block -->
-          <div
-            class="mt-2.5 p-3 rounded-xl bg-gold/5 border border-gold/25 space-y-2.5 animate-fadeIn"
-          >
-            <div class="flex items-center justify-between">
-              <div>
-                <div class="flex items-center gap-1.5">
-                  <Sparkles class="w-3.5 h-3.5 text-gold" />
-                  <h4 class="text-xs font-bold text-jetblack">
-                    Biaya Berbasis Penggunaan (Metered Billing)
-                  </h4>
-                </div>
-                <p class="text-[10px] text-jetblack/60">
-                  Parameter batas pemakaian &amp; kuota kredit yang terhubung dengan SDK Tertaut.
-                </p>
-              </div>
-              <button
-                v-if="!meteringEnabled"
-                type="button"
-                @click="emit('openMeteringModal')"
-                class="px-2.5 py-1 rounded-lg btn-gold text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-2xs active:scale-95 shrink-0"
-              >
-                <Plus class="w-3 h-3 stroke-[3]" />
-                <span>Tambah Meter</span>
-              </button>
-            </div>
-
-            <div
-              v-if="meteringEnabled"
-              class="p-2.5 rounded-xl bg-white border border-gold/40 flex items-center justify-between shadow-2xs"
-            >
-              <div class="flex items-center gap-2.5">
-                <div
-                  class="w-7 h-7 rounded-lg bg-gold/15 text-[#8a6d1f] flex items-center justify-center shrink-0"
-                >
-                  <Zap class="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-jetblack">{{
-                      meterName || "Meter Kustom"
-                    }}</span>
-                    <code
-                      class="text-[10px] text-[#8a6d1f] bg-gold/10 px-1.5 py-0.5 rounded border border-gold/30 font-mono font-bold"
-                      >{{ meterAggregation }}</code
-                    >
-                  </div>
-                  <div class="text-[10px] text-jetblack/60 font-mono mt-0.5">
-                    Rp {{ meteringUnitPrice }} / {{ meteringMetricUnit }}
-                    <span
-                      v-if="meteringFreeAllowance"
-                      class="text-forest font-sans font-semibold ml-1.5"
-                      >({{ meteringFreeAllowance }} gratis/siklus)</span
-                    >
-                  </div>
-                </div>
-              </div>
-              <div class="flex items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
-                  @click="emit('openMeteringModal')"
-                  class="text-xs font-bold text-jetblack/70 hover:text-jetblack transition cursor-pointer px-2 py-0.5 rounded-md bg-jetblack/5 hover:bg-jetblack/10"
-                >
-                  Ubah
-                </button>
-                <button
-                  type="button"
-                  @click="emit('removeMetering')"
-                  class="text-jetblack/40 hover:text-red-600 transition cursor-pointer p-1"
-                >
-                  <Trash2 class="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>

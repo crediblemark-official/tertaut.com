@@ -6,7 +6,6 @@ import { handleValidateLicense } from "./device/validate";
 import { handleUnbindHardware } from "./device/unbind";
 import { handleHeartbeat } from "./device/heartbeat";
 import { handleListSeats } from "./device/seats";
-import { handleCreditBalance, handleConsumeCredits, handleCreditHistory } from "./credits";
 import { handleVerifyOfflineToken } from "./token";
 import {
   handleListLicenses,
@@ -163,86 +162,6 @@ export function createLicensingRouter(prefix: string) {
       })
 
       /**
-       * Saldo kredit lisensi (ledger).
-       */
-      .post("/credits/balance", handleCreditBalance, {
-        body: t.Object({
-          licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }),
-          hwid: t.Optional(
-            t.String({ description: "Hardware ID perangkat untuk verifikasi seat" })
-          ),
-        }),
-        detail: {
-          tags: ["Credits"],
-          summary: "Get License Credit Balance",
-          description:
-            "Mengambil sisa saldo kredit aktif yang dimiliki lisensi. Digunakan untuk aplikasi dengan model bisnis berbasis pemakaian (metered/usage-based credits).",
-          responses: {
-            200: {
-              description: "Informasi saldo kredit dan kuota terpakai",
-            },
-            404: {
-              description: "Lisensi tidak ditemukan atau tidak aktif",
-            },
-          },
-        },
-      })
-
-      /**
-       * Pemakaian kredit oleh aplikasi (atomik, anti saldo negatif).
-       */
-      .post("/credits/consume", handleConsumeCredits, {
-        body: t.Object({
-          licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }),
-          hwid: t.String({ description: "Hardware ID perangkat pengonsumsi" }),
-          amount: t.Number({ minimum: 1, description: "Jumlah unit kredit yang ingin dikonsumsi" }),
-          reason: t.Optional(t.String({ description: "Deskripsi pemakaian (mis. export_pdf_hd)" })),
-          reference: t.Optional(
-            t.String({ description: "Idempotency key unik untuk mencegah double-debit" })
-          ),
-        }),
-        detail: {
-          tags: ["Credits"],
-          summary: "Consume License Credits",
-          description:
-            "Mengurangi saldo kredit lisensi secara atomik (database lock) dengan pencegahan saldo negatif dan dukungan idempotensi via reference key.",
-          responses: {
-            200: {
-              description: "Kredit berhasil didebit atau permintaan idempoten sebelumnya ditemukan",
-            },
-            402: {
-              description: "Saldo kredit tidak mencukupi (INSUFFICIENT_CREDITS)",
-            },
-            404: {
-              description: "Lisensi tidak ditemukan",
-            },
-          },
-        },
-      })
-
-      /**
-       * Riwayat ledger kredit lisensi.
-       */
-      .post("/credits/history", handleCreditHistory, {
-        body: t.Object({
-          licenseKey: t.String({ description: "Kunci lisensi (TT-...)" }),
-          hwid: t.Optional(t.String({ description: "Hardware ID perangkat" })),
-          limit: t.Optional(t.Number({ minimum: 1, maximum: 200, default: 50 })),
-        }),
-        detail: {
-          tags: ["Credits"],
-          summary: "License Credit Ledger History",
-          description:
-            "Audit trail mutasi kredit lisensi: riwayat penambahan (top-up/pembelian) dan pengurangan kredit (konsumsi).",
-          responses: {
-            200: {
-              description: "Daftar entri ledger mutasi kredit",
-            },
-          },
-        },
-      })
-
-      /**
        * Legacy / SDK Generic License Validation
        */
       .post("/validate", handleValidateLicense, {
@@ -333,7 +252,6 @@ export function createLicensingRouter(prefix: string) {
           customerEmail: t.String(),
           grantDays: t.Optional(t.Number({ default: 30 })),
           maxSeats: t.Optional(t.Number({ default: 3 })),
-          grantCredits: t.Optional(t.Number({ default: 0 })),
           platform: t.Optional(
             t.Union([
               t.Literal("web"),

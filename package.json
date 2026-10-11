@@ -3,7 +3,7 @@
   "version": "2.2.3",
   "private": true,
   "type": "module",
-  "description": "Headless Developer Infrastructure Engine (Monetization, Licensing, Metering, Validation & Launch Kit)",
+  "description": "Headless Developer Infrastructure Engine (Monetization, Universal Licensing, Validation & Launch Kit)",
   "scripts": {
     "dev": "concurrently -k -n \"SERVER,CLIENT,DOCS\" -c \"cyan,yellow,green\" \"bun run dev:server\" \"bun run dev:client\" \"bun run dev:docs\"",
     "dev:server": "bun --watch src/server/index.ts",

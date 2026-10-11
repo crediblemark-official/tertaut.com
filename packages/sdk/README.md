@@ -2,7 +2,7 @@
 
 SDK ringan (**~16 KB minified, ~5 KB gzipped, zero dependency**) untuk
 [tertaut.com](https://tertaut.com): checkout Merchant-of-Record (MoR), pembayaran dinamis S2S,
-lisensi universal multi-platform, dan metered credits.
+dan lisensi universal multi-platform.
 
 Berjalan di Browser, Chrome Extension, Desktop (Tauri/Electron), Node.js, Bun, dan React Native.
 
@@ -50,9 +50,6 @@ const { checkoutUrl, transactionId, ticket } = await tertaut.checkout({
 const status = await tertaut.getPaymentStatus(transactionId, ticket);
 ```
 
-> Kredit gratis saat checkout ditentukan **produk** (`meteringConfig.freeAllowance`),
-> bukan oleh klien. Server mengabaikan nilai kredit yang dikirim klien.
-
 ### Lisensi
 
 ```ts
@@ -95,20 +92,6 @@ const fresh = await tertaut.licensing.verifyOfflineTokenOnline(licenseToken);
 > secara berkala — setiap validasi online **merotasi** token, jadi simpan
 > `offlineGraceToken` terbaru.
 
-### Kredit
-
-```ts
-await tertaut.credits.balance({ licenseKey, hwid });
-await tertaut.credits.consume({ licenseKey, hwid, amount: 10, reason: "10x generate" });
-const { entries } = await tertaut.credits.history({ licenseKey, limit: 20 });
-
-// Metered usage per kejadian
-await tertaut.credits.reportUsage({ licenseKey, hwid, eventName: "pdf_export", units: 3 });
-const usage = await tertaut.credits.getUsage(licenseKey);
-```
-
-Konsumsi bersifat atomik dan mendukung `reference` untuk idempotensi.
-
 ## Penanganan error
 
 Semua metode melempar subclass `TertautError` untuk HTTP `>= 400`:
@@ -122,14 +105,13 @@ try {
   if (err instanceof SeatLimitExceededError) return showSeatFull();
   if (err instanceof VersionFloorError) return promptUpgrade(err.details.minVersion);
   if (err instanceof TertautRateLimitError) return retryAfter(err.retryAfter);
-  if (err instanceof InsufficientCreditsError) return showTopUpPrompt();
   throw err;
 }
 ```
 
 Kelas yang tersedia: `TertautError` (base), `LicenseExpiredError`,
 `LicenseRevokedError`, `SeatLimitExceededError`, `HeartbeatLeaseError`,
-`InsufficientCreditsError`, `VersionFloorError`, `TertautRateLimitError`.
+`VersionFloorError`, `TertautRateLimitError`.
 
 Respons `2xx` dengan `valid:false` / `success:false` **tidak** dilempar — itu
 jawaban bisnis yang sah. Periksa `result.valid` seperti biasa.
@@ -143,7 +125,7 @@ jawaban bisnis yang sah. Periksa `result.valid` seperti biasa.
 | `getPaymentStatus(txId, ticket?)`                  | Cek status transaksi pembayaran MoR dengan atau tanpa HMAC ticket                     |
 | `licensing.activate`                               | Aktivasi perangkat, sewakan seat bila lisensi floating                                |
 | `licensing.validate`                               | Validasi online + rotasi offline token                                                |
-| `licensing.verify`                                 | Verifikasi cepat: status, sisa grace period, saldo kredit, entitlements               |
+| `licensing.verify`                                 | Verifikasi cepat: status, sisa grace period, entitlements                             |
 | `licensing.verify` / `licensing.entitlements(...)` | Ambil feature flags, entitlements & helper `hasFeature`/`getFeature`                  |
 | `licensing.deactivate`                             | Lepaskan seat perangkat                                                               |
 | `licensing.heartbeat`                              | Perpanjang lease floating (rolling seat) manual                                       |
@@ -153,10 +135,7 @@ jawaban bisnis yang sah. Periksa `result.valid` seperti biasa.
 | `licensing.verifyOfflineTokenOnline`               | Verifikasi token via server: cek JTI denylist & status lisensi terkini                |
 | `licensing.verifyApiKey`                           | Verifikasi customer API key (`tt_cust_…`) yang terbit saat checkout                   |
 | `licensing.getJwks`                                | Ambil public key Ed25519 dalam format JWKS                                            |
-| `credits.balance / consume / history`              | Saldo & pemakaian kredit lisensi (konsumsi idempoten)                                 |
-| `credits.reportUsage`                              | Kirim event konsumsi kredit terukur (metered usage event)                             |
-| `credits.getUsage`                                 | Ambil ringkasan penggunaan metered billing untuk lisensi                              |
-| `s2s.*`                                            | Server-to-Server Admin API (apps, licenses, seats, webhooks, credits)                 |
+| `s2s.*`                                            | Server-to-Server Admin API (apps, licenses, seats, webhooks)                          |
 | `Tertaut.verifyWebhookSignature`                   | Verifikasi HMAC-SHA256 webhook (constant-time, Web Crypto)                            |
 
 ## Contoh Penggunaan Fitur Komprehensif
@@ -199,9 +178,6 @@ const { license } = await admin.s2s.licenses.issue({
 await admin.s2s.licenses.seats(license.licenseKey);
 await admin.s2s.licenses.releaseSeat({ licenseKey, hwid });
 
-await admin.s2s.credits.balance(licenseKey);
-await admin.s2s.credits.consume({ licenseKey, amount: 10, reference: "job-001" });
-
 await admin.s2s.webhooks.list();
 const wh = await admin.s2s.webhooks.create({ url: "https://app.example.com/hooks" });
 await admin.s2s.webhooks.rotateSecret(wh.webhook.id);
@@ -223,7 +199,6 @@ SDK diorganisir secara modular di bawah `src/` dengan standar Web Crypto zero-de
 - `errors.ts`: Typed custom error classes (`TertautError`, `LicenseExpiredError`, `HeartbeatLeaseError`, dll) + normalisasi envelope error server.
 - `modules/checkout.ts`: MoR checkout engine.
 - `modules/licensing.ts`: Universal licensing & floating lease manager.
-- `modules/credits.ts`: Saldo, ledger & metered usage.
 - `modules/s2s.ts`: Server-to-Server Admin API & Webhooks.
 - `utils/crypto.ts`: Web Crypto Ed25519 & HMAC-SHA256 (constant-time).
 - `utils/semver.ts`: Semver version comparison untuk version floor.

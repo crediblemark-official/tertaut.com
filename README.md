@@ -34,7 +34,7 @@ Sistem lisensi tertaut.com dilengkapi kapabilitas kelas enterprise:
    - Endpoint `POST /licensing/heartbeat` berkala dari client untuk memperpanjang masa sewa aktif.
    - Otomatis melepas seat yang ditinggalkan (_seat rolling_) sehingga dapat dipakai perangkat lain tanpa lockout.
 4. **F3 — Webhooks Lifecycle & Reliable Delivery**:
-   - Notifikasi realtime untuk 10 siklus lisensi (`issued`, `activated`, `deactivated`, `seat_full`, `revoked`, `expired`, `renewed`, `transferred`, `unbound`, `credits.insufficient`).
+   - Notifikasi realtime untuk 9 siklus lisensi (`issued`, `activated`, `deactivated`, `seat_full`, `revoked`, `expired`, `renewed`, `transferred`, `unbound`).
    - Pengiriman berbasis tabel outbox, retry backoff eksponensial (maks 6 kali), dan verifikasi integritas HMAC-SHA256 (`x-tertaut-signature`).
    - Manajemen endpoint, rotasi secret, dan test ping delivery langsung via Dashboard dan S2S API.
 5. **F4 — Audit Log Event-Sourced**:
@@ -105,7 +105,7 @@ tertautv2/
 │
 └── packages/
     └── sdk/                   # @tertaut/sdk (< 7KB lightweight client library)
-        ├── src/index.ts       # Unified Tertaut SDK (checkout, licensing, credits, aiProxy)
+        ├── src/index.ts       # Unified Tertaut SDK (checkout, licensing, s2s)
         └── package.json       # Build scripts
 ```
 

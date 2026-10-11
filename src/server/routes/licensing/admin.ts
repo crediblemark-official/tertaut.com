@@ -10,7 +10,6 @@ import {
 import { eq, inArray, and, sql, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { LicenseService } from "../../services/licensing/license";
-import { CreditService } from "../../services/monetization/credits";
 import { AuditService } from "../../services/security/audit";
 import { WebhookService, WEBHOOK_EVENTS } from "../../services/notifications/webhooks";
 import { resolveCurrentBuilder } from "../apps/builder";
@@ -37,7 +36,6 @@ interface IssueLicenseBody {
   grantDays?: number;
   maxSeats?: number;
   platform?: "web" | "desktop" | "chrome_extension" | "android" | "general";
-  grantCredits?: number;
   features?: Record<string, any>;
 }
 
@@ -195,9 +193,7 @@ export async function handleIssueLicense({
     grantDays: body.grantDays,
     maxSeats: body.maxSeats,
     platform: body.platform,
-    grantCredits: body.grantCredits,
     features: body.features,
-    creditDescription: "Penerbitan lisensi manual",
     actor: isAdmin
       ? { type: "ADMIN", id: builder?.id ?? "platform-admin" }
       : { type: "BUILDER", id: builder?.id },
@@ -207,7 +203,6 @@ export async function handleIssueLicense({
   return {
     success: true,
     license: result.license,
-    creditBalance: result.creditBalance,
   };
 }
 
@@ -281,7 +276,6 @@ export async function handleVerifyApiKey({
 
   const expired = lic.expiresAt ? new Date(lic.expiresAt).getTime() < Date.now() : false;
   const valid = lic.status === "ACTIVE" && !expired;
-  const credits = valid ? await CreditService.getBalance(lic.id) : 0;
 
   return {
     success: true,
@@ -290,7 +284,6 @@ export async function handleVerifyApiKey({
     appId: lic.appId,
     customerEmail: lic.customerEmail,
     expiresAt: lic.expiresAt,
-    credits,
   };
 }
 

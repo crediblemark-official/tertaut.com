@@ -15,18 +15,10 @@ import { describe, it, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import { setupTestAuth } from "../setup";
 import { app } from "../../index";
 import { db } from "../../db";
-import {
-  builders,
-  apps,
-  licenses,
-  transactions,
-  licenseLeases,
-  creditLedger,
-} from "../../db/schema";
+import { builders, apps, licenses, transactions, licenseLeases } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { LicenseService } from "../../services/licensing/license";
 import { LicenseTokenService } from "../../services/licensing/licenseToken";
-import { CreditService } from "../../services/monetization/credits";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
 import { handleActivateLicense } from "../../routes/licensing/device/activate";
 import { handleValidateLicense } from "../../routes/licensing/device/validate";
@@ -121,72 +113,13 @@ describe("Regression #1: /checkout/session tidak lagi menerima grantCredits dari
         }),
       })
     );
-    // Elysia menolak field di luar skema → 422; jika lolos skema juga tidak fatal
-    // karena handler mengabaikan body.grantCredits dan memakai meteringConfig.
+    // Elysia menolak field di luar skema → 422; jika 200, field grantCredits diabaikan
     if (res.status === 200) {
       const data: any = await res.json();
-      expect(data.grantCredits ?? 0).toBeLessThanOrEqual(0);
+      expect(data.grantCredits).toBeUndefined();
     } else {
       expect([400, 422]).toContain(res.status);
     }
-  });
-
-  it("grantCredits transaksi diambil dari meteringConfig.freeAllowance produk, bukan body", async () => {
-    const allowance = 777;
-    const { app: a } = await seedBuilderApp();
-    await db
-      .update(apps)
-      .set({
-        meteringConfig: {
-          enabled: true,
-          template: "api_calls",
-          name: "calls",
-          aggregation: "sum",
-          freeAllowance: allowance,
-        } as any,
-      })
-      .where(eq(apps.id, a.id));
-
-    const res = await app.handle(
-      new Request(`${BASE}/api/v1/checkout/session`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          appId: a.id,
-          customerEmail: `buyer_${suffix()}@test.com`,
-          amount: 50000,
-        }),
-      })
-    );
-    expect(res.status).toBe(200);
-    const sessionId = (await res.json()).transactionId as string;
-
-    const tx = await db.query.transactions.findFirst({ where: eq(transactions.id, sessionId) });
-    expect(tx).toBeDefined();
-    expect(tx!.grantCredits).toBe(allowance);
-  });
-
-  it("produk tanpa meteringConfig → grantCredits 0 walau client mengirim nilai besar", async () => {
-    const { app: a } = await seedBuilderApp();
-    // Kirim langsung ke handler dengan body mentah (bypass schema) untuk membuktikan
-    // handler sama sekali tidak membaca body.grantCredits lagi.
-    const mod = await import("../../routes/checkout/session");
-    const set: any = {};
-    const res: any = await mod.handleCreateSession({
-      request: new Request(`${BASE}/api/v1/checkout/session`),
-      body: {
-        appId: a.id,
-        customerEmail: `buyer_${suffix()}@test.com`,
-        amount: 50000,
-        grantCredits: 5_000_000,
-      },
-      set,
-    });
-    expect(res.success).toBe(true);
-    const tx = await db.query.transactions.findFirst({
-      where: eq(transactions.id, res.transactionId),
-    });
-    expect(tx!.grantCredits).toBe(0);
   });
 });
 
@@ -494,7 +427,7 @@ describe("Regression #7: acquire() dengan lookupHashes mengenali lease legacy (t
 // Bug #8: fulfillment pembayaran menerbitkan lisensi lengkap
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Regression #8: fulfillment pembayaran menerbitkan lisensi lengkap", () => {
-  it("offline token, features, dan grantCredits sesuai konfigurasi produk", async () => {
+  it("offline token, features, dan apiAccess sesuai konfigurasi produk", async () => {
     const { builder, app: a } = await seedBuilderApp({
       licenseKey: {
         enabled: true,
@@ -504,24 +437,11 @@ describe("Regression #8: fulfillment pembayaran menerbitkan lisensi lengkap", ()
       },
       apiAccess: { enabled: true },
     });
-    await db
-      .update(apps)
-      .set({
-        meteringConfig: {
-          enabled: true,
-          template: "api_calls",
-          name: "calls",
-          aggregation: "sum",
-          freeAllowance: 250,
-        } as any,
-      })
-      .where(eq(apps.id, a.id));
 
-    const tx = await createTx(builder.id, a.id, { grantCredits: 250 });
+    const tx = await createTx(builder.id, a.id);
     const res: any = await fulfillPaymentTransaction(tx);
 
     expect(res.status).toBe("success");
-    expect(res.creditBalance).toBe(250);
 
     const lic = await db.query.licenses.findFirst({ where: eq(licenses.transactionId, tx.id) });
     expect(lic).toBeDefined();
@@ -530,12 +450,6 @@ describe("Regression #8: fulfillment pembayaran menerbitkan lisensi lengkap", ()
     expect(lic!.features).toEqual({ tier: "pro" });
     expect(lic!.maxSeats).toBe(5);
     expect(lic!.apiKey).toMatch(/^tt_cust_/);
-
-    const ledger = await db.query.creditLedger.findMany({
-      where: eq(creditLedger.licenseId, lic!.id),
-    });
-    expect(ledger.length).toBe(1);
-    expect(ledger[0].delta).toBe(250);
   });
 
   it("tetap idempotent untuk transaksi yang sudah PAID", async () => {

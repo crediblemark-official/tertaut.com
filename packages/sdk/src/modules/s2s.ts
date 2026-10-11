@@ -114,18 +114,6 @@ export class S2SModule {
     },
   };
 
-  /** Operasi Saldo & Kredit S2S. */
-  public credits = {
-    balance: async (licenseKey: string): Promise<any> =>
-      this.get(`/api/v1/s2s/credits/balance?licenseKey=${enc(licenseKey)}`),
-    consume: async (options: {
-      licenseKey: string;
-      amount: number;
-      reference?: string;
-      reason?: string;
-    }): Promise<any> => this.post("/api/v1/s2s/credits/consume", options),
-  };
-
   /** Manajemen Webhooks Lifecycle S2S. */
   public webhooks = {
     list: async (): Promise<any> => this.get("/api/v1/s2s/webhooks"),

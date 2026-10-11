@@ -45,7 +45,6 @@ const appBodySchema = t.Object({
   ),
   trialPeriodDays: t.Optional(t.Union([t.Number(), t.Null()])),
   deliveryConfig: t.Optional(t.Any()),
-  meteringConfig: t.Optional(t.Any()),
   description: t.Optional(t.Union([t.String(), t.Null()])),
   headline: t.Optional(t.Union([t.String(), t.Null()])),
   subheadline: t.Optional(t.Union([t.String(), t.Null()])),
