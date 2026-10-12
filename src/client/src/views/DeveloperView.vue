@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { dashboardEnv, envPath } from "../lib/environment";
 import { useClipboard } from "../composables/useClipboard";
 import { useConfirm } from "../composables/useConfirm";
+import { formatRupiah } from "../lib/utils";
 import type { AppItem } from "../types/app";
 import {
   KeyRound,
@@ -152,17 +153,17 @@ async function loadDeliveries() {
   }
 }
 
+async function refreshAll() {
+  await Promise.all([loadBuilderData(), loadWebhooks(), loadDeliveries()]);
+}
+
 onMounted(() => {
-  loadBuilderData();
-  loadWebhooks();
-  loadDeliveries();
+  refreshAll();
 });
 
 watch(env, () => {
   selectedAppId.value = "";
-  loadBuilderData();
-  loadWebhooks();
-  loadDeliveries();
+  refreshAll();
 });
 
 async function handleRotateSecret() {
@@ -463,14 +464,14 @@ export function handleTertautWebhook(req, res) {
 </script>
 
 <template>
-  <div class="animate-fadeIn pb-16 max-w-6xl mx-auto space-y-6">
+  <div class="animate-fadeIn pb-12">
     <!-- Feedback Toast -->
     <div
       v-if="feedback"
       class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 text-xs font-semibold rounded-xl shadow-xl transition-all"
-      :class="feedback.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'"
+      :class="feedback.type === 'success' ? 'bg-forest text-white' : 'bg-crimson text-white'"
     >
-      <CheckCircle2 v-if="feedback.type === 'success'" class="w-4 h-4 shrink-0" />
+      <CheckCircle2 v-if="feedback.type === 'success'" class="w-4 h-4 shrink-0 text-gold" />
       <AlertTriangle v-else class="w-4 h-4 shrink-0" />
       <span>{{ feedback.text }}</span>
       <button
@@ -482,79 +483,95 @@ export function handleTertautWebhook(req, res) {
       </button>
     </div>
 
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      <div>
-        <div class="flex items-center gap-2 mb-1.5">
-          <div
-            class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-forest/10 border border-forest/20 text-forest text-[11px] font-bold"
-          >
-            <Terminal class="w-3 h-3 text-forest" />
-            <span>Developer Portal &amp; API Kredensial</span>
-          </div>
-          <span
-            class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
-            :class="
-              env === 'sandbox'
-                ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-            "
-          >
-            {{ env }} Mode
-          </span>
+    <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
+    <div class="view-toolbar">
+      <!-- Sisi Kiri: Badge Judul & Mode -->
+      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <div
+          class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-white/20 text-white shadow-2xs shrink-0"
+        >
+          <Terminal class="w-3.5 h-3.5 text-gold" />
+          <span>Developer Portal</span>
         </div>
-        <h1 class="text-xl md:text-2xl font-extrabold text-jetblack font-mono tracking-tight">
-          Pusat Pengembang &amp; Integrasi API
-        </h1>
-        <p class="text-xs text-jetblack/60 mt-0.5 max-w-2xl">
-          Kelola seluruh kredensial SaaS Anda (App ID, Secret Key S2S, Publishable Key), endpoint
-          webhook, serta panduan integrasi sistem di satu tempat.
-        </p>
+        <span
+          class="px-2 py-0.5 rounded-md font-bold text-[10px] shrink-0"
+          :class="env === 'sandbox' ? 'bg-gold text-jetblack' : 'bg-forest text-white'"
+        >
+          {{ env === "sandbox" ? "Sandbox Mode" : "Live Mode" }}
+        </span>
+        <span
+          v-if="endpoints.length > 0"
+          class="text-[10px] px-2 py-0.5 rounded-md bg-white/10 text-white/90 font-mono font-medium hidden sm:inline-flex shrink-0"
+        >
+          {{ endpoints.length }} Webhook Aktif
+        </span>
       </div>
 
-      <div class="flex items-center gap-2">
+      <!-- Sisi Kanan: Aksi Toolbar (Segarkan, Docs, Swagger) -->
+      <div class="flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          @click="refreshAll"
+          :disabled="loading || loadingEndpoints || loadingDeliveries"
+          class="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition cursor-pointer disabled:opacity-50 shrink-0"
+          title="Segarkan Seluruh Data Developer"
+        >
+          <RefreshCw
+            class="w-3.5 h-3.5"
+            :class="{ 'animate-spin': loading || loadingEndpoints || loadingDeliveries }"
+          />
+          <span class="hidden sm:inline">Segarkan</span>
+        </button>
+
         <a
           href="/docs/"
           target="_blank"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-jetblack/15 text-xs font-semibold text-jetblack hover:bg-jetblack/5 transition shadow-2xs"
+          class="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition cursor-pointer shrink-0"
         >
-          <BookOpen class="w-3.5 h-3.5 text-forest" />
-          <span>Dokumentasi Lengkap</span>
-          <ExternalLink class="w-3 h-3 opacity-50" />
+          <BookOpen class="w-3.5 h-3.5 text-gold" />
+          <span>Dokumentasi</span>
+          <ExternalLink class="w-3 h-3 opacity-60" />
         </a>
+
         <a
           href="/swagger"
           target="_blank"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-jetblack text-gold text-xs font-bold transition hover:bg-jetblack/90 shadow-2xs"
+          class="btn-gold h-8 px-3 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer shadow-xs active:scale-95 shrink-0"
         >
-          <span>OpenAPI / Swagger</span>
-          <ExternalLink class="w-3 h-3" />
+          <span>Swagger API</span>
+          <ExternalLink class="w-3 h-3 stroke-[2.5]" />
         </a>
       </div>
     </div>
 
-    <!-- Pemilih Proyek SaaS Aktif -->
+    <!-- Pemilih Proyek SaaS Aktif (Flush Canvas dengan Garis Pemisah) -->
     <div
       v-if="appsList.length > 0"
-      class="p-3.5 rounded-2xl bg-white border border-jetblack/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-2.5 bg-jetblack/[0.02] border-b border-jetblack/15 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
     >
       <div class="flex items-center gap-2.5">
         <div
-          class="w-8 h-8 rounded-xl bg-forest/10 flex items-center justify-center text-forest shrink-0"
+          class="w-6 h-6 rounded bg-forest/10 flex items-center justify-center text-forest shrink-0"
         >
-          <Layers class="w-4 h-4" />
+          <Layers class="w-3.5 h-3.5" />
         </div>
-        <div>
-          <span class="text-xs font-bold text-jetblack block">Pilih Proyek SaaS Aktif:</span>
-          <span class="text-[11px] text-jetblack/50">
-            Snippet kode dan App ID di bawah otomatis menyesuaikan proyek terpilih.
-          </span>
+        <div class="flex items-center gap-2 flex-wrap text-xs">
+          <span class="font-bold text-jetblack">Proyek SaaS:</span>
+          <span class="font-bold text-forest">{{ currentApp?.name || "Aplikasi" }}</span>
+          <span class="text-jetblack/40 font-mono text-[11px]">({{ currentAppId }})</span>
+          <span class="text-jetblack/30 hidden sm:inline">•</span>
+          <span class="text-jetblack/60 text-[11px] hidden sm:inline"
+            >Kredensial &amp; kode di bawah terikat ke proyek ini</span
+          >
         </div>
       </div>
-      <div class="w-full sm:w-72">
+      <div class="flex items-center gap-2">
+        <label class="text-[11px] font-semibold text-jetblack/50 hidden sm:inline"
+          >Ganti Proyek:</label
+        >
         <select
           v-model="selectedAppId"
-          class="w-full bg-jetblack/5 border border-jetblack/15 rounded-xl px-3 py-2 text-xs font-bold text-jetblack focus:outline-none focus:border-forest transition cursor-pointer"
+          class="bg-white border border-jetblack/20 rounded-md px-2.5 py-1 text-xs font-bold text-jetblack focus:outline-none focus:border-gold transition cursor-pointer shadow-2xs"
         >
           <option v-for="app in appsList" :key="app.id" :value="app.id">
             {{ app.name }} ({{ app.id }})
@@ -563,509 +580,249 @@ export function handleTertautWebhook(req, res) {
       </div>
     </div>
 
-    <!-- Kredensial Terpadu Pengembang (Grid 3 Kolom) -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <!-- 1. App ID (Project Identifier) -->
+    <!-- Kredensial Pengembang (Grid dengan Garis Pemisah / Dividers) -->
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 border-b border-jetblack/15 py-5">
       <div
-        class="p-5 rounded-2xl bg-white border border-jetblack/10 shadow-2xs space-y-4 flex flex-col justify-between"
+        class="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-jetblack/15"
       >
-        <div class="space-y-3">
-          <div class="flex items-start justify-between">
-            <div>
-              <div class="flex items-center gap-2">
-                <Layers class="w-4 h-4 text-forest" />
-                <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">
-                  App ID (Project Identifier)
-                </h2>
+        <!-- 1. App ID (Project Identifier) -->
+        <div class="space-y-3 pb-5 lg:pb-0 lg:pr-6 flex flex-col justify-between">
+          <div class="space-y-2">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <Layers class="w-3.5 h-3.5 text-forest" />
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-jetblack">
+                    App ID (Project Identifier)
+                  </h3>
+                </div>
+                <p class="text-[11px] text-jetblack/50 mt-0.5">
+                  Identitas unik proyek SaaS (<strong class="text-jetblack">{{
+                    currentApp?.name || "Aplikasi"
+                  }}</strong
+                  >).
+                </p>
               </div>
-              <p class="text-[11px] text-jetblack/50 mt-0.5">
-                Identitas unik proyek SaaS (<strong class="text-jetblack">{{
-                  currentApp?.name || "Aplikasi"
-                }}</strong
-                >).
-              </p>
-            </div>
-            <span
-              class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-forest/10 text-forest border border-forest/20 shrink-0"
-            >
-              PUBLIK • PROYEK
-            </span>
-          </div>
-
-          <div class="space-y-1.5">
-            <div
-              class="flex items-center justify-between p-2.5 rounded-xl bg-jetblack text-gold font-mono text-xs font-bold border border-jetblack/20"
-            >
-              <span class="truncate mr-2 select-all">{{ currentAppId }}</span>
-              <button
-                type="button"
-                @click="copyClipboard(currentAppId)"
-                class="p-1 rounded bg-white/10 hover:bg-white/20 text-white transition cursor-pointer shrink-0"
-                title="Salin App ID"
+              <span
+                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-forest/10 text-forest border border-forest/20 shrink-0"
               >
-                <Check v-if="copied" class="w-3.5 h-3.5 text-gold stroke-[3]" />
-                <Copy v-else class="w-3.5 h-3.5" />
-              </button>
+                PUBLIK
+              </span>
             </div>
-            <p class="text-[10px] text-jetblack/60 leading-tight">
-              Kirimkan pada parameter
-              <code class="font-mono bg-jetblack/5 px-1 py-0.5 rounded text-[10px]">appId</code>
-              saat checkout atau inisialisasi SDK.
-            </p>
-          </div>
-        </div>
 
-        <div
-          class="pt-2 border-t border-jetblack/10 flex items-center justify-between text-[10px] text-jetblack/50"
-        >
-          <span
-            >Slug:
-            <strong class="text-jetblack font-mono">{{ currentApp?.slug || "-" }}</strong></span
-          >
-          <span
-            >Harga:
-            <strong class="text-jetblack"
-              >Rp {{ currentAppPrice.toLocaleString("id-ID") }}</strong
-            ></span
-          >
-        </div>
-      </div>
-
-      <!-- 2. Secret API Key (S2S) -->
-      <div
-        class="p-5 rounded-2xl bg-white border border-jetblack/10 shadow-2xs space-y-4 flex flex-col justify-between"
-      >
-        <div class="space-y-3">
-          <div class="flex items-start justify-between">
-            <div>
-              <div class="flex items-center gap-2">
-                <KeyRound class="w-4 h-4 text-rose-600" />
-                <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">
-                  Secret API Key (S2S)
-                </h2>
-              </div>
-              <p class="text-[11px] text-jetblack/50 mt-0.5">
-                Kunci backend server SaaS untuk transaksi S2S &amp; webhook.
-              </p>
-            </div>
-            <span
-              class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200 shrink-0"
-            >
-              PRIVATE • DEVELOPER
-            </span>
-          </div>
-
-          <div class="space-y-1.5">
-            <div
-              class="flex items-center justify-between p-2.5 rounded-xl bg-jetblack/5 border border-jetblack/10 font-mono text-xs text-jetblack"
-            >
-              <span class="truncate mr-2 select-all">{{ displayedSecretKey }}</span>
-              <div class="flex items-center gap-1 shrink-0">
+            <div class="space-y-1.5 pt-1">
+              <div
+                class="flex items-center justify-between p-2 rounded-lg bg-jetblack text-gold font-mono text-xs font-bold"
+              >
+                <span class="truncate mr-2 select-all">{{ currentAppId }}</span>
                 <button
                   type="button"
-                  @click="revealSecret = !revealSecret"
-                  class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
-                  :title="revealSecret ? 'Sembunyikan' : 'Tampilkan'"
+                  @click="copyClipboard(currentAppId)"
+                  class="p-1 rounded bg-white/10 hover:bg-white/20 text-white transition cursor-pointer shrink-0"
+                  title="Salin App ID"
                 >
-                  <EyeOff v-if="revealSecret" class="w-3.5 h-3.5" />
-                  <Eye v-else class="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  @click="copyClipboard(secretApiKey)"
-                  class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
-                  title="Salin Secret Key"
-                >
-                  <Check v-if="copied" class="w-3.5 h-3.5 text-forest stroke-[3]" />
+                  <Check v-if="copied" class="w-3.5 h-3.5 text-gold stroke-[3]" />
                   <Copy v-else class="w-3.5 h-3.5" />
                 </button>
               </div>
-            </div>
-            <p class="text-[10px] text-rose-600/90 font-medium">
-              ⚠️ Jangan pernah letakkan kunci ini di kodingan frontend browser.
-            </p>
-          </div>
-        </div>
-
-        <div class="pt-2 border-t border-jetblack/10 flex items-center justify-between">
-          <span class="text-[10px] text-jetblack/50">Diperbarui: Otomatis</span>
-          <button
-            type="button"
-            :disabled="rotatingSecret"
-            @click="handleRotateSecret"
-            class="inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 hover:text-rose-700 transition cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': rotatingSecret }" />
-            <span>Rotasi Secret Key</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 3. Client / Publishable Key & API Base URL -->
-      <div
-        class="p-5 rounded-2xl bg-white border border-jetblack/10 shadow-2xs space-y-4 flex flex-col justify-between"
-      >
-        <div class="space-y-3">
-          <div class="flex items-start justify-between">
-            <div>
-              <div class="flex items-center gap-2">
-                <Globe class="w-4 h-4 text-forest" />
-                <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">
-                  Base URL &amp; Client Key
-                </h2>
-              </div>
-              <p class="text-[11px] text-jetblack/50 mt-0.5">
-                Endpoint resmi Tertaut dan identitas builder pengembang.
+              <p class="text-[10px] text-jetblack/50 leading-tight">
+                Kirimkan pada parameter
+                <code class="font-mono bg-jetblack/5 px-1 py-0.5 rounded text-[10px]">appId</code>
+                saat checkout atau inisialisasi SDK.
               </p>
             </div>
-            <span
-              class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-forest/10 text-forest border border-forest/20 shrink-0"
-            >
-              PUBLIK • GLOBAL
-            </span>
           </div>
 
-          <div class="space-y-2">
-            <div>
-              <label
-                class="block text-[10px] font-bold uppercase tracking-wider text-jetblack/50 mb-0.5"
-              >
-                Base URL Endpoint
-              </label>
-              <div
-                class="flex items-center justify-between p-2 rounded-xl bg-jetblack/5 border border-jetblack/10 font-mono text-xs text-jetblack"
-              >
-                <span class="truncate mr-2">{{ baseUrl }}</span>
-                <button
-                  type="button"
-                  @click="copyClipboard(baseUrl)"
-                  class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
-                  title="Salin Base URL"
-                >
-                  <Copy class="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label
-                class="block text-[10px] font-bold uppercase tracking-wider text-jetblack/50 mb-0.5"
-              >
-                Publishable Client Key
-              </label>
-              <div
-                class="flex items-center justify-between p-2 rounded-xl bg-jetblack/5 border border-jetblack/10 font-mono text-xs text-jetblack"
-              >
-                <span class="truncate mr-2">{{ builderApiKey || "tt_live_public_key" }}</span>
-                <button
-                  type="button"
-                  @click="copyClipboard(builderApiKey)"
-                  class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
-                  title="Salin Public Key"
-                >
-                  <Copy class="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
+          <div
+            class="pt-2 border-t border-jetblack/10 flex items-center justify-between text-[11px] text-jetblack/60"
+          >
+            <span
+              >Slug:
+              <strong class="text-jetblack font-mono">{{ currentApp?.slug || "-" }}</strong></span
+            >
+            <span
+              >Harga:
+              <strong class="text-jetblack font-semibold">{{
+                formatRupiah(currentAppPrice)
+              }}</strong></span
+            >
           </div>
         </div>
 
-        <div class="pt-2 border-t border-jetblack/10 text-[10px] text-jetblack/50 truncate">
-          Akun: <strong class="text-jetblack">{{ builderEmail }}</strong>
+        <!-- 2. Secret API Key (S2S) -->
+        <div class="space-y-3 py-5 lg:py-0 lg:px-6 flex flex-col justify-between">
+          <div class="space-y-2">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <KeyRound class="w-3.5 h-3.5 text-crimson" />
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-jetblack">
+                    Secret API Key (S2S)
+                  </h3>
+                </div>
+                <p class="text-[11px] text-jetblack/50 mt-0.5">
+                  Kunci backend server SaaS untuk transaksi S2S &amp; webhook.
+                </p>
+              </div>
+              <span
+                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200 shrink-0"
+              >
+                PRIVATE
+              </span>
+            </div>
+
+            <div class="space-y-1.5 pt-1">
+              <div
+                class="flex items-center justify-between p-2 rounded-lg bg-jetblack/5 border border-jetblack/15 font-mono text-xs text-jetblack"
+              >
+                <span class="truncate mr-2 select-all">{{ displayedSecretKey }}</span>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    @click="revealSecret = !revealSecret"
+                    class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
+                    :title="revealSecret ? 'Sembunyikan' : 'Tampilkan'"
+                  >
+                    <EyeOff v-if="revealSecret" class="w-3.5 h-3.5" />
+                    <Eye v-else class="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    @click="copyClipboard(secretApiKey)"
+                    class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
+                    title="Salin Secret Key"
+                  >
+                    <Check v-if="copied" class="w-3.5 h-3.5 text-forest stroke-[3]" />
+                    <Copy v-else class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              <p class="text-[10px] text-crimson font-medium">
+                ⚠️ Jangan pernah letakkan kunci ini di kodingan frontend browser.
+              </p>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-jetblack/10 flex items-center justify-between">
+            <span class="text-[10px] text-jetblack/50">Diperbarui: Otomatis</span>
+            <button
+              type="button"
+              :disabled="rotatingSecret"
+              @click="handleRotateSecret"
+              class="inline-flex items-center gap-1.5 text-xs font-bold text-crimson hover:text-rose-700 transition cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': rotatingSecret }" />
+              <span>Rotasi Secret Key</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Base URL & Client Key -->
+        <div class="space-y-3 pt-5 lg:pt-0 lg:pl-6 flex flex-col justify-between">
+          <div class="space-y-2">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <Globe class="w-3.5 h-3.5 text-forest" />
+                  <h3 class="text-xs font-bold uppercase tracking-wider text-jetblack">
+                    Base URL &amp; Client Key
+                  </h3>
+                </div>
+                <p class="text-[11px] text-jetblack/50 mt-0.5">
+                  Endpoint resmi Tertaut dan identitas builder pengembang.
+                </p>
+              </div>
+              <span
+                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-forest/10 text-forest border border-forest/20 shrink-0"
+              >
+                PUBLIK
+              </span>
+            </div>
+
+            <div class="space-y-2 pt-1">
+              <div>
+                <label
+                  class="block text-[10px] font-bold uppercase tracking-wider text-jetblack/50 mb-0.5"
+                >
+                  Base URL Endpoint
+                </label>
+                <div
+                  class="flex items-center justify-between p-1.5 rounded-lg bg-jetblack/5 border border-jetblack/15 font-mono text-xs text-jetblack"
+                >
+                  <span class="truncate mr-2">{{ baseUrl }}</span>
+                  <button
+                    type="button"
+                    @click="copyClipboard(baseUrl)"
+                    class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
+                    title="Salin Base URL"
+                  >
+                    <Copy class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label
+                  class="block text-[10px] font-bold uppercase tracking-wider text-jetblack/50 mb-0.5"
+                >
+                  Publishable Client Key
+                </label>
+                <div
+                  class="flex items-center justify-between p-1.5 rounded-lg bg-jetblack/5 border border-jetblack/15 font-mono text-xs text-jetblack"
+                >
+                  <span class="truncate mr-2">{{ builderApiKey || "tt_live_public_key" }}</span>
+                  <button
+                    type="button"
+                    @click="copyClipboard(builderApiKey)"
+                    class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
+                    title="Salin Public Key"
+                  >
+                    <Copy class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-jetblack/10 text-[11px] text-jetblack/60 truncate">
+            Akun: <strong class="text-jetblack font-semibold">{{ builderEmail }}</strong>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Webhook Endpoints (Outbox Notifikasi) -->
-    <div class="p-6 rounded-2xl bg-white border border-jetblack/10 shadow-2xs space-y-4">
+    <!-- Section: Contoh Integrasi Kode (Garis Pemisah, Flush Canvas) -->
+    <div
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 border-b border-jetblack/15 py-5 space-y-3"
+    >
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div class="flex items-center gap-2">
-            <Webhook class="w-4 h-4 text-gold" />
+            <Terminal class="w-4 h-4 text-gold" />
             <h2 class="text-sm font-bold text-jetblack">
-              Webhook Endpoints (Notifikasi Pembayaran)
+              Contoh Integrasi Kode (S2S Dynamic Payment &amp; SDK)
             </h2>
           </div>
           <p class="text-xs text-jetblack/60 mt-0.5">
-            Tertaut mengirimkan notifikasi HTTP POST bertanda tangan HMAC saat transaksi berhasil
-            (payment.success).
-          </p>
-        </div>
-
-        <button
-          type="button"
-          @click="isWebhookModalOpen = true"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-jetblack text-white hover:bg-jetblack/90 text-xs font-bold transition cursor-pointer shadow-xs"
-        >
-          <Plus class="w-3.5 h-3.5 text-gold" />
-          <span>Tambah Endpoint Webhook</span>
-        </button>
-      </div>
-
-      <!-- Table of Registered Webhooks -->
-      <div class="overflow-x-auto top-scrollbar -mx-6 px-6">
-        <table class="w-full text-left text-xs whitespace-nowrap border-b border-jetblack/10">
-          <thead
-            class="border-b border-jetblack/15 text-[11px] font-semibold text-jetblack/70 bg-jetblack/[0.02]"
-          >
-            <tr>
-              <th class="py-2.5 px-3">URL Endpoint</th>
-              <th class="py-2.5 px-3">Webhook Secret (HMAC)</th>
-              <th class="py-2.5 px-3">Events Langganan</th>
-              <th class="py-2.5 px-3">Status</th>
-              <th class="py-2.5 px-3 text-right">Aksi</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-jetblack/10">
-            <tr v-if="loadingEndpoints">
-              <td colspan="5" class="py-6 text-center text-jetblack/40">Memuat endpoints...</td>
-            </tr>
-            <tr v-else-if="endpoints.length === 0">
-              <td colspan="5" class="py-6 text-center text-jetblack/50">
-                Belum ada endpoint webhook terdaftar. Klik tombol di atas untuk menambahkan URL
-                webhook backend SaaS Anda.
-              </td>
-            </tr>
-            <tr
-              v-else
-              v-for="ep in endpoints"
-              :key="ep.id"
-              class="hover:bg-jetblack/[0.02] transition"
-            >
-              <td class="py-3 px-3 font-mono font-semibold text-jetblack">
-                {{ ep.url }}
-              </td>
-              <td class="py-3 px-3 font-mono text-jetblack/70">
-                <div class="flex items-center gap-1.5">
-                  <span class="bg-jetblack/5 px-1.5 py-0.5 rounded text-[10px]">
-                    {{ ep.secret ? ep.secret.slice(0, 10) + "••••" : "tt_whsec_••••" }}
-                  </span>
-                  <button
-                    type="button"
-                    @click="copyClipboard(ep.secret)"
-                    class="hover:text-forest transition p-0.5"
-                    title="Salin Webhook Secret"
-                  >
-                    <Copy class="w-3 h-3" />
-                  </button>
-                </div>
-              </td>
-              <td class="py-3 px-3">
-                <span
-                  class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200"
-                >
-                  {{ ep.events?.length ? ep.events.join(", ") : "Semua Event" }}
-                </span>
-              </td>
-              <td class="py-3 px-3">
-                <span
-                  class="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                  :class="
-                    ep.isActive
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'bg-neutral-100 text-neutral-500'
-                  "
-                >
-                  {{ ep.isActive ? "Aktif" : "Nonaktif" }}
-                </span>
-              </td>
-              <td class="py-3 px-3 text-right">
-                <div class="flex items-center justify-end gap-1">
-                  <button
-                    type="button"
-                    @click="handleTestWebhook(ep.id)"
-                    class="px-2 py-1 rounded text-[11px] font-bold text-forest hover:bg-forest/10 transition inline-flex items-center gap-1 cursor-pointer"
-                    title="Kirim payload ping uji coba ke endpoint ini"
-                  >
-                    <Send class="w-2.5 h-2.5" />
-                    <span>Test Ping</span>
-                  </button>
-                  <button
-                    type="button"
-                    @click="handleDeleteWebhook(ep.id)"
-                    class="px-2 py-1 rounded text-[11px] font-bold text-rose-600 hover:bg-rose-50 transition p-1 cursor-pointer"
-                    title="Hapus webhook"
-                  >
-                    <Trash2 class="w-3 h-3" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Webhook Outbox Delivery Logs -->
-    <div class="p-6 rounded-2xl bg-white border border-jetblack/10 shadow-2xs space-y-4">
-      <div
-        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-jetblack/10 pb-4"
-      >
-        <div>
-          <div class="flex items-center gap-2">
-            <Radio class="w-4 h-4 text-emerald-600 animate-pulse" />
-            <h2 class="text-sm font-bold text-jetblack">
-              Riwayat Pengiriman Webhook (Outbox Logs)
-            </h2>
-          </div>
-          <p class="text-xs text-jetblack/60 mt-0.5">
-            Log dispatch webhook real-time ke server Anda dengan status pengiriman dan kemampuan
-            retry manual.
-          </p>
-        </div>
-        <button
-          type="button"
-          @click="loadDeliveries"
-          :disabled="loadingDeliveries"
-          class="px-3 py-1.5 rounded-xl border border-jetblack/15 text-xs font-bold text-jetblack/70 hover:text-jetblack hover:bg-jetblack/5 inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 self-start sm:self-auto"
-        >
-          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': loadingDeliveries }" />
-          <span>Muat Ulang Log</span>
-        </button>
-      </div>
-
-      <div v-if="loadingDeliveries" class="py-8 text-center text-xs text-jetblack/50">
-        Memuat log pengiriman webhook...
-      </div>
-
-      <div
-        v-else-if="deliveries.length === 0"
-        class="py-8 text-center border border-dashed border-jetblack/15 rounded-xl"
-      >
-        <Radio class="w-8 h-8 text-jetblack/20 mx-auto mb-2" />
-        <p class="text-xs font-bold text-jetblack">Belum ada pengiriman webhook</p>
-        <p class="text-[11px] text-jetblack/50 mt-1 max-w-sm mx-auto">
-          Log pengiriman akan muncul secara otomatis ketika terjadi event pembayaran atau saat Anda
-          menguji endpoint dengan Test Ping.
-        </p>
-      </div>
-
-      <div v-else class="overflow-x-auto">
-        <table class="w-full text-left text-xs">
-          <thead>
-            <tr
-              class="border-b border-jetblack/10 text-jetblack/50 font-bold uppercase tracking-wider text-[10px]"
-            >
-              <th class="py-2.5 px-3">Status</th>
-              <th class="py-2.5 px-3">Event</th>
-              <th class="py-2.5 px-3">Target Endpoint</th>
-              <th class="py-2.5 px-3 text-center">Percobaan</th>
-              <th class="py-2.5 px-3">Terakhir Dicoba</th>
-              <th class="py-2.5 px-3 text-right">Aksi</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-jetblack/5">
-            <tr v-for="del in deliveries" :key="del.id" class="hover:bg-jetblack/2 transition">
-              <td class="py-3 px-3">
-                <span
-                  v-if="del.status === 'SENT'"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
-                >
-                  <CheckCircle2 class="w-3 h-3 text-emerald-600" />
-                  <span>Terkirim</span>
-                </span>
-                <span
-                  v-else-if="del.status === 'FAILED'"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200"
-                >
-                  <AlertTriangle class="w-3 h-3 text-rose-600" />
-                  <span>Gagal</span>
-                </span>
-                <span
-                  v-else
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200"
-                >
-                  <Clock class="w-3 h-3 text-amber-600" />
-                  <span>Pending</span>
-                </span>
-              </td>
-              <td class="py-3 px-3">
-                <span
-                  class="font-mono text-[11px] font-bold text-jetblack bg-jetblack/5 px-2 py-0.5 rounded"
-                >
-                  {{ del.event || del.payload?.event || "event" }}
-                </span>
-              </td>
-              <td class="py-3 px-3">
-                <div
-                  class="font-mono text-[11px] text-jetblack truncate max-w-[220px]"
-                  :title="getEndpointUrl(del.endpointId)"
-                >
-                  {{ getEndpointUrl(del.endpointId) }}
-                </div>
-              </td>
-              <td class="py-3 px-3 text-center">
-                <span class="text-xs font-semibold text-jetblack/70">
-                  {{ del.attempts || 1 }}x
-                </span>
-              </td>
-              <td class="py-3 px-3 text-jetblack/60 text-[11px]">
-                {{ formatTimestamp(del.lastAttemptAt || del.createdAt) }}
-              </td>
-              <td class="py-3 px-3 text-right">
-                <div class="flex items-center justify-end gap-1.5">
-                  <button
-                    type="button"
-                    @click="openDeliveryDetail(del)"
-                    class="px-2 py-1 rounded text-[11px] font-bold text-jetblack/70 hover:bg-jetblack/5 transition inline-flex items-center gap-1 cursor-pointer"
-                    title="Lihat detail payload JSON"
-                  >
-                    <FileJson class="w-3 h-3 text-gold" />
-                    <span>Payload</span>
-                  </button>
-                  <button
-                    type="button"
-                    :disabled="retryingDeliveryId === del.id"
-                    @click="handleRetryDelivery(del.id)"
-                    class="px-2 py-1 rounded text-[11px] font-bold text-forest hover:bg-forest/10 transition inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                    title="Coba kirim ulang webhook sekarang"
-                  >
-                    <RefreshCw
-                      class="w-3 h-3"
-                      :class="{ 'animate-spin': retryingDeliveryId === del.id }"
-                    />
-                    <span>{{ retryingDeliveryId === del.id ? "Mengirim..." : "Retry" }}</span>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Code Examples & Quickstart Sandbox (Tabbed) -->
-    <div class="p-6 rounded-2xl bg-white border border-jetblack/10 shadow-2xs space-y-4">
-      <div
-        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-jetblack/10 pb-4"
-      >
-        <div>
-          <div class="flex items-center gap-2">
-            <Terminal class="w-4 h-4 text-jetblack" />
-            <h2 class="text-sm font-bold text-jetblack">
-              Contoh Integrasi Kode (S2S Dynamic Payment)
-            </h2>
-          </div>
-          <p class="text-xs text-jetblack/60 mt-0.5">
-            Panggil endpoint ini dari backend SaaS Anda untuk membuat sesi bayar instan dengan
-            nominal bebas.
+            Gunakan cuplikan kode di bawah untuk mengintegrasikan backend SaaS Anda dengan engine
+            MoR Tertaut.
           </p>
         </div>
 
         <!-- Language Tabs -->
         <div
-          class="flex items-center p-1 rounded-xl bg-jetblack/5 border border-jetblack/10 overflow-x-auto top-scrollbar max-w-full"
+          class="flex items-center p-0.5 rounded-lg bg-jetblack/5 border border-jetblack/15 overflow-x-auto top-scrollbar max-w-full"
         >
           <button
             type="button"
             v-for="tab in ['sdk', 'curl', 'node', 'python', 'php'] as const"
             :key="tab"
             @click="activeTab = tab"
-            class="px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap"
+            class="px-2.5 py-1 rounded text-xs font-bold transition cursor-pointer whitespace-nowrap"
             :class="
               activeTab === tab
-                ? 'bg-jetblack text-white shadow-xs'
-                : 'text-jetblack/60 hover:text-jetblack'
+                ? 'btn-gold shadow-xs'
+                : 'text-jetblack/60 hover:text-jetblack hover:bg-white/50'
             "
           >
             {{
@@ -1100,7 +857,7 @@ export function handleTertautWebhook(req, res) {
         </button>
 
         <pre
-          class="p-4 rounded-xl bg-jetblack text-neutral-100 font-mono text-xs overflow-x-auto top-scrollbar leading-relaxed"
+          class="p-4 rounded-xl bg-jetblack text-neutral-100 font-mono text-xs overflow-x-auto top-scrollbar leading-relaxed border border-jetblack/20"
         ><code>{{
           activeTab === 'sdk'
             ? checkoutSdkSnippet
@@ -1114,18 +871,283 @@ export function handleTertautWebhook(req, res) {
         }}</code></pre>
       </div>
 
-      <!-- Webhook Verification Tip -->
-      <div class="p-4 rounded-xl bg-gold/10 border border-gold/30 flex items-start gap-3">
+      <!-- Webhook Verification Tip (Garis Pembatas Lembut) -->
+      <div class="p-3 rounded-lg bg-gold/10 border border-gold/30 flex items-start gap-2.5">
         <Sparkles class="w-4 h-4 text-gold shrink-0 mt-0.5" />
         <div class="text-xs text-jetblack/80 space-y-1">
           <p class="font-bold text-jetblack">Verifikasi Keaslian Webhook di Server Anda:</p>
-          <p>
+          <p class="leading-relaxed">
             Setiap notifikasi webhook dikirim dengan header
-            <code>X-Tertaut-Signature: hmac-sha256=...</code>. Cocokkan tanda tangan tersebut
-            menggunakan HMAC-SHA256 bersama <code>Webhook Secret</code> Anda untuk memastikan
-            payload benar-benar berasal dari Tertaut MoR.
+            <code class="font-mono bg-white/70 px-1 py-0.5 rounded text-[11px]"
+              >X-Tertaut-Signature: hmac-sha256=...</code
+            >. Cocokkan tanda tangan tersebut menggunakan HMAC-SHA256 bersama
+            <code class="font-mono bg-white/70 px-1 py-0.5 rounded text-[11px]"
+              >Webhook Secret</code
+            >
+            Anda untuk memastikan payload benar-benar berasal dari Tertaut MoR.
           </p>
         </div>
+      </div>
+    </div>
+
+    <!-- Section: Webhook Endpoints (Garis Pemisah, Flush Canvas) -->
+    <div
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 border-b border-jetblack/15 py-5 space-y-3"
+    >
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <Webhook class="w-4 h-4 text-gold" />
+            <h2 class="text-sm font-bold text-jetblack">
+              Webhook Endpoints (Notifikasi Pembayaran)
+            </h2>
+          </div>
+          <p class="text-xs text-jetblack/60 mt-0.5">
+            Tertaut mengirimkan notifikasi HTTP POST bertanda tangan HMAC saat transaksi berhasil
+            (payment.success).
+          </p>
+        </div>
+
+        <button
+          type="button"
+          @click="isWebhookModalOpen = true"
+          class="btn-gold h-8 px-3 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer shadow-xs active:scale-95 shrink-0"
+        >
+          <Plus class="w-3.5 h-3.5 stroke-[3]" />
+          <span>Tambah Endpoint Webhook</span>
+        </button>
+      </div>
+
+      <!-- Table of Registered Webhooks (Flush Edge-to-Edge) -->
+      <div class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
+        <table class="w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15">
+          <thead
+            class="border-b border-jetblack/15 text-[11px] font-semibold text-jetblack/70 bg-jetblack/[0.02]"
+          >
+            <tr>
+              <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:px-6">URL Endpoint</th>
+              <th class="py-2.5 px-3">Webhook Secret (HMAC)</th>
+              <th class="py-2.5 px-3">Events Langganan</th>
+              <th class="py-2.5 px-3">Status</th>
+              <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-jetblack/10">
+            <tr v-if="loadingEndpoints">
+              <td colspan="5" class="py-6 text-center text-jetblack/40">Memuat endpoints...</td>
+            </tr>
+            <tr v-else-if="endpoints.length === 0">
+              <td colspan="5" class="py-6 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/50">
+                Belum ada endpoint webhook terdaftar. Klik tombol di atas untuk menambahkan URL
+                webhook backend SaaS Anda.
+              </td>
+            </tr>
+            <tr
+              v-else
+              v-for="ep in endpoints"
+              :key="ep.id"
+              class="hover:bg-jetblack/[0.02] transition"
+            >
+              <td class="py-3 pr-3 pl-3.5 sm:pl-4 md:px-6 font-mono font-semibold text-jetblack">
+                {{ ep.url }}
+              </td>
+              <td class="py-3 px-3 font-mono text-jetblack/70">
+                <div class="flex items-center gap-1.5">
+                  <span class="bg-jetblack/5 px-1.5 py-0.5 rounded text-[10px]">
+                    {{ ep.secret ? ep.secret.slice(0, 10) + "••••" : "tt_whsec_••••" }}
+                  </span>
+                  <button
+                    type="button"
+                    @click="copyClipboard(ep.secret)"
+                    class="hover:text-forest transition p-0.5 cursor-pointer"
+                    title="Salin Webhook Secret"
+                  >
+                    <Copy class="w-3 h-3" />
+                  </button>
+                </div>
+              </td>
+              <td class="py-3 px-3">
+                <span
+                  class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200"
+                >
+                  {{ ep.events?.length ? ep.events.join(", ") : "Semua Event" }}
+                </span>
+              </td>
+              <td class="py-3 px-3">
+                <span
+                  class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                  :class="
+                    ep.isActive
+                      ? 'bg-forest/10 text-forest border border-forest/20'
+                      : 'bg-neutral-100 text-neutral-500'
+                  "
+                >
+                  {{ ep.isActive ? "Aktif" : "Nonaktif" }}
+                </span>
+              </td>
+              <td class="py-3 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    @click="handleTestWebhook(ep.id)"
+                    class="px-2 py-1 rounded text-[11px] font-bold text-forest bg-forest/10 hover:bg-forest/20 transition inline-flex items-center gap-1 cursor-pointer"
+                    title="Kirim payload ping uji coba ke endpoint ini"
+                  >
+                    <Send class="w-2.5 h-2.5" />
+                    <span>Test Ping</span>
+                  </button>
+                  <button
+                    type="button"
+                    @click="handleDeleteWebhook(ep.id)"
+                    class="px-2 py-1 rounded text-[11px] font-bold text-crimson hover:bg-rose-50 transition inline-flex items-center gap-1 cursor-pointer"
+                    title="Hapus webhook"
+                  >
+                    <Trash2 class="w-3 h-3" />
+                    <span>Hapus</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Section: Webhook Outbox Delivery Logs (Garis Pemisah, Flush Canvas) -->
+    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-5 space-y-3">
+      <div
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-jetblack/15 pb-3"
+      >
+        <div>
+          <div class="flex items-center gap-2">
+            <Radio class="w-4 h-4 text-emerald-600 animate-pulse" />
+            <h2 class="text-sm font-bold text-jetblack">
+              Riwayat Pengiriman Webhook (Outbox Logs)
+            </h2>
+          </div>
+          <p class="text-xs text-jetblack/60 mt-0.5">
+            Log dispatch webhook real-time ke server Anda dengan status pengiriman dan kemampuan
+            retry manual.
+          </p>
+        </div>
+        <button
+          type="button"
+          @click="loadDeliveries"
+          :disabled="loadingDeliveries"
+          class="px-3 h-8 rounded-lg border border-jetblack/20 text-xs font-bold text-jetblack/70 hover:text-jetblack hover:bg-jetblack/5 inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 self-start sm:self-auto transition"
+        >
+          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': loadingDeliveries }" />
+          <span>Muat Ulang Log</span>
+        </button>
+      </div>
+
+      <div v-if="loadingDeliveries" class="py-8 text-center text-xs text-jetblack/50">
+        Memuat log pengiriman webhook...
+      </div>
+
+      <div
+        v-else-if="deliveries.length === 0"
+        class="py-8 text-center border border-dashed border-jetblack/15 rounded-xl"
+      >
+        <Radio class="w-8 h-8 text-jetblack/20 mx-auto mb-2" />
+        <p class="text-xs font-bold text-jetblack">Belum ada pengiriman webhook</p>
+        <p class="text-[11px] text-jetblack/50 mt-1 max-w-sm mx-auto">
+          Log pengiriman akan muncul secara otomatis ketika terjadi event pembayaran atau saat Anda
+          menguji endpoint dengan Test Ping.
+        </p>
+      </div>
+
+      <div v-else class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
+        <table class="w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15">
+          <thead
+            class="border-b border-jetblack/15 text-jetblack/70 font-bold uppercase tracking-wider text-[10px] bg-jetblack/[0.02]"
+          >
+            <tr>
+              <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:px-6">Status</th>
+              <th class="py-2.5 px-3">Event</th>
+              <th class="py-2.5 px-3">Target Endpoint</th>
+              <th class="py-2.5 px-3 text-center">Percobaan</th>
+              <th class="py-2.5 px-3">Terakhir Dicoba</th>
+              <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-jetblack/10">
+            <tr v-for="del in deliveries" :key="del.id" class="hover:bg-jetblack/[0.02] transition">
+              <td class="py-3 pr-3 pl-3.5 sm:pl-4 md:px-6">
+                <span
+                  v-if="del.status === 'SENT'"
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-forest/10 text-forest border border-forest/20"
+                >
+                  <CheckCircle2 class="w-3 h-3 text-forest" />
+                  <span>Terkirim</span>
+                </span>
+                <span
+                  v-else-if="del.status === 'FAILED'"
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200"
+                >
+                  <AlertTriangle class="w-3 h-3 text-rose-600" />
+                  <span>Gagal</span>
+                </span>
+                <span
+                  v-else
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-gold-deep border border-gold/30"
+                >
+                  <Clock class="w-3 h-3 text-gold-deep" />
+                  <span>Pending</span>
+                </span>
+              </td>
+              <td class="py-3 px-3">
+                <span
+                  class="font-mono text-[11px] font-bold text-jetblack bg-jetblack/5 px-2 py-0.5 rounded"
+                >
+                  {{ del.event || del.payload?.event || "event" }}
+                </span>
+              </td>
+              <td class="py-3 px-3">
+                <div
+                  class="font-mono text-[11px] text-jetblack truncate max-w-[240px]"
+                  :title="getEndpointUrl(del.endpointId)"
+                >
+                  {{ getEndpointUrl(del.endpointId) }}
+                </div>
+              </td>
+              <td class="py-3 px-3 text-center">
+                <span class="text-xs font-semibold text-jetblack/70">
+                  {{ del.attempts || 1 }}x
+                </span>
+              </td>
+              <td class="py-3 px-3 text-jetblack/60 text-[11px]">
+                {{ formatTimestamp(del.lastAttemptAt || del.createdAt) }}
+              </td>
+              <td class="py-3 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    @click="openDeliveryDetail(del)"
+                    class="px-2 py-1 rounded text-[11px] font-bold text-jetblack/70 bg-jetblack/5 hover:bg-jetblack/10 transition inline-flex items-center gap-1 cursor-pointer"
+                    title="Lihat detail payload JSON"
+                  >
+                    <FileJson class="w-3 h-3 text-gold" />
+                    <span>Payload</span>
+                  </button>
+                  <button
+                    type="button"
+                    :disabled="retryingDeliveryId === del.id"
+                    @click="handleRetryDelivery(del.id)"
+                    class="px-2 py-1 rounded text-[11px] font-bold text-forest bg-forest/10 hover:bg-forest/20 transition inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    title="Coba kirim ulang webhook sekarang"
+                  >
+                    <RefreshCw
+                      class="w-3 h-3"
+                      :class="{ 'animate-spin': retryingDeliveryId === del.id }"
+                    />
+                    <span>{{ retryingDeliveryId === del.id ? "Mengirim..." : "Retry" }}</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -1135,9 +1157,9 @@ export function handleTertautWebhook(req, res) {
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-jetblack/60 backdrop-blur-xs animate-fadeIn"
     >
       <div
-        class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-jetblack/10 space-y-4"
+        class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-jetblack/15"
       >
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between border-b border-jetblack/10 pb-3">
           <div class="flex items-center gap-2">
             <Webhook class="w-4 h-4 text-gold" />
             <h3 class="text-sm font-bold text-jetblack">Daftarkan Endpoint Webhook</h3>
@@ -1145,7 +1167,7 @@ export function handleTertautWebhook(req, res) {
           <button
             type="button"
             @click="isWebhookModalOpen = false"
-            class="text-jetblack/40 hover:text-jetblack cursor-pointer font-bold"
+            class="text-jetblack/40 hover:text-jetblack cursor-pointer font-bold text-base"
           >
             ×
           </button>
@@ -1160,16 +1182,17 @@ export function handleTertautWebhook(req, res) {
               v-model="webhookUrlInput"
               type="url"
               placeholder="https://api.namasaas.com/webhooks/tertaut"
-              class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/15 text-xs text-jetblack placeholder:text-jetblack/35 focus:outline-none focus:border-gold"
+              class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/20 text-xs text-jetblack placeholder:text-jetblack/35 focus:outline-none focus:border-gold font-mono"
             />
             <p class="text-[10px] text-jetblack/50 mt-1">
-              Endpoint ini wajib dapat diakses publik dan menerima HTTP POST request.
+              Endpoint ini wajib dapat diakses publik dan menerima HTTP POST request bertanda
+              tangan.
             </p>
           </div>
 
           <div
             v-if="webhookError"
-            class="p-2.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-medium"
+            class="p-2.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-medium border border-rose-200"
           >
             {{ webhookError }}
           </div>
@@ -1179,7 +1202,7 @@ export function handleTertautWebhook(req, res) {
           <button
             type="button"
             @click="isWebhookModalOpen = false"
-            class="px-3 py-1.5 rounded-lg border border-jetblack/15 text-xs font-bold text-jetblack/70 hover:text-jetblack cursor-pointer"
+            class="px-3.5 py-1.5 rounded-lg border border-jetblack/20 text-xs font-bold text-jetblack/70 hover:text-jetblack hover:bg-jetblack/5 cursor-pointer"
           >
             Batal
           </button>
@@ -1187,7 +1210,7 @@ export function handleTertautWebhook(req, res) {
             type="button"
             :disabled="isSubmittingWebhook"
             @click="handleCreateWebhook"
-            class="px-4 py-1.5 rounded-lg bg-jetblack text-white hover:bg-jetblack/90 text-xs font-bold cursor-pointer disabled:opacity-50"
+            class="btn-gold px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50"
           >
             {{ isSubmittingWebhook ? "Mendaftarkan..." : "Daftarkan Endpoint" }}
           </button>
@@ -1201,7 +1224,7 @@ export function handleTertautWebhook(req, res) {
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-jetblack/60 backdrop-blur-xs animate-fadeIn"
     >
       <div
-        class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-jetblack/10 space-y-4 max-h-[90vh] flex flex-col"
+        class="bg-white rounded-xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col border border-jetblack/15"
       >
         <div class="flex items-center justify-between border-b border-jetblack/10 pb-3">
           <div class="flex items-center gap-2">
@@ -1211,14 +1234,16 @@ export function handleTertautWebhook(req, res) {
           <button
             type="button"
             @click="isDeliveryModalOpen = false"
-            class="text-jetblack/40 hover:text-jetblack cursor-pointer font-bold"
+            class="text-jetblack/40 hover:text-jetblack cursor-pointer font-bold text-base"
           >
             ×
           </button>
         </div>
 
         <div class="space-y-3 overflow-y-auto flex-1 pr-1 text-xs">
-          <div class="grid grid-cols-2 gap-2 p-3 rounded-xl bg-jetblack/5">
+          <div
+            class="grid grid-cols-2 gap-2 p-3 rounded-lg bg-jetblack/5 border border-jetblack/10"
+          >
             <div>
               <span class="text-[10px] text-jetblack/50 uppercase font-bold block"
                 >Delivery ID</span
@@ -1237,7 +1262,7 @@ export function handleTertautWebhook(req, res) {
               <span class="text-[10px] text-jetblack/50 uppercase font-bold block">Status</span>
               <span
                 class="font-bold text-[11px]"
-                :class="selectedDelivery.status === 'SENT' ? 'text-emerald-600' : 'text-rose-600'"
+                :class="selectedDelivery.status === 'SENT' ? 'text-forest' : 'text-crimson'"
               >
                 {{ selectedDelivery.status }}
               </span>
@@ -1261,7 +1286,7 @@ export function handleTertautWebhook(req, res) {
               </button>
             </div>
             <pre
-              class="p-3 rounded-xl bg-jetblack text-jetblack-100 font-mono text-[11px] overflow-x-auto max-h-64 leading-relaxed border border-jetblack/20"
+              class="p-3 rounded-lg bg-jetblack text-neutral-100 font-mono text-[11px] overflow-x-auto max-h-64 leading-relaxed border border-jetblack/20"
               >{{ JSON.stringify(selectedDelivery.payload, null, 2) }}</pre>
           </div>
         </div>
@@ -1282,7 +1307,7 @@ export function handleTertautWebhook(req, res) {
           <button
             type="button"
             @click="isDeliveryModalOpen = false"
-            class="px-4 py-1.5 rounded-lg border border-jetblack/15 text-xs font-bold text-jetblack/70 hover:text-jetblack cursor-pointer"
+            class="px-4 py-1.5 rounded-lg border border-jetblack/20 text-xs font-bold text-jetblack/70 hover:text-jetblack hover:bg-jetblack/5 cursor-pointer"
           >
             Tutup
           </button>
