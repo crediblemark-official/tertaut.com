@@ -33,5 +33,5 @@ const tertaut = new Tertaut({
 
 - [Getting Started](/getting-started) — integrasi end-to-end dengan contoh request & response riil
 - [SDK @tertaut/sdk](/sdk) — referensi lengkap frontend SDK
-- [Server-to-Server API](/server-to-server) — otomasi lisensi & kredit dari backend
+- [Server-to-Server API](/server-to-server) — otomasi lisensi dari backend
 - [Swagger](https://tertaut.com/swagger) — referensi seluruh REST API (OpenAPI, termasuk schema request/response)

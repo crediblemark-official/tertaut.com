@@ -75,7 +75,7 @@ const mobileNavItems = computed<NavItem[]>(() => {
 });
 
 const isMoreActive = computed(() =>
-  ["/subscriptions", "/balances", "/coupons", "/developer", "/docs"].includes(navKey.value)
+  ["/subscriptions", "/balances", "/coupons", "/developer"].includes(navKey.value)
 );
 const moreBadgeCount = computed(() => props.activeCouponCount);
 </script>
@@ -330,26 +330,6 @@ const moreBadgeCount = computed(() => props.activeCouponCount);
           </div>
         </router-link>
 
-        <router-link
-          :to="envPath(env, '/docs')"
-          @click="emit('close-more')"
-          class="flex items-center gap-2.5 p-3 rounded-xl border transition text-left cursor-pointer active:scale-95"
-          :class="
-            navKey === '/docs'
-              ? 'bg-jetblack/10 border-jetblack/30 text-jetblack font-bold'
-              : 'bg-jetblack/[0.02] border-jetblack/10 text-jetblack/80 hover:bg-jetblack/5'
-          "
-        >
-          <div
-            class="w-8 h-8 rounded-lg bg-jetblack/10 flex items-center justify-center text-jetblack shrink-0"
-          >
-            <BookOpen class="w-4 h-4" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="text-xs font-bold leading-tight">Dokumentasi</div>
-            <div class="text-[10px] text-jetblack/50 truncate">SDK &amp; API</div>
-          </div>
-        </router-link>
         <router-link
           v-if="isAdmin"
           to="/panel"

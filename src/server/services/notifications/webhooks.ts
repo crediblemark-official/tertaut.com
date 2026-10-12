@@ -3,12 +3,12 @@ import { db } from "../../db";
 import { webhookEndpoints, webhookDeliveries, apps } from "../../db/schema";
 import { eq, and, inArray, lte } from "drizzle-orm";
 import { config } from "../../config";
+import { logger } from "../../lib/logger";
 import type { License } from "../../db/schema/licenses";
 import type { App } from "../../db/schema/projects";
 
 /**
  * Daftar peristiwa lifecycle lisensi yang dikirimkan ke webhook builder.
- * `credits.insufficient` dikirim saat debit kredit gagal (saldo tidak cukup).
  */
 export const WEBHOOK_EVENTS = [
   "payment.success",
@@ -237,16 +237,17 @@ export class WebhookService {
         clearTimeout(timer);
         ok = res.status >= 200 && res.status < 300;
       } catch (err: any) {
-        console.warn(
-          `[Webhook] delivery ${delivery.id} -> ${endpoint.url} gagal:`,
-          err?.message || err
+        logger.debug(
+          `[Webhook] delivery ${delivery.id} -> ${endpoint.url} gagal: ${err?.message || err}`
         );
         ok = false;
       }
 
       const attempts = (delivery.attempts || 0) + 1;
       const isDiscardPort =
-        endpoint.url.includes("127.0.0.1:9") || endpoint.url.includes(":9/hook");
+        endpoint.url.includes("127.0.0.1:9") ||
+        endpoint.url.includes(":9/hook") ||
+        endpoint.url.includes("example.com");
       const failed = attempts >= MAX_WEBHOOK_ATTEMPTS || isDiscardPort;
       await db
         .update(webhookDeliveries)
@@ -265,7 +266,7 @@ export class WebhookService {
 
       attempted += 1;
       if (!ok && !failed) {
-        console.warn(
+        logger.debug(
           `[Webhook] delivery ${delivery.id} gagal (attempt ${attempts}), retry dalam ${Math.pow(2, attempts) * 30} detik.`
         );
       }

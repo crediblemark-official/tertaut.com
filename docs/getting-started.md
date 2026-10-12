@@ -16,11 +16,11 @@ Panduan integrasi menyeluruh end-to-end menggunakan REST API dan SDK tertaut.com
 
 Dashboard → **Aplikasi** → **Buat Aplikasi**: tentukan nama, slug (URL checkout publik `/pay/:slug`), harga resmi (`targetPrice`), dan mode.
 
-Setiap aplikasi memiliki **publishable API key** (`tt_live_...` / `tt_test_...`). Key ini **publik** — aman dipasang di frontend, dan bisa dirotasi kapan saja dari menu **Dashboard Docs**.
+Setiap aplikasi memiliki **publishable API key** (`tt_live_...` / `tt_test_...`). Key ini **publik** — aman dipasang di frontend, dan bisa dirotasi kapan saja dari menu **Developer**.
 
 ## 2. Ambil Secret Key (untuk otomasi backend)
 
-Dashboard → **Dashboard Docs** → **Secret API Key**: buat atau rotasikan key `tt_secret_...`.
+Dashboard → **Developer** → **Secret API Key**: buat atau rotasikan key `tt_secret_...`.
 
 > **PERINGATAN KEAMANAN**: Jangan pernah meletakkan secret key di frontend atau commit ke repositori publik. Key ini khusus untuk server backend Anda.
 

@@ -66,19 +66,23 @@ const liveDashboardRoutes: RouteRecordRaw[] = [
   },
   {
     path: "/dashboard/docs",
-    name: "docs",
-    component: () => import("../views/DocsView.vue"),
-    meta: { requiresAuth: true },
+    redirect: "/dashboard/developer",
   },
 ];
 
 // Duplikasi seluruh halaman dashboard untuk environment sandbox
 // (/dashboard/sandbox, /dashboard/sandbox/checkout, dst).
-const sandboxDashboardRoutes: RouteRecordRaw[] = liveDashboardRoutes.map((route) => ({
-  ...route,
-  path: (route.path as string).replace("/dashboard", SANDBOX_PREFIX),
-  name: `sandbox-${String(route.name)}`,
-}));
+const sandboxDashboardRoutes: RouteRecordRaw[] = liveDashboardRoutes.map((route) => {
+  const newRoute: any = {
+    ...route,
+    path: (route.path as string).replace("/dashboard", SANDBOX_PREFIX),
+    name: `sandbox-${String(route.name)}`,
+  };
+  if (typeof route.redirect === "string") {
+    newRoute.redirect = route.redirect.replace("/dashboard", SANDBOX_PREFIX);
+  }
+  return newRoute;
+});
 
 const routes: RouteRecordRaw[] = [
   {

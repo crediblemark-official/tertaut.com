@@ -1,6 +1,6 @@
 # Server-to-Server API
 
-Otomasi penuh dari **backend Anda** (tanpa sesi dashboard): menerbitkan/mencabut lisensi dan mengelola kredit. Semua resource di-scope ke builder pemilik secret key.
+Otomasi penuh dari **backend Anda** (tanpa sesi dashboard): menerbitkan/mencabut lisensi. Semua resource di-scope ke builder pemilik secret key.
 
 ## Autentikasi
 
@@ -8,7 +8,7 @@ Otomasi penuh dari **backend Anda** (tanpa sesi dashboard): menerbitkan/mencabut
 Authorization: Bearer tt_secret_<...>
 ```
 
-Tanpa/`tt_secret_` salah → `401 { "error": "..." }`. Secret key didapat & dirotasi dari dashboard → **Dashboard Docs** → **Secret API Key**.
+Tanpa/`tt_secret_` salah → `401 { "error": "..." }`. Secret key didapat & dirotasi dari dashboard → **Developer** → **Secret API Key**.
 
 > Key bersifat rahasia — hanya untuk server Anda, jangan pernah di frontend.
 

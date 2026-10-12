@@ -28,6 +28,8 @@ import {
   CheckCircle2,
   Clock,
   FileJson,
+  Layers,
+  BookOpen,
 } from "lucide-vue-next";
 
 const env = dashboardEnv;
@@ -62,14 +64,31 @@ function setFeedback(type: "success" | "error", text: string) {
 }
 
 // Active code snippet tab
-const activeTab = ref<"curl" | "node" | "python" | "php">("curl");
+const activeTab = ref<"sdk" | "curl" | "node" | "python" | "php">("sdk");
 const activeSection = ref<"checkout" | "webhook">("checkout");
+
+// Selected SaaS App
+const selectedAppId = ref("");
+
+const currentApp = computed(() => {
+  return appsList.value.find((a) => a.id === selectedAppId.value) || appsList.value[0] || null;
+});
+
+const currentAppId = computed(() => currentApp.value?.id || "app_my_saas_01");
+const currentAppPrice = computed(() => currentApp.value?.targetPrice || 135000);
 
 // Create Webhook modal state
 const isWebhookModalOpen = ref(false);
 const webhookUrlInput = ref("");
 const isSubmittingWebhook = ref(false);
 const webhookError = ref<string | null>(null);
+
+const originUrl = computed(() => {
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return "https://tertaut.com";
+});
 
 const baseUrl = computed(() => {
   if (typeof window !== "undefined") {
@@ -99,6 +118,9 @@ async function loadBuilderData() {
       secretApiKey.value = meRes.builder.secretApiKey || "";
     }
     appsList.value = appsRes.apps || [];
+    if (appsList.value.length > 0 && !selectedAppId.value) {
+      selectedAppId.value = appsList.value[0].id;
+    }
   } catch (err: any) {
     console.error("Gagal memuat kredensial builder:", err);
   } finally {
@@ -137,6 +159,7 @@ onMounted(() => {
 });
 
 watch(env, () => {
+  selectedAppId.value = "";
   loadBuilderData();
   loadWebhooks();
   loadDeliveries();
@@ -273,17 +296,44 @@ const sampleAppId = computed(() => appsList.value[0]?.id || "app_my_saas_01");
 const sampleSecretKey = computed(() => secretApiKey.value || "tt_secret_live_your_key_here");
 
 // Code Generator
+const checkoutSdkSnippet = computed(() => {
+  return `import { Tertaut } from "@tertaut/sdk";
+
+// Inisialisasi SDK klien
+const tertaut = new Tertaut({
+  apiKey: "${builderApiKey.value || "tt_live_public_key"}",
+  baseUrl: "${originUrl.value}",
+  appId: "${currentAppId.value}",
+});
+
+// 1. Buat sesi Hosted Checkout MoR (browser/klien)
+const { checkoutUrl, transactionId } = await tertaut.checkout({
+  amount: ${currentAppPrice.value},
+  customerEmail: "pelanggan@domain.com",
+  redirectUrl: "https://namasaas.com/dashboard?billing=success",
+  autoRedirect: true, // Otomatis alihkan browser ke halaman pembayaran
+});
+
+// 2. Aktivasi & Binding Lisensi Perangkat
+const res = await tertaut.licensing.activate({
+  licenseKey: "TT-XXXX-XXXX-XXXX",
+  hwid: "device_hardware_fingerprint",
+  deviceName: "MacBook Pro",
+});
+console.log("Token offline Ed25519:", res.data.licenseToken);`;
+});
+
 const checkoutCurlSnippet = computed(() => {
   return `curl -X POST ${baseUrl.value}/checkout/session \\
   -H "Authorization: Bearer ${sampleSecretKey.value}" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "appId": "${sampleAppId.value}",
+    "appId": "${currentAppId.value}",
     "orderId": "ORD-${Date.now().toString().slice(-6)}",
-    "amount": 135000,
+    "amount": ${currentAppPrice.value},
     "customerEmail": "pelanggan@domain.com",
     "customerName": "Budi Santoso",
-    "description": "Langganan Paket Pro (3 Seats)",
+    "description": "Langganan ${currentApp.value?.name || "Paket Pro"}",
     "paymentRail": "qris",
     "redirectUrl": "https://namasaas.com/dashboard?billing=success",
     "metadata": {
@@ -304,12 +354,12 @@ async function createCheckout() {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      appId: "${sampleAppId.value}",
+      appId: "${currentAppId.value}",
       orderId: "ORD-${Date.now().toString().slice(-6)}",
-      amount: 135000, // Nominal dinamis dari kalkulasi SaaS Anda
+      amount: ${currentAppPrice.value}, // Nominal dinamis dari kalkulasi SaaS Anda
       customerEmail: "pelanggan@domain.com",
       customerName: "Budi Santoso",
-      description: "Langganan Paket Pro (3 Seats)",
+      description: "Langganan ${currentApp.value?.name || "Paket Pro"}",
       redirectUrl: "https://namasaas.com/dashboard?billing=success",
       metadata: { userId: "usr_9981", tier: "pro" }
     })
@@ -333,12 +383,12 @@ headers = {
     "Content-Type": "application/json"
 }
 payload = {
-    "appId": "${sampleAppId.value}",
+    "appId": "${currentAppId.value}",
     "orderId": "ORD-0091",
-    "amount": 135000,
+    "amount": ${currentAppPrice.value},
     "customerEmail": "pelanggan@domain.com",
     "customerName": "Budi Santoso",
-    "description": "Langganan Paket Pro (3 Seats)",
+    "description": "Langganan ${currentApp.value?.name || "Paket Pro"}",
     "redirectUrl": "https://namasaas.com/dashboard?billing=success",
     "metadata": {"userId": "usr_9981", "tier": "pro"}
 }
@@ -353,12 +403,12 @@ const checkoutPhpSnippet = computed(() => {
 $curl = curl_init();
 
 $payload = [
-    "appId" => "${sampleAppId.value}",
+    "appId" => "${currentAppId.value}",
     "orderId" => "ORD-" . time(),
-    "amount" => 135000,
+    "amount" => ${currentAppPrice.value},
     "customerEmail" => "pelanggan@domain.com",
     "customerName" => "Budi Santoso",
-    "description" => "Langganan Paket Pro (3 Seats)",
+    "description" => "Langganan ${currentApp.value?.name || "Paket Pro"}",
     "redirectUrl" => "https://namasaas.com/dashboard?billing=success",
     "metadata" => ["userId" => "usr_9981", "tier" => "pro"]
 ];
@@ -435,10 +485,13 @@ export function handleTertautWebhook(req, res) {
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <div class="flex items-center gap-2">
-          <h1 class="text-xl font-extrabold text-jetblack font-mono tracking-tight">
-            Developer Portal
-          </h1>
+        <div class="flex items-center gap-2 mb-1.5">
+          <div
+            class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-forest/10 border border-forest/20 text-forest text-[11px] font-bold"
+          >
+            <Terminal class="w-3 h-3 text-forest" />
+            <span>Developer Portal &amp; API Kredensial</span>
+          </div>
           <span
             class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
             :class="
@@ -450,9 +503,12 @@ export function handleTertautWebhook(req, res) {
             {{ env }} Mode
           </span>
         </div>
-        <p class="text-xs text-jetblack/60 mt-0.5">
-          Kelola kredensial API pengembang (S2S), endpoint notifikasi webhook, dan integrasi Tertaut
-          MoR.
+        <h1 class="text-xl md:text-2xl font-extrabold text-jetblack font-mono tracking-tight">
+          Pusat Pengembang &amp; Integrasi API
+        </h1>
+        <p class="text-xs text-jetblack/60 mt-0.5 max-w-2xl">
+          Kelola seluruh kredensial SaaS Anda (App ID, Secret Key S2S, Publishable Key), endpoint
+          webhook, serta panduan integrasi sistem di satu tempat.
         </p>
       </div>
 
@@ -460,67 +516,175 @@ export function handleTertautWebhook(req, res) {
         <a
           href="/docs/"
           target="_blank"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-jetblack/15 text-xs font-semibold text-jetblack hover:bg-jetblack/5 transition"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-jetblack/15 text-xs font-semibold text-jetblack hover:bg-jetblack/5 transition shadow-2xs"
         >
-          <Code2 class="w-3.5 h-3.5 text-gold" />
-          <span>Panduan SDK & API</span>
+          <BookOpen class="w-3.5 h-3.5 text-forest" />
+          <span>Dokumentasi Lengkap</span>
           <ExternalLink class="w-3 h-3 opacity-50" />
+        </a>
+        <a
+          href="/swagger"
+          target="_blank"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-jetblack text-gold text-xs font-bold transition hover:bg-jetblack/90 shadow-2xs"
+        >
+          <span>OpenAPI / Swagger</span>
+          <ExternalLink class="w-3 h-3" />
         </a>
       </div>
     </div>
 
-    <!-- Kredensial Pengembang (Grid 2 Kolom) -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <!-- 1. Secret API Key (S2S) -->
-      <div class="p-5 rounded-2xl bg-white border border-jetblack/10 shadow-2xs space-y-4">
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="flex items-center gap-2">
-              <KeyRound class="w-4 h-4 text-rose-600" />
-              <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">
-                Secret API Key (S2S)
-              </h2>
-            </div>
-            <p class="text-[11px] text-jetblack/50 mt-0.5">
-              Dipakai di backend server SaaS Anda untuk membuat sesi checkout dinamis.
-            </p>
-          </div>
-          <span
-            class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200"
-          >
-            PRIVATE
+    <!-- Pemilih Proyek SaaS Aktif -->
+    <div
+      v-if="appsList.length > 0"
+      class="p-3.5 rounded-2xl bg-white border border-jetblack/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
+    >
+      <div class="flex items-center gap-2.5">
+        <div
+          class="w-8 h-8 rounded-xl bg-forest/10 flex items-center justify-center text-forest shrink-0"
+        >
+          <Layers class="w-4 h-4" />
+        </div>
+        <div>
+          <span class="text-xs font-bold text-jetblack block">Pilih Proyek SaaS Aktif:</span>
+          <span class="text-[11px] text-jetblack/50">
+            Snippet kode dan App ID di bawah otomatis menyesuaikan proyek terpilih.
           </span>
         </div>
+      </div>
+      <div class="w-full sm:w-72">
+        <select
+          v-model="selectedAppId"
+          class="w-full bg-jetblack/5 border border-jetblack/15 rounded-xl px-3 py-2 text-xs font-bold text-jetblack focus:outline-none focus:border-forest transition cursor-pointer"
+        >
+          <option v-for="app in appsList" :key="app.id" :value="app.id">
+            {{ app.name }} ({{ app.id }})
+          </option>
+        </select>
+      </div>
+    </div>
 
-        <div class="space-y-1.5">
-          <div
-            class="flex items-center justify-between p-2.5 rounded-xl bg-jetblack/5 border border-jetblack/10 font-mono text-xs text-jetblack"
-          >
-            <span class="truncate mr-2 select-all">{{ displayedSecretKey }}</span>
-            <div class="flex items-center gap-1 shrink-0">
+    <!-- Kredensial Terpadu Pengembang (Grid 3 Kolom) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- 1. App ID (Project Identifier) -->
+      <div
+        class="p-5 rounded-2xl bg-white border border-jetblack/10 shadow-2xs space-y-4 flex flex-col justify-between"
+      >
+        <div class="space-y-3">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="flex items-center gap-2">
+                <Layers class="w-4 h-4 text-forest" />
+                <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">
+                  App ID (Project Identifier)
+                </h2>
+              </div>
+              <p class="text-[11px] text-jetblack/50 mt-0.5">
+                Identitas unik proyek SaaS (<strong class="text-jetblack">{{
+                  currentApp?.name || "Aplikasi"
+                }}</strong
+                >).
+              </p>
+            </div>
+            <span
+              class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-forest/10 text-forest border border-forest/20 shrink-0"
+            >
+              PUBLIK • PROYEK
+            </span>
+          </div>
+
+          <div class="space-y-1.5">
+            <div
+              class="flex items-center justify-between p-2.5 rounded-xl bg-jetblack text-gold font-mono text-xs font-bold border border-jetblack/20"
+            >
+              <span class="truncate mr-2 select-all">{{ currentAppId }}</span>
               <button
                 type="button"
-                @click="revealSecret = !revealSecret"
-                class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
-                :title="revealSecret ? 'Sembunyikan' : 'Tampilkan'"
+                @click="copyClipboard(currentAppId)"
+                class="p-1 rounded bg-white/10 hover:bg-white/20 text-white transition cursor-pointer shrink-0"
+                title="Salin App ID"
               >
-                <EyeOff v-if="revealSecret" class="w-3.5 h-3.5" />
-                <Eye v-else class="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                @click="copyClipboard(secretApiKey)"
-                class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
-                title="Salin Secret Key"
-              >
-                <Check v-if="copied" class="w-3.5 h-3.5 text-forest stroke-[3]" />
+                <Check v-if="copied" class="w-3.5 h-3.5 text-gold stroke-[3]" />
                 <Copy v-else class="w-3.5 h-3.5" />
               </button>
             </div>
+            <p class="text-[10px] text-jetblack/60 leading-tight">
+              Kirimkan pada parameter
+              <code class="font-mono bg-jetblack/5 px-1 py-0.5 rounded text-[10px]">appId</code>
+              saat checkout atau inisialisasi SDK.
+            </p>
           </div>
-          <p class="text-[10px] text-rose-600/90 font-medium">
-            ⚠️ Jangan pernah letakkan kunci ini di kodingan frontend (browser/klien).
-          </p>
+        </div>
+
+        <div
+          class="pt-2 border-t border-jetblack/10 flex items-center justify-between text-[10px] text-jetblack/50"
+        >
+          <span
+            >Slug:
+            <strong class="text-jetblack font-mono">{{ currentApp?.slug || "-" }}</strong></span
+          >
+          <span
+            >Harga:
+            <strong class="text-jetblack"
+              >Rp {{ currentAppPrice.toLocaleString("id-ID") }}</strong
+            ></span
+          >
+        </div>
+      </div>
+
+      <!-- 2. Secret API Key (S2S) -->
+      <div
+        class="p-5 rounded-2xl bg-white border border-jetblack/10 shadow-2xs space-y-4 flex flex-col justify-between"
+      >
+        <div class="space-y-3">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="flex items-center gap-2">
+                <KeyRound class="w-4 h-4 text-rose-600" />
+                <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">
+                  Secret API Key (S2S)
+                </h2>
+              </div>
+              <p class="text-[11px] text-jetblack/50 mt-0.5">
+                Kunci backend server SaaS untuk transaksi S2S &amp; webhook.
+              </p>
+            </div>
+            <span
+              class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200 shrink-0"
+            >
+              PRIVATE • DEVELOPER
+            </span>
+          </div>
+
+          <div class="space-y-1.5">
+            <div
+              class="flex items-center justify-between p-2.5 rounded-xl bg-jetblack/5 border border-jetblack/10 font-mono text-xs text-jetblack"
+            >
+              <span class="truncate mr-2 select-all">{{ displayedSecretKey }}</span>
+              <div class="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  @click="revealSecret = !revealSecret"
+                  class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
+                  :title="revealSecret ? 'Sembunyikan' : 'Tampilkan'"
+                >
+                  <EyeOff v-if="revealSecret" class="w-3.5 h-3.5" />
+                  <Eye v-else class="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  @click="copyClipboard(secretApiKey)"
+                  class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
+                  title="Salin Secret Key"
+                >
+                  <Check v-if="copied" class="w-3.5 h-3.5 text-forest stroke-[3]" />
+                  <Copy v-else class="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+            <p class="text-[10px] text-rose-600/90 font-medium">
+              ⚠️ Jangan pernah letakkan kunci ini di kodingan frontend browser.
+            </p>
+          </div>
         </div>
 
         <div class="pt-2 border-t border-jetblack/10 flex items-center justify-between">
@@ -537,73 +701,77 @@ export function handleTertautWebhook(req, res) {
         </div>
       </div>
 
-      <!-- 2. Client / Publishable Key & API Base URL -->
-      <div class="p-5 rounded-2xl bg-white border border-jetblack/10 shadow-2xs space-y-4">
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="flex items-center gap-2">
-              <Globe class="w-4 h-4 text-forest" />
-              <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">
-                API Base URL &amp; Client Key
-              </h2>
-            </div>
-            <p class="text-[11px] text-jetblack/50 mt-0.5">
-              Alamat endpoint resmi Tertaut dan identitas builder pengembang.
-            </p>
-          </div>
-          <span
-            class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-forest/10 text-forest border border-forest/20"
-          >
-            PUBLIC
-          </span>
-        </div>
-
+      <!-- 3. Client / Publishable Key & API Base URL -->
+      <div
+        class="p-5 rounded-2xl bg-white border border-jetblack/10 shadow-2xs space-y-4 flex flex-col justify-between"
+      >
         <div class="space-y-3">
-          <div>
-            <label
-              class="block text-[10px] font-bold uppercase tracking-wider text-jetblack/50 mb-1"
-            >
-              Base URL Endpoint
-            </label>
-            <div
-              class="flex items-center justify-between p-2 rounded-xl bg-jetblack/5 border border-jetblack/10 font-mono text-xs text-jetblack"
-            >
-              <span class="truncate mr-2">{{ baseUrl }}</span>
-              <button
-                type="button"
-                @click="copyClipboard(baseUrl)"
-                class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
-                title="Salin Base URL"
-              >
-                <Copy class="w-3.5 h-3.5" />
-              </button>
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="flex items-center gap-2">
+                <Globe class="w-4 h-4 text-forest" />
+                <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">
+                  Base URL &amp; Client Key
+                </h2>
+              </div>
+              <p class="text-[11px] text-jetblack/50 mt-0.5">
+                Endpoint resmi Tertaut dan identitas builder pengembang.
+              </p>
             </div>
+            <span
+              class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-forest/10 text-forest border border-forest/20 shrink-0"
+            >
+              PUBLIK • GLOBAL
+            </span>
           </div>
 
-          <div>
-            <label
-              class="block text-[10px] font-bold uppercase tracking-wider text-jetblack/50 mb-1"
-            >
-              Publishable Client Key
-            </label>
-            <div
-              class="flex items-center justify-between p-2 rounded-xl bg-jetblack/5 border border-jetblack/10 font-mono text-xs text-jetblack"
-            >
-              <span class="truncate mr-2">{{ builderApiKey || "tt_live_public_key" }}</span>
-              <button
-                type="button"
-                @click="copyClipboard(builderApiKey)"
-                class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
-                title="Salin Public Key"
+          <div class="space-y-2">
+            <div>
+              <label
+                class="block text-[10px] font-bold uppercase tracking-wider text-jetblack/50 mb-0.5"
               >
-                <Copy class="w-3.5 h-3.5" />
-              </button>
+                Base URL Endpoint
+              </label>
+              <div
+                class="flex items-center justify-between p-2 rounded-xl bg-jetblack/5 border border-jetblack/10 font-mono text-xs text-jetblack"
+              >
+                <span class="truncate mr-2">{{ baseUrl }}</span>
+                <button
+                  type="button"
+                  @click="copyClipboard(baseUrl)"
+                  class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
+                  title="Salin Base URL"
+                >
+                  <Copy class="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label
+                class="block text-[10px] font-bold uppercase tracking-wider text-jetblack/50 mb-0.5"
+              >
+                Publishable Client Key
+              </label>
+              <div
+                class="flex items-center justify-between p-2 rounded-xl bg-jetblack/5 border border-jetblack/10 font-mono text-xs text-jetblack"
+              >
+                <span class="truncate mr-2">{{ builderApiKey || "tt_live_public_key" }}</span>
+                <button
+                  type="button"
+                  @click="copyClipboard(builderApiKey)"
+                  class="p-1 rounded hover:bg-jetblack/10 text-jetblack/60 hover:text-jetblack transition cursor-pointer"
+                  title="Salin Public Key"
+                >
+                  <Copy class="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="pt-2 border-t border-jetblack/10 text-[10px] text-jetblack/50">
-          Akun Builder: <strong class="text-jetblack">{{ builderEmail }}</strong>
+        <div class="pt-2 border-t border-jetblack/10 text-[10px] text-jetblack/50 truncate">
+          Akun: <strong class="text-jetblack">{{ builderEmail }}</strong>
         </div>
       </div>
     </div>
@@ -885,20 +1053,24 @@ export function handleTertautWebhook(req, res) {
         </div>
 
         <!-- Language Tabs -->
-        <div class="flex items-center p-1 rounded-xl bg-jetblack/5 border border-jetblack/10">
+        <div
+          class="flex items-center p-1 rounded-xl bg-jetblack/5 border border-jetblack/10 overflow-x-auto top-scrollbar max-w-full"
+        >
           <button
             type="button"
-            v-for="tab in ['curl', 'node', 'python', 'php'] as const"
+            v-for="tab in ['sdk', 'curl', 'node', 'python', 'php'] as const"
             :key="tab"
             @click="activeTab = tab"
-            class="px-3 py-1 rounded-lg text-xs font-bold capitalize transition cursor-pointer"
+            class="px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap"
             :class="
               activeTab === tab
                 ? 'bg-jetblack text-white shadow-xs'
                 : 'text-jetblack/60 hover:text-jetblack'
             "
           >
-            {{ tab === "node" ? "Node.js" : tab }}
+            {{
+              tab === "sdk" ? "SDK (@tertaut/sdk)" : tab === "node" ? "Node.js" : tab.toUpperCase()
+            }}
           </button>
         </div>
       </div>
@@ -909,13 +1081,15 @@ export function handleTertautWebhook(req, res) {
           type="button"
           @click="
             copyClipboard(
-              activeTab === 'curl'
-                ? checkoutCurlSnippet
-                : activeTab === 'node'
-                  ? checkoutNodeSnippet
-                  : activeTab === 'python'
-                    ? checkoutPythonSnippet
-                    : checkoutPhpSnippet
+              activeTab === 'sdk'
+                ? checkoutSdkSnippet
+                : activeTab === 'curl'
+                  ? checkoutCurlSnippet
+                  : activeTab === 'node'
+                    ? checkoutNodeSnippet
+                    : activeTab === 'python'
+                      ? checkoutPythonSnippet
+                      : checkoutPhpSnippet
             )
           "
           class="absolute top-3 right-3 z-10 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer backdrop-blur-md"
@@ -928,13 +1102,15 @@ export function handleTertautWebhook(req, res) {
         <pre
           class="p-4 rounded-xl bg-jetblack text-neutral-100 font-mono text-xs overflow-x-auto top-scrollbar leading-relaxed"
         ><code>{{
-          activeTab === 'curl'
-            ? checkoutCurlSnippet
-            : activeTab === 'node'
-              ? checkoutNodeSnippet
-              : activeTab === 'python'
-                ? checkoutPythonSnippet
-                : checkoutPhpSnippet
+          activeTab === 'sdk'
+            ? checkoutSdkSnippet
+            : activeTab === 'curl'
+              ? checkoutCurlSnippet
+              : activeTab === 'node'
+                ? checkoutNodeSnippet
+                : activeTab === 'python'
+                  ? checkoutPythonSnippet
+                  : checkoutPhpSnippet
         }}</code></pre>
       </div>
 

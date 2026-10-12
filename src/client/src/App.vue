@@ -75,9 +75,8 @@ const currentPage = computed(() => {
     case "/licensing":
       return { title: "Lisensi", category: "Lisensi" };
     case "/developer":
-      return { title: "Developer Portal", category: "Developer" };
     case "/docs":
-      return { title: "Dashboard Docs", category: "Docs" };
+      return { title: "Developer Portal", category: "Developer" };
     case "/panel":
       return { title: "Super Admin Panel", category: "Admin Panel" };
     default:

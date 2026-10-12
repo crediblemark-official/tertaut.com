@@ -349,13 +349,6 @@ const beat = await tertaut.licensing.heartbeat({ licenseKey, hwid, leaseKey });
 
 ---
 
-## Metered Credits
-
-| Metode | Request | Opsi |
-| ------ | ------- | ---- |
-
----
-
 ## Server-to-Server (backend)
 
 Semua metode di bawah memakai `Authorization: Bearer tt_secret_…` dan **hanya

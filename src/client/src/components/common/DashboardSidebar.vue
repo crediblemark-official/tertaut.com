@@ -76,7 +76,6 @@ const navItems = computed<NavItem[]>(() => {
     { name: "Kupon", key: "/coupons", path: envPath(e, "/coupons"), icon: Ticket },
     { name: "Lisensi", key: "/licensing", path: envPath(e, "/licensing"), icon: KeyRound },
     { name: "Developer", key: "/developer", path: envPath(e, "/developer"), icon: Terminal },
-    { name: "Dashboard Docs", key: "/docs", path: envPath(e, "/docs"), icon: BookOpen },
   ];
 });
 
