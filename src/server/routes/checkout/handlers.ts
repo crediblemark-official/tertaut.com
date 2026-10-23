@@ -1,15 +1,12 @@
 import { db } from "../../db";
 import { apps, transactions, licenses, builders } from "../../db/schema";
 import { eq, inArray, or, and, sql } from "drizzle-orm";
-import { LicenseService } from "../../services/licensing/license";
 import { CouponService } from "../../services/monetization/coupon";
 import { config as checkoutConfig, resolveRequestOrigin } from "../../config";
-import QRCode from "qrcode";
-import { randomBytes } from "crypto";
 import { resolveCurrentBuilder } from "../apps/builder";
 import { handleDisburse } from "../apps/disburse";
-import { enforceRateLimit } from "../../services/security/rateLimiter";
-import { createPollTicket, verifyPollTicket } from "../../utils/pollTicket";
+import { enforceRateLimitAsync } from "../../services/security/rateLimiter";
+import { verifyPollTicket } from "../../utils/pollTicket";
 import { parsePagination, paginationEnvelope } from "../../lib/pagination";
 
 // Rate-limit sync gateway remote per transaction agar tidak membebani network / API eksternal
@@ -26,83 +23,6 @@ export interface CheckoutHandlerSet {
   headers?: any;
   redirect?: string;
   [key: string]: any;
-}
-
-export interface DanaFinishContext {
-  query?: { orderId?: string; externalId?: string; mock?: string; [key: string]: any };
-  request?: Request | any;
-  set?: CheckoutHandlerSet;
-  [key: string]: any;
-}
-
-/**
- * Endpoint Redirect pembeli setelah menyelesaikan pembayaran DANA (Finish Redirect URL)
- */
-export async function handleDanaFinish({ query = {}, request, set = {} }: DanaFinishContext) {
-  const { orderId, externalId, mock } = query;
-
-  if (!externalId) {
-    set.status = 400;
-    return { error: "externalId parameter wajib disertakan" };
-  }
-
-  let tx = await db.query.transactions.findFirst({
-    where: or(
-      eq(transactions.xenditExternalId, externalId),
-      eq(transactions.providerReferenceId, externalId),
-      eq(transactions.id, externalId)
-    ),
-  });
-
-  if (!tx) {
-    set.status = 404;
-    return { error: "Transaksi tidak ditemukan" };
-  }
-
-  const app = await db.query.apps.findFirst({
-    where: eq(apps.id, tx.appId),
-  });
-
-  // Ambil lisensi yang diterbitkan
-  const lic = await db.query.licenses.findFirst({
-    where: eq(licenses.transactionId, tx.id),
-  });
-
-  const ticket = createPollTicket(tx.id);
-  const requestOrigin = resolveRequestOrigin(request);
-  const targetSlug = app?.slug || tx.appId;
-  const targetRedirect = app?.redirectUrl
-    ? app.redirectUrl.includes("?")
-      ? `${app.redirectUrl}&status=success&externalId=${externalId}&ticket=${ticket}`
-      : `${app.redirectUrl}?status=success&externalId=${externalId}&ticket=${ticket}`
-    : `${requestOrigin}/pay/${targetSlug}?paid=1&externalId=${externalId}&ticket=${ticket}`;
-
-  if (set?.headers) {
-    set.headers["referrer-policy"] = "no-referrer";
-  }
-
-  // Jika diakses langsung via browser (Accept: text/html), arahkan pembeli ke UI
-  const acceptHeader = request?.headers?.get?.("accept") || "";
-  const isBrowserRequest = acceptHeader.includes("text/html");
-
-  if (isBrowserRequest) {
-    set.redirect = targetRedirect;
-    return;
-  }
-
-  // BUG-5 & P0.3: licenseKey hanya diungkapkan bila pemanggil memiliki poll ticket yang sah
-  const reqTicket = (query as any)?.ticket;
-  const isTicketValid = reqTicket && verifyPollTicket(tx.id, reqTicket);
-
-  return {
-    success: true,
-    message: "Pembayaran DANA berhasil diverifikasi",
-    transactionId: tx.id,
-    paymentStatus: tx.paymentStatus,
-    ticket,
-    licenseKey: isTicketValid ? lic?.licenseKey || null : null,
-    redirectUrl: targetRedirect,
-  };
 }
 
 export interface PaymentStatusContext {
@@ -129,7 +49,7 @@ export async function handleGetPaymentStatus({
   }
 
   // BUG-6: batasi polling status per IP (endpoint publik yang rawan di-scan).
-  const rl = enforceRateLimit(request, "checkout:status", 120, 60_000);
+  const rl = await enforceRateLimitAsync(request, "checkout:status", 120, 60_000);
   if (!rl.allowed) {
     set.status = 429;
     return { error: "Terlalu banyak permintaan. Coba lagi sebentar lagi." };
@@ -148,9 +68,8 @@ export async function handleGetPaymentStatus({
     return { error: "Transaksi tidak ditemukan" };
   }
 
-  let qrDataUrl: string | undefined;
-  let paymentCode: string | undefined;
-  const channel = (tx.paymentChannel || "").toUpperCase();
+  let qrDataUrl: string | undefined = tx.qrDataUrl || undefined;
+  let paymentCode: string | undefined = tx.paymentCode || undefined;
 
   // Sinkronisasi status aktif ke gateway jika masih PENDING (lewati jika transaksi mock)
   // Polling default membaca langsung dari DB lokal (<2ms). Query ke remote gateway
@@ -189,7 +108,7 @@ export async function handleGetPaymentStatus({
             tx,
             queryRes.paymentChannel ||
               tx.paymentChannel ||
-              (tx.paymentProvider || "DANA").replace(/[^a-z0-9]/gi, "").toUpperCase()
+              (tx.paymentProvider || "XENDIT").replace(/[^a-z0-9]/gi, "").toUpperCase()
           );
           const refreshed = await db.query.transactions.findFirst({
             where: eq(transactions.id, tx.id),
@@ -221,31 +140,6 @@ export async function handleGetPaymentStatus({
         where: eq(licenses.transactionId, tx.id),
       });
       licenseKey = lic?.licenseKey || null;
-    }
-  }
-
-  if (tx.paymentStatus === "PENDING") {
-    if (channel.includes("QRIS")) {
-      paymentCode =
-        paymentCode ||
-        `00020101021226540014ID.DANA.WWW011893600911000000000002152026092100000000303UMI51440014ID.DANA.WWW0215202609210000000520457325303360540${Number(tx.grossAmount).toFixed(2)}5802ID5911Tertaut MoR6007Jakarta61051234062330114${tx.xenditExternalId}6304ABCD`;
-      try {
-        qrDataUrl = await QRCode.toDataURL(paymentCode, { width: 320, margin: 2 });
-      } catch {}
-    } else if (channel.includes("VA")) {
-      if (!paymentCode) {
-        const bankPrefixMap: Record<string, string> = {
-          BCA: "3901",
-          MANDIRI: "88908",
-          BNI: "8808",
-          BRI: "8809",
-          CIMB: "2599",
-          PERMATA: "8528",
-        };
-        const bankName = channel.replace("VA_", "").toUpperCase() || "BCA";
-        const prefix = bankPrefixMap[bankName] || "3901";
-        paymentCode = `${prefix}08${Math.floor(1000000000 + Math.random() * 9000000000)}`;
-      }
     }
   }
 
@@ -285,24 +179,10 @@ export interface ConsultPayContext {
 }
 
 /**
- * Konsultasi opsi pembayaran DANA aktif
+ * Konsultasi kanal pembayaran Xendit
  */
 export async function handleConsultPay({ query, request, set = {} }: ConsultPayContext) {
-  // BUG-6: endpoint publik tanpa rate limit sebelumnya bisa menembak gateway DANA
-  // (setiap panggilan memicu HTTP ke DANA consultPay).
-  const rl = enforceRateLimit(request, "checkout:consult-pay", 60, 60_000);
-  if (!rl.allowed) {
-    set.status = 429;
-    return { error: "Terlalu banyak permintaan. Coba lagi sebentar lagi." };
-  }
-
-  const { DanaService } = await import("../../services/payments/dana/dana");
-  const amount = Number(query?.amount) || 10000;
-  const result = await DanaService.consultPay(amount);
-  return {
-    success: true,
-    data: result,
-  };
+  return handleGetPaymentChannels({ request, set });
 }
 
 export interface PaymentChannelsContext {
@@ -315,7 +195,7 @@ export interface PaymentChannelsContext {
  * Mengambil daftar channel pembayaran yang aktif secara dinamis dari gateway yang aktif
  */
 export async function handleGetPaymentChannels({ request, set = {} }: PaymentChannelsContext) {
-  const rl = enforceRateLimit(request, "checkout:channels", 60, 60_000);
+  const rl = await enforceRateLimitAsync(request, "checkout:channels", 60, 60_000);
   if (!rl.allowed) {
     set.status = 429;
     return { error: "Terlalu banyak permintaan. Coba lagi sebentar lagi." };
@@ -377,7 +257,7 @@ export async function handleSimulateSandboxPayment({
   request,
   set = {},
 }: SimulateSandboxContext) {
-  const rl = enforceRateLimit(request, "checkout:simulate", 30, 60_000);
+  const rl = await enforceRateLimitAsync(request, "checkout:simulate", 30, 60_000);
   if (!rl.allowed) {
     set.status = 429;
     return { error: "Terlalu banyak permintaan simulasi. Coba lagi sebentar lagi." };
@@ -407,10 +287,7 @@ export async function handleSimulateSandboxPayment({
     where: eq(apps.id, tx.appId),
   });
 
-  const isSandbox =
-    app?.mode === "sandbox" ||
-    tx.paymentProvider === "sandbox" ||
-    tx.xenditInvoiceId?.startsWith("inv_sandbox_");
+  const isSandbox = app?.mode === "sandbox" && tx.mode === "sandbox";
 
   if (!isSandbox) {
     set.status = 400;
@@ -486,6 +363,7 @@ export async function handlePreviewCoupon({ body = {} as any, set = {} }: Previe
 export interface ListTransactionsContext {
   query?: {
     appId?: string;
+    customerEmail?: string;
     limit?: string | number;
     offset?: string | number;
     page?: string | number;
@@ -500,7 +378,7 @@ export interface ListTransactionsContext {
  * Daftar riwayat transaksi MoR (scoped ke builder kecuali admin, dengan pagination & total count)
  */
 export async function handleListTransactions({ query, request }: ListTransactionsContext) {
-  const { appId, limit = 200, offset = 0, page, mode } = query || {};
+  const { appId, customerEmail, limit = 200, offset = 0, page, mode } = query || {};
   const headers = request?.headers;
   const { builder, isAdmin } = headers
     ? await resolveCurrentBuilder(headers)
@@ -533,6 +411,8 @@ export async function handleListTransactions({ query, request }: ListTransaction
     );
   }
 
+  if (customerEmail)
+    conditions.push(sql`lower(${transactions.customerEmail}) = ${customerEmail.toLowerCase()}`);
   const pagination = parsePagination({ limit, offset, page });
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -673,7 +553,7 @@ export async function handleGetInvoiceData({
         currency: "IDR",
       },
       payment: {
-        channel: tx.paymentChannel || "DANA",
+        channel: tx.paymentChannel || "XENDIT",
         status: tx.paymentStatus,
         disbursementStatus: tx.disbursementStatus,
         paidAt: tx.paidAt ? tx.paidAt.toISOString() : null,

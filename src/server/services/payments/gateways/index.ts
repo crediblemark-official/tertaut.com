@@ -1,16 +1,12 @@
 import type { PaymentGatewayAdapter } from "./types";
 import { GATEWAY_IDS, GATEWAY_REGISTRY, normalizeGatewayId, DEFAULT_GATEWAY_ID } from "./registry";
-import { danaGateway } from "./danaGateway";
 import { xenditGateway } from "./xenditGateway";
-import { xenithpayGateway } from "./xenithpayGateway";
 import { sandboxGateway } from "./sandboxGateway";
 import { getActivePaymentGateway as getActivePgSetting } from "../paymentGateway";
 
 export * from "./types";
 export * from "./registry";
-export { danaGateway } from "./danaGateway";
 export { xenditGateway } from "./xenditGateway";
-export { xenithpayGateway } from "./xenithpayGateway";
 export { sandboxGateway } from "./sandboxGateway";
 
 /**
@@ -22,9 +18,7 @@ export { sandboxGateway } from "./sandboxGateway";
  * ada gateway yang bisa "terdaftar tapi tidak bisa dipakai".
  */
 const ADAPTERS = {
-  dana: danaGateway,
   xendit: xenditGateway,
-  xenithpay: xenithpayGateway,
   sandbox: sandboxGateway,
 } satisfies Record<(typeof GATEWAY_IDS)[number], PaymentGatewayAdapter>;
 
@@ -32,12 +26,15 @@ export type { PaymentGatewayAdapter };
 
 /**
  * Mendapatkan payment gateway adapter berdasarkan nama/provider.
- * Nama tak dikenal (atau kosong) jatuh ke gateway default, bukan melempar —
- * supaya request dari client usang tidak menjatuhkan checkout.
+ * Provider lama/tidak dikenal ditolak agar transaksi historis tidak dialihkan.
+ * Nilai kosong memakai Xendit sebagai default untuk pemanggil baru.
  */
 export function getPaymentGateway(provider?: string | null): PaymentGatewayAdapter {
   const id = normalizeGatewayId(provider);
-  if (!id) return ADAPTERS[DEFAULT_GATEWAY_ID];
+  if (!id) {
+    if (provider) throw new Error("Provider pembayaran tidak lagi didukung");
+    return ADAPTERS[DEFAULT_GATEWAY_ID];
+  }
   return ADAPTERS[id];
 }
 

@@ -16,7 +16,7 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 1
 fi
 
-GATEWAYS=("dana" "xendit" "xenithpay")
+GATEWAYS=("xendit")
 
 printf '%-12s %-10s %s\n' "GATEWAY" "STATUS" "DETAIL"
 printf '%-12s %-10s %s\n' "-------" "------" "------"

@@ -11,14 +11,13 @@
  *  6. BUG-6: rate limit pada /checkout/session.
  */
 import { describe, it, expect } from "bun:test";
-import { setupTestAuth, danaWebhookHeaders } from "../setup";
+import { setupTestAuth } from "../setup";
 import { app } from "../../index";
 import { db } from "../../db";
 import { apps, builders, transactions, licenses } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
-import { handleDanaFinish, handleGetPaymentStatus } from "../../routes/checkout/handlers";
-import { handleDanaFinishPaymentWebhook } from "../../routes/webhook/dana";
+import { handleGetPaymentStatus } from "../../routes/checkout/handlers";
 import { fulfillPaymentTransaction } from "../../routes/webhook/fulfill";
 import { createPollTicket } from "../../utils/pollTicket";
 
@@ -83,166 +82,6 @@ async function cleanupTx(txId: string) {
   await db.delete(licenses).where(eq(licenses.transactionId, txId));
   await db.delete(transactions).where(eq(transactions.id, txId));
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Regression BUG-1: finish ?mock=true tidak pernah mem-fulfill transaksi (mock telah dihapus)", () => {
-  it("transaksi TIDAK di-fulfill oleh ?mock=true baik app sandbox maupun live", async () => {
-    const { builder, app: a } = await seedBuilderApp("sandbox");
-    const tx = await createTx(builder.id, a.id);
-
-    const set: any = {};
-    await handleDanaFinish({
-      query: { externalId: tx.xenditExternalId, mock: "true" },
-      request: new Request(`${BASE}/checkout/dana/finish`),
-      set,
-    });
-
-    const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) });
-    expect(updated?.paymentStatus).toBe("PENDING");
-
-    const lic = await db.query.licenses.findFirst({ where: eq(licenses.transactionId, tx.id) });
-    expect(lic).toBeUndefined();
-
-    await cleanupTx(tx.id);
-    await db.delete(apps).where(eq(apps.id, a.id));
-    await db.delete(builders).where(eq(builders.id, builder.id));
-  });
-
-  it("transaksi live dengan ?mock=true tetap PENDING", async () => {
-    const { builder, app: a } = await seedBuilderApp("live");
-    const tx = await createTx(builder.id, a.id);
-
-    const set: any = {};
-    await handleDanaFinish({
-      query: { externalId: tx.xenditExternalId, mock: "true" },
-      request: new Request(`${BASE}/checkout/dana/finish`),
-      set,
-    });
-
-    const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) });
-    expect(updated?.paymentStatus).toBe("PENDING");
-
-    await cleanupTx(tx.id);
-    await db.delete(apps).where(eq(apps.id, a.id));
-    await db.delete(builders).where(eq(builders.id, builder.id));
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Regression BUG-2: webhook wajib cocokkan nominal", () => {
-  it("amount TIDAK cocok dengan grossAmount → transaksi tetap PENDING", async () => {
-    const { builder, app: a } = await seedBuilderApp();
-    const tx = await createTx(builder.id, a.id); // grossAmount 50000
-
-    const body = {
-      partnerReferenceNo: tx.xenditExternalId,
-      status: "PAID",
-      amount: { value: "1" },
-    };
-    const res: any = await handleDanaFinishPaymentWebhook({
-      request: new Request(`${BASE}/webhook/dana/finish-payment`),
-      headers: danaWebhookHeaders(body),
-      body,
-      set: {},
-    });
-
-    expect(res.message).toBe("AMOUNT_MISMATCH");
-    const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) });
-    expect(updated?.paymentStatus).toBe("PENDING");
-
-    await cleanupTx(tx.id);
-    await db.delete(apps).where(eq(apps.id, a.id));
-    await db.delete(builders).where(eq(builders.id, builder.id));
-  });
-
-  it("amount cocok → transaksi di-fulfill", async () => {
-    const { builder, app: a } = await seedBuilderApp();
-    const tx = await createTx(builder.id, a.id); // grossAmount 50000
-
-    const body = {
-      partnerReferenceNo: tx.xenditExternalId,
-      status: "PAID",
-      amount: { value: "50000.00" },
-    };
-    const res: any = await handleDanaFinishPaymentWebhook({
-      request: new Request(`${BASE}/webhook/dana/finish-payment`),
-      headers: danaWebhookHeaders(body),
-      body,
-      set: {},
-    });
-
-    expect(res.status).toBe("success");
-    const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) });
-    expect(updated?.paymentStatus).toBe("PAID");
-
-    await cleanupTx(tx.id);
-    await db.delete(apps).where(eq(apps.id, a.id));
-    await db.delete(builders).where(eq(builders.id, builder.id));
-  });
-
-  it("webhook TANPA info nominal pada transaksi PENDING → ditolak (tidak di-fulfill)", async () => {
-    const { builder, app: a } = await seedBuilderApp();
-    const tx = await createTx(builder.id, a.id);
-
-    const body = {
-      partnerReferenceNo: tx.xenditExternalId,
-      status: "PAID",
-    };
-    const res: any = await handleDanaFinishPaymentWebhook({
-      request: new Request(`${BASE}/webhook/dana/finish-payment`),
-      headers: danaWebhookHeaders(body),
-      body,
-      set: {},
-    });
-
-    expect(res.message).toBe("AMOUNT_MISMATCH");
-    const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) });
-    expect(updated?.paymentStatus).toBe("PENDING");
-
-    await cleanupTx(tx.id);
-    await db.delete(apps).where(eq(apps.id, a.id));
-    await db.delete(builders).where(eq(builders.id, builder.id));
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Regression BUG-3: signature wajib saat public key terpasang", () => {
-  it("webhook tanpa signature ditolak 401 (public key terpasang di env)", async () => {
-    const { config } = await import("../../config");
-    if (!config.dana.publicKey) return; // env tanpa key → bypass sandbox sah, skip
-
-    const set: any = {};
-    const res: any = await handleDanaFinishPaymentWebhook({
-      request: new Request(`${BASE}/webhook/dana/finish-payment`),
-      headers: {},
-      body: {
-        partnerReferenceNo: "ext_should_be_rejected",
-        status: "PAID",
-        amount: { value: "100000" },
-      },
-      set,
-    });
-
-    expect(set.status).toBe(401);
-    expect(res.responseCode).toBe("4015600");
-  });
-
-  it("webhook dengan signature palsu ditolak 401", async () => {
-    const { config } = await import("../../config");
-    if (!config.dana.publicKey) return;
-
-    const set: any = {};
-    const res: any = await handleDanaFinishPaymentWebhook({
-      request: new Request(`${BASE}/webhook/dana/finish-payment`),
-      headers: { signature: "palsu_signature_tanpa_private_key" },
-      body: { partnerReferenceNo: "ext_fake_sig", status: "PAID", amount: { value: "100000" } },
-      set,
-    });
-
-    expect(set.status).toBe(401);
-    expect(res.responseCode).toBe("4015600");
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Regression BUG-4: simulate-paid telah dihapus (tidak ada endpoint mock)", () => {

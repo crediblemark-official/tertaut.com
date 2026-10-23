@@ -1,8 +1,9 @@
+import { applyPayoutCallback } from "../../services/payments/payouts";
 import { db } from "../../db";
 import { transactions, licenses } from "../../db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, or, isNull } from "drizzle-orm";
 import { XenditService } from "../../services/payments/xendit";
-import { enforceRateLimit } from "../../services/security/rateLimiter";
+import { enforceRateLimitAsync } from "../../services/security/rateLimiter";
 import { fulfillPaymentTransaction } from "./fulfill";
 import type { WebhookContext, WebhookHeaderContext } from "./types";
 
@@ -10,7 +11,7 @@ import type { WebhookContext, WebhookHeaderContext } from "./types";
  * Handler untuk Xendit Invoice webhook (Idempotent & Secured via x-callback-token)
  */
 export async function handleXenditInvoiceWebhook({ request, headers, body, set }: WebhookContext) {
-  const rl = enforceRateLimit(request, "webhook:xendit", 120, 60_000);
+  const rl = await enforceRateLimitAsync(request, "webhook:xendit", 120, 60_000);
   if (!rl.allowed) {
     set.status = 429;
     return { error: "Too many webhook requests" };
@@ -199,44 +200,25 @@ export async function handleXenditDisbursementWebhook({
     return { error: "Invalid callback verification token" };
   }
 
-  const {
-    id,
-    external_id: externalId,
-    status,
-  } = (body || {}) as {
-    id?: string;
-    external_id?: string;
-    status?: string;
-  };
+  const data = body?.data || body || {};
+  const id = data.id;
+  const externalId = data.reference_id || data.referenceId || data.external_id;
+  const status = data.status;
 
   if (!id && !externalId) {
     set.status = 400;
     return { error: "Missing disbursement id or external_id" };
   }
 
-  const target =
-    (id
-      ? await db.query.transactions.findFirst({
-          where: eq(transactions.disbursementId, id),
-        })
-      : null) ||
-    (externalId
-      ? await db.query.transactions.findFirst({
-          where: eq(transactions.xenditExternalId, externalId),
-        })
-      : null);
-
-  if (!target) {
-    console.warn(
-      `[XenditDisbursementWebhook] Target disbursement tidak ditemukan untuk id: ${id}, external_id: ${externalId}`
-    );
-    return {
-      received: true,
-      acknowledged: true,
-      message: "Disbursement webhook acknowledged",
-    };
+  const identities = [];
+  if (id) identities.push(eq(transactions.disbursementId, id));
+  if (externalId) {
+    identities.push(eq(transactions.disbursementExternalId, externalId));
+    // Compatibility for payouts created before separate provider/reference fields.
+    identities.push(eq(transactions.disbursementId, externalId));
   }
 
+  await applyPayoutCallback("xendit", externalId, id, status);
   const normalized = String(status || "").toUpperCase();
   const nextStatus =
     normalized === "COMPLETED" || normalized === "SUCCEEDED"
@@ -251,7 +233,8 @@ export async function handleXenditDisbursementWebhook({
       .set({ disbursementStatus: nextStatus as any, updatedAt: new Date() })
       .where(
         and(
-          eq(transactions.id, target.id),
+          or(...identities),
+          isNull(transactions.payoutOperationId),
           inArray(transactions.disbursementStatus, ["PROCESSING", "PENDING"])
         )
       );

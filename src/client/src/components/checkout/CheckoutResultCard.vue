@@ -78,7 +78,7 @@ const { copied: copiedCode, copy: copyCode } = useClipboard();
           />
           <div class="space-y-0.5 overflow-hidden">
             <span class="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-              <QrCode class="w-3 h-3" /> QRIS DANA Siap
+              <QrCode class="w-3 h-3" /> QRIS Siap
             </span>
             <p class="text-[10px] text-white/70">Pembeli dapat scan langsung di halaman /pay.</p>
           </div>
@@ -134,8 +134,8 @@ const { copied: copiedCode, copy: copyCode } = useClipboard();
       </div>
 
       <p class="text-[10px] text-jetblack/55 leading-relaxed">
-        DANA Gapura Custom Checkout siap memproses transaksi. Webhook otomatis menerbitkan lisensi
-        &amp; mencatat saldo siap cair.
+        Xendit Checkout siap memproses transaksi. Webhook otomatis menerbitkan lisensi &amp;
+        mencatat saldo siap cair.
       </p>
     </div>
 

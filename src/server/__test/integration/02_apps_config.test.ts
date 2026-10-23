@@ -1,25 +1,25 @@
 import { describe, it, expect } from "bun:test";
 import { setupTestAuth } from "../setup";
-import { DanaService } from "../../services/payments/dana/dana";
+import { xenditGateway } from "../../services/payments/gateways/xenditGateway";
 import { LicenseService } from "../../services/licensing/license";
 import { LicenseTokenService } from "../../services/licensing/licenseToken";
 
 setupTestAuth();
 
 describe("App End-to-End Validation & MoR Calculations", () => {
-  it("should verify 5% MoR cut holds true for micro-transactions", () => {
+  it("should verify 5% MoR cut holds true for micro-transactions", async () => {
     const prices = [10000, 25000, 49000, 99000, 149000, 299000];
     for (const p of prices) {
-      const { grossAmount, platformFee, netAmount } = DanaService.calculateMorBreakdown(p);
+      const { grossAmount, platformFee, netAmount } = xenditGateway.calculateMor(p);
       expect(grossAmount).toBe(p);
       expect(platformFee + netAmount).toBe(grossAmount);
       expect(platformFee).toBe(Math.round(p * 0.05));
     }
   });
 
-  it("should correctly handle offline license token expiration timestamps", () => {
+  it("should correctly handle offline license token expiration timestamps", async () => {
     const token = LicenseService.createOfflineGraceToken("TT-VALID-9999", "app_test");
-    const result = LicenseTokenService.verify(token);
+    const result = await LicenseTokenService.verify(token);
     expect(result.valid).toBe(true);
     expect(result.claims?.typ).toBe("license");
     // Verify exp is ~30 days in future

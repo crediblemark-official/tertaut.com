@@ -68,11 +68,10 @@ useSeo(STATIC_PAGES_META.terms);
           <section class="space-y-2">
             <h2 class="text-base font-bold text-jetblack">2. Produk, Jasa, dan Lisensi Software</h2>
             <p>
-              Seluruh layanan yang disediakan di situs ini (mencakup layanan Merchant of Record,
-              deposit kuota AI Vault, dan lisensi pengembang SDK Tertaut) merupakan layanan dan
-              perangkat lunak berlisensi sah dari {{ COMPANY_INFO.legalName }}. Pembelian memberikan
-              hak akses atau lisensi penggunaan non-eksklusif kepada pengguna sesuai dengan
-              ketentuan paket yang dipilih.
+              Seluruh layanan yang disediakan di situs ini (mencakup layanan Merchant of Record dan
+              lisensi pengembang SDK Tertaut) merupakan layanan dan perangkat lunak berlisensi sah
+              dari {{ COMPANY_INFO.legalName }}. Pembelian memberikan hak akses atau lisensi
+              penggunaan non-eksklusif kepada pengguna sesuai dengan ketentuan paket yang dipilih.
             </p>
             <p>
               Pembeli dilarang merekayasa balik (reverse-engineering), membongkar, menjual kembali

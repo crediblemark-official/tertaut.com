@@ -65,7 +65,7 @@ describe("Fase 0 & Fase 1: License Schema & Feature Flags Entitlements", () => {
     expect(issued.license.features).toEqual(customFeatures);
 
     // Verifikasi klaim offline token Ed25519
-    const decoded = LicenseTokenService.verify(issued.license.offlineJwtGraceToken!);
+    const decoded = await LicenseTokenService.verify(issued.license.offlineJwtGraceToken!);
     expect(decoded.valid).toBe(true);
     expect(decoded.claims).toBeDefined();
     expect(decoded.claims?.feat).toEqual(customFeatures);

@@ -4,12 +4,12 @@
 
 ## Yang Disediakan
 
-| Kemampuan                  | Mulai dari                                                           | Endpoint                                 |
-| -------------------------- | -------------------------------------------------------------------- | ---------------------------------------- |
-| Hosted Checkout & Payment  | [Get Started](/getting-started)                                      | `POST /api/v1/checkout/session`          |
-| Universal Licensing        | [Get Started](/getting-started)                                      | `POST /api/v1/licensing/*`               |
-| Customer API Access        | [Getting Started](/getting-started#7-verifikasi-kunci-api-pelanggan) | `POST /api/v1/licensing/api-key/verify`  |
-| Server-to-Server (Otomasi) | [S2S API](/server-to-server)                                         | `/api/v1/s2s/*` (Bearer `tt_secret_...`) |
+| Kemampuan                  | Mulai dari                                                                 | Endpoint                                 |
+| -------------------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
+| Hosted Checkout & Payment  | [Get Started](/guide/getting-started)                                      | `POST /api/v1/checkout/session`          |
+| Universal Licensing        | [Get Started](/guide/getting-started)                                      | `POST /api/v1/licensing/*`               |
+| Customer API Access        | [Getting Started](/guide/getting-started#7-verifikasi-kunci-api-pelanggan) | `POST /api/v1/licensing/api-key/verify`  |
+| Server-to-Server (Otomasi) | [S2S API](/api/server-to-server)                                           | `/api/v1/s2s/*` (Bearer `tt_secret_...`) |
 
 ## Alur Sederhana
 
@@ -31,7 +31,7 @@ const tertaut = new Tertaut({
 
 ## Navigasi
 
-- [Getting Started](/getting-started) — integrasi end-to-end dengan contoh request & response riil
-- [SDK @tertaut/sdk](/sdk) — referensi lengkap frontend SDK
-- [Server-to-Server API](/server-to-server) — otomasi lisensi dari backend
+- [Getting Started](/guide/getting-started) — integrasi end-to-end dengan contoh request & response riil
+- [SDK @tertaut/sdk](/api/sdk) — referensi lengkap frontend SDK
+- [Server-to-Server API](/api/server-to-server) — otomasi lisensi dari backend
 - [Swagger](https://tertaut.com/swagger) — referensi seluruh REST API (OpenAPI, termasuk schema request/response)

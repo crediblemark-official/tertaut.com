@@ -9,12 +9,16 @@ import {
   type KeyObject,
 } from "crypto";
 import { existsSync, writeFileSync, mkdirSync } from "fs";
+import { db } from "../../db";
+import { eq } from "drizzle-orm";
+import { revokedTokens } from "../../db/schema";
 import { config, cleanPemKey } from "../../config";
 
 export interface LicenseTokenClaims {
   typ: "license";
   lic: string; // license key (sub)
   app: string; // appId
+  mode?: "sandbox" | "live";
   hw: string | null; // hardware hash bound to the token
   eml: string | null; // customer email
   seats: number;
@@ -39,8 +43,7 @@ function base64url(input: Buffer | string): string {
   return Buffer.from(input).toString("base64url");
 }
 
-/**
- * Ed25519 (asimetris) offline license token service.
+/** Ed25519 (asimetris) offline license token service.
  * Private key dari LICENSE_SIGNING_PRIVATE_KEY; di dev di-generate otomatis.
  */
 export class LicenseTokenService {
@@ -118,8 +121,8 @@ export class LicenseTokenService {
     return `${header}.${body}.${signature}`;
   }
 
-  /** Verifikasi tanda tangan Ed25519 + masa berlaku (tanpa cek DB). */
-  static verify(token: string): VerifyLicenseTokenResult {
+  /** Verifikasi tanda tangan Ed25519 + masa berlaku + cek denylist revokedTokens. */
+  static async verify(token: string): Promise<VerifyLicenseTokenResult> {
     this.init();
     try {
       const parts = token.split(".");
@@ -152,6 +155,14 @@ export class LicenseTokenService {
       }
       if (claims.iat && claims.iat > nowSec + CLOCK_SKEW_LEEWAY_SECONDS) {
         return { valid: false, reason: "TOO_FORWARD_IAT" };
+      }
+
+      // Cek JTI denylist (token sudah di-revoke)
+      const existingRevoked = await db.query.revokedTokens.findFirst({
+        where: eq(revokedTokens.jti, claims.jti),
+      });
+      if (existingRevoked) {
+        return { valid: false, reason: "TOKEN_REVOKED" };
       }
 
       return { valid: true, claims };

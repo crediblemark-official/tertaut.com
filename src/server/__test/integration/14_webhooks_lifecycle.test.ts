@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import * as webhookTransport from "../../services/security/webhookUrl";
+import { describe, it, expect, beforeAll, afterAll, spyOn } from "bun:test";
 import { createHmac } from "crypto";
 import { setupTestAuth } from "../setup";
 import { db } from "../../db";
@@ -17,6 +18,7 @@ type Captured = { event: string; signature: string; body: string };
 let receiver: any = null;
 const captured: Captured[] = [];
 let failNext = 0;
+let transportSpy: ReturnType<typeof spyOn>;
 
 function verifySignature(secret: string, signatureHeader: string, rawBody: string): boolean {
   const expected = `hmac-sha256=${createHmac("sha256", secret).update(rawBody).digest("hex")}`;
@@ -39,6 +41,17 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
         return new Response("ok", { status: 200 });
       },
     });
+    transportSpy = spyOn(webhookTransport, "sendWebhook").mockImplementation(
+      async (url, body, headers) => {
+        const target = new URL(url);
+        const response = await fetch(`http://127.0.0.1:${receiver.port}${target.pathname}`, {
+          method: "POST",
+          body,
+          headers,
+        });
+        return response.status;
+      }
+    );
   });
 
   afterAll(async () => {
@@ -52,6 +65,7 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
         }
       }
     }
+    transportSpy.mockRestore();
     receiver?.stop(true);
   });
 
@@ -74,7 +88,7 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
 
     const secret = `whsec_${suffix()}`;
     const endpoint = await WebhookService.create(b.id, {
-      url: `http://127.0.0.1:${receiver.port}/hooks/h1`,
+      url: `https://hooks.example.com:${receiver.port}/hooks/h1`,
       events: ["license.issued"],
       secret,
     });
@@ -129,7 +143,7 @@ describe("Fase 3: Webhook lifecycle (outbox, HMAC signing, retry backoff)", () =
 
     failNext = 2; // dua delivery pertama gagal
     const endpoint = await WebhookService.create(b.id, {
-      url: `http://127.0.0.1:${receiver.port}/hooks/retry`,
+      url: `https://hooks.example.com:${receiver.port}/hooks/retry`,
       events: ["license.revoked"],
       secret: "retry-secret",
     });

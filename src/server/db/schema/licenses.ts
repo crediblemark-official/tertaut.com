@@ -20,6 +20,9 @@ export const licenses = pgTable(
     appId: text("app_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    mode: text("mode", { enum: ["sandbox", "live"] })
+      .default("live")
+      .notNull(),
     transactionId: text("transaction_id").references(() => transactions.id, {
       onDelete: "set null",
     }),
@@ -151,16 +154,19 @@ export const webhookDeliveries = pgTable(
   {
     id: text("id").primaryKey(),
     endpointId: text("endpoint_id").references(() => webhookEndpoints.id, { onDelete: "cascade" }),
+    eventId: text("event_id"),
     /** Nama event, mis. license.issued / license.expired / credits.insufficient */
     event: text("event").notNull(),
     /** Payload JSON mentah yang dikirim (sebelum ditandatangani). */
     payload: jsonb("payload").$type<Record<string, any>>().notNull(),
     signature: text("signature"),
     status: text("status", {
-      enum: ["PENDING", "SENT", "FAILED"],
+      enum: ["PENDING", "PROCESSING", "SENT", "FAILED"],
     })
       .default("PENDING")
       .notNull(),
+    claimToken: text("claim_token"),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
     attempts: integer("attempts").default(0).notNull(),
     lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
     nextRetryAt: timestamp("next_retry_at", { withTimezone: true }).notNull(),
@@ -168,6 +174,7 @@ export const webhookDeliveries = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
+    unique("unique_webhook_event_endpoint").on(table.eventId, table.endpointId),
     index("idx_webhook_deliveries_status").on(table.status, table.nextRetryAt),
     index("idx_webhook_deliveries_endpoint").on(table.endpointId),
   ]

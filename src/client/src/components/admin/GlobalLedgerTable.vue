@@ -177,12 +177,17 @@ const filteredTransactions = computed(() => {
                 </router-link>
                 <button
                   v-if="tx.paymentStatus === 'PAID'"
+                  :disabled="['PROCESSING', 'UNKNOWN', 'COMPLETED'].includes(tx.refundStatus || '')"
                   @click="emit('refund', tx)"
                   class="px-2 py-0.5 rounded text-[10px] font-bold border border-red-300 bg-white text-red-600 hover:bg-red-50 transition cursor-pointer inline-flex items-center gap-1"
                   title="Kembalikan dana ke pembeli & cabut lisensi otomatis"
                 >
                   <RotateCcw class="w-3 h-3" />
-                  <span>Refund</span>
+                  <span>{{
+                    ["PROCESSING", "UNKNOWN"].includes(tx.refundStatus || "")
+                      ? "Refund diproses"
+                      : "Refund"
+                  }}</span>
                 </button>
               </div>
             </td>

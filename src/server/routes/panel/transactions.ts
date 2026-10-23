@@ -46,6 +46,8 @@ export async function handlePanelTransactions({ query }: any) {
     platformFee: tx.platformFee,
     netAmount: tx.netAmount,
     paymentStatus: tx.paymentStatus,
+    refundStatus: tx.refundStatus,
+    refundOperationId: tx.refundOperationId,
     disbursementStatus: tx.disbursementStatus,
     paymentChannel: tx.paymentChannel,
     paidAt: tx.paidAt,

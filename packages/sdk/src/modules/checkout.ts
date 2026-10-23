@@ -24,10 +24,6 @@ export async function executeCheckout(
     );
   }
 
-  // Catatan: `grantCredits` sengaja TIDAK pernah dikirim dari klien. Server
-  // mengambilnya dari `meteringConfig.freeAllowance` produk sebagai nilai
-  // otoritatif, dan mengabaikan nilai kiriman klien demi mencegah pencetakan
-  // kredit gratis. Opsi ini dihapus dari tipe agar tidak menyesatkan.
   const data = await executor.requestJson<CheckoutResult>("/api/v1/checkout/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

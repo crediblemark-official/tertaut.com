@@ -1,16 +1,17 @@
+import { matchesLicenseEnvironment } from "../../../lib/licenseEnvironment";
 import { db } from "../../../db";
 import { licenses, licenseLeases, apps } from "../../../db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { LicenseService } from "../../../services/licensing/license";
 import { resolveFloatingConfig } from "../../../services/licensing/licenseLease";
-import { enforceRateLimit } from "../../../services/security/rateLimiter";
+import { enforceRateLimitAsync } from "../../../services/security/rateLimiter";
 import { isVersionOlder } from "../../../lib/semver";
 import type { DeviceValidateContext } from "./types";
 
 export async function handleValidateLicense({ body, set, request }: DeviceValidateContext) {
   const { licenseKey, appId, hardwareId, appVersion, platform = "general" } = body;
 
-  const rl = enforceRateLimit(request, "licensing:validate", 120, 60_000);
+  const rl = await enforceRateLimitAsync(request, "licensing:validate", 120, 60_000);
   if (!rl.allowed) {
     set.status = 429;
     return { valid: false, reason: "RATE_LIMITED" };
@@ -28,6 +29,17 @@ export async function handleValidateLicense({ body, set, request }: DeviceValida
   if (lic.appId !== appId) {
     set.status = 403;
     return { valid: false, reason: "APP_MISMATCH" };
+  }
+
+  if (!(await matchesLicenseEnvironment(lic))) {
+    set.status = 403;
+    return {
+      success: false,
+      valid: false,
+      status: "ENVIRONMENT_MISMATCH",
+      reason: "ENVIRONMENT_MISMATCH",
+      errorCode: "ENVIRONMENT_MISMATCH",
+    };
   }
 
   if (lic.status !== "ACTIVE") {

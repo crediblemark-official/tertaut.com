@@ -40,6 +40,14 @@ const loading = ref(true);
 const licenses = ref<LicenseItem[]>([]);
 const transactions = ref<TransactionItem[]>([]);
 const appsList = ref<AppItem[]>([]);
+const kpiStats = ref({
+  activeCount: 0,
+  activeRecurringCount: 0,
+  totalCount: 0,
+  monthlyEquivalent: 0,
+  avgLtv: 0,
+  expiringSoon: 0,
+});
 
 const page = ref(1);
 const limit = ref(25);
@@ -59,15 +67,15 @@ const { copied, copy } = useClipboard();
 async function loadData() {
   loading.value = true;
   try {
-    const [licRes, txRes, appRes] = await Promise.all([
+    const [licRes, statsRes, appRes] = await Promise.all([
       api.getLicenses({ page: page.value, limit: limit.value }),
-      api.getTransactions({ limit: 200 }),
+      api.getSubscriptionStats(),
       api.getApps(),
     ]);
     licenses.value = licRes.licenses || [];
     total.value = licRes.total ?? licenses.value.length;
     hasMore.value = licRes.hasMore ?? false;
-    transactions.value = txRes.transactions || [];
+    kpiStats.value = statsRes.stats;
     appsList.value = appRes.apps || [];
   } catch (err) {
     console.error("Gagal memuat data subscriptions:", err);
@@ -98,24 +106,6 @@ watch(env, () => {
   loadData();
 });
 
-// Map cumulative LTV per customerEmail & appId
-const customerLtvMap = computed(() => {
-  const map = new Map<string, number>();
-  for (const tx of transactions.value) {
-    if (tx.paymentStatus === "PAID") {
-      const key = `${tx.customerEmail.toLowerCase()}__${tx.appId}`;
-      const prev = map.get(key) || 0;
-      map.set(key, prev + (tx.grossAmount || 0));
-    }
-  }
-  return map;
-});
-
-function getCustomerLtv(email: string, appId: string): number {
-  const key = `${email.toLowerCase()}__${appId}`;
-  return customerLtvMap.value.get(key) || 0;
-}
-
 function getAppName(appId: string): string {
   const app = appsList.value.find((a: AppItem) => a.id === appId);
   return app ? app.name : appId;
@@ -144,9 +134,9 @@ function getAppBillingInterval(appId: string): string {
 
 const subscriptionsList = computed<SubscriptionItem[]>(() => {
   return licenses.value.map((lic: LicenseItem) => {
-    const ltv = getCustomerLtv(lic.customerEmail, lic.appId);
+    const ltv = lic.ltv || 0;
     const app = appsList.value.find((a: AppItem) => a.id === lic.appId);
-    const isTrial = Boolean(app?.trialPeriodDays && app.trialPeriodDays > 0);
+    const isTrial = lic.isTrial === true;
     return {
       ...lic,
       ltv,
@@ -176,51 +166,23 @@ const filteredSubscriptions = computed<SubscriptionItem[]>(() => {
   });
 });
 
-const kpiStats = computed(() => {
-  const activeSubs = subscriptionsList.value.filter((s: SubscriptionItem) => s.status === "ACTIVE");
-
-  // P7: Hitung MRR hanya dari produk langganan berulang (subscription), bukan produk one-time
-  const activeRecurringSubs = activeSubs.filter((s) => {
-    const app = appsList.value.find((a) => a.id === s.appId);
-    return app?.pricingType === "subscription";
-  });
-  const mrr = activeRecurringSubs.reduce((acc: number, s: SubscriptionItem) => {
-    const app = appsList.value.find((a) => a.id === s.appId);
-    const price = app?.targetPrice || 0;
-    if (app?.billingPeriod === "yearly") return acc + Math.round(price / 12);
-    if (app?.billingPeriod === "weekly") return acc + Math.round(price * 4);
-    if (app?.billingPeriod === "daily") return acc + Math.round(price * 30);
-    return acc + price;
-  }, 0);
-
-  // Hitung average LTV
-  const totalLtv = activeSubs.reduce((acc: number, s: SubscriptionItem) => acc + s.ltv, 0);
-  const avgLtv = activeSubs.length > 0 ? Math.round(totalLtv / activeSubs.length) : 0;
-
-  // Langganan yang akan kedaluwarsa dalam 7 hari
-  const now = Date.now();
-  const in7Days = now + 7 * 24 * 60 * 60 * 1000;
-  const expiringSoon = activeSubs.filter((s: SubscriptionItem) => {
-    if (!s.expiresAt) return false;
-    const exp = new Date(s.expiresAt).getTime();
-    return exp > now && exp <= in7Days;
-  }).length;
-
-  return {
-    activeCount: activeSubs.length,
-    activeRecurringCount: activeRecurringSubs.length,
-    mrr,
-    avgLtv,
-    expiringSoon,
-    totalCount: subscriptionsList.value.length,
-  };
-});
-
 const actionFeedback = ref<string | null>(null);
 
-function openDetail(sub: SubscriptionItem) {
+async function openDetail(sub: SubscriptionItem) {
   selectedSub.value = sub;
   isDetailModalOpen.value = true;
+  transactions.value = [];
+  try {
+    const result = await api.getTransactions({
+      appId: sub.appId,
+      customerEmail: sub.customerEmail,
+      limit: 50,
+    });
+    if (selectedSub.value?.licenseKey === sub.licenseKey)
+      transactions.value = result.transactions || [];
+  } catch {
+    actionFeedback.value = "Gagal memuat riwayat pembayaran pelanggan";
+  }
 }
 
 function closeDetail() {
@@ -379,6 +341,11 @@ function formatSubDate(dateStr?: string | null): string {
       </div>
     </div>
 
+    <p class="text-xs text-jetblack/60 py-2">
+      Perpanjangan dilakukan manual. Tidak ada pendebitan atau penagihan otomatis setelah trial
+      maupun masa akses berakhir.
+    </p>
+
     <!-- Product Catalog Stats KPI Bar (Flush Canvas, Creem/Polar style) -->
     <div
       class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 py-2.5 sm:py-3 border-b border-jetblack/15 mb-0"
@@ -400,23 +367,23 @@ function formatSubDate(dateStr?: string | null): string {
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
-        <div class="text-xs font-semibold text-jetblack/60">Estimasi MRR</div>
+        <div class="text-xs font-semibold text-jetblack/60">Nilai Akses Aktif / Bulan</div>
         <div v-if="loading" class="space-y-1.5 py-1">
           <div class="h-7 w-28 bg-jetblack/10 rounded animate-pulse"></div>
           <div class="h-3 w-36 bg-jetblack/5 rounded animate-pulse"></div>
         </div>
         <template v-else>
           <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
-            {{ formatRupiah(kpiStats.mrr) }}
+            {{ formatRupiah(kpiStats.monthlyEquivalent) }}
           </div>
           <div class="text-[11px] text-jetblack/50 font-medium">
-            Monthly recurring revenue aktif
+            Nilai pembayaran dinormalisasi durasi akses; bukan tagihan otomatis
           </div>
         </template>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
-        <div class="text-xs font-semibold text-jetblack/60">Average LTV</div>
+        <div class="text-xs font-semibold text-jetblack/60">Rata-rata Pembayaran per Pelanggan</div>
         <div v-if="loading" class="space-y-1.5 py-1">
           <div class="h-7 w-28 bg-jetblack/10 rounded animate-pulse"></div>
           <div class="h-3 w-36 bg-jetblack/5 rounded animate-pulse"></div>
@@ -459,7 +426,7 @@ function formatSubDate(dateStr?: string | null): string {
             <th class="py-2.5 px-3">Produk Software</th>
             <th class="py-2.5 px-3">Kunci Lisensi</th>
             <th class="py-2.5 px-3">Siklus</th>
-            <th class="py-2.5 px-3">Total LTV</th>
+            <th class="py-2.5 px-3">Total Pembayaran</th>
             <th class="py-2.5 px-3">Status</th>
             <th class="py-2.5 px-3">Jatuh Tempo</th>
             <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
@@ -593,7 +560,7 @@ function formatSubDate(dateStr?: string | null): string {
           <div class="flex items-center gap-2">
             <div class="w-2 h-2 rounded-full bg-gold"></div>
             <h3 class="text-xs font-bold uppercase tracking-wider text-jetblack">
-              Rincian Langganan &amp; Nilai LTV
+              Rincian Langganan &amp; Total Pembayaran
             </h3>
           </div>
           <button
@@ -673,7 +640,7 @@ function formatSubDate(dateStr?: string | null): string {
           <!-- Linked Transactions List -->
           <div class="space-y-2">
             <div class="text-[11px] uppercase font-bold text-jetblack/70 tracking-wider">
-              Riwayat Pembayaran Pelanggan Ini
+              50 Pembayaran Terbaru Pelanggan Ini
             </div>
             <div
               v-if="linkedTransactions.length === 0"

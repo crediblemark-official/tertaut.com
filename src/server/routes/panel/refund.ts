@@ -1,128 +1,35 @@
-import { randomBytes } from "crypto";
 import { db } from "../../db";
-import { transactions, licenses, revokedTokens, apps, licenseEvents } from "../../db/schema";
-import { eq, and, desc } from "drizzle-orm";
-import { LicenseService } from "../../services/licensing/license";
-import { NotifierService } from "../../services/notifications/notifier";
+import { licenses } from "../../db/schema";
+import { eq } from "drizzle-orm";
+import { requestRefund, RefundRequestError } from "../../services/payments/refunds";
 
-/**
- * Endpoint Admin: Memproses Pengembalian Dana (Refund) dan Auto-Revoke Lisensi
- */
 export async function handleRefundTransaction({ params, body, set }: any) {
-  const txId = params.txId;
-  const reason = body?.reason || "Permintaan pengembalian dana (refund) oleh admin";
-
-  const tx = await db.query.transactions.findFirst({
-    where: eq(transactions.id, txId),
-  });
-
-  if (!tx) {
-    set.status = 404;
-    return { success: false, error: "Transaksi tidak ditemukan." };
-  }
-
-  if (tx.paymentStatus === "REFUNDED") {
-    set.status = 400;
-    return { success: false, error: "Transaksi ini sudah pernah di-refund sebelumnya." };
-  }
-
-  if (tx.paymentStatus !== "PAID") {
-    set.status = 400;
+  try {
+    const op = await requestRefund(params.txId, body?.reason || "Permintaan refund oleh admin");
+    const completed = op.status === "COMPLETED";
+    const license = completed
+      ? await db.query.licenses.findFirst({ where: eq(licenses.transactionId, params.txId) })
+      : null;
+    set.status = completed ? 200 : op.status === "FAILED" ? 502 : 202;
     return {
-      success: false,
-      error: `Hanya transaksi berstatus PAID yang dapat di-refund (status saat ini: ${tx.paymentStatus}).`,
+      success: op.status !== "FAILED",
+      message: completed
+        ? "Provider mengonfirmasi refund selesai. Lisensi terkait telah dicabut."
+        : op.status === "FAILED"
+          ? "Provider menolak refund; dana belum dikembalikan."
+          : "Refund diajukan; menunggu konfirmasi provider. Dana belum dinyatakan kembali.",
+      data: {
+        revokedLicenseKey: license?.licenseKey || null,
+        transactionId: params.txId,
+        refundId: op.id,
+        refundStatus: op.status,
+        paymentStatus: completed ? "REFUNDED" : "PAID",
+        disbursementStatus: completed ? "CANCELLED" : undefined,
+        refundedAmount: completed ? op.amount : 0,
+      },
     };
+  } catch (error) {
+    set.status = error instanceof RefundRequestError ? error.status : 500;
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
-
-  // Ambil data aplikasi untuk notifikasi
-  const app = await db.query.apps.findFirst({
-    where: eq(apps.id, tx.appId),
-  });
-
-  // Cari lisensi terkait pembeli dan aplikasi ini
-  const relatedLicense = await db.query.licenses.findFirst({
-    where: and(eq(licenses.appId, tx.appId), eq(licenses.customerEmail, tx.customerEmail)),
-    orderBy: [desc(licenses.createdAt)],
-  });
-
-  let revokedKey: string | undefined = undefined;
-
-  // Eksekusi transaksi database: update status tx & revoke lisensi
-  await db.transaction(async (trx) => {
-    // 1. Update status transaksi
-    await trx
-      .update(transactions)
-      .set({
-        paymentStatus: "REFUNDED",
-        disbursementStatus: "CANCELLED",
-        updatedAt: new Date(),
-      })
-      .where(eq(transactions.id, tx.id));
-
-    // 2. Cabut lisensi dan masukkan ke denylist JTI
-    if (relatedLicense && relatedLicense.status !== "REVOKED") {
-      revokedKey = relatedLicense.licenseKey;
-      await trx
-        .update(licenses)
-        .set({
-          status: "REVOKED",
-          updatedAt: new Date(),
-        })
-        .where(eq(licenses.id, relatedLicense.id));
-
-      // Blacklist JTI offline token
-      const token = LicenseService.createOfflineGraceToken(
-        relatedLicense.licenseKey,
-        relatedLicense.appId
-      );
-      const jti = token.split(".")[1] || `jti_ref_${relatedLicense.id}`;
-
-      await trx.insert(revokedTokens).values({
-        jti,
-        licenseId: relatedLicense.id,
-        licenseKey: relatedLicense.licenseKey,
-        reason: `REFUND: ${reason}`,
-        revokedAt: new Date(),
-        expiresAt: relatedLicense.expiresAt,
-      });
-
-      // Catat event pencabutan
-      await trx.insert(licenseEvents).values({
-        id: `evt_ref_${randomBytes(8).toString("hex")}`,
-        licenseId: relatedLicense.id,
-        licenseKey: relatedLicense.licenseKey,
-        appId: relatedLicense.appId,
-        event: "REVOKED",
-        actorType: "ADMIN",
-        actorId: "admin",
-        payload: {
-          reason: `REFUND: ${reason}`,
-          transactionId: tx.id,
-          refundAmount: tx.grossAmount,
-        },
-      });
-    }
-  });
-
-  // Kirim notifikasi realtime (Telegram/Webhook)
-  await NotifierService.notifyRefund({
-    transactionId: tx.id,
-    appName: app?.name || tx.appId,
-    amount: tx.grossAmount,
-    reason,
-    revokedLicenseKey: revokedKey,
-  });
-
-  return {
-    success: true,
-    message: "Transaksi berhasil di-refund dan lisensi terkait telah otomatis dicabut.",
-    data: {
-      transactionId: tx.id,
-      paymentStatus: "REFUNDED",
-      disbursementStatus: "CANCELLED",
-      refundedAmount: tx.grossAmount,
-      revokedLicenseKey: revokedKey || null,
-      refundedAt: new Date().toISOString(),
-    },
-  };
 }

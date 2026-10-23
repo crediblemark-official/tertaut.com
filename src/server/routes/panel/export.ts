@@ -73,7 +73,7 @@ export async function handleExportTransactions({ query, set }: any) {
       tx.grossAmount,
       tx.platformFee,
       tx.netAmount,
-      tx.paymentChannel || "DANA",
+      tx.paymentChannel || "XENDIT",
       tx.paymentStatus,
       tx.disbursementStatus,
       tx.couponCode || "",
@@ -106,6 +106,7 @@ export async function handleExportBuilders({ set }: any) {
         grossAmount: transactions.grossAmount,
         netAmount: transactions.netAmount,
         disbursementStatus: transactions.disbursementStatus,
+        refundStatus: transactions.refundStatus,
       })
       .from(transactions)
       .where(eq(transactions.paymentStatus, "PAID")),
@@ -145,7 +146,9 @@ export async function handleExportBuilders({ set }: any) {
     const gmv = bTxs.reduce((sum, tx) => sum + tx.grossAmount, 0);
     const net = bTxs.reduce((sum, tx) => sum + tx.netAmount, 0);
     const pending = bTxs
-      .filter((tx) => tx.disbursementStatus === "PENDING")
+      .filter(
+        (tx) => tx.disbursementStatus === "PENDING" && ["NONE", "FAILED"].includes(tx.refundStatus)
+      )
       .reduce((sum, tx) => sum + tx.netAmount, 0);
 
     const bank = b.disbursementAccount;

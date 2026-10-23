@@ -1,3 +1,4 @@
+import { parseWebhookUrl } from "../../services/security/webhookUrl";
 import { randomBytes } from "crypto";
 import { db } from "../../db";
 import { webhookDeliveries } from "../../db/schema";
@@ -15,10 +16,11 @@ export async function handleS2SListWebhooks({ builder }: any) {
 }
 
 export async function handleS2SCreateWebhook({ builder, body, set }: any) {
-  const validUrl = /^https?:\/\//.test(body.url);
-  if (!validUrl) {
+  try {
+    parseWebhookUrl(body.url);
+  } catch {
     set.status = 400;
-    return { success: false, error: "url harus berupa HTTP(S) endpoint yang valid" };
+    return { success: false, error: "url harus berupa endpoint HTTP(S) publik yang valid" };
   }
   if (body.events) {
     const invalid = body.events.filter(
@@ -39,9 +41,11 @@ export async function handleS2SCreateWebhook({ builder, body, set }: any) {
 }
 
 export async function handleS2SUpdateWebhook({ builder, params, body, set }: any) {
-  if (body.url !== undefined && !/^https?:\/\//.test(body.url || "")) {
+  try {
+    if (body.url !== undefined) parseWebhookUrl(body.url);
+  } catch {
     set.status = 400;
-    return { success: false, error: "url harus berupa HTTP(S) endpoint yang valid" };
+    return { success: false, error: "url harus berupa endpoint HTTP(S) publik yang valid" };
   }
   if (body.events) {
     const invalid = body.events.filter(

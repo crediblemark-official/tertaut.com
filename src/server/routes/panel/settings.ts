@@ -20,8 +20,6 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   // `GATEWAY_REGISTRY`. Menambah gateway tidak perlu menyentuh baris ini.
   active_payment_gateway: DEFAULT_GATEWAY_ID,
   // Sandbox global tidak boleh membaca config gateway tertentu. Dulu baris ini
-  // memakai `config.xenithpay.sandboxMode`, jadi menghapus XenithPay ikut
-  // mengubah perilaku flag sandbox seluruh platform.
   sandbox_mode: config.isSandbox ? "true" : "false", // true (Sandbox / Pengujian) | false (Production / Live)
   ...Object.fromEntries(allCredentialKeys().map((k) => [k, ""])),
   checkout_mode: "custom", // custom (Full Custom Native UI) | hosted (Redirect ke Halaman Hosted Xendit)
@@ -38,7 +36,7 @@ export async function handleGetPlatformSettings() {
   const settingsMap: Record<string, string> = { ...DEFAULT_SETTINGS };
 
   for (const r of rows) {
-    settingsMap[r.key] = r.value;
+    if (Object.hasOwn(DEFAULT_SETTINGS, r.key)) settingsMap[r.key] = r.value;
   }
 
   // Kredensial environment (.env / Dokploy) selalu menjadi acuan utama (di luar test runner)
@@ -58,27 +56,10 @@ export async function handleGetPlatformSettings() {
         process.env.XENDIT_WEBHOOK_TOKEN ||
         "";
     }
-    if (process.env.XENITHPAY_SANDBOX_ACCESS_KEY) {
-      settingsMap.xenithpay_sandbox_access_key = process.env.XENITHPAY_SANDBOX_ACCESS_KEY;
-    }
-    if (process.env.XENITHPAY_SANDBOX_SECRET_KEY) {
-      settingsMap.xenithpay_sandbox_secret_key = process.env.XENITHPAY_SANDBOX_SECRET_KEY;
-    }
-    if (process.env.XENITHPAY_SANDBOX_WEBHOOK_SECRET) {
-      settingsMap.xenithpay_sandbox_webhook_secret = process.env.XENITHPAY_SANDBOX_WEBHOOK_SECRET;
-    }
-    // DANA Sandbox defaults dari environment
-    if (process.env.DANA_SANDBOX_CLIENT_ID) {
-      settingsMap.dana_sandbox_client_id = process.env.DANA_SANDBOX_CLIENT_ID;
-    }
-    if (process.env.DANA_SANDBOX_CLIENT_SECRET) {
-      settingsMap.dana_sandbox_client_secret = process.env.DANA_SANDBOX_CLIENT_SECRET;
-    }
-    if (process.env.DANA_SANDBOX_MERCHANT_ID) {
-      settingsMap.dana_sandbox_merchant_id = process.env.DANA_SANDBOX_MERCHANT_ID;
-    }
   }
 
+  settingsMap.active_payment_gateway =
+    normalizeGatewayId(settingsMap.active_payment_gateway) || DEFAULT_GATEWAY_ID;
   const isSandbox = settingsMap.sandbox_mode !== "false";
   settingsMap.xendit_configured = String(
     Boolean(
@@ -91,25 +72,11 @@ export async function handleGetPlatformSettings() {
               settingsMap.xendit_webhook_token)
     )
   );
-  settingsMap.dana_configured = String(
-    Boolean(
-      isSandbox
-        ? process.env.DANA_SANDBOX_CLIENT_ID || settingsMap.dana_sandbox_client_id
-        : process.env.DANA_CLIENT_ID
-    )
-  );
-  settingsMap.xenithpay_configured = String(
-    Boolean(
-      isSandbox
-        ? process.env.XENITHPAY_SANDBOX_ACCESS_KEY || settingsMap.xenithpay_sandbox_access_key
-        : process.env.XENITHPAY_ACCESS_KEY || config.xenithpay.accessKey
-    )
-  );
 
   return {
     success: true,
     settings: settingsMap,
-    items: rows,
+    items: rows.filter((r) => Object.hasOwn(DEFAULT_SETTINGS, r.key)),
   };
 }
 
@@ -122,6 +89,12 @@ export async function handleUpdatePlatformSettings({ body, set }: any) {
   if (typeof updates !== "object" || Object.keys(updates).length === 0) {
     set.status = 400;
     return { success: false, error: "Data pengaturan tidak valid." };
+  }
+
+  const unknownKeys = Object.keys(updates).filter((key) => !Object.hasOwn(DEFAULT_SETTINGS, key));
+  if (unknownKeys.length) {
+    set.status = 400;
+    return { success: false, error: "Pengaturan tidak didukung: " + unknownKeys.join(", ") };
   }
 
   // Validasi active payment gateway — memakai registry sebagai satu sumber.

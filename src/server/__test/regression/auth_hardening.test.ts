@@ -151,7 +151,9 @@ describe("GET /checkout/status — detail pembayaran hanya untuk pemegang poll t
         paymentStatus: "PENDING",
         disbursementStatus: "PENDING",
         paymentChannel: "QRIS",
-        paymentProvider: "manual", // hindari sinkronisasi status ke DANA di test
+        paymentProvider: "manual",
+        paymentCode: "provider-issued-qris",
+        qrDataUrl: "data:image/png;base64,cXJpcw==", // hindari sinkronisasi status ke gateway di test
       })
       .returning();
 
@@ -197,6 +199,8 @@ describe("GET /checkout/status — detail pembayaran hanya untuk pemegang poll t
         disbursementStatus: "PENDING",
         paymentChannel: "QRIS",
         paymentProvider: "manual",
+        paymentCode: "provider-issued-qris",
+        qrDataUrl: "data:image/png;base64,cXJpcw==",
       })
       .returning();
     const ticket = createPollTicket(tx.id);
@@ -236,6 +240,8 @@ describe("GET /checkout/status — detail pembayaran hanya untuk pemegang poll t
         paymentStatus: "PAID",
         disbursementStatus: "COMPLETED",
         paymentProvider: "manual",
+        paymentCode: "provider-issued-qris",
+        qrDataUrl: "data:image/png;base64,cXJpcw==",
       })
       .returning();
     await db.insert(licenses).values({

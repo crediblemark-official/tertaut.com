@@ -740,7 +740,7 @@ defineExpose({
             <div class="flex justify-between py-1 border-b border-slate-100">
               <span class="text-jetblack/60">Gateway / MoR Provider</span>
               <span class="font-semibold text-jetblack uppercase">{{
-                selectedTx.paymentProvider || "DANA"
+                selectedTx.paymentProvider || "XENDIT"
               }}</span>
             </div>
             <div class="flex justify-between py-1 border-b border-slate-100">

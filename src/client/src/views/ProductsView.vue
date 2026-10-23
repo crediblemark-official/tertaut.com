@@ -195,7 +195,7 @@ function formatIDR(amount: number): string {
         </div>
       </section>
 
-      <!-- Live Checkout Preview / Verification Section (For DANA Reviewers) -->
+      <!-- Live Checkout Preview / Verification Section (Xendit Checkout) -->
       <section class="py-14 md:py-20 bg-[#FAFAFA] border-y border-jetblack/10">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 space-y-10">
           <div class="text-center space-y-3">

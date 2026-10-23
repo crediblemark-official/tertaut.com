@@ -28,7 +28,7 @@ interface ProductData {
 
 const props = defineProps<{
   product: ProductData;
-  activeGateway?: "xendit" | "xenithpay";
+  activeGateway?: "xendit" | "sandbox";
   checkoutMode?: "custom" | "hosted";
   emailInput: string;
   selectedPaymentRail: "qris" | "va" | "ewallet" | "card" | "retail";
@@ -67,7 +67,6 @@ const isHosted = computed(() => {
     (props.checkoutMode !== "custom" && props.product?.checkoutMode === "hosted")
   );
 });
-const isXenithPay = computed(() => props.activeGateway === "xenithpay");
 
 const availableChannels = computed(() => props.product?.availableChannels);
 
@@ -202,47 +201,7 @@ function onPayClicked() {
         Metode Pembayaran Tersedia
       </label>
 
-      <!-- XenithPay manages available channels on its hosted checkout. -->
-      <div v-if="isXenithPay" class="space-y-2">
-        <p class="text-xs leading-relaxed text-slate-600 mb-1">
-          Pilih metode pembayaran yang tersedia langsung di halaman aman XenithPay:
-        </p>
-
-        <!-- 1. Virtual Account -->
-        <div
-          class="flex items-center justify-between p-3 rounded-xl border border-slate-200/90 bg-white shadow-2xs hover:border-slate-300 transition"
-        >
-          <div class="flex items-center gap-3 min-w-0">
-            <div class="p-2 rounded-lg bg-blue-50 text-blue-600 shrink-0">
-              <Building class="w-4 h-4" />
-            </div>
-            <div class="min-w-0">
-              <div class="font-bold text-xs text-slate-900">Virtual Account</div>
-              <div class="text-[11px] text-slate-500 truncate">
-                BCA, Mandiri, BRI, BNI, Permata, CIMB, BSI
-              </div>
-            </div>
-          </div>
-          <span class="text-[11px] font-medium text-slate-400 shrink-0">Otomatis</span>
-        </div>
-
-        <!-- 2. QRIS -->
-        <div
-          class="flex items-center justify-between p-3 rounded-xl border border-slate-200/90 bg-white shadow-2xs hover:border-slate-300 transition"
-        >
-          <div class="flex items-center gap-3 min-w-0">
-            <div class="p-2 rounded-lg bg-emerald-50 text-emerald-600 shrink-0">
-              <QrCode class="w-4 h-4" />
-            </div>
-            <div class="min-w-0">
-              <div class="font-bold text-xs text-slate-900">QRIS</div>
-              <div class="text-[11px] text-slate-500 truncate">Semua m-Banking & E-Wallet</div>
-            </div>
-          </div>
-          <span class="text-[11px] font-semibold text-emerald-600 shrink-0">Bebas Biaya</span>
-        </div>
-      </div>
-      <div v-else class="space-y-2">
+      <div class="space-y-2">
         <!-- 1. QRIS -->
         <div
           class="flex items-center justify-between p-3 rounded-xl border border-slate-200/90 bg-white shadow-2xs hover:border-slate-300 transition"
@@ -354,13 +313,9 @@ function onPayClicked() {
             {{
               isSubmitting
                 ? "Memproses..."
-                : isXenithPay
-                  ? product.mode === "sandbox"
-                    ? `Lanjutkan ke XenithPay (Sandbox) — ${formatRupiah(payableAmount || product.targetPrice)}`
-                    : `Lanjutkan ke XenithPay — ${formatRupiah(payableAmount || product.targetPrice)}`
-                  : product.mode === "sandbox"
-                    ? `Bayar Sandbox — ${formatRupiah(payableAmount || product.targetPrice)}`
-                    : `Bayar Sekarang — ${formatRupiah(payableAmount || product.targetPrice)}`
+                : product.mode === "sandbox"
+                  ? `Bayar Sandbox — ${formatRupiah(payableAmount || product.targetPrice)}`
+                  : `Bayar Sekarang — ${formatRupiah(payableAmount || product.targetPrice)}`
             }}
           </span>
           <ArrowRight v-if="!isSubmitting" class="w-4 h-4 ml-0.5 text-slate-950 shrink-0" />

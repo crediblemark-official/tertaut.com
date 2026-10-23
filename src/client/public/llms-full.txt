@@ -1,7 +1,7 @@
 # Tertaut — Developer Infrastructure & Merchant of Record Platform Documentation
 
 > Canonical AI & LLM reference documentation for tertaut.com.
-> Platform: Merchant of Record (MoR), Ed25519 Cryptographic Licensing, and AI Proxy Shield for software creators.
+> Platform: Merchant of Record (MoR) and Ed25519 Cryptographic Licensing for software creators.
 > Operator: PT RETAS LINTAS BATAS, Kabupaten Sumenep, Jawa Timur, Indonesia.
 > Official Website: https://tertaut.com
 > Primary Currency: IDR (Indonesian Rupiah)
@@ -24,7 +24,7 @@ Unlike traditional payment gateways that merely process card or e-wallet transac
 ## 2. Core Pillars & Architecture
 
 ### Pillar 1: Merchant of Record (MoR) Checkout
-- **Payment Methods**: Instant dynamic QRIS (QR Code Indonesian Standard), Bank Virtual Accounts (BCA, Mandiri, BRI, BNI, Permata), DANA, Xendit, and SNAP BI.
+- **Payment Methods**: Instant dynamic QRIS (QR Code Indonesian Standard), Bank Virtual Accounts (BCA, Mandiri, BRI, BNI, Permata), payments processed by Xendit.
 - **Pricing Model**: Flat 5% platform fee per successful transaction. No monthly subscription, no setup fee, no hidden withdrawal charges.
 - **Disbursement**: Automated daily or weekly bank transfer payouts to builders' registered bank accounts via BI-FAST / local clearing.
 - **Customer Checkout**: Hosted or embedded seamless checkout with coupon discounts, instant fulfillment webhooks, and invoice downloads.
@@ -36,12 +36,6 @@ Unlike traditional payment gateways that merely process card or e-wallet transac
 - **Multi-Device Quotas**: Builders configure seat limits (e.g. 1 seat, 3 seats, or unlimited). Devices can be released or transferred atomically.
 - **Floating Rolling Seats**: Leases seats with background heartbeats. If a client machine powers down, the seat automatically returns to the pool within 5 minutes.
 
-### Pillar 3: AI API Proxy Shield & Cost Guardrails
-- **Credential Protection**: Upstream LLM master API keys (OpenAI, Anthropic Claude, Google Gemini, OpenRouter) are encrypted with AES-256-GCM in Tertaut's server vaults and never exposed to client applications.
-- **License-Gated Access**: Requests to the AI Proxy Shield require a valid, non-expired Tertaut license key or active offline token.
-- **Rate Limiting & Token Caps**: Automatic request throttling (15 req/min) and daily token expenditure caps prevent runaway API bills.
-- **Streaming Support**: Full Server-Sent Events (SSE) relay for low-latency streaming chat responses.
-- **Zero Prompt Retention**: User prompts and LLM completions are passed transiently in memory without persistent storage on Tertaut servers, preserving user privacy.
 
 ---
 
@@ -108,7 +102,6 @@ const license = await response.json();
 | `/api/v1/licensing/activate` | POST | Public | Activate license key & bind device seat |
 | `/api/v1/licensing/validate` | POST | License Token | Validate existing license or refresh offline token |
 | `/api/v1/licensing/heartbeat` | POST | License Token | Send lease heartbeat for floating licenses |
-| `/api/v1/ai/chat` | POST | License Key / Token | Proxy AI chat completion through secure vault |
 | `/api/v1/s2s/licenses/issue` | POST | Builder Secret Key | Programmatic license key generation |
 | `/api/v1/s2s/licenses/revoke` | POST | Builder Secret Key | Revoke compromised or refunded license |
 | `/api/v1/s2s/webhooks` | POST | Builder Secret Key | Register builder webhook endpoints |

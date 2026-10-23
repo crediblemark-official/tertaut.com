@@ -1,3 +1,5 @@
+import { normalizeMoneyStatus } from "../moneyStatus";
+import type { GatewayRefundParams, GatewayMoneyStatus } from "./types";
 import Xendit from "xendit-node";
 import { timingSafeEqual } from "crypto";
 import type {
@@ -447,6 +449,72 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
     const received = Buffer.from(callbackTokenHeader);
     const expected = Buffer.from(webhookToken);
     return received.length === expected.length && timingSafeEqual(received, expected);
+  }
+
+  async createRefund(params: GatewayRefundParams): Promise<GatewayMoneyStatus> {
+    const { secretKey } = await this.getCredentials();
+    if (!secretKey) throw new Error("Xendit refund belum dikonfigurasi");
+    // Raw response retains refund status (the installed SDK's Refund model drops it).
+    const response = await fetch("https://api.xendit.co/refunds", {
+      method: "POST",
+      signal: AbortSignal.timeout(15000),
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${secretKey}:`).toString("base64")}`,
+        "Content-Type": "application/json",
+        "idempotency-key": params.externalId,
+      },
+      body: JSON.stringify({
+        reference_id: params.externalId,
+        ...(params.referenceNo.startsWith("pr-")
+          ? { payment_request_id: params.referenceNo }
+          : { invoice_id: params.referenceNo }),
+        amount: params.amount,
+        currency: "IDR",
+        reason: "REQUESTED_BY_CUSTOMER",
+        metadata: { reason: params.reason.slice(0, 500) },
+      }),
+    });
+    if (!response.ok) throw new Error(`Xendit refund HTTP ${response.status}`);
+    const result = (await response.json()) as { id?: string; status?: string; amount?: number };
+    return { id: result.id, amount: result.amount, status: normalizeMoneyStatus(result.status) };
+  }
+
+  async queryRefund(params: {
+    id?: string;
+    externalId: string;
+    referenceNo: string;
+  }): Promise<GatewayMoneyStatus> {
+    const { secretKey } = await this.getCredentials();
+    if (!secretKey) throw new Error("Xendit refund belum dikonfigurasi");
+    const lookupUrl = params.id
+      ? `https://api.xendit.co/refunds/${encodeURIComponent(params.id)}`
+      : `https://api.xendit.co/refunds?${params.referenceNo.startsWith("pr-") ? "payment_request_id" : "invoice_id"}=${encodeURIComponent(params.referenceNo)}`;
+    const response = await fetch(lookupUrl, {
+      headers: { Authorization: `Basic ${Buffer.from(`${secretKey}:`).toString("base64")}` },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) throw new Error(`Xendit refund inquiry HTTP ${response.status}`);
+    const body = (await response.json()) as any;
+    const result = params.id
+      ? body
+      : (body.data || []).find((item: any) => item.reference_id === params.externalId);
+    return result
+      ? { id: result.id, amount: result.amount, status: normalizeMoneyStatus(result.status) }
+      : { status: "UNKNOWN" };
+  }
+
+  async queryDisbursement(params: {
+    id?: string;
+    externalId: string;
+  }): Promise<GatewayMoneyStatus> {
+    const client = await this.getClient();
+    if (!client) throw new Error("Xendit payout belum dikonfigurasi");
+    const payout = params.id
+      ? await client.Payout.getPayoutById({ id: params.id })
+      : (await client.Payout.getPayouts({ referenceId: params.externalId })).data?.[0];
+    return payout
+      ? { id: payout.id, amount: payout.amount, status: normalizeMoneyStatus(payout.status) }
+      : { status: "UNKNOWN" };
   }
 
   async createDisbursement(

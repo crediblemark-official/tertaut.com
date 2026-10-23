@@ -43,7 +43,7 @@ export interface OgCardOptions {
 export function generateOgSvg(opts: OgCardOptions): string {
   const title = (opts.title || "Tertaut — Developer Infrastructure").slice(0, 90);
   const desc = (
-    opts.description || "Merchant of Record Indonesia, Ed25519 Offline Licensing & AI Proxy Shield"
+    opts.description || "Merchant of Record Indonesia, Ed25519 Offline Licensing & Floating Seats"
   ).slice(0, 160);
   const badge = (opts.badge || "MERCHANT OF RECORD & UNIVERSAL LICENSING").toUpperCase();
   const price = opts.price ? escapeXml(opts.price) : "";
@@ -166,11 +166,11 @@ export function generateOgSvg(opts: OgCardOptions): string {
       <text x="32" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#CBD5E1">Flat 5% MoR Fee (0% Sub)</text>
     </g>
 
-    <!-- Feature 4: AI Shield -->
+    <!-- Feature 4: Floating Seats -->
     <g transform="translate(735, 0)">
       <rect width="200" height="36" rx="8" fill="#0F172A" fill-opacity="0.9" stroke="#334155" stroke-width="1"/>
       <circle cx="18" cy="18" r="4" fill="#A855F7"/>
-      <text x="32" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#CBD5E1">AI Proxy Shield Vault</text>
+      <text x="32" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#CBD5E1">Floating License Seats</text>
     </g>
   </g>
 </svg>`;

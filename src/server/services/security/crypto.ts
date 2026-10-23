@@ -94,8 +94,8 @@ export class CryptoService {
         .update(`${header}.${claims}`)
         .digest("base64url");
 
-      const sigBuf = Buffer.from(signature, "utf8");
-      const expBuf = Buffer.from(expectedSignature, "utf8");
+      const sigBuf = Buffer.from(signature, "base64url");
+      const expBuf = Buffer.from(expectedSignature, "base64url");
       if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
         return null;
       }

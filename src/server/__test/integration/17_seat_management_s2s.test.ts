@@ -1,4 +1,5 @@
-import { describe, it, expect } from "bun:test";
+import * as webhookTransport from "../../services/security/webhookUrl";
+import { describe, it, expect, afterAll, spyOn } from "bun:test";
 import { setupTestAuth } from "../setup";
 import { db } from "../../db";
 import { apps, builders, licenses } from "../../db/schema";
@@ -6,6 +7,10 @@ import { eq, inArray } from "drizzle-orm";
 import { generateBuilderSecretApiKey, generateAppApiKey } from "../../routes/apps/api-key";
 
 setupTestAuth();
+
+// Hindari DNS/jaringan nyata saat "test delivery" webhook.
+const transportSpy = spyOn(webhookTransport, "sendWebhook").mockImplementation(async () => 200);
+afterAll(() => transportSpy.mockRestore());
 
 const BASE = "http://localhost:3001/api/v1/s2s";
 const LIC_API = "http://localhost:3001/api/v1/licensing";
@@ -158,7 +163,7 @@ describe("Fase 6: Seat management & S2S batch ops", () => {
     await setup();
 
     const w1 = await postJson("/webhooks", {
-      url: "http://127.0.0.1:9/hook",
+      url: "https://hooks.example.com/hook",
       events: ["license.issued"],
       secret: "s2s-secret",
     });

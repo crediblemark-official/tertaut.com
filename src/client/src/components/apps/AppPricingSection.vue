@@ -44,7 +44,7 @@ function selectBillingPeriod(id: BillingPeriodType) {
         <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">Penetapan Harga</h2>
       </div>
       <p class="text-[11px] text-jetblack/60 mt-0.5">
-        Atur skema pembayaran langganan berkala, freemium, atau sekali bayar.
+        Atur akses berjangka dengan perpanjangan manual, freemium, atau sekali bayar.
       </p>
     </div>
 
@@ -137,7 +137,7 @@ function selectBillingPeriod(id: BillingPeriodType) {
           class="text-[10px]"
           :class="pricingType === 'subscription' ? 'text-white/70' : 'text-jetblack/60'"
         >
-          Penagihan berulang otomatis
+          Akses berjangka; perpanjangan manual
         </p>
       </button>
     </div>
@@ -239,7 +239,8 @@ function selectBillingPeriod(id: BillingPeriodType) {
             <span class="text-xs font-bold text-jetblack">Uji Coba Gratis (Free Trial)</span>
           </div>
           <p class="text-[10px] text-jetblack/60">
-            Pelanggan tidak ditagih hingga masa trial berakhir.
+            Trial tidak memicu tagihan otomatis. Pelanggan membeli akses secara manual setelah
+            trial.
           </p>
         </div>
         <label class="relative inline-flex items-center cursor-pointer">

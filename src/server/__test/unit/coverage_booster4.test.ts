@@ -12,7 +12,7 @@ import { handleListSeats } from "../../routes/licensing/device/seats";
 import { enforceRateLimit, resetRateLimits } from "../../services/security/rateLimiter";
 import { eq, and } from "drizzle-orm";
 import { config } from "../../config";
-import { DanaService } from "../../services/payments/dana/dana";
+import { xenditGateway } from "../../services/payments/gateways/xenditGateway";
 
 setupTestAuth();
 
@@ -230,71 +230,8 @@ describe("Coverage Booster4: licensing/device.ts edge cases", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  services/xendit.ts — lines 135-136, 210-211
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster4: DanaService more branches", () => {
-  it("DanaService.calculateMorBreakdown: returns correct fee breakdown", () => {
-    const breakdown = DanaService.calculateMorBreakdown(100000);
-    expect(breakdown.grossAmount).toBe(100000);
-    expect(breakdown.platformFee).toBe(5000);
-    expect(breakdown.netAmount).toBe(95000);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 //  services/dana.ts — lines 149-150, 173-174, 214, 276-277
 // ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster4: services/dana.ts additional branches", () => {
-  let origConfigDana: typeof config.dana;
-  let origSandbox: boolean;
-
-  beforeEach(() => {
-    origConfigDana = { ...config.dana };
-    origSandbox = config.isSandbox;
-  });
-
-  afterEach(() => {
-    Object.assign(config.dana, origConfigDana);
-    (config as any).isSandbox = origSandbox;
-  });
-
-  it("DanaService.verifyWebhook: SNAP BI format with x-signature header", async () => {
-    const { DanaService } = await import("../../services/payments/dana/dana");
-    (config as any).isSandbox = true; // sandbox bypass
-    config.dana.publicKey = "";
-    config.dana.clientSecret = "";
-
-    // SNAP BI format: headers has x-signature
-    const result = DanaService.verifyWebhook({ "x-signature": "some_sig" }, { key: "value" });
-    expect(result).toBe(true); // sandbox bypass
-  });
-
-  it("DanaService.createOrder: throws in production with invalid private key", async () => {
-    const { DanaService } = await import("../../services/payments/dana/dana");
-    (config as any).isSandbox = false;
-    config.dana.clientId = "test_client";
-    config.dana.privateKey = "INVALID_PRIVATE_KEY_NOT_PEM";
-
-    await expect(
-      DanaService.createOrder({
-        payerEmail: "t@t.com",
-        externalId: "ext_dana_test",
-        amount: 10000,
-        description: "test order",
-      })
-    ).rejects.toThrow();
-  });
-
-  it("DanaService.verifyWebhook: throws in production with no keys", async () => {
-    const { DanaService } = await import("../../services/payments/dana/dana");
-    (config as any).isSandbox = false;
-    config.dana.clientId = "";
-
-    const result = DanaService.verifyWebhook({ signature: "ext_check_test" }, {});
-    expect(result).toBe(false);
-  });
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 //  apps/mutations.ts — uncovered lines 93-94, 153-154, 165, 222-223, etc.
 //  These are mostly error branches in app update and delete handlers

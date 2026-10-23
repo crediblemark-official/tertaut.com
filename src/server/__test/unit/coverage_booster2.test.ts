@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, mock } from "bun:test";
-import { setupTestAuth, authCookie, danaWebhookHeaders } from "../setup";
+import { setupTestAuth, authCookie } from "../setup";
 import { app } from "../../index";
 import { db } from "../../db";
 import {
@@ -13,14 +13,10 @@ import {
 } from "../../db/schema";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
 import { LicenseService } from "../../services/licensing/license";
-import { DanaService } from "../../services/payments/dana/dana";
+import { xenditGateway } from "../../services/payments/gateways/xenditGateway";
 import { LaunchService } from "../../services/monetization/launchService";
 import { handleDisburse } from "../../routes/apps/disburse";
 import { handleVerifyOfflineToken } from "../../routes/licensing/token";
-import {
-  handleDanaFinishPaymentWebhook,
-  handleDanaDisburseNotifyWebhook,
-} from "../../routes/webhook/dana";
 import { fulfillPaymentTransaction } from "../../routes/webhook/fulfill";
 import { handleHeartbeat } from "../../routes/licensing/device/heartbeat";
 import { handleVerifyLicense } from "../../routes/licensing/device/verify";
@@ -273,146 +269,6 @@ describe("Coverage Booster2: licensing/token.ts", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  webhook/dana.ts — uncovered branches (lines 15-16, 25-26, 117-118, etc.)
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster2: webhook/dana.ts", () => {
-  it("handleDanaFinishPaymentWebhook: rate limited returns 429", async () => {
-    const { resetRateLimits } = await import("../../services/security/rateLimiter");
-    resetRateLimits();
-    const req = new Request("http://localhost", { headers: { "x-real-ip": "8.8.8.8" } });
-    const { enforceRateLimit } = await import("../../services/security/rateLimiter");
-    for (let i = 0; i < 121; i++) enforceRateLimit(req, "webhook:dana:finish", 120, 60_000);
-    const set: any = {};
-    const res = await handleDanaFinishPaymentWebhook({ request: req, headers: {}, body: {}, set });
-    expect(set.status).toBe(429);
-    resetRateLimits();
-  });
-
-  it("handleDanaFinishPaymentWebhook: no identifiers → ack (line 117-118)", async () => {
-    const { config } = await import("../../config");
-    // Sandbox mode: verifyWebhook bypass tidak lagi berlaku bila public key terpasang,
-    // jadi kirim signature valid.
-    const body = { orderStatus: "SUCCESS" };
-    const set: any = {};
-    const res = await handleDanaFinishPaymentWebhook({
-      request: new Request("http://localhost"),
-      headers: danaWebhookHeaders(body),
-      body, // no externalId/orderId/acquirementId
-      set,
-    });
-    // Should ack without error
-    expect((res as any).responseCode).toBeDefined();
-  });
-
-  it("handleDanaFinishPaymentWebhook: string body gets parsed", async () => {
-    const body = JSON.stringify({ orderStatus: "EXPIRED", merchantTransId: "ext_nonexistent" });
-    const set: any = {};
-    const res = await handleDanaFinishPaymentWebhook({
-      request: new Request("http://localhost"),
-      headers: danaWebhookHeaders(body),
-      body,
-      set,
-    });
-    expect((res as any).responseCode).toBeDefined();
-  });
-
-  it("handleDanaFinishPaymentWebhook: invalid string body gracefully handled", async () => {
-    const body = "not-valid-json{{{";
-    const set: any = {};
-    const res = await handleDanaFinishPaymentWebhook({
-      request: new Request("http://localhost"),
-      headers: danaWebhookHeaders(body),
-      body,
-      set,
-    });
-    expect(res).toBeDefined();
-  });
-
-  it("handleDanaDisburseNotifyWebhook: rate limited returns 429", async () => {
-    const { resetRateLimits } = await import("../../services/security/rateLimiter");
-    resetRateLimits();
-    const req = new Request("http://localhost", { headers: { "x-real-ip": "9.9.9.9" } });
-    const { enforceRateLimit } = await import("../../services/security/rateLimiter");
-    for (let i = 0; i < 121; i++) enforceRateLimit(req, "webhook:dana:disburse", 120, 60_000);
-    const set: any = {};
-    const res = await handleDanaDisburseNotifyWebhook({ request: req, headers: {}, body: {}, set });
-    expect(set.status).toBe(429);
-    resetRateLimits();
-  });
-
-  it("handleDanaDisburseNotifyWebhook: FAILED status returns ack", async () => {
-    const { builder, app: a } = await seedBuilderApp();
-    const tx = await createTx(builder.id, a.id, { disbursementStatus: "PROCESSING" });
-    const body = {
-      partnerReferenceNo: tx.xenditExternalId,
-      status: "FAILED",
-    };
-    const set: any = {};
-    const res = await handleDanaDisburseNotifyWebhook({
-      request: new Request("http://localhost"),
-      headers: danaWebhookHeaders(body),
-      body,
-      set,
-    });
-    // In sandbox verifyWebhook bypasses → ack response
-    expect(res).toBeDefined();
-  });
-
-  it("handleDanaDisburseNotifyWebhook: PENDING status → no update, returns ack", async () => {
-    const body = {
-      partnerReferenceNo: "ext_pending_ref",
-      status: "PENDING",
-    };
-    const set: any = {};
-    const res = await handleDanaDisburseNotifyWebhook({
-      request: new Request("http://localhost"),
-      headers: danaWebhookHeaders(body),
-      body,
-      set,
-    });
-    // verifyWebhook in sandbox (no keys) returns true
-    expect(res).toBeDefined();
-  });
-
-  it("handleDanaFinishPaymentWebhook: SNAP BI format with success status 00 → fulfill", async () => {
-    const { builder, app: a } = await seedBuilderApp();
-    const tx = await createTx(builder.id, a.id, { paymentStatus: "PENDING" });
-    const body = {
-      latestTransactionStatus: "00",
-      originalPartnerReferenceNo: tx.xenditExternalId,
-      amount: { value: "100000" },
-    };
-    const set: any = {};
-    const res = await handleDanaFinishPaymentWebhook({
-      request: new Request("http://localhost"),
-      headers: danaWebhookHeaders(body),
-      body,
-      set,
-    });
-    // SNAP BI ack
-    expect((res as any).responseCode).toBe("2005600");
-  });
-
-  it("handleDanaFinishPaymentWebhook: SNAP BI expired status 05 → marks EXPIRED", async () => {
-    const { builder, app: a } = await seedBuilderApp();
-    const tx = await createTx(builder.id, a.id, { paymentStatus: "PENDING" });
-    const body = {
-      latestTransactionStatus: "05",
-      originalPartnerReferenceNo: tx.xenditExternalId,
-    };
-    const set: any = {};
-    await handleDanaFinishPaymentWebhook({
-      request: new Request("http://localhost"),
-      headers: danaWebhookHeaders(body),
-      body,
-      set,
-    });
-    const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) });
-    expect(updated?.paymentStatus).toBe("EXPIRED");
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 //  webhook/fulfill.ts — uncovered lines 34, 56, 160, 162-173
 // ─────────────────────────────────────────────────────────────────────────────
 describe("Coverage Booster2: webhook/fulfill.ts", () => {
@@ -468,139 +324,6 @@ describe("Coverage Booster2: services/launchService.ts", () => {
     const result = await LaunchService.getWidgetData(a.id);
     expect(result).not.toBeNull();
     expect(result?.appName).toBe(a.name);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  services/xendit.ts — verifyWebhook (lines 135-136, 210-211)
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster2: services/dana.ts resolveDisbursementAccount", () => {
-  it("resolveDisbursementAccount: returns null when unconfigured and returns account when configured", async () => {
-    expect(DanaService.resolveDisbursementAccount(undefined)).toBeNull();
-    const account = DanaService.resolveDisbursementAccount({
-      name: "Builder Test",
-      disbursementAccount: {
-        bankCode: "BCA",
-        accountNumber: "12345678",
-        accountHolderName: "Builder Test",
-      },
-    });
-    expect(account).toBeDefined();
-    expect(account?.bankCode).toBe("BCA");
-    expect(account?.accountNumber).toBe("12345678");
-  });
-
-  it("resolveDisbursementAccount: returns null in production when no account", async () => {
-    const { config } = await import("../../config");
-    const origSandbox = config.isSandbox;
-    (config as any).isSandbox = false;
-
-    const account = DanaService.resolveDisbursementAccount(undefined);
-    expect(account).toBeNull();
-
-    (config as any).isSandbox = origSandbox;
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  services/dana.ts — verifyWebhook branches (lines 69, 173-174, 204-206, 214, 276-277)
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster2: services/dana.ts verifyWebhook", () => {
-  it("verifyWebhook: sandbox with no keys → true (bypass)", async () => {
-    const { config } = await import("../../config");
-    const orig = { ...config.dana };
-    const origSandbox = config.isSandbox;
-    (config as any).isSandbox = true;
-    config.dana.publicKey = "";
-    config.dana.clientSecret = "";
-
-    const result = DanaService.verifyWebhook({}, {});
-    expect(result).toBe(true);
-
-    Object.assign(config.dana, orig);
-    (config as any).isSandbox = origSandbox;
-  });
-
-  it("verifyWebhook: no signature in production → false", async () => {
-    const { config } = await import("../../config");
-    const origSandbox = config.isSandbox;
-    const origPubKey = config.dana.publicKey;
-    const origSecret = config.dana.clientSecret;
-    (config as any).isSandbox = false;
-    config.dana.publicKey = "some_key";
-    config.dana.clientSecret = "some_secret";
-
-    const result = DanaService.verifyWebhook({}, {});
-    expect(result).toBe(false);
-
-    (config as any).isSandbox = origSandbox;
-    config.dana.publicKey = origPubKey;
-    config.dana.clientSecret = origSecret;
-  });
-
-  it("verifyWebhook: invalid RSA public key → returns false (exception handler)", async () => {
-    const { config } = await import("../../config");
-    const origSandbox = config.isSandbox;
-    const origPubKey = config.dana.publicKey;
-    const origSecret = config.dana.clientSecret;
-    (config as any).isSandbox = false;
-    config.dana.publicKey = "INVALID_PEM_DATA";
-    config.dana.clientSecret = "some_secret";
-
-    const result = DanaService.verifyWebhook({ signature: "bad_sig" }, { some: "body" });
-    expect(result).toBe(false);
-
-    (config as any).isSandbox = origSandbox;
-    config.dana.publicKey = origPubKey;
-    config.dana.clientSecret = origSecret;
-  });
-
-  it("createOrder: throws when no clientId/privateKey in production mode", async () => {
-    const { config } = await import("../../config");
-    const origSandbox = config.isSandbox;
-    const origId = config.dana.clientId;
-    const origKey = config.dana.privateKey;
-    (config as any).isSandbox = false;
-    config.dana.clientId = "";
-    config.dana.privateKey = "";
-
-    await expect(
-      DanaService.createOrder({
-        payerEmail: "t@t.com",
-        externalId: "ext_err_test",
-        amount: 10000,
-        description: "test",
-      })
-    ).rejects.toThrow(/DANA/);
-
-    (config as any).isSandbox = origSandbox;
-    config.dana.clientId = origId;
-    config.dana.privateKey = origKey;
-  });
-
-  it("createDisbursement: throws when no clientId/clientSecret in production mode", async () => {
-    const { config } = await import("../../config");
-    const origSandbox = config.isSandbox;
-    const origId = config.dana.clientId;
-    const origSecret = config.dana.clientSecret;
-    (config as any).isSandbox = false;
-    config.dana.clientId = "";
-    config.dana.clientSecret = "";
-
-    await expect(
-      DanaService.createDisbursement({
-        externalId: "ext_disb_err",
-        amount: 10000,
-        bankCode: "BCA",
-        accountHolderName: "Test",
-        accountNumber: "123",
-        description: "test",
-      })
-    ).rejects.toThrow("Kredensial DANA");
-
-    (config as any).isSandbox = origSandbox;
-    config.dana.clientId = origId;
-    config.dana.clientSecret = origSecret;
   });
 });
 

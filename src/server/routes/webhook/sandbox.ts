@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { transactions } from "../../db/schema";
+import { transactions, apps } from "../../db/schema";
 import { eq, or } from "drizzle-orm";
 import { fulfillPaymentTransaction } from "./fulfill";
 import type { WebhookSimpleContext } from "./types";
@@ -32,11 +32,9 @@ export async function handleSandboxPaymentWebhook({ body, set }: WebhookSimpleCo
     // PROTEKSI KEAMANAN (BUG-5):
     // Pastikan transaksi BENAR-BENAR ber-mode sandbox.
     // Transaksi riil (live) mutlak dilarang dilunasi melalui webhook simulasi sandbox!
+    const app = await db.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
     const isSandboxTx =
-      tx.paymentProvider === "sandbox" ||
-      Boolean(tx.xenditInvoiceId?.startsWith("inv_sandbox_")) ||
-      Boolean(tx.xenditExternalId?.startsWith("sb_")) ||
-      Boolean(tx.xenditExternalId?.startsWith("demo_"));
+      tx.mode === "sandbox" && app?.mode === "sandbox" && tx.paymentProvider === "sandbox";
 
     if (!isSandboxTx) {
       set.status = 403;

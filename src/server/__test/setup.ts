@@ -1,36 +1,13 @@
 import { beforeAll, beforeEach } from "bun:test";
 import { resetRateLimits } from "../services/security/rateLimiter";
 import { auth } from "../auth";
-import { createSign } from "crypto";
-import { config, DEFAULT_TEST_SANDBOX_PRIVATE_KEY } from "../config";
+import { config } from "../config";
 import {
   DEFAULT_GATEWAY_ID,
   GATEWAY_IDS,
   normalizeGatewayId,
   type GatewayId,
 } from "../services/payments/gateways/registry";
-
-/**
- * Tanda tangani payload webhook DANA dengan private key yang dikonfigurasi
- * (format yang sama dengan fallback crypto RSA-SHA256 di verifyWebhook),
- * menghasilkan header `signature` yang VALID untuk dipakai di test yang
- * berjalan dengan public key terpasang (BUG-3 — signature kini wajib).
- */
-export function signDanaWebhook(body: unknown): string {
-  const raw = typeof body === "string" ? body : JSON.stringify(body);
-  const signer = createSign("SHA256");
-  signer.update(raw);
-  const key = config.dana.privateKey || DEFAULT_TEST_SANDBOX_PRIVATE_KEY;
-  return signer.sign(key, "base64");
-}
-
-/** Kembalikan object headers webhook yang valid (signature RSA-SHA256) + header ekstra. */
-export function danaWebhookHeaders(
-  body: unknown,
-  extra: Record<string, string> = {}
-): Record<string, string> {
-  return { signature: signDanaWebhook(body), ...extra };
-}
 
 export let authCookie = "";
 
@@ -117,20 +94,8 @@ export async function ensureAdminAuth(): Promise<string> {
 
 import { app } from "../index";
 
-/**
- * Normalisasi state global yang dibagi seluruh file test.
- *
- * Meskipun di level aplikasi produksi default payment gateway adalah "xendit",
- * rangkaian test suite unit/integrasi (01-24, bugfixes, kupon, dsb.) dibangun dengan
- * mock spesifik ke adapter DANA (mis. spyOn(danaGateway, "createOrder") &
- * spyOn(DanaService, "createDisbursement")).
- *
- * Lingkungan CI (GitHub Actions) juga hanya menyediakan mock kredensial DANA tanpa
- * kunci API Xendit eksternal. Oleh karena itu, gateway fallback khusus runtime test
- * ini diisolasi ke "dana" agar seluruh 477 test tetap 100% hijau di lokal maupun CI.
- * Pengujian Xendit dilakukan terisolasi di 25_multi_gateway_xendit.test.ts.
- */
-const FALLBACK_TEST_GATEWAY: GatewayId = "dana";
+/** Default pengujian mengikuti gateway produksi. */
+const FALLBACK_TEST_GATEWAY: GatewayId = "xendit";
 
 function resolveTestGateway(): GatewayId {
   // Hanya `TERTAUT_TEST_GATEWAY` yang dihormati (bukan ACTIVE_PAYMENT_GATEWAY /

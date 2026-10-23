@@ -1,13 +1,10 @@
+import { createPollTicket } from "../../utils/pollTicket";
 import { describe, it, expect, beforeAll, spyOn } from "bun:test";
 import { setupTestAuth, authCookie } from "../setup";
 import { handleBatchPayout } from "../../routes/panel/payouts";
 import { handleDisburse } from "../../routes/apps/disburse";
-import { DanaService } from "../../services/payments/dana/dana";
-import {
-  handleDanaFinish,
-  handlePreviewCoupon,
-  handleListTransactions,
-} from "../../routes/checkout/handlers";
+import { xenditGateway } from "../../services/payments/gateways/xenditGateway";
+import { handlePreviewCoupon, handleListTransactions } from "../../routes/checkout/handlers";
 import { db } from "../../db";
 import { apps, builders, transactions, coupons } from "../../db/schema";
 import { eq } from "drizzle-orm";
@@ -181,12 +178,12 @@ describe("Payouts, Disbursements, and Checkout Handlers", () => {
       disbursementStatus: "PENDING",
     });
 
-    const spyDisb = spyOn(DanaService, "createDisbursement").mockResolvedValueOnce({
-      id: `dana_disb_${Date.now()}`,
-      external_id: `disb_${paidTxId}`,
+    const spyDisb = spyOn(xenditGateway, "createDisbursement").mockResolvedValueOnce({
+      id: `xendit_disb_${Date.now()}`,
+      externalId: `disb_${paidTxId}`,
       amount: 95000,
-      bank_code: "014",
-      account_holder_name: "Test Builder",
+      bankCode: "014",
+      accountHolderName: "Test Builder",
       status: "COMPLETED",
     });
 
@@ -248,36 +245,8 @@ describe("Payouts, Disbursements, and Checkout Handlers", () => {
     expect([200, 400]).toContain(triggerLiveRes.status);
   });
 
-  it("should test checkout handlers: handleDanaFinish, handlePreviewCoupon, handleListTransactions, handleSimulatePaid", async () => {
+  it("should test checkout handlers: handlePreviewCoupon, handleListTransactions, handleSimulatePaid", async () => {
     const set: any = {};
-
-    // 1. handleDanaFinish: missing externalId (400)
-    const finishMissing = await handleDanaFinish({ query: {}, set });
-    expect(set.status).toBe(400);
-
-    // 404 Tx Not Found
-    const finishNotFound = await handleDanaFinish({ query: { externalId: "fake_ext_999" }, set });
-    expect(set.status).toBe(404);
-
-    // Valid handleDanaFinish
-    const extId = `ext_${Date.now()}`;
-    const txId = `tx_dana_${Date.now()}`;
-    await db.insert(transactions).values({
-      id: txId,
-      appId: liveApp.id,
-      builderId: testBuilder.id,
-      xenditExternalId: extId,
-      customerEmail: "dana_cust@test.com",
-      grossAmount: 50000,
-      platformFee: 2500,
-      netAmount: 47500,
-      paymentStatus: "PAID",
-      disbursementStatus: "PENDING",
-    });
-
-    const finishSuccess = await handleDanaFinish({ query: { externalId: extId }, set: {} });
-    expect(finishSuccess?.success).toBe(true);
-    expect(finishSuccess?.paymentStatus).toBe("PAID");
 
     // 2. handlePreviewCoupon
     const previewNoApp = await handlePreviewCoupon({

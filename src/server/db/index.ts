@@ -48,3 +48,5 @@ export const queryClient = postgres(databaseUrl, {
 
 export const db = drizzle(queryClient, { schema });
 export type DB = typeof db;
+
+export type DBExecutor = DB | Parameters<Parameters<DB["transaction"]>[0]>[0];

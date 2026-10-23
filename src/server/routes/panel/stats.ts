@@ -14,11 +14,11 @@ export async function handlePanelStats() {
       totalNet: sql<number>`coalesce(sum(${transactions.netAmount}), 0)`.mapWith(Number),
       totalTx: sql<number>`count(*)`.mapWith(Number),
       pendingAmount:
-        sql<number>`coalesce(sum(case when ${transactions.disbursementStatus} = 'PENDING' then ${transactions.netAmount} else 0 end), 0)`.mapWith(
+        sql<number>`coalesce(sum(case when ${transactions.disbursementStatus} = 'PENDING' AND ${transactions.refundStatus} IN ('NONE', 'FAILED') then ${transactions.netAmount} else 0 end), 0)`.mapWith(
           Number
         ),
       pendingCount:
-        sql<number>`count(*) filter (where ${transactions.disbursementStatus} = 'PENDING')`.mapWith(
+        sql<number>`count(*) filter (where ${transactions.disbursementStatus} = 'PENDING' AND ${transactions.refundStatus} IN ('NONE', 'FAILED'))`.mapWith(
           Number
         ),
       completedAmount:

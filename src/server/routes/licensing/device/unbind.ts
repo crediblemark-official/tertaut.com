@@ -61,6 +61,7 @@ export async function handleUnbindHardware({ body, set, request }: DeviceUnbindC
   await LicenseService.rotateOfflineToken(
     {
       id: lic.id,
+      mode: lic.mode,
       licenseKey: lic.licenseKey,
       appId: lic.appId,
       customerEmail: lic.customerEmail,

@@ -1,3 +1,4 @@
+import { matchesLicenseEnvironment } from "../../../lib/licenseEnvironment";
 import { db } from "../../../db";
 import {
   licenses,
@@ -16,7 +17,7 @@ import {
 } from "../../../services/licensing/licenseLease";
 import { AuditService } from "../../../services/security/audit";
 import { WebhookService } from "../../../services/notifications/webhooks";
-import { enforceRateLimit } from "../../../services/security/rateLimiter";
+import { enforceRateLimitAsync } from "../../../services/security/rateLimiter";
 import { randomBytes } from "crypto";
 import { getClientIp } from "../../../lib/ip";
 import type { DeviceActivateContext } from "./types";
@@ -25,7 +26,7 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
   const { body, set, request } = ctx;
   const { licenseKey, appId, hwid, deviceName } = body;
 
-  const rl = enforceRateLimit(request, "licensing:activate", 60, 60_000);
+  const rl = await enforceRateLimitAsync(request, "licensing:activate", 60, 60_000);
   if (!rl.allowed) {
     set.status = 429;
     return {
@@ -55,6 +56,17 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
       success: false,
       error: "App mismatch for this license key",
       errorCode: "APP_MISMATCH",
+    };
+  }
+
+  if (!(await matchesLicenseEnvironment(lic))) {
+    set.status = 403;
+    return {
+      success: false,
+      valid: false,
+      status: "ENVIRONMENT_MISMATCH",
+      reason: "ENVIRONMENT_MISMATCH",
+      errorCode: "ENVIRONMENT_MISMATCH",
     };
   }
 
@@ -235,7 +247,7 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
 
       // Rotasi token offline (Fase 5): denylist jti lama bila ada, lalu terbitkan yang baru.
       if (locked.offlineJwtGraceToken) {
-        const decoded = LicenseTokenService.verify(locked.offlineJwtGraceToken);
+        const decoded = await LicenseTokenService.verify(locked.offlineJwtGraceToken);
         if (decoded.valid && decoded.claims) {
           await trx
             .insert(revokedTokens)
@@ -258,7 +270,8 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
         lic.customerEmail,
         activeMaxSeats,
         lic.features,
-        offlineGraceDays
+        offlineGraceDays,
+        locked.mode
       );
 
       await trx
@@ -278,6 +291,17 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
             })
           ).length;
 
+      await WebhookService.emit(
+        "license.activated",
+        {
+          license: lic,
+          actorType: "CLIENT",
+          actorId: hwid,
+          ipAddress,
+          payload: { deviceName, seatsUsed: seatsUsed },
+        },
+        trx
+      );
       return {
         success: true as const,
         licenseToken,
@@ -329,14 +353,6 @@ export async function handleActivateLicense(ctx: DeviceActivateContext) {
       },
       { deviceName, seatsUsed: outcome.seatsUsed }
     );
-
-    await WebhookService.emit("license.activated", {
-      license: lic,
-      actorType: "CLIENT",
-      actorId: hwid,
-      ipAddress,
-      payload: { deviceName, seatsUsed: outcome.seatsUsed },
-    });
 
     const floatingConfig = resolveFloatingConfig(
       await db.query.apps.findFirst({ where: eq(apps.id, lic.appId) })

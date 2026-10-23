@@ -1,19 +1,20 @@
+import { matchesLicenseEnvironment } from "../../lib/licenseEnvironment";
 import { db } from "../../db";
 import { licenses, revokedTokens } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { LicenseTokenService } from "../../services/licensing/licenseToken";
-import { enforceRateLimit } from "../../services/security/rateLimiter";
+import { enforceRateLimitAsync } from "../../services/security/rateLimiter";
 
 export async function handleVerifyOfflineToken({ body, set, request }: any) {
   const { token } = body;
 
-  const rl = enforceRateLimit(request, "licensing:verify-offline", 120, 60_000);
+  const rl = await enforceRateLimitAsync(request, "licensing:verify-offline", 120, 60_000);
   if (!rl.allowed) {
     set.status = 429;
     return { valid: false, reason: "RATE_LIMITED" };
   }
 
-  const decoded = LicenseTokenService.verify(token);
+  const decoded = await LicenseTokenService.verify(token);
   if (!decoded.valid || !decoded.claims) {
     set.status = 401;
     return { valid: false, reason: decoded.reason || "INVALID_OR_EXPIRED_TOKEN" };
@@ -37,6 +38,11 @@ export async function handleVerifyOfflineToken({ body, set, request }: any) {
   if (!lic || lic.status !== "ACTIVE") {
     set.status = 401;
     return { valid: false, reason: lic ? `LICENSE_${lic.status}` : "LICENSE_NOT_FOUND" };
+  }
+
+  if (!(await matchesLicenseEnvironment(lic))) {
+    set.status = 401;
+    return { valid: false, reason: "ENVIRONMENT_MISMATCH" };
   }
 
   return {

@@ -79,7 +79,7 @@ onMounted(async () => {
         :title="
           env === 'sandbox'
             ? 'Environment Sandbox: pembayaran disimulasikan'
-            : 'Environment Live: DANA produksi aktif'
+            : 'Environment Live: pembayaran diproses melalui Xendit'
         "
       >
         <span

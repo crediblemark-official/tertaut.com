@@ -18,7 +18,7 @@ import { auth } from "../../auth";
 import { enforceRateLimit, resetRateLimits } from "../../services/security/rateLimiter";
 import { LicenseLeaseService } from "../../services/licensing/licenseLease";
 import { LicenseService } from "../../services/licensing/license";
-import { DanaService } from "../../services/payments/dana/dana";
+import { xenditGateway } from "../../services/payments/gateways/xenditGateway";
 import { handleListSeats } from "../../routes/licensing/device/seats";
 import { handleHeartbeat } from "../../routes/licensing/device/heartbeat";
 import { handleVerifyLicense } from "../../routes/licensing/device/verify";
@@ -371,93 +371,5 @@ describe("Coverage Booster: Coupons Router Edge Cases", () => {
       })
     );
     expect(resDel.status).toBe(404);
-  });
-});
-
-describe("Coverage Booster: DanaService Live Signing & Disbursements", () => {
-  it("tests DanaService with RSA keys and fetch calls", async () => {
-    const { config } = await import("../../config");
-    const origConfig = { ...config.dana, isSandbox: config.isSandbox };
-
-    // Generate RSA key pair for testing
-    const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
-      modulusLength: 2048,
-      publicKeyEncoding: { type: "spki", format: "pem" },
-      privateKeyEncoding: { type: "pkcs8", format: "pem" },
-    });
-
-    config.dana.clientId = "test_client_123";
-    config.dana.clientSecret = "test_secret_123";
-    config.dana.merchantId = "test_merchant_123";
-    config.dana.customerNumber = "6280000000099"; // BUG A4: wajib disetel untuk transferToBank
-    config.dana.privateKey = privateKey;
-    config.dana.publicKey = publicKey;
-    (config as any).isSandbox = false;
-
-    // Delegate to original fetch unless it's a DANA URL
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = ((input: any, init?: any) => {
-      const url = typeof input === "string" ? input : input?.url || "";
-      if (url.includes("payment-host-to-host")) {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              responseCode: "2005400",
-              responseMessage: "Success",
-              webRedirectUrl: "https://m.dana.id/pay",
-              referenceNo: "DANA_REF_123",
-              acquirementId: "ACQ_123",
-            }),
-            { status: 200, headers: { "Content-Type": "application/json" } }
-          )
-        );
-      }
-      if (url.includes("transfer-bank") || url.includes("transferToBank")) {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              responseCode: "2004300",
-              responseMessage: "Successful",
-              referenceNo: "DISB_ACQ_123",
-            }),
-            { status: 200, headers: { "Content-Type": "application/json" } }
-          )
-        );
-      }
-      return originalFetch(input, init);
-    }) as any;
-
-    try {
-      // 1. Create order with RSA signature
-      const orderRes = await DanaService.createOrder({
-        payerEmail: "test@example.com",
-        externalId: `dana_ext_${Date.now()}`,
-        amount: 50000,
-        description: "Test DANA Live Order",
-      });
-      expect(orderRes.checkoutUrl).toBe("https://m.dana.id/pay");
-      expect(orderRes.orderId).toBe("DANA_REF_123");
-
-      // 2. Create disbursement with client credentials
-      const disbRes = await DanaService.createDisbursement({
-        externalId: `dana_disb_${Date.now()}`,
-        amount: 100000,
-        bankCode: "BCA",
-        accountHolderName: "Test Receiver",
-        accountNumber: "1234567890",
-        description: "Test Disb",
-      });
-      expect(disbRes.status).toBe("COMPLETED");
-
-      // 3. Verify webhook with production check (publicKey missing)
-      config.dana.publicKey = "";
-      const rejectWithoutKey = DanaService.verifyWebhook({ signature: "sig" }, {});
-      expect(rejectWithoutKey).toBe(false);
-    } finally {
-      // Restore
-      Object.assign(config.dana, origConfig);
-      (config as any).isSandbox = origConfig.isSandbox;
-      globalThis.fetch = originalFetch;
-    }
   });
 });

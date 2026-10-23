@@ -4,7 +4,7 @@ import { swagger } from "@elysiajs/swagger";
 import { staticPlugin } from "@elysiajs/static";
 import { apiV1Routes } from "./routes/api";
 import { badgeRoutes } from "./routes/badge/router";
-import { webhookRoutes, webhooksPluralRoutes, snapBiWebhookRoutes } from "./routes/webhook/router";
+import { webhookRoutes, webhooksPluralRoutes } from "./routes/webhook/router";
 import { checkoutRoutes } from "./routes/checkout/router";
 import { config, resolveRequestOrigin } from "./config";
 import { auth } from "./auth";
@@ -183,8 +183,6 @@ export const app = new Elysia()
         /^\/api\/v1\/coupons/,
         // Launch kit dashboard
         /^\/api\/v1\/launch/,
-        // Statistik metering dashboard
-        /^\/api\/v1\/metering\/stats/,
         // Admin lisensi dashboard (programatik: S2S /licenses/issue|revoke)
         /^\/api\/v1\/licensing\/list/,
         /^\/api\/v1\/licensing\/issue/,
@@ -197,10 +195,7 @@ export const app = new Elysia()
         // Endpoint internal yang tidak dipakai SDK/docs (bukan API builder)
         /^\/api\/v1\/health\//,
         /^\/api\/v1\/apps\/by-slug\//,
-        /^\/api\/v1\/checkout\/dana\/finish/,
         /^\/api\/v1\/checkout\/preview-coupon/,
-        /^\/api\/v1\/metering\/events/,
-        /^\/api\/v1\/metering\/usage\//,
         // Internal banner pengumuman frontend
         /^\/api\/v1\/announcement/,
       ],
@@ -209,7 +204,7 @@ export const app = new Elysia()
           title: "tertaut.com Developer API",
           version: "0.2.0",
           description:
-            "Spesifikasi OpenAPI resmi untuk platform **tertaut.com** — Merchant of Record (MoR), Lisensi Kriptografis Offline-First (Ed25519), dan Usage Credits Metering untuk software builder di Indonesia.\n\n" +
+            "Spesifikasi OpenAPI resmi untuk platform **tertaut.com** — Merchant of Record (MoR) dan Lisensi Kriptografis Offline-First (Ed25519) untuk software builder di Indonesia.\n\n" +
             "### 🛡️ Skema Autentikasi:\n" +
             "- **`BuilderSecretKey` (`Bearer tt_secret_...`)**: Wajib untuk seluruh endpoint Server-to-Server (`/api/v1/s2s/*`). Ambil secret key Anda di halaman Dashboard > Docs. Jangan pernah mengekspos secret key ini di aplikasi klien/frontend.\n" +
             "- **`LicenseToken` (`Bearer <token>`)**: Digunakan oleh perangkat klien setelah aktivasi lisensi (`POST /api/v1/licensing/activate`) untuk membuktikan kepemilikan lisensi secara offline.\n\n" +
@@ -226,11 +221,6 @@ export const app = new Elysia()
             name: "Universal Licensing",
             description:
               "Validasi lisensi multi-platform, binding hardware ID perangkat, aktivasi floating seat, dan token offline Ed25519.",
-          },
-          {
-            name: "Credits",
-            description:
-              "Ledger saldo kredit dan pelaporan pemakaian konsumsi kredit lisensi secara atomik dan idempoten.",
           },
           {
             name: "S2S API",
@@ -342,10 +332,9 @@ export const app = new Elysia()
   // Mount API v1 Routes & Direct Badge Endpoint
   .use(apiV1Routes)
   .use(badgeRoutes)
-  // Mount Direct Webhook & Checkout Root Endpoints (e.g. /webhook/dana/finish-payment, /v1.0/debit/notify)
+  // Mount webhook aliases
   .use(webhookRoutes)
   .use(webhooksPluralRoutes)
-  .use(snapBiWebhookRoutes)
   .use(checkoutRoutes)
 
   // Dynamic Programmatic Sitemap (Auto-sync DB Apps & Static Pages)
@@ -376,10 +365,6 @@ if (hasBuiltClient) {
     .get("/docs/*", ({ request, set }) =>
       serveFromDir(docsDistPath, new URL(request.url).pathname.slice("/docs".length), set)
     )
-    .get("/checkout/dana/finish", ({ query, set }: any) => {
-      const qs = new URLSearchParams(query as any).toString();
-      set.redirect = `/api/v1/checkout/dana/finish${qs ? `?${qs}` : ""}`;
-    })
     // SPA fallback
     .get("*", async ({ request, set }) => {
       const url = new URL(request.url);

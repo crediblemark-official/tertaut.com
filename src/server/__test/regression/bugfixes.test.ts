@@ -25,9 +25,8 @@ import { handleValidateLicense } from "../../routes/licensing/device/validate";
 import { handleListSeats } from "../../routes/licensing/device/seats";
 import { fulfillPaymentTransaction } from "../../routes/webhook/fulfill";
 import { handleDisburse } from "../../routes/apps/disburse";
-import { DanaService } from "../../services/payments/dana/dana";
+import { xenditGateway } from "../../services/payments/gateways/xenditGateway";
 import { config } from "../../config";
-import { danaGateway } from "../../services/payments/gateways/danaGateway";
 
 setupTestAuth();
 
@@ -88,8 +87,8 @@ describe("Regression #1: /checkout/session tidak lagi menerima grantCredits dari
   let danaSpy: any;
 
   beforeEach(() => {
-    danaSpy = spyOn(danaGateway, "createOrder").mockImplementation(async (params) => ({
-      orderId: `dana_order_${Date.now()}`,
+    danaSpy = spyOn(xenditGateway, "createOrder").mockImplementation(async (params) => ({
+      orderId: `xendit_order_${Date.now()}`,
       checkoutUrl: `https://link.dana.id/pay/test?externalId=${params.externalId}`,
       paymentRail: params.paymentRail,
     }));
@@ -137,7 +136,7 @@ describe("Regression #2: /validate mengembalikan token yang tersimpan di DB (TID
     });
     const licKey = issued.license.licenseKey;
     const oldToken = issued.license.offlineJwtGraceToken!;
-    const oldJti = LicenseTokenService.verify(oldToken).claims!.jti;
+    const oldJti = (await LicenseTokenService.verify(oldToken)).claims!.jti;
 
     const set: any = {};
     const res: any = await handleValidateLicense({
@@ -152,7 +151,7 @@ describe("Regression #2: /validate mengembalikan token yang tersimpan di DB (TID
 
     // Token yang dikembalikan SAMA dengan token di DB (tidak dirotasi)
     expect(res.offlineGraceToken).toBe(oldToken);
-    const decoded = LicenseTokenService.verify(res.offlineGraceToken);
+    const decoded = await LicenseTokenService.verify(res.offlineGraceToken);
     expect(decoded.valid).toBe(true);
     expect(decoded.claims!.jti).toBe(oldJti);
   });
@@ -187,39 +186,6 @@ describe("Regression #2: /validate mengembalikan token yang tersimpan di DB (TID
     );
     expect(verifyRes.status).toBe(401);
     expect((await verifyRes.json()).reason).toBe("TOKEN_REVOKED");
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Bug #3: checkoutUrl DANA memakai param externalId (bukan orderId)
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Regression #3: checkoutUrl DANA memakai param externalId", () => {
-  it("URL memuat externalId (bukan orderId=...)", async () => {
-    const externalId = `tt_${suffix()}`;
-    const stubGateway = {
-      createOrder: async () => ({
-        referenceNo: `dana_ref_${Date.now()}`,
-        webRedirectUrl: `http://localhost:3001/checkout/dana/finish?externalId=${externalId}`,
-      }),
-    };
-    const order = await DanaService.createOrder(
-      {
-        externalId,
-        amount: 50000,
-        payerEmail: `buyer_${suffix()}@test.com`,
-        description: "Regression order",
-      },
-      stubGateway
-    );
-    expect(order.checkoutUrl).toContain(`externalId=${externalId}`);
-    expect(order.checkoutUrl).not.toContain("orderId=");
-
-    // Endpoint finish harus menerima URL ini tanpa 400
-    const finishRes = await app.handle(
-      new Request(`${BASE}/api/v1/checkout/dana/finish?externalId=${externalId}`)
-    );
-    // 404 transaksi tidak ada pun membuktikan param terbaca (sebelumnya 400 param hilang)
-    expect([200, 404]).toContain(finishRes.status);
   });
 });
 
@@ -324,7 +290,7 @@ describe("Regression #5: aktivasi idempotent mengembalikan token terbaru dari DB
     });
 
     const fresh = await db.query.licenses.findFirst({ where: eq(licenses.licenseKey, licKey) });
-    const decoded = LicenseTokenService.verify(fresh!.offlineJwtGraceToken!);
+    const decoded = await LicenseTokenService.verify(fresh!.offlineJwtGraceToken!);
     expect(decoded.valid).toBe(true);
 
     // Token lama dari issueDirect harus sudah masuk denylist (ROTATED)
@@ -446,7 +412,7 @@ describe("Regression #8: fulfillment pembayaran menerbitkan lisensi lengkap", ()
     const lic = await db.query.licenses.findFirst({ where: eq(licenses.transactionId, tx.id) });
     expect(lic).toBeDefined();
     expect(lic!.offlineJwtGraceToken).toBeTruthy();
-    expect(LicenseTokenService.verify(lic!.offlineJwtGraceToken!).valid).toBe(true);
+    expect((await LicenseTokenService.verify(lic!.offlineJwtGraceToken!)).valid).toBe(true);
     expect(lic!.features).toEqual({ tier: "pro" });
     expect(lic!.maxSeats).toBe(5);
     expect(lic!.apiKey).toMatch(/^tt_cust_/);

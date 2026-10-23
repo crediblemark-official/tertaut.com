@@ -23,18 +23,7 @@ const queryAmount = computed(() => (route.query.amount ? Number(route.query.amou
 const queryProductName = computed(() => (route.query.product_name as string) || "");
 const queryRedirectUrl = computed(() => (route.query.redirect_url as string) || "");
 
-/** Resolusi Payment Gateway dari query parameter (?gateway=xenith | dana | xendit) */
-const queryPaymentGateway = computed<"xenithpay" | "dana" | "xendit">(() => {
-  const g = String(route.query.gateway || route.query.payment_gateway || "")
-    .toLowerCase()
-    .trim();
-  if (g === "xenith" || g === "xenithpay") return "xenithpay";
-  if (g === "xendit") return "xendit";
-  if (g === "dana") return "dana";
-  return "xenithpay"; // Default untuk pengajuan audit
-});
-
-const activeGateway = computed<"xenithpay" | "dana" | "xendit">(() => queryPaymentGateway.value);
+const activeGateway = computed<"xendit">(() => "xendit");
 
 const queryPaymentRail = computed(() => {
   const rail = String(route.query.rail || route.query.payment_rail || "").toLowerCase();
@@ -54,7 +43,7 @@ const product = ref<{
   slug: string;
   mode: "sandbox" | "live";
   checkoutMode: "custom" | "hosted";
-  activePaymentGateway: "dana" | "xendit" | "xenithpay";
+  activePaymentGateway: "xendit" | "sandbox";
   targetPrice: number;
   description: string | null;
   headline: string | null;
@@ -76,9 +65,9 @@ const isSubmitting = ref(false);
 const errorMessage = ref("");
 
 const selectedPaymentRail = ref<"qris" | "va" | "ewallet" | "card" | "retail">(
-  queryPaymentRail.value || (activeGateway.value === "xenithpay" ? "va" : "qris")
+  queryPaymentRail.value || "qris"
 );
-const selectedBank = ref(queryBank.value || (activeGateway.value === "xenithpay" ? "BNI" : "BCA"));
+const selectedBank = ref(queryBank.value || "BCA");
 const selectedEwallet = ref(queryEwallet.value || "DANA");
 const selectedRetail = ref(queryRetailOutlet.value || "ALFAMART");
 

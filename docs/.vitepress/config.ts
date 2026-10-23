@@ -11,9 +11,9 @@ export default defineConfig({
     logo: "/docs/brand.svg",
     nav: [
       { text: "Home", link: "/" },
-      { text: "Getting Started", link: "/getting-started" },
-      { text: "SDK", link: "/sdk" },
-      { text: "S2S API", link: "/server-to-server" },
+      { text: "Getting Started", link: "/guide/getting-started" },
+      { text: "SDK", link: "/api/sdk" },
+      { text: "S2S API", link: "/api/server-to-server" },
       { text: "Swagger", link: "https://tertaut.com/swagger", target: "_blank" },
     ],
     sidebar: [
@@ -21,20 +21,20 @@ export default defineConfig({
         text: "Memulai",
         items: [
           { text: "Overview", link: "/" },
-          { text: "Getting Started", link: "/getting-started" },
-          { text: "Environment Client", link: "/environment" },
+          { text: "Getting Started", link: "/guide/getting-started" },
+          { text: "Environment Client", link: "/guide/environment" },
         ],
       },
       {
         text: "Integrasi & API",
         items: [
-          { text: "SDK @tertaut/sdk", link: "/sdk" },
-          { text: "Server-to-Server API", link: "/server-to-server" },
+          { text: "SDK @tertaut/sdk", link: "/api/sdk" },
+          { text: "Server-to-Server API", link: "/api/server-to-server" },
         ],
       },
       {
         text: "Referensi",
-        items: [{ text: "Demo Checkout", link: "/demo-checkout" }],
+        items: [{ text: "Demo Checkout", link: "/reference/demo-checkout" }],
       },
     ],
     footer: {

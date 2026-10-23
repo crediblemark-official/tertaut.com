@@ -266,7 +266,7 @@ export async function handleGetBySlug({ params: { slug }, set }: SlugParamContex
 
   // Untuk aplikasi sandbox, gunakan gateway adapter sandbox sehingga seluruh
   // opsi simulator (QRIS, VA, E-Wallet, Retail) aktif dan dapat diuji.
-  // Untuk mode live, gunakan gateway pembayaran platform riil (Xendit/DANA).
+  // Untuk mode live, gunakan gateway pembayaran platform riil (Xendit).
   const platformGateway = await getActivePaymentGateway();
   const effectiveGateway = isSandbox ? "sandbox" : platformGateway;
 

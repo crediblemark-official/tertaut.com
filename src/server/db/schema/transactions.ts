@@ -23,7 +23,13 @@ export const transactions = pgTable(
     builderId: uuid("builder_id")
       .notNull()
       .references(() => builders.id, { onDelete: "cascade" }),
-    paymentProvider: text("payment_provider").default("dana").notNull(), // "dana"
+    mode: text("mode", { enum: ["sandbox", "live"] })
+      .default("live")
+      .notNull(),
+    paymentCode: text("payment_code"),
+    qrDataUrl: text("qr_data_url"),
+    paymentExpiresAt: timestamp("payment_expires_at", { withTimezone: true }),
+    paymentProvider: text("payment_provider").default("xendit").notNull(), // Original payment provider
     providerReferenceId: text("provider_reference_id"), // Order ID / Reference ID dari gateway
     xenditInvoiceId: text("xendit_invoice_id").unique(),
     xenditExternalId: text("xendit_external_id").notNull(),
@@ -45,7 +51,15 @@ export const transactions = pgTable(
     })
       .default("PENDING")
       .notNull(),
+    refundStatus: text("refund_status", {
+      enum: ["NONE", "PROCESSING", "UNKNOWN", "COMPLETED", "FAILED"],
+    })
+      .default("NONE")
+      .notNull(),
+    refundOperationId: text("refund_operation_id"),
+    payoutOperationId: text("payout_operation_id"),
     disbursementId: text("disbursement_id"),
+    disbursementExternalId: text("disbursement_external_id"),
     couponCode: text("coupon_code"), // Kupon yang ditebus (null = harga penuh)
     discountAmount: integer("discount_amount").default(0).notNull(), // Nominal IDR yang dipotong
     grantDays: integer("grant_days").default(30),
@@ -69,6 +83,8 @@ export const transactions = pgTable(
     uniqueIndex("uniq_transactions_trial_per_app_email")
       .on(table.appId, table.customerEmail, table.paymentChannel)
       .where(sql`${table.paymentChannel} = 'FREE_TRIAL'`),
+    index("idx_transactions_disbursement_id").on(table.disbursementId),
+    index("idx_transactions_disbursement_external_id").on(table.disbursementExternalId),
     index("idx_transactions_created_at").on(table.createdAt),
   ]
 );

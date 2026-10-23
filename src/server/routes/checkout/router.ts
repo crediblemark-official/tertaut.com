@@ -2,7 +2,6 @@ import { Elysia, t } from "elysia";
 import { authenticate } from "../../middleware/auth";
 import { handleCreateSession } from "./session";
 import {
-  handleDanaFinish,
   handleGetPaymentStatus,
   handleConsultPay,
   handlePreviewCoupon,
@@ -13,11 +12,10 @@ import {
   handleSimulateSandboxPayment,
 } from "./handlers";
 
-/** Endpoint checkout yang memang harus publik (buat sesi, preview kupon, redirect DANA, polling status, invoice, channels, simulate). */
+/** Endpoint checkout yang memang harus publik (buat sesi, preview kupon, polling status, invoice, channels, simulate). */
 const PUBLIC_CHECKOUT_PATHS = [
   "/session",
   "preview-coupon",
-  "dana/finish",
   "/status",
   "consult-pay",
   "channels",
@@ -118,7 +116,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
     },
   })
   /**
-   * Konsultasi opsi pembayaran DANA aktif
+   * Konsultasi opsi pembayaran Xendit aktif
    */
   .get("/consult-pay", handleConsultPay, {
     query: t.Object({
@@ -153,9 +151,8 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
     },
   })
   /**
-   * Endpoint Redirect pembeli setelah menyelesaikan pembayaran DANA
+   * Pembayaran sandbox
    */
-  .get("/dana/finish", handleDanaFinish)
   /**
    * Simulasi pelunasan instan untuk transaksi Sandbox Tertaut
    */
@@ -197,6 +194,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
   .get("/transactions", handleListTransactions, {
     query: t.Object({
       appId: t.Optional(t.String()),
+      customerEmail: t.Optional(t.String()),
       limit: t.Optional(t.Numeric({ default: 50 })),
       page: t.Optional(t.Numeric({ default: 1 })),
       mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),

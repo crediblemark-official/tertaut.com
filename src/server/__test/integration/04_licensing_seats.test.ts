@@ -18,7 +18,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
     expect(keyTAUT).toMatch(/^TAUT-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
   });
 
-  it("should create and verify Ed25519 signed offline license token with seat quota", () => {
+  it("should create and verify Ed25519 signed offline license token with seat quota", async () => {
     const token = LicenseService.createOfflineGraceToken(
       "TAUT-TEST-8812-9999",
       "app_devdocs_pro",
@@ -27,7 +27,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       3
     );
 
-    const verified = LicenseTokenService.verify(token);
+    const verified = await LicenseTokenService.verify(token);
     expect(verified.valid).toBe(true);
     expect(verified.claims?.lic).toBe("TAUT-TEST-8812-9999");
     expect(verified.claims?.app).toBe("app_devdocs_pro");
@@ -38,7 +38,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
 
     // Token yang diubah harus ditolak (signature tidak valid)
     const tampered = token.slice(0, -2) + (token.slice(-2) === "aa" ? "bb" : "aa");
-    expect(LicenseTokenService.verify(tampered).valid).toBe(false);
+    expect((await LicenseTokenService.verify(tampered)).valid).toBe(false);
   });
 
   it("should enforce multi-platform device seat quota (N_active <= N_max) and support seat deactivation", async () => {
@@ -52,6 +52,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
     await db.insert(licenses).values({
       id: testLicId,
       appId: app.id,
+      mode: app.mode,
       licenseKey: testKey,
       customerEmail: "seat_tester@example.com",
       status: "ACTIVE",
@@ -179,6 +180,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
     await db.insert(licenses).values({
       id: testLicId,
       appId: app.id,
+      mode: app.mode,
       licenseKey: testKey,
       customerEmail: "race_tester@example.com",
       status: "ACTIVE",
@@ -228,6 +230,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
     await db.insert(licenses).values({
       id: testLicId,
       appId: app.id,
+      mode: app.mode,
       licenseKey: testKey,
       customerEmail: "migrate@example.com",
       status: "ACTIVE",
@@ -295,12 +298,16 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
       app.id,
       "hw_revoke",
       "revoke@test.com",
-      1
+      1,
+      undefined,
+      undefined,
+      app.mode
     );
 
     await db.insert(licenses).values({
       id: testLicId,
       appId: app.id,
+      mode: app.mode,
       licenseKey: testKey,
       customerEmail: "revoke@test.com",
       status: "ACTIVE",
@@ -328,7 +335,7 @@ describe("PRD Module 3: Universal Licensing Engine & Device Seat Management", ()
 
       // 3. Verifikasi lokal SDK (Web Crypto Ed25519) tanpa server
       const localVerify = await new Tertaut({
-        apiKey: "tt_test_int04",
+        apiKey: app.mode === "sandbox" ? "tt_test_int04" : "tt_live_int04",
         appId: app.id,
         baseUrl: "http://localhost:3001",
       }).licensing.verifyOfflineToken(token);

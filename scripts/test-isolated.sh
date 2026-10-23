@@ -7,14 +7,14 @@
 # deterministik. Tapi deterministik juga berarti file bisa diam-diam bergantung
 # pada state yang ditinggalkan file sebelumnya. Test seperti
 # `GET /payouts/account` (butuh profil builder milik user admin) dan
-# `POST /payouts/trigger` (butuh gateway=DANA) hanya hijau di full run karena
+# `POST /payouts/trigger` (butuh gateway=Xendit) hanya hijau di full run karena
 # file lain kebetulan menyiapkan state itu lebih dulu.
 #
 # Script ini menangkap kelas bug tersebut: state di luar file dianggap bug.
 #
 # Env yang dibutuhkan: sama dengan .github/workflows/ci.yml
 #   DATABASE_URL, JWT_SECRET, BETTER_AUTH_SECRET, VAULT_ENCRYPTION_KEY,
-#   PAYMENT_GATEWAY, ACTIVE_PAYMENT_GATEWAY, DANA_*, NODE_ENV=test, PORT
+#   PAYMENT_GATEWAY, ACTIVE_PAYMENT_GATEWAY, XENDIT_*, NODE_ENV=test, PORT
 #
 # Usage:  bash scripts/test-isolated.sh
 set -uo pipefail

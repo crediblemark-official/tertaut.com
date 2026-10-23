@@ -4,7 +4,7 @@ import { db } from "../../db";
 import { builders, apps, transactions } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
-import { DanaService } from "../../services/payments/dana/dana";
+import { xenditGateway } from "../../services/payments/gateways/xenditGateway";
 import { config } from "../../config";
 import crypto from "crypto";
 
@@ -12,7 +12,7 @@ setupTestAuth();
 
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
-describe("Coverage: payouts router /trigger, /account & DanaService", () => {
+describe("Coverage: payouts router /trigger, /account & Xendit gateway", () => {
   let builderId = "";
   let liveAppId = "";
 
@@ -164,12 +164,12 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
       paymentChannel: "QRIS",
     });
 
-    const spyDisb = spyOn(DanaService, "createDisbursement").mockResolvedValueOnce({
-      id: `dana_disb_${suffix()}`,
-      external_id: `ext_${suffix()}`,
+    const spyDisb = spyOn(xenditGateway, "createDisbursement").mockResolvedValueOnce({
+      id: `xendit_disb_${suffix()}`,
+      externalId: `ext_${suffix()}`,
       amount: 95000,
-      bank_code: "014",
-      account_holder_name: "Payout Builder",
+      bankCode: "014",
+      accountHolderName: "Payout Builder",
       status: "COMPLETED",
     });
 
@@ -204,52 +204,5 @@ describe("Coverage: payouts router /trigger, /account & DanaService", () => {
     expect(getRes.status).toBe(200);
     const data = (await getRes.json()) as any;
     expect(data.success).toBe(true);
-  });
-});
-
-describe("Coverage: DanaService verifyWebhook & createDisbursement", () => {
-  it("verifyWebhook: verifikasi tanda tangan RSA", () => {
-    const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
-      modulusLength: 2048,
-      publicKeyEncoding: { type: "spki", format: "pem" },
-      privateKeyEncoding: { type: "pkcs8", format: "pem" },
-    });
-
-    const originalKey = config.dana.publicKey;
-    try {
-      config.dana.publicKey = publicKey;
-      const body = { partnerReferenceNo: "12345", amount: { value: "10000.00" } };
-      const rawString = JSON.stringify(body);
-      const signer = crypto.createSign("SHA256");
-      signer.update(rawString);
-      const signature = signer.sign(privateKey, "base64");
-
-      const valid = DanaService.verifyWebhook({ "x-signature": signature }, body);
-      expect(valid).toBe(true);
-
-      const invalid = DanaService.verifyWebhook({ "x-signature": "invalid_sig" }, body);
-      expect(invalid).toBe(false);
-    } finally {
-      config.dana.publicKey = originalKey;
-    }
-  });
-
-  it("createDisbursement: throws when credentials missing", async () => {
-    const origClient = config.dana.clientId;
-    try {
-      config.dana.clientId = "";
-      expect(
-        DanaService.createDisbursement({
-          externalId: `dana_${suffix()}`,
-          amount: 50000,
-          bankCode: "BCA",
-          accountHolderName: "John Doe",
-          accountNumber: "12345678",
-          description: "Payout test",
-        })
-      ).rejects.toThrow();
-    } finally {
-      config.dana.clientId = origClient;
-    }
   });
 });

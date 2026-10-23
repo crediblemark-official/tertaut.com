@@ -1,3 +1,4 @@
+import { parseWebhookUrl } from "../../services/security/webhookUrl";
 import { db } from "../../db";
 import { webhookEndpoints, webhookDeliveries, builders } from "../../db/schema";
 import { eq, inArray } from "drizzle-orm";
@@ -67,9 +68,11 @@ export async function handleCreateWebhook({ body, request, set }: any) {
     return { success: false, error: "builderId wajib untuk admin" };
   }
 
-  if (!/^https?:\/\//.test(body.url || "")) {
+  try {
+    parseWebhookUrl(body.url);
+  } catch {
     set.status = 400;
-    return { success: false, error: "url harus berupa endpoint HTTP(S) yang valid" };
+    return { success: false, error: "url harus berupa endpoint HTTP(S) publik yang valid" };
   }
   if (Array.isArray(body.events)) {
     const invalid = body.events.filter(
@@ -110,9 +113,11 @@ export async function handleUpdateWebhook({ params, body, request, set }: any) {
     set.status = 403;
     return { success: false, error: "Bukan milik builder Anda" };
   }
-  if (body.url !== undefined && !/^https?:\/\//.test(body.url || "")) {
+  try {
+    if (body.url !== undefined) parseWebhookUrl(body.url);
+  } catch {
     set.status = 400;
-    return { success: false, error: "url harus berupa endpoint HTTP(S) yang valid" };
+    return { success: false, error: "url harus berupa endpoint HTTP(S) publik yang valid" };
   }
   if (Array.isArray(body.events)) {
     const invalid = body.events.filter(

@@ -2,7 +2,7 @@ import { describe, it, expect, spyOn } from "bun:test";
 import { CryptoService } from "../../services/security/crypto";
 import { LicenseService } from "../../services/licensing/license";
 import { LicenseTokenService } from "../../services/licensing/licenseToken";
-import { DanaService } from "../../services/payments/dana/dana";
+import { xenditGateway } from "../../services/payments/gateways/xenditGateway";
 
 describe("CryptoService (AES-256-GCM & JWT Tokens)", () => {
   it("should encrypt and decrypt string accurately using AES-256-GCM", () => {
@@ -17,10 +17,9 @@ describe("CryptoService (AES-256-GCM & JWT Tokens)", () => {
     expect(decrypted).toBe(originalText);
   });
 
-  it("should generate and verify 30-day offline grace license token (Ed25519)", () => {
+  it("should generate and verify 30-day offline grace license token (Ed25519)", async () => {
     const token = LicenseService.createOfflineGraceToken("TT-TEST-KEY-0001", "app_demo");
-    const verified = LicenseTokenService.verify(token);
-
+    const verified = await LicenseTokenService.verify(token);
     expect(verified.valid).toBe(true);
     expect(verified.claims?.lic).toBe("TT-TEST-KEY-0001");
     expect(verified.claims?.app).toBe("app_demo");
@@ -57,32 +56,32 @@ describe("LicenseService (Anti-Piracy & Key Generator)", () => {
   });
 });
 
-describe("DanaService (Merchant of Record Fee Breakdown)", () => {
+describe("Xendit gateway (Merchant of Record Fee Breakdown)", () => {
   it("should calculate exactly 5% platform fee and 95% net payout", () => {
-    const breakdown = DanaService.calculateMorBreakdown(100000);
+    const breakdown = xenditGateway.calculateMor(100000);
     expect(breakdown.grossAmount).toBe(100000);
     expect(breakdown.platformFee).toBe(5000);
     expect(breakdown.netAmount).toBe(95000);
   });
 
   it("should accurately handle odd amounts with rounding", () => {
-    const breakdown = DanaService.calculateMorBreakdown(49000);
+    const breakdown = xenditGateway.calculateMor(49000);
     expect(breakdown.grossAmount).toBe(49000);
     expect(breakdown.platformFee).toBe(2450);
     expect(breakdown.netAmount).toBe(46550);
   });
 
   it("should process disbursement calculation with correct parameters", async () => {
-    const spy = spyOn(DanaService, "createDisbursement").mockResolvedValueOnce({
+    const spy = spyOn(xenditGateway, "createDisbursement").mockResolvedValueOnce({
       id: `disb_mock_${Date.now()}`,
-      external_id: `test_disb_${Date.now()}`,
+      externalId: `test_disb_${Date.now()}`,
       amount: 46550,
-      bank_code: "BCA",
-      account_holder_name: "Vibe Builder",
+      bankCode: "BCA",
+      accountHolderName: "Vibe Builder",
       status: "COMPLETED",
     });
     try {
-      const disb = await DanaService.createDisbursement({
+      const disb = await xenditGateway.createDisbursement({
         externalId: `test_disb_${Date.now()}`,
         amount: 46550,
         bankCode: "BCA",

@@ -1,3 +1,5 @@
+import { reconcilePayouts } from "../services/payments/payouts";
+import { reconcileRefunds } from "../services/payments/refunds";
 import { and, eq, lt } from "drizzle-orm";
 import { db } from "../db";
 import { licenses } from "../db/schema";
@@ -8,34 +10,41 @@ import { logger } from "../lib/logger";
 
 export async function expireLicenses(): Promise<void> {
   try {
-    const now = new Date();
-    const expired = await db
-      .update(licenses)
-      .set({ status: "EXPIRED", updatedAt: now })
-      .where(and(eq(licenses.status, "ACTIVE"), lt(licenses.expiresAt, now)))
-      .returning({
-        id: licenses.id,
-        licenseKey: licenses.licenseKey,
-        appId: licenses.appId,
-        customerEmail: licenses.customerEmail,
-        status: licenses.status,
-      });
-    if (expired.length > 0) {
-      logger.info(`[Expiry] ${expired.length} license(s) marked EXPIRED.`);
-    }
-    // Audit trail + webhook license.expired (best-effort, di luar transaction).
-    for (const lic of expired) {
-      await AuditService.record(
-        "license.expired",
-        { licenseId: lic.id, licenseKey: lic.licenseKey, appId: lic.appId, actorType: "SYSTEM" },
-        { expiresAt: now.toISOString() }
-      );
-      await WebhookService.emit("license.expired", {
-        license: lic as any,
-        actorType: "SYSTEM",
-        payload: { expiresAt: now.toISOString() },
-      });
-    }
+    await db.transaction(async (trx) => {
+      const now = new Date();
+      const expired = await trx
+        .update(licenses)
+        .set({ status: "EXPIRED", updatedAt: now })
+        .where(and(eq(licenses.status, "ACTIVE"), lt(licenses.expiresAt, now)))
+        .returning({
+          id: licenses.id,
+          licenseKey: licenses.licenseKey,
+          appId: licenses.appId,
+          customerEmail: licenses.customerEmail,
+          status: licenses.status,
+        });
+      if (expired.length > 0) {
+        logger.info(`[Expiry] ${expired.length} license(s) marked EXPIRED.`);
+      }
+      // Persist lifecycle events in the same transaction as expiry.
+      for (const lic of expired) {
+        await AuditService.record(
+          "license.expired",
+          { licenseId: lic.id, licenseKey: lic.licenseKey, appId: lic.appId, actorType: "SYSTEM" },
+          { expiresAt: now.toISOString() },
+          trx
+        );
+        await WebhookService.emit(
+          "license.expired",
+          {
+            license: lic as any,
+            actorType: "SYSTEM",
+            payload: { expiresAt: now.toISOString() },
+          },
+          trx
+        );
+      }
+    });
   } catch (err: any) {
     logger.error("[Expiry] failed", err);
   }
@@ -79,6 +88,9 @@ export function startScheduledTasks(): ScheduledTasksController {
   const leaseInterval = setInterval(expireLeases, 2 * 60 * 1000); // 2 menit
 
   dispatchWebhooks();
+  const reconcile = () => Promise.allSettled([reconcilePayouts(), reconcileRefunds()]);
+  void reconcile();
+  const moneyInterval = setInterval(reconcile, 60_000);
   const webhookInterval = setInterval(dispatchWebhooks, 60 * 1000); // 1 menit
 
   return {
@@ -86,6 +98,7 @@ export function startScheduledTasks(): ScheduledTasksController {
       clearInterval(licenseInterval);
       clearInterval(leaseInterval);
       clearInterval(webhookInterval);
+      clearInterval(moneyInterval);
     },
   };
 }

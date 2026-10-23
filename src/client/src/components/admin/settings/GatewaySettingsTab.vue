@@ -23,23 +23,12 @@ const emit = defineEmits<{
 }>();
 
 const copiedWebhook = ref(false);
-const copiedDanaWebhook = ref(false);
-const copiedXenithWebhook = ref(false);
-const copiedXenithDemo = ref(false);
-const copiedDanaDemo = ref(false);
 const copiedXenditDemo = ref(false);
 
 function getAppOrigin() {
   return window.location.origin.includes("localhost")
     ? window.location.origin
     : "https://tertaut.com";
-}
-
-function copyDanaDemoUrl() {
-  const url = `${getAppOrigin()}/demo/checkout/fastmail-ai?gateway=dana`;
-  navigator.clipboard.writeText(url);
-  copiedDanaDemo.value = true;
-  setTimeout(() => (copiedDanaDemo.value = false), 2000);
 }
 
 function copyXenditDemoUrl() {
@@ -49,45 +38,15 @@ function copyXenditDemoUrl() {
   setTimeout(() => (copiedXenditDemo.value = false), 2000);
 }
 
-function copyXenithDemoUrl() {
-  const url = `${getAppOrigin()}/demo/checkout/fastmail-ai?gateway=xenith`;
-  navigator.clipboard.writeText(url);
-  copiedXenithDemo.value = true;
-  setTimeout(() => (copiedXenithDemo.value = false), 2000);
-}
-
 function copyWebhookUrl() {
   const origin = window.location.origin.includes("localhost")
     ? "https://tertaut.com"
     : window.location.origin;
-  const url = `${origin}/webhook/xendit`;
+  const url = `${origin}/api/v1/webhook/xendit`;
   navigator.clipboard.writeText(url);
   copiedWebhook.value = true;
   setTimeout(() => {
     copiedWebhook.value = false;
-  }, 2000);
-}
-
-function copyDanaWebhookUrl() {
-  const origin = window.location.origin.includes("localhost")
-    ? "https://tertaut.com"
-    : window.location.origin;
-  const url = `${origin}/webhook/dana/notify`;
-  navigator.clipboard.writeText(url);
-  copiedDanaWebhook.value = true;
-  setTimeout(() => {
-    copiedDanaWebhook.value = false;
-  }, 2000);
-}
-
-function copyXenithWebhookUrl() {
-  const origin = window.location.origin.includes("localhost")
-    ? "https://tertaut.com"
-    : window.location.origin;
-  navigator.clipboard.writeText(`${origin}/api/v1/webhook/xenithpay`);
-  copiedXenithWebhook.value = true;
-  setTimeout(() => {
-    copiedXenithWebhook.value = false;
   }, 2000);
 }
 </script>
@@ -102,9 +61,7 @@ function copyXenithWebhookUrl() {
             Gateway Pembayaran
           </h2>
           <p class="text-[11px] text-jetblack/60 mt-0.5">
-            <strong>Xendit</strong> adalah gateway pembayaran default platform.
-            <strong>DANA Enterprise</strong> dan <strong>XenithPay</strong> merupakan gateway
-            opsional.
+            <strong>Xendit</strong> menangani pembayaran dan pencairan platform.
           </p>
         </div>
         <span class="text-[11px] font-bold text-forest shrink-0">
@@ -112,8 +69,8 @@ function copyXenithWebhookUrl() {
         </span>
       </div>
 
-      <!-- 3-Option Radio Selection: Xendit (Default), DANA (Opsional), XenithPay (Opsional) -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <!-- Xendit -->
+      <div class="grid grid-cols-1 gap-3">
         <!-- 1. Xendit (Default) -->
         <label
           class="flex items-center justify-between p-3 rounded-lg border cursor-pointer transition select-none"
@@ -137,57 +94,8 @@ function copyXenithWebhookUrl() {
             >Default</span
           >
         </label>
-
-        <!-- 2. DANA Enterprise (Opsional) -->
-        <label
-          class="flex items-center justify-between p-3 rounded-lg border cursor-pointer transition select-none"
-          :class="
-            form.active_payment_gateway === 'dana'
-              ? 'border-forest bg-forest/5 text-jetblack font-bold ring-1 ring-forest/20'
-              : 'border-jetblack/15 bg-white text-jetblack/70 hover:border-jetblack/30'
-          "
-        >
-          <div class="flex items-center gap-2.5">
-            <input
-              type="radio"
-              name="active_payment_gateway"
-              value="dana"
-              v-model="form.active_payment_gateway"
-              class="text-forest focus:ring-forest"
-            />
-            <span class="text-xs">DANA Enterprise</span>
-          </div>
-          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-jetblack/5 text-jetblack/60"
-            >Opsional</span
-          >
-        </label>
-
-        <!-- 3. XenithPay (Opsional) -->
-        <label
-          class="flex items-center justify-between p-3 rounded-lg border cursor-pointer transition select-none"
-          :class="
-            form.active_payment_gateway === 'xenithpay'
-              ? 'border-emerald-600 bg-emerald-50/50 text-jetblack font-bold ring-1 ring-emerald-500/20'
-              : 'border-jetblack/15 bg-white text-jetblack/70 hover:border-jetblack/30'
-          "
-        >
-          <div class="flex items-center gap-2.5">
-            <input
-              type="radio"
-              name="active_payment_gateway"
-              value="xenithpay"
-              v-model="form.active_payment_gateway"
-              class="text-emerald-600 focus:ring-emerald-500"
-            />
-            <span class="text-xs">XenithPay</span>
-          </div>
-          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-jetblack/5 text-jetblack/60"
-            >Opsional</span
-          >
-        </label>
       </div>
 
-      <!-- Xendit Sandbox Config & Webhook (When Xendit is selected) -->
       <div v-if="form.active_payment_gateway === 'xendit'" class="space-y-3 pt-1">
         <!-- Xendit Webhook URL Copy -->
         <div
@@ -195,7 +103,7 @@ function copyXenithWebhookUrl() {
         >
           <div class="font-mono text-jetblack/80 truncate">
             <span class="text-jetblack/40 select-none mr-1">Webhook URL:</span>
-            <span>https://tertaut.com/webhook/xendit</span>
+            <span>https://tertaut.com/api/v1/webhook/xendit</span>
           </div>
           <button
             type="button"
@@ -294,266 +202,6 @@ function copyXenithWebhookUrl() {
                   "
                 >
                   {{ form.xendit_webhook_token ? "✓ Disetel" : "Kosong" }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- DANA Sandbox Config & Webhook (When DANA is selected) -->
-      <div v-if="form.active_payment_gateway === 'dana'" class="space-y-3 pt-1">
-        <!-- DANA Webhook URL Copy -->
-        <div
-          class="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-jetblack/5 border border-jetblack/10 text-xs"
-        >
-          <div class="font-mono text-jetblack/80 truncate">
-            <span class="text-jetblack/40 select-none mr-1">Webhook DANA Notify:</span>
-            <span>https://tertaut.com/webhook/dana/notify</span>
-          </div>
-          <button
-            type="button"
-            @click="copyDanaWebhookUrl"
-            class="shrink-0 text-jetblack/60 hover:text-jetblack p-1 transition cursor-pointer"
-            title="Salin URL Webhook"
-          >
-            <Check v-if="copiedDanaWebhook" class="w-3.5 h-3.5 text-forest" />
-            <Copy v-else class="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <!-- DANA Demo Checkout Route Path Display -->
-        <div
-          class="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs"
-        >
-          <div class="font-mono text-jetblack/80 truncate">
-            <span class="text-amber-800/60 font-sans font-semibold select-none mr-1.5"
-              >Demo Route Path:</span
-            >
-            <span class="text-amber-900 font-bold">/demo/checkout/fastmail-ai?gateway=dana</span>
-          </div>
-          <div class="flex items-center gap-1 shrink-0">
-            <button
-              type="button"
-              @click="copyDanaDemoUrl"
-              class="text-amber-800 hover:text-amber-950 p-1 transition cursor-pointer"
-              title="Salin Demo URL Lengkap"
-            >
-              <Check v-if="copiedDanaDemo" class="w-3.5 h-3.5 text-forest" />
-              <Copy v-else class="w-3.5 h-3.5" />
-            </button>
-            <a
-              :href="`${getAppOrigin()}/demo/checkout/fastmail-ai?gateway=dana`"
-              target="_blank"
-              class="text-amber-800 hover:text-amber-950 p-1 transition cursor-pointer"
-              title="Buka Demo Checkout di Tab Baru"
-            >
-              <ExternalLink class="w-3.5 h-3.5" />
-            </a>
-          </div>
-        </div>
-
-        <!-- DANA Sandbox Config Status Card (Managed via .env) -->
-        <div class="p-3.5 rounded-lg border border-jetblack/10 bg-jetblack/[0.02] space-y-3">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <ShieldCheck class="w-4 h-4 text-forest" />
-              <span class="text-xs font-bold text-jetblack"
-                >Kredensial DANA Enterprise Sandbox</span
-              >
-            </div>
-            <span
-              class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
-              :class="
-                form.dana_configured === 'true'
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                  : 'bg-amber-100 text-amber-800 border border-amber-300'
-              "
-            >
-              {{
-                form.dana_configured === "true" ? "Terkonfigurasi di .env" : "Belum Lengkap di .env"
-              }}
-            </span>
-          </div>
-
-          <div class="p-3 bg-white rounded-lg border border-jetblack/10 space-y-2 text-xs">
-            <div class="flex items-center gap-1.5 text-jetblack/70 text-[11px]">
-              <FileCode class="w-3.5 h-3.5 text-gold shrink-0" />
-              <span
-                >Dikelola aman via file
-                <code class="font-mono bg-jetblack/5 px-1 py-0.5 rounded font-bold text-jetblack"
-                  >.env</code
-                >
-                server:</span
-              >
-            </div>
-            <div
-              class="font-mono text-[11px] text-jetblack/80 space-y-1.5 bg-jetblack/[0.03] p-2.5 rounded border border-jetblack/5"
-            >
-              <div class="flex items-center justify-between">
-                <span class="text-jetblack/50">DANA_SANDBOX_CLIENT_ID:</span>
-                <span
-                  :class="
-                    form.dana_sandbox_client_id ? 'text-forest font-bold' : 'text-slate-400 italic'
-                  "
-                >
-                  {{ form.dana_sandbox_client_id ? "✓ Disetel" : "Kosong" }}
-                </span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-jetblack/50">DANA_SANDBOX_CLIENT_SECRET:</span>
-                <span
-                  :class="
-                    form.dana_sandbox_client_secret
-                      ? 'text-forest font-bold'
-                      : 'text-slate-400 italic'
-                  "
-                >
-                  {{ form.dana_sandbox_client_secret ? "✓ Disetel" : "Kosong" }}
-                </span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-jetblack/50">DANA_SANDBOX_MERCHANT_ID:</span>
-                <span
-                  :class="
-                    form.dana_sandbox_merchant_id
-                      ? 'text-forest font-bold'
-                      : 'text-slate-400 italic'
-                  "
-                >
-                  {{ form.dana_sandbox_merchant_id ? "✓ Disetel" : "Kosong" }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- XenithPay Sandbox Config & Webhook (When XenithPay is selected) -->
-      <div v-if="form.active_payment_gateway === 'xenithpay'" class="space-y-3 pt-1">
-        <!-- XenithPay Webhook URL Copy -->
-        <div
-          class="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-jetblack/5 border border-jetblack/10 text-xs"
-        >
-          <div class="font-mono text-jetblack/80 truncate">
-            <span class="text-jetblack/40 select-none mr-1">Webhook URL:</span>
-            <span>https://tertaut.com/api/v1/webhook/xenithpay</span>
-          </div>
-          <button
-            type="button"
-            @click="copyXenithWebhookUrl"
-            class="shrink-0 text-jetblack/60 hover:text-jetblack p-1 transition cursor-pointer"
-            title="Salin URL Webhook"
-          >
-            <Check v-if="copiedXenithWebhook" class="w-3.5 h-3.5 text-forest" />
-            <Copy v-else class="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <!-- XenithPay Demo Checkout Route Path Display -->
-        <div
-          class="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs"
-        >
-          <div class="font-mono text-jetblack/80 truncate">
-            <span class="text-emerald-800/60 font-sans font-semibold select-none mr-1.5"
-              >Demo Route Path:</span
-            >
-            <span class="text-emerald-900 font-bold"
-              >/demo/checkout/fastmail-ai?gateway=xenith</span
-            >
-          </div>
-          <div class="flex items-center gap-1 shrink-0">
-            <button
-              type="button"
-              @click="copyXenithDemoUrl"
-              class="text-emerald-800 hover:text-emerald-950 p-1 transition cursor-pointer"
-              title="Salin Demo URL Lengkap"
-            >
-              <Check v-if="copiedXenithDemo" class="w-3.5 h-3.5 text-forest" />
-              <Copy v-else class="w-3.5 h-3.5" />
-            </button>
-            <a
-              :href="`${getAppOrigin()}/demo/checkout/fastmail-ai?gateway=xenith`"
-              target="_blank"
-              class="text-emerald-800 hover:text-emerald-950 p-1 transition cursor-pointer"
-              title="Buka Demo Checkout di Tab Baru"
-            >
-              <ExternalLink class="w-3.5 h-3.5" />
-            </a>
-          </div>
-        </div>
-
-        <!-- XenithPay Sandbox Config Status Card (Managed via .env) -->
-        <div class="p-3.5 rounded-lg border border-jetblack/10 bg-jetblack/[0.02] space-y-3">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <ShieldCheck class="w-4 h-4 text-emerald-600" />
-              <span class="text-xs font-bold text-jetblack">Kredensial XenithPay Sandbox</span>
-            </div>
-            <span
-              class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
-              :class="
-                form.xenithpay_configured === 'true'
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                  : 'bg-amber-100 text-amber-800 border border-amber-300'
-              "
-            >
-              {{
-                form.xenithpay_configured === "true"
-                  ? "Terkonfigurasi di .env"
-                  : "Belum Lengkap di .env"
-              }}
-            </span>
-          </div>
-
-          <div class="p-3 bg-white rounded-lg border border-jetblack/10 space-y-2 text-xs">
-            <div class="flex items-center gap-1.5 text-jetblack/70 text-[11px]">
-              <FileCode class="w-3.5 h-3.5 text-gold shrink-0" />
-              <span
-                >Dikelola aman via file
-                <code class="font-mono bg-jetblack/5 px-1 py-0.5 rounded font-bold text-jetblack"
-                  >.env</code
-                >
-                server:</span
-              >
-            </div>
-            <div
-              class="font-mono text-[11px] text-jetblack/80 space-y-1.5 bg-jetblack/[0.03] p-2.5 rounded border border-jetblack/5"
-            >
-              <div class="flex items-center justify-between">
-                <span class="text-jetblack/50">XENITHPAY_SANDBOX_ACCESS_KEY:</span>
-                <span
-                  :class="
-                    form.xenithpay_sandbox_access_key
-                      ? 'text-forest font-bold'
-                      : 'text-slate-400 italic'
-                  "
-                >
-                  {{ form.xenithpay_sandbox_access_key ? "✓ Disetel" : "Kosong" }}
-                </span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-jetblack/50">XENITHPAY_SANDBOX_SECRET_KEY:</span>
-                <span
-                  :class="
-                    form.xenithpay_sandbox_secret_key
-                      ? 'text-forest font-bold'
-                      : 'text-slate-400 italic'
-                  "
-                >
-                  {{ form.xenithpay_sandbox_secret_key ? "✓ Disetel" : "Kosong" }}
-                </span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-jetblack/50">XENITHPAY_SANDBOX_WEBHOOK_SECRET:</span>
-                <span
-                  :class="
-                    form.xenithpay_sandbox_webhook_secret
-                      ? 'text-forest font-bold'
-                      : 'text-slate-400 italic'
-                  "
-                >
-                  {{ form.xenithpay_sandbox_webhook_secret ? "✓ Disetel" : "Kosong" }}
                 </span>
               </div>
             </div>

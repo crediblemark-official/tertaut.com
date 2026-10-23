@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { db } from "../../db";
-import { licenseLeases } from "../../db/schema";
-import { eq, and, inArray, gt, lt } from "drizzle-orm";
+import { licenseLeases, licenses } from "../../db/schema";
+import { eq, and, inArray, gt, lt, sql } from "drizzle-orm";
 import { LicenseService } from "./license";
 import type { App } from "../../db/schema/projects";
 
@@ -114,33 +114,38 @@ export class LicenseLeaseService {
     leaseKey: string,
     options: { ipAddress?: string | null; deviceName?: string; ttlSeconds?: number } = {}
   ): Promise<typeof licenseLeases.$inferSelect | null> {
-    const lookupHashes = LicenseService.hwidLookupHashes(hwid);
-    const existing = await db.query.licenseLeases.findFirst({
-      where: and(
-        eq(licenseLeases.licenseId, licenseId),
-        inArray(licenseLeases.hwidHash, lookupHashes)
-      ),
+    return db.transaction(async (trx) => {
+      // Use the same parent lock as activation, so expiry/reallocation and
+      // heartbeat cannot allocate the same floating capacity concurrently.
+      const [license] = await trx
+        .select()
+        .from(licenses)
+        .where(eq(licenses.id, licenseId))
+        .for("update");
+      if (!license || license.status !== "ACTIVE") return null;
+      const lookupHashes = LicenseService.hwidLookupHashes(hwid);
+      const now = new Date();
+      const ttl = options.ttlSeconds || DEFAULT_LEASE_TTL_SECONDS;
+      const [updated] = await trx
+        .update(licenseLeases)
+        .set({
+          hwidHash: LicenseService.hashHardwareIdSecure(hwid),
+          ...(options.deviceName ? { deviceName: options.deviceName } : {}),
+          ...(options.ipAddress ? { ipAddress: options.ipAddress } : {}),
+          lastHeartbeatAt: now,
+          expiresAt: new Date(now.getTime() + ttl * 1000),
+        })
+        .where(
+          and(
+            eq(licenseLeases.licenseId, licenseId),
+            inArray(licenseLeases.hwidHash, lookupHashes),
+            eq(licenseLeases.leaseKey, leaseKey),
+            gt(licenseLeases.expiresAt, sql`clock_timestamp()`)
+          )
+        )
+        .returning();
+      return updated || null;
     });
-
-    if (!existing || existing.leaseKey !== leaseKey) return null;
-
-    const now = new Date();
-    const ttl = options.ttlSeconds || DEFAULT_LEASE_TTL_SECONDS;
-    const expiresAt = new Date(now.getTime() + ttl * 1000);
-
-    const [updated] = await db
-      .update(licenseLeases)
-      .set({
-        hwidHash: existing.hwidHash,
-        deviceName: options.deviceName || existing.deviceName,
-        ipAddress: options.ipAddress || existing.ipAddress,
-        lastHeartbeatAt: now,
-        expiresAt,
-      })
-      .where(eq(licenseLeases.id, existing.id))
-      .returning();
-
-    return updated!;
   }
 
   /** Daftar seluruh lease (termasuk yang kedaluwarsa) milik lisensi. */

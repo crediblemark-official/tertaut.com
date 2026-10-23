@@ -3,16 +3,16 @@ import { setupTestAuth } from "../setup";
 import { db } from "../../db";
 import { apps, coupons, transactions } from "../../db/schema";
 import { eq } from "drizzle-orm";
-import { danaGateway } from "../../services/payments/gateways/danaGateway";
+import { xenditGateway } from "../../services/payments/gateways/xenditGateway";
 
 setupTestAuth();
 
 describe("PRD Module 1.5: Discount Coupon Redemption (E2E via API)", () => {
   let gatewaySpy: any;
   beforeAll(() => {
-    gatewaySpy = spyOn(danaGateway, "createOrder").mockImplementation(async (params) => ({
-      orderId: `dana_order_${Date.now()}`,
-      checkoutUrl: `https://api.sandbox.dana.id/checkout/dana/finish?externalId=${params.externalId}`,
+    gatewaySpy = spyOn(xenditGateway, "createOrder").mockImplementation(async (params) => ({
+      orderId: `xendit_order_${Date.now()}`,
+      checkoutUrl: `https://checkout.xendit.co/web/${params.externalId}`,
       paymentRail: params.paymentRail,
     }));
   });

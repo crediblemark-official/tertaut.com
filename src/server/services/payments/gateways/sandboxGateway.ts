@@ -98,6 +98,12 @@ export class SandboxGatewayAdapter implements PaymentGatewayAdapter {
     return true;
   }
 
+  async createRefund(
+    params: import("./types").GatewayRefundParams
+  ): Promise<import("./types").GatewayMoneyStatus> {
+    return { id: `sandbox_${params.externalId}`, amount: params.amount, status: "COMPLETED" };
+  }
+
   async createDisbursement(
     params: GatewayDisbursementParams
   ): Promise<GatewayDisbursementResponse> {

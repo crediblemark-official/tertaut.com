@@ -65,6 +65,7 @@ export async function verifyEd25519OfflineToken(
     publicKeyJwk?: JsonWebKey;
     jwksUrl?: string;
     appVersion?: string;
+    expectedMode?: "sandbox" | "live";
   }
 ): Promise<OfflineTokenVerifyResult> {
   try {
@@ -104,6 +105,10 @@ export async function verifyEd25519OfflineToken(
     if (claims?.typ !== "license") return { valid: false, reason: "INVALID_TOKEN_TYPE" };
     if (claims.exp && claims.exp < Math.floor(Date.now() / 1000)) {
       return { valid: false, reason: "TOKEN_EXPIRED" };
+    }
+
+    if (options?.expectedMode && claims.mode && claims.mode !== options.expectedMode) {
+      return { valid: false, reason: "ENVIRONMENT_MISMATCH" };
     }
 
     if (claims.vfl && options?.appVersion) {

@@ -12,17 +12,14 @@
  * adapter-nya). Tipe `GatewayId` ikut menyempit sendiri.
  */
 
-/** Id gateway yang terdaftar. Xendit adalah gateway default; DANA dan XenithPay adalah opsional. */
-export const GATEWAY_IDS = ["xendit", "dana", "xenithpay", "sandbox"] as const;
+/** Id gateway yang terdaftar. Xendit adalah gateway pembayaran riil; sandbox hanya simulasi. */
+export const GATEWAY_IDS = ["xendit", "sandbox"] as const;
 
 export type GatewayId = (typeof GATEWAY_IDS)[number];
 
 /** Alias yang diterima untuk menunjuk gateway tertentu. */
 const GATEWAY_ALIASES: Record<string, GatewayId> = {
   xendit: "xendit",
-  dana: "dana",
-  xenith: "xenithpay",
-  xenithpay: "xenithpay",
   sandbox: "sandbox",
 };
 
@@ -37,10 +34,7 @@ export interface GatewayDescriptor {
   readonly displayName: string;
   /** Payment rail yang benar-benar didukung gateway ini. */
   readonly rails: readonly string[];
-  /**
-   * Path finish/redirect setelah pembayaran. DANA punya route finish sendiri;
-   * Xendit & XenithPay memakai halaman sukses generik.
-   */
+  /** Path redirect pembeli setelah pembayaran. */
   readonly finishPath: string;
   /** Bank default untuk rail virtual account. */
   readonly defaultVaBank: string;
@@ -59,15 +53,6 @@ export interface GatewayDescriptor {
   readonly credentials: Readonly<Record<string, readonly string[]>>;
 
   /**
-   * Kombinasi rail + detail yang TIDAK didukung gateway ini, di luar daftar
-   * `rails`. DANA misalnya tidak bisa menangani e-wallet selain DANA sendiri
-   * dan hanya sebagian bank untuk virtual account.
-   *
-   * Dulu ini ditulis sebagai heuristik "Xendit-exclusive rail" di
-   * `checkout/session.ts` — pengetahuan batasan DANA bocor ke logika checkout
-   * generik. Sekarang batasannya tinggal di descriptor DANA.
-   */
-  /**
    * Nomor rekening simulasi yang dipakai untuk payout di sandbox. Gateway yang
    * punya ini mengizinkan pencairan dari aplikasi mode sandbox; gateway lain
    * menolaknya demi mencegah transfer ke rekening mock.
@@ -81,38 +66,9 @@ export interface GatewayDescriptor {
   }) => boolean;
 }
 
-/** Bank yang tidak tersedia untuk virtual account DANA. */
-const DANA_UNSUPPORTED_VA_BANKS = new Set(["BJB", "SAHABAT_SAMPOERNA", "BSS"]);
-
-/** Rail yang hanya bisa dipakai sebagian gateway. */
-const DANA_RAILS = ["qris", "va", "ewallet", "balance"] as const;
 const CARD_RAILS = ["qris", "va", "ewallet", "card", "retail"] as const;
 
 export const GATEWAY_REGISTRY: Readonly<Record<GatewayId, GatewayDescriptor>> = {
-  dana: {
-    id: "dana",
-    displayName: "DANA",
-    // DANA tidak punya rail card/retail; `balance` justru hanya milik DANA.
-    rails: DANA_RAILS,
-    finishPath: "/api/v1/checkout/dana/finish",
-    defaultVaBank: "BCA",
-    qrChannelLabel: "QRIS",
-    credentials: {
-      dana_sandbox_client_id: ["DANA_SANDBOX_CLIENT_ID", "DANA_CLIENT_ID"],
-      dana_sandbox_client_secret: ["DANA_SANDBOX_CLIENT_SECRET", "DANA_CLIENT_SECRET"],
-      dana_sandbox_merchant_id: ["DANA_SANDBOX_MERCHANT_ID", "DANA_MERCHANT_ID"],
-    },
-    // Batasan merchant-level DANA, bukan batasan rail generik.
-    unsupportedWhen: ({ rail, ewalletChannel, bankCode }) => {
-      if (rail === "ewallet" && ewalletChannel && ewalletChannel.toLowerCase() !== "dana") {
-        return true;
-      }
-      if (rail === "va" && bankCode && DANA_UNSUPPORTED_VA_BANKS.has(bankCode.toUpperCase())) {
-        return true;
-      }
-      return false;
-    },
-  },
   xendit: {
     id: "xendit",
     displayName: "Xendit",
@@ -124,25 +80,6 @@ export const GATEWAY_REGISTRY: Readonly<Record<GatewayId, GatewayDescriptor>> = 
       xendit_secret_key: ["XENDIT_SECRET_KEY", "XENDIT_SANDBOX_SECRET_KEY"],
       xendit_webhook_token: ["XENDIT_WEBHOOK_VERIFICATION_TOKEN", "XENDIT_WEBHOOK_TOKEN"],
       xendit_public_key: ["XENDIT_PUBLIC_KEY"],
-    },
-  },
-  xenithpay: {
-    id: "xenithpay",
-    displayName: "XenithPay",
-    rails: CARD_RAILS,
-    finishPath: "/checkout/success",
-    defaultVaBank: "BNI",
-    qrChannelLabel: "QRIS",
-    // XenithPay punya simulasi payout resmi di sandbox lewat akun 5555...,
-    // jadi satu-satunya gateway yang boleh mencairkan aplikasi mode sandbox.
-    sandboxPayoutAccountNumber: "5555123456789",
-    credentials: {
-      xenithpay_sandbox_access_key: ["XENITHPAY_SANDBOX_ACCESS_KEY", "XENITHPAY_ACCESS_KEY"],
-      xenithpay_sandbox_secret_key: ["XENITHPAY_SANDBOX_SECRET_KEY", "XENITHPAY_SECRET_KEY"],
-      xenithpay_sandbox_webhook_secret: [
-        "XENITHPAY_SANDBOX_WEBHOOK_SECRET",
-        "XENITHPAY_WEBHOOK_SECRET",
-      ],
     },
   },
   sandbox: {

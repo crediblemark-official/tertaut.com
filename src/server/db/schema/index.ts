@@ -5,3 +5,5 @@ export * from "./transactions";
 export * from "./licenses";
 export * from "./coupons";
 export * from "./settings";
+
+export * from "./paymentOperations";

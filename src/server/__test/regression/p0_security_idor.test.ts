@@ -258,13 +258,10 @@ describe("P0 Security & IDOR Regression Tests", () => {
       })
     );
 
-    expect(finishRes.status).toBe(200);
+    expect(finishRes.status).toBe(404);
     const finishJson = await finishRes.json();
-    // licenseKey wajib null bila tanpa valid ticket
-    expect(finishJson.licenseKey).toBeNull();
-    // redirectUrl tidak boleh menyertakan licenseKey=TT-
-    expect(finishJson.redirectUrl).not.toContain(`licenseKey=${licenseA.licenseKey}`);
-    expect(finishJson.redirectUrl).toContain("ticket=");
+    expect(finishJson.ticket).toBeUndefined();
+    expect(finishJson.redirectUrl).toBeUndefined();
 
     // Panggil finish dengan ticket valid
     const validTicket = createPollTicket(insertedTx.id);
@@ -279,6 +276,7 @@ describe("P0 Security & IDOR Regression Tests", () => {
       )
     );
     const finishTicketJson = await finishWithTicketRes.json();
-    expect(finishTicketJson.licenseKey).toBe(licenseA.licenseKey);
+    expect(finishWithTicketRes.status).toBe(404);
+    expect(finishTicketJson.licenseKey).toBeUndefined();
   });
 });

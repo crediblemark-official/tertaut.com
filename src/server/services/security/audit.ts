@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto";
-import { db } from "../../db";
+import { db, type DBExecutor } from "../../db";
 import { licenseEvents } from "../../db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 
@@ -32,10 +32,11 @@ export class AuditService {
   static async record(
     event: string,
     ctx: AuditContext,
-    payload: Record<string, any> = {}
+    payload: Record<string, any> = {},
+    executor: DBExecutor = db
   ): Promise<void> {
     try {
-      await db.insert(licenseEvents).values({
+      await executor.insert(licenseEvents).values({
         id: `evt_${randomBytes(8).toString("hex")}`,
         licenseId: ctx.licenseId || null,
         licenseKey: ctx.licenseKey || null,
@@ -47,6 +48,7 @@ export class AuditService {
         ipAddress: ctx.ipAddress || null,
       });
     } catch (err: any) {
+      if (executor !== db) throw err;
       // Audit tidak boleh mengganggu jalur kritis (best-effort).
       console.error("[Audit] gagal mencatat event:", err?.message || err);
     }

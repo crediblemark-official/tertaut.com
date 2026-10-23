@@ -5,14 +5,14 @@ import { LicenseService } from "../../../services/licensing/license";
 import { LicenseLeaseService } from "../../../services/licensing/licenseLease";
 import { AuditService } from "../../../services/security/audit";
 import { WebhookService } from "../../../services/notifications/webhooks";
-import { enforceRateLimit } from "../../../services/security/rateLimiter";
+import { enforceRateLimitAsync } from "../../../services/security/rateLimiter";
 import { getClientIp } from "../../../lib/ip";
 import type { DeviceDeactivateContext } from "./types";
 
 export async function handleDeactivateLicense({ body, set, request }: DeviceDeactivateContext) {
   const { licenseKey, hwid } = body;
 
-  const rl = enforceRateLimit(request, "licensing:deactivate", 30, 60_000);
+  const rl = await enforceRateLimitAsync(request, "licensing:deactivate", 30, 60_000);
   if (!rl.allowed) {
     set.status = 429;
     return {

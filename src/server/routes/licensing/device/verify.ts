@@ -1,3 +1,4 @@
+import { matchesLicenseEnvironment } from "../../../lib/licenseEnvironment";
 import { db } from "../../../db";
 import {
   licenses,
@@ -10,14 +11,14 @@ import { eq, and, inArray } from "drizzle-orm";
 import { LicenseService } from "../../../services/licensing/license";
 import { LicenseTokenService } from "../../../services/licensing/licenseToken";
 import { resolveFloatingConfig } from "../../../services/licensing/licenseLease";
-import { enforceRateLimit } from "../../../services/security/rateLimiter";
+import { enforceRateLimitAsync } from "../../../services/security/rateLimiter";
 import { isVersionOlder } from "../../../lib/semver";
 import type { DeviceVerifyContext } from "./types";
 
 export async function handleVerifyLicense({ body, set, request }: DeviceVerifyContext) {
   const { licenseKey, hwid, appVersion } = body;
 
-  const rl = enforceRateLimit(request, "licensing:verify", 120, 60_000);
+  const rl = await enforceRateLimitAsync(request, "licensing:verify", 120, 60_000);
   if (!rl.allowed) {
     set.status = 429;
     return {
@@ -34,6 +35,17 @@ export async function handleVerifyLicense({ body, set, request }: DeviceVerifyCo
   if (!lic) {
     set.status = 404;
     return { valid: false, status: "NOT_FOUND", message: "License key not found" };
+  }
+
+  if (!(await matchesLicenseEnvironment(lic))) {
+    set.status = 403;
+    return {
+      success: false,
+      valid: false,
+      status: "ENVIRONMENT_MISMATCH",
+      reason: "ENVIRONMENT_MISMATCH",
+      errorCode: "ENVIRONMENT_MISMATCH",
+    };
   }
 
   if (lic.status !== "ACTIVE") {
@@ -114,7 +126,7 @@ export async function handleVerifyLicense({ body, set, request }: DeviceVerifyCo
   // yang beredar selalu terbaru dan mencegah replay.
   let offlineGraceToken: string | null = null;
   if (lic.offlineJwtGraceToken) {
-    const decoded = LicenseTokenService.verify(lic.offlineJwtGraceToken);
+    const decoded = await LicenseTokenService.verify(lic.offlineJwtGraceToken);
     if (decoded.valid && decoded.claims) {
       await db
         .insert(revokedTokens)
@@ -134,6 +146,7 @@ export async function handleVerifyLicense({ body, set, request }: DeviceVerifyCo
   offlineGraceToken = await LicenseService.rotateOfflineToken(
     {
       id: lic.id,
+      mode: lic.mode,
       licenseKey: lic.licenseKey,
       appId: lic.appId,
       customerEmail: lic.customerEmail,
@@ -148,7 +161,7 @@ export async function handleVerifyLicense({ body, set, request }: DeviceVerifyCo
   // Hitung sisa hari offline grace dari token tertanda (jika tersedia)
   let gracePeriodRemainingDays: number | null = null;
   if (offlineGraceToken) {
-    const decoded = LicenseTokenService.verify(offlineGraceToken);
+    const decoded = await LicenseTokenService.verify(offlineGraceToken);
     if (decoded.valid && decoded.claims?.exp) {
       gracePeriodRemainingDays = Math.max(
         0,

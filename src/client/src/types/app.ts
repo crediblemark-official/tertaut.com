@@ -61,7 +61,7 @@ export interface AppItem {
   slug: string;
   mode: AppMode;
   checkoutMode?: "custom" | "hosted";
-  activePaymentGateway?: "dana" | "xendit" | "xenithpay";
+  activePaymentGateway?: "xendit" | "sandbox";
   availableChannels?: AvailableChannels;
   targetPrice: number;
   pricingType?: "one_time" | "subscription" | "free";

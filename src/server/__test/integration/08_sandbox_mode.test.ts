@@ -141,7 +141,7 @@ describe("Sandbox & Live App Mode (creem.io-style)", () => {
         id: txId,
         appId: testApp.id,
         builderId: builder!.id,
-        paymentProvider: "dana",
+        paymentProvider: "xendit",
         customerEmail: `sandbox_${Date.now()}@test.local`,
         grossAmount: 50000,
         platformFee: 2500,

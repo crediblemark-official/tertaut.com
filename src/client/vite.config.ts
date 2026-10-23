@@ -4,11 +4,11 @@ import { resolve } from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  root: resolve(__dirname),
+  root: resolve(import.meta.dirname),
   plugins: [vue()],
   resolve: {
     alias: {
-      "@": resolve(__dirname, "./src"),
+      "@": resolve(import.meta.dirname, "./src"),
     },
   },
   server: {
@@ -33,7 +33,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: resolve(__dirname, "../../dist"),
+    outDir: resolve(import.meta.dirname, "../../dist"),
     emptyOutDir: true,
     minify: "terser",
     sourcemap: false,

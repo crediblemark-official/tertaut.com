@@ -1,8 +1,9 @@
+import { submitPayout, PayoutConflictError } from "../../services/payments/payouts";
 import { Elysia, t } from "elysia";
 import { db } from "../../db";
 import { transactions, builders, projects } from "../../db/schema";
-import { eq, and, inArray } from "drizzle-orm";
-import { DanaService } from "../../services/payments/dana/dana";
+import { eq, and, inArray, ne } from "drizzle-orm";
+import { resolveDisbursementAccount } from "../../services/payments/payoutAccount";
 import { getActiveGateway } from "../../services/payments/gateways";
 import { config } from "../../config";
 import { authenticate, isAdminUser } from "../../middleware/auth";
@@ -82,6 +83,9 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
             where: and(
               eq(transactions.builderId, builder.id),
               eq(transactions.paymentStatus, "PAID"),
+              inArray(transactions.refundStatus, ["NONE", "FAILED"]),
+              eq(transactions.mode, "live"),
+              ne(transactions.paymentProvider, "sandbox"),
               eq(transactions.disbursementStatus, "PENDING"),
               inArray(transactions.appId, liveAppIds)
             ),
@@ -131,45 +135,7 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
         };
       }
 
-      const disburseAmount = payoutTotal;
-      const lockedIds = selectedTxs.map((tx) => tx.id);
-
-      // Atomic lock: conditional UPDATE mencegah dua request mencairkan transaksi yang sama.
-      const locked = await db
-        .update(transactions)
-        .set({ disbursementStatus: "PROCESSING", updatedAt: new Date() })
-        .where(
-          and(
-            inArray(transactions.id, lockedIds),
-            eq(transactions.builderId, builder.id),
-            eq(transactions.paymentStatus, "PAID"),
-            eq(transactions.disbursementStatus, "PENDING")
-          )
-        )
-        .returning({ id: transactions.id });
-
-      if (locked.length !== lockedIds.length) {
-        // Kembalikan lock yang sempat kita ambil agar builder bisa mencoba lagi.
-        const acquiredIds = locked.map((row) => row.id);
-        if (acquiredIds.length > 0) {
-          await db
-            .update(transactions)
-            .set({ disbursementStatus: "PENDING", updatedAt: new Date() })
-            .where(
-              and(
-                inArray(transactions.id, acquiredIds),
-                eq(transactions.disbursementStatus, "PROCESSING")
-              )
-            );
-        }
-        set.status = 409;
-        return {
-          success: false,
-          error: "Pencairan transaksi ini sedang diproses oleh permintaan lain. Coba lagi.",
-        };
-      }
-
-      const recipient = DanaService.resolveDisbursementAccount(builder);
+      const recipient = resolveDisbursementAccount(builder);
       // Production TANPA rekening tersimpan → tolak pencairan (jangan pakai data palsu)
       if (!recipient) {
         set.status = 400;
@@ -180,97 +146,41 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
         };
       }
 
-      const externalId = `disb_payout_${builder.id}_${Date.now()}`;
-      const responseData = {
-        builderId: builder.id,
-        amount: disburseAmount,
-        bankCode: recipient.bankCode,
-        recipientName: recipient.accountHolderName,
-        processedTransactions: lockedIds,
-        currentPendingNet: totalPendingNet,
-      };
-
+      const gateway = await getActiveGateway();
+      if (gateway.id === "sandbox") {
+        set.status = 400;
+        return { success: false, error: "Gateway sandbox tidak dapat mencairkan saldo live" };
+      }
       try {
-        const gateway = await getActiveGateway();
-        // `displayName` wajib ada di PaymentGatewayAdapter — tidak perlu fallback by-nama.
-        const gatewayLabel = gateway.displayName;
-        const disbResult = await gateway.createDisbursement({
-          externalId,
-          amount: disburseAmount,
-          accountNumber: recipient.accountNumber,
-          bankCode: recipient.bankCode,
-          accountHolderName: recipient.accountHolderName,
-          description: `Pencairan Saldo Bersih Builder tertaut.com (${gatewayLabel})`,
+        const result = await submitPayout({
+          transactionIds: selectedTxs.map((t) => t.id),
+          builderId: builder.id,
+          gateway,
+          recipient,
+          description: `Pencairan Saldo Bersih Builder tertaut.com (${gateway.displayName})`,
         });
-
-        // Hanya tandai COMPLETED kalau gateway benar-benar menyelesaikannya.
-        const finalStatus =
-          disbResult.status === "COMPLETED"
-            ? "COMPLETED"
-            : disbResult.status === "FAILED"
-              ? "FAILED"
-              : "PROCESSING";
-
-        await db
-          .update(transactions)
-          .set({
-            disbursementStatus: finalStatus,
-            disbursementId: disbResult.externalId || (disbResult as any).id,
-            updatedAt: new Date(),
-          })
-          .where(inArray(transactions.id, lockedIds));
-
-        if (finalStatus === "FAILED") {
-          set.status = 502;
-          return {
-            success: false,
-            error: `${gatewayLabel} menolak permintaan pencairan (status FAILED). Saldo tidak terkirim; transaksi perlu di-set ulang ke PENDING untuk dicoba lagi.`,
-            data: {
-              ...responseData,
-              disbursementId: disbResult.externalId || (disbResult as any).id,
-              status: finalStatus,
-            },
-          };
-        }
-
-        if (finalStatus === "PROCESSING") {
-          return {
-            success: true,
-            message: `Pencairan sedang diproses oleh ${gatewayLabel} dan belum final. Status akan diperbarui lewat webhook disbursement.`,
-            data: {
-              ...responseData,
-              disbursementId: disbResult.externalId || (disbResult as any).id,
-              status: finalStatus,
-            },
-          };
-        }
-
+        set.status = result.status === "FAILED" ? 502 : result.status === "COMPLETED" ? 200 : 202;
         return {
-          success: true,
-          message: "Disbursement completed successfully",
+          success: result.status !== "FAILED",
+          message:
+            result.status === "COMPLETED"
+              ? "Disbursement completed successfully"
+              : "Pencairan menunggu konfirmasi provider; saldo tetap ditahan untuk rekonsiliasi",
           data: {
-            ...responseData,
-            disbursementId: disbResult.externalId || (disbResult as any).id,
-            status: finalStatus,
+            builderId: builder.id,
+            amount: result.amount,
+            bankCode: recipient.bankCode,
+            recipientName: recipient.accountHolderName,
+            processedTransactions: selectedTxs.map((t) => t.id),
+            currentPendingNet: totalPendingNet,
+            disbursementId: result.id,
+            disbursementExternalId: result.externalId,
+            status: result.status,
           },
         };
-      } catch (err: any) {
-        // Bebaskan lock supaya saldo tidak tertahan permanen saat gateway gagal.
-        await db
-          .update(transactions)
-          .set({ disbursementStatus: "PENDING", updatedAt: new Date() })
-          .where(
-            and(
-              inArray(transactions.id, lockedIds),
-              eq(transactions.disbursementStatus, "PROCESSING")
-            )
-          );
-
-        set.status = 502;
-        return {
-          success: false,
-          error: err.message || "Gagal memproses payout",
-        };
+      } catch (error) {
+        set.status = error instanceof PayoutConflictError ? 409 : 502;
+        return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     },
     {

@@ -1,3 +1,4 @@
+import { handleSubscriptionStats } from "./subscriptionStats";
 import { Elysia, t } from "elysia";
 import { authenticate } from "../../middleware/auth";
 import {
@@ -106,6 +107,7 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
         "Aggregates real-time active products, sales (30d), active subscriptions, and unique customers (30d)",
     },
   })
+  .get("/stats/subscriptions", handleSubscriptionStats, { query: modeQuery })
   .get("/check-slug/:slug", handleCheckSlug, {
     params: t.Object({
       slug: t.String({ description: "Vanity URL slug yang ingin dicek ketersediaannya" }),

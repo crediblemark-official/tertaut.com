@@ -2,7 +2,7 @@ import type { GatewayId } from "./registry";
 
 /**
  * Unified Payment Gateway Interface
- * Mendefinisikan kontrak seragam untuk seluruh payment gateway (DANA, Xendit, dll.)
+ * Mendefinisikan kontrak seragam untuk gateway Xendit dan simulator sandbox
  * agar kode checkout, status polling, dan disbursement terisolasi 100% tanpa bentrok.
  */
 
@@ -105,6 +105,10 @@ export interface PaymentGatewayAdapter {
    */
   createDisbursement(params: GatewayDisbursementParams): Promise<GatewayDisbursementResponse>;
 
+  createRefund?(params: GatewayRefundParams): Promise<GatewayMoneyStatus>;
+  queryRefund?(params: GatewayRefundParams & { id?: string }): Promise<GatewayMoneyStatus>;
+  queryDisbursement?(params: { id?: string; externalId: string }): Promise<GatewayMoneyStatus>;
+
   /**
    * Mengambil daftar channel pembayaran yang aktif secara dinamis dari gateway
    */
@@ -124,4 +128,17 @@ export interface GatewayChannelsResponse {
   activeRetails: string[];
   qrisEnabled: boolean;
   cardEnabled?: boolean;
+}
+
+export interface GatewayMoneyStatus {
+  id?: string;
+  status: "PROCESSING" | "COMPLETED" | "FAILED" | "UNKNOWN";
+  amount?: number;
+}
+export interface GatewayRefundParams {
+  externalId: string;
+  referenceNo: string;
+  originalExternalId: string;
+  amount: number;
+  reason: string;
 }

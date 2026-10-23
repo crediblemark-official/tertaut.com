@@ -11,7 +11,7 @@
 import { describe, it, expect } from "bun:test";
 import { readFileSync, existsSync } from "fs";
 
-const SDK_DOC = "docs/sdk.md";
+const SDK_DOC = "docs/api/sdk.md";
 const SDK_README = "packages/sdk/README.md";
 
 /** Anggota publik yang wajib muncul di dokumentasi. */
@@ -103,19 +103,11 @@ describe("Docs parity: @tertaut/sdk ↔ docs/sdk.md", () => {
     }
   });
 
-  it("dokumentasi menyatakan ketersediaan paymentRail berbeda antar gateway", () => {
-    // `card`/`retail` hanya ada di Xendit & XenithPay; DANA tidak mendukungnya.
-    // Menampilkan lima rail seolah-olah universal akan menyesatkan integrator
-    // saat gateway aktif diganti.
+  it("dokumentasi membatasi gateway riil ke Xendit", () => {
     const doc = readFileSync(SDK_DOC, "utf8");
-    expect(doc).toContain("Ketersediaan `paymentRail` per gateway");
-    for (const gateway of ["DANA", "Xendit", "XenithPay"]) {
-      expect(doc).toContain(gateway);
-    }
-
-    const railSection = doc.slice(doc.indexOf("Ketersediaan `paymentRail`"));
-    expect(railSection).toMatch(/`card`[^|]*\|[^|]*❌/);
-    expect(railSection).toMatch(/`retail`[^|]*\|[^|]*❌/);
+    expect(doc).toContain("Xendit");
+    expect(doc).toContain("Sandbox Tertaut");
+    expect(doc).not.toContain("XenithPay");
   });
 
   it("tipe SDK tetap sinkron dengan himpunan rail di server", () => {
@@ -166,17 +158,23 @@ describe("Docs parity: @tertaut/sdk ↔ docs/sdk.md", () => {
 
   it("sidebar vitepress hanya menautkan halaman yang benar-benar ada", () => {
     const config = readFileSync("docs/.vitepress/config.ts", "utf8");
-    const links = [...config.matchAll(/link:\s*"\/([\w-]+)"/g)].map((m) => `${m[1]}.md`);
+    const links = [...config.matchAll(/link:\s*"\/([\w\/-]+)"/g)].map((m) => `${m[1]}.md`);
     const orphan = links.filter((f) => !existsSync(`docs/${f}`));
     expect(orphan).toEqual([]);
   });
 
   it("setiap halaman docs selain index tercantum di sidebar vitepress", () => {
     const config = readFileSync("docs/.vitepress/config.ts", "utf8");
-    const listed = new Set([...config.matchAll(/link:\s*"\/([\w-]+)"/g)].map((m) => m[1]));
+    const listed = new Set([...config.matchAll(/link:\s*"\/([\w\/-]+)"/g)].map((m) => m[1]));
     listed.add("index");
 
-    const files = ["demo-checkout", "environment", "getting-started", "sdk", "server-to-server"];
+    const files = [
+      "reference/demo-checkout",
+      "guide/environment",
+      "guide/getting-started",
+      "api/sdk",
+      "api/server-to-server",
+    ];
     const unlisted = files.filter((f) => !listed.has(f));
     expect(unlisted).toEqual([]);
   });

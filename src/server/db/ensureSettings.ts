@@ -47,7 +47,7 @@ const BASE_PLATFORM_SETTINGS: Array<{ key: string; value: string; description: s
   {
     key: "active_payment_gateway",
     value: "xendit",
-    description: "Payment gateway aktif default (xendit; opsional: dana, xenithpay, sandbox)",
+    description: "Payment gateway aktif default (xendit; sandbox untuk simulasi)",
   },
 ];
 
@@ -55,8 +55,6 @@ const BASE_PLATFORM_SETTINGS: Array<{ key: string; value: string; description: s
 function describeCredential(key: string): string {
   const pretty = key
     .replace(/^xendit_/, "")
-    .replace(/^xenithpay_/, "")
-    .replace(/^dana_/, "")
     .replace(/_/g, " ")
     .trim();
   return pretty ? `${pretty.charAt(0).toUpperCase()}${pretty.slice(1)}` : key;
@@ -65,7 +63,7 @@ function describeCredential(key: string): string {
 /**
  * Kredensial gateway — key-nya diambil dari registry, nilainya SELALU kosong.
  *
- * Nilai sandbox Xendit/XenithPay/DANA pernah ditulis literal di file ini sehingga
+ * Nilai sandbox gateway pernah ditulis literal di file ini sehingga
  * ikut ter-commit ke repo. Sekarang key tetap dibuat (agar panel menampilkan
  * kolomnya) tapi isinya datang dari environment — lihat `seedGatewayCredentialsFromEnv`.
  *
@@ -135,7 +133,7 @@ export async function ensurePlatformSettings(): Promise<void> {
         .values({
           key: "active_payment_gateway",
           value: envGateway,
-          description: "Payment gateway aktif default (xendit; opsional: dana, xenithpay, sandbox)",
+          description: "Payment gateway aktif default (xendit; sandbox untuk simulasi)",
         })
         .onConflictDoUpdate({
           target: platformSettings.key,
@@ -145,14 +143,13 @@ export async function ensurePlatformSettings(): Promise<void> {
       const existing = await db.query.platformSettings.findFirst({
         where: eq(platformSettings.key, "active_payment_gateway"),
       });
-      if (!existing || !existing.value) {
+      if (!normalizeGatewayId(existing?.value)) {
         await db
           .insert(platformSettings)
           .values({
             key: "active_payment_gateway",
             value: "xendit",
-            description:
-              "Payment gateway aktif default (xendit; opsional: dana, xenithpay, sandbox)",
+            description: "Payment gateway aktif default (xendit; sandbox untuk simulasi)",
           })
           .onConflictDoUpdate({
             target: platformSettings.key,

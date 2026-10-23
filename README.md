@@ -2,7 +2,7 @@
 
 > **Versi 2.2.3** • Single Container Architecture Blueprint
 > **Status**: Semua fase F0–F6 **SELESAI** (387/387 test passing, 42 files, build client & server bersih)
-> **Peran Sistem**: Headless Developer Infrastructure Engine (Monetization, Universal Licensing, AI API Protection, Fake Door Validation & Launch Kit)
+> **Peran Sistem**: Headless Developer Infrastructure Engine (Monetization, Universal Licensing, Fake Door Validation & Launch Kit)
 > **Model Bisnis**: Merchant of Record (MoR) dengan Platform Fee 5% per transaksi via Xendit Infrastructure
 
 ---
@@ -12,8 +12,8 @@
 - **Runtime & Engine**: [Bun](https://bun.sh/) 1.3+ & [ElysiaJS](https://elysiajs.com/) (Ultra-fast, type-safe, sub-millisecond response)
 - **Frontend Dashboard**: Vue 3 (`<script setup>` Composition API), Vite 6, Tailwind CSS, Lucide Icons
 - **Database & ORM**: PostgreSQL 16 (Local Docker) via [Drizzle ORM](https://orm.drizzle.team/) & `postgres.js`
-- **Payment & MoR Partner**: Xendit Payment Request / Invoice, DANA Enterprise Gateway & Disbursement API (95% net payout to builders)
-- **Security & Enkripsi**: AES-256-GCM Vault untuk API Key AI, Ed25519 (Asymmetric) & HMAC JWT untuk lisensi offline
+- **Payment & MoR Partner**: Xendit Payment Request / Invoice & Payout API (95% net payout to builders)
+- **Security & Enkripsi**: AES-256-GCM untuk enkripsi data, Ed25519 (Asymmetric) & HMAC JWT untuk lisensi offline
 - **Client SDK**: `@tertaut/sdk` (Ultra lightweight, **~16 KB** minified / **~5 KB** gzipped, zero dependency, typed error classes)
 - **Verifikasi**: `bun test --parallel=1` = 387 pass / 0 fail (1501 assertions across 42 files); `bun run build:client` + `bun run build:server` bersih
 
@@ -77,10 +77,9 @@ tertautv2/
 │   │   │   ├── health.ts      # Health check (/api/v1/health)
 │   │   │   ├── apps/          # App catalog, API keys, & delivery settings (/api/v1/apps)
 │   │   │   ├── checkout/      # Dynamic MoR Checkout & sessions (/api/v1/checkout)
-│   │   │   ├── webhook/       # Xendit & DANA payment callbacks (/api/v1/webhook)
+│   │   │   ├── webhook/       # Xendit payment callbacks (/api/v1/webhook)
 │   │   │   ├── licensing/     # Universal Licensing, Seats, Heartbeat & Lease (/api/v1/licensing)
 │   │   │   ├── s2s/           # Server-to-Server Admin API (/api/v1/s2s)
-│   │   │   └── aiproxy/       # AI Proxy Shield Gateway (/api/v1/ai)
 │   │   └── services/          # Core business services
 │   │       ├── crypto.ts      # AES-256-GCM vault & signed JWT tokens
 │   │       ├── license.ts     # Key generator, direct issue/revoke & hardware matcher
@@ -89,7 +88,7 @@ tertautv2/
 │   │       ├── webhooks.ts    # Webhook outbox dispatcher, retries & HMAC signatures
 │   │       ├── audit.ts       # Event-sourced license activity logging
 │   │       ├── xendit.ts      # Xendit Invoice & Disbursement client
-│   │       └── dana.ts        # DANA Enterprise payment gateway client
+│   │       └── gateways/      # Xendit gateway and sandbox simulator
 │   │
 │   └── client/                # Frontend Vue 3 + Vite Dashboard
 │       ├── index.html         # Dark-first SPA entry with Inter & JetBrains Mono
@@ -99,7 +98,7 @@ tertautv2/
 │           ├── main.ts        # Vue app bootstrap
 │           ├── App.vue        # Modern sidebar layout & responsive view
 │           ├── router/        # Vue Router routes
-│           ├── views/         # Modul Views (Overview, Apps, Checkout, Licensing, AiProxy, Docs)
+│           ├── views/         # Modul Views (Overview, Apps, Checkout, Licensing, Docs)
 │           ├── components/    # Modular UI components (LicenseActivityPanel, WebhookManager, dll)
 │           └── lib/           # Type-safe API client & formatters
 │

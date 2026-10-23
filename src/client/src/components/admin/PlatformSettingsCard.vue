@@ -72,12 +72,6 @@ const form = ref<PlatformSettingsFormData>({
   active_payment_gateway: "xendit",
   xendit_secret_key: "",
   xendit_webhook_token: "",
-  xenithpay_sandbox_access_key: "",
-  xenithpay_sandbox_secret_key: "",
-  xenithpay_sandbox_webhook_secret: "",
-  dana_sandbox_client_id: "",
-  dana_sandbox_client_secret: "",
-  dana_sandbox_merchant_id: "",
   checkout_mode: "custom",
   sandbox_mode: "true",
 });
@@ -95,17 +89,9 @@ async function loadSettings() {
         active_payment_gateway: res.settings.active_payment_gateway || "xendit",
         xendit_secret_key: res.settings.xendit_secret_key || "",
         xendit_webhook_token: res.settings.xendit_webhook_token || "",
-        xenithpay_sandbox_access_key: res.settings.xenithpay_sandbox_access_key || "",
-        xenithpay_sandbox_secret_key: res.settings.xenithpay_sandbox_secret_key || "",
-        xenithpay_sandbox_webhook_secret: res.settings.xenithpay_sandbox_webhook_secret || "",
-        dana_sandbox_client_id: res.settings.dana_sandbox_client_id || "",
-        dana_sandbox_client_secret: res.settings.dana_sandbox_client_secret || "",
-        dana_sandbox_merchant_id: res.settings.dana_sandbox_merchant_id || "",
         checkout_mode: res.settings.checkout_mode || "custom",
         sandbox_mode: res.settings.sandbox_mode !== "false" ? "true" : "false",
         xendit_configured: res.settings.xendit_configured || "false",
-        dana_configured: res.settings.dana_configured || "false",
-        xenithpay_configured: res.settings.xenithpay_configured || "false",
       };
     }
   } catch (err: any) {

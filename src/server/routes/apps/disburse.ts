@@ -1,14 +1,10 @@
+import { submitPayout, PayoutConflictError } from "../../services/payments/payouts";
 import { db } from "../../db";
 import { apps, transactions, builders } from "../../db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 import { resolveCurrentBuilder } from "./builder";
 import { getActiveGateway } from "../../services/payments/gateways";
-import {
-  DEFAULT_GATEWAY_ID,
-  getGatewayDescriptor as gatewayDescriptor,
-} from "../../services/payments/gateways/registry";
-import { DanaService } from "../../services/payments/dana/dana";
-import { config } from "../../config";
+import { resolveDisbursementAccount } from "../../services/payments/payoutAccount";
 
 /**
  * Eksekusi Pencairan Otomatis (Disbursement 95% net) via gateway aktif
@@ -51,45 +47,24 @@ export async function handleDisburse({
   }
 
   const gateway = await getActiveGateway();
+  if (gateway.id === "sandbox") {
+    set.status = 400;
+    return { error: "Gateway sandbox tidak dapat mencairkan saldo live" };
+  }
 
-  // Hanya gateway yang mendeklarasikan `sandboxPayoutAccountNumber` yang
-  // mengizinkan pencairan dari aplikasi mode sandbox (XenithPay punya simulasi
-  // resmi; DANA & Xendit tidak). Dulu ini ditulis `gateway.id === "xenithpay"`.
   const txApp = await db.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
-  const sandboxPayoutAccount = gatewayDescriptor(gateway.id)?.sandboxPayoutAccountNumber;
-  if (txApp?.mode === "sandbox" && !sandboxPayoutAccount) {
+  if (tx.mode !== "live" || tx.paymentProvider === "sandbox" || txApp?.mode !== "live") {
     set.status = 400;
     return {
       error: "Transaksi sandbox (simulasi) tidak dapat dicairkan. Cairkan hanya transaksi live.",
     };
   }
 
-  // Atomic lock using conditional UPDATE to prevent double disbursement race condition
-  const locked = await db
-    .update(transactions)
-    .set({
-      disbursementStatus: "PROCESSING",
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(transactions.id, tx.id),
-        eq(transactions.paymentStatus, "PAID"),
-        eq(transactions.disbursementStatus, "PENDING")
-      )
-    )
-    .returning();
-
-  if (!locked.length) {
-    set.status = 409;
-    return { error: "Pencairan sedang diproses oleh permintaan lain" };
-  }
-
   const builder = await db.query.builders.findFirst({
     where: eq(builders.id, tx.builderId),
   });
 
-  const recipient = DanaService.resolveDisbursementAccount(builder);
+  const recipient = resolveDisbursementAccount(builder);
 
   // Production TANPA rekening tersimpan → tolak pencairan (jangan pakai data palsu)
   if (!recipient) {
@@ -101,49 +76,26 @@ export async function handleDisburse({
   }
 
   try {
-    const payoutRecipient = sandboxPayoutAccount
-      ? { ...recipient, accountNumber: sandboxPayoutAccount }
-      : recipient;
-    const payoutResult = await gateway.createDisbursement({
-      externalId: `disb_${tx.id}_${Date.now()}`,
-      amount: tx.netAmount,
-      ...payoutRecipient,
-      description: `Pencairan 95% Net Transaksi ${tx.id} (${gateway.displayName})`,
+    const result = await submitPayout({
+      transactionIds: [tx.id],
+      builderId: tx.builderId,
+      gateway,
+      recipient,
+      description: `Pencairan Net Transaksi ${tx.id} (${gateway.displayName})`,
     });
-
-    const finalStatus =
-      payoutResult.status.toUpperCase() === "FAILED"
-        ? "FAILED"
-        : ["PENDING", "PROCESSING"].includes(payoutResult.status.toUpperCase())
-          ? "PROCESSING"
-          : "COMPLETED";
-
-    await db
-      .update(transactions)
-      .set({
-        disbursementStatus: finalStatus,
-        disbursementId: payoutResult.externalId || payoutResult.id,
-        updatedAt: new Date(),
-      })
-      .where(eq(transactions.id, tx.id));
-
+    set.status = result.status === "FAILED" ? 502 : result.status === "COMPLETED" ? 200 : 202;
     return {
-      success: true,
+      success: result.status !== "FAILED",
       transactionId: tx.id,
-      disbursedAmount: tx.netAmount,
-      payoutDetails: payoutResult,
+      disbursedAmount: result.amount,
+      message:
+        result.status === "COMPLETED"
+          ? "Pencairan selesai"
+          : "Pencairan menunggu konfirmasi provider; jangan mengirim ulang",
+      payoutDetails: result,
     };
-  } catch (err: any) {
-    // Rollback status to PENDING on unhandled exception so builder can retry
-    await db
-      .update(transactions)
-      .set({
-        disbursementStatus: "PENDING",
-        updatedAt: new Date(),
-      })
-      .where(eq(transactions.id, tx.id));
-
-    set.status = 500;
-    return { error: err.message || "Gagal memproses pencairan dana" };
+  } catch (error) {
+    set.status = error instanceof PayoutConflictError ? 409 : 500;
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }

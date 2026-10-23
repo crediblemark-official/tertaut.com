@@ -1,7 +1,7 @@
 import { randomBytes, createHash, createHmac } from "crypto";
 import { db } from "../../db";
 import { licenses, apps, revokedTokens } from "../../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { LicenseTokenService } from "./licenseToken";
 import { EmailService } from "../notifications/email";
 import { AuditService } from "../security/audit";
@@ -116,7 +116,8 @@ export class LicenseService {
     customerEmail?: string | null,
     seats: number = 3,
     features?: Record<string, any> | null,
-    offlineGraceDays: number = DEFAULT_OFFLINE_GRACE_DAYS
+    offlineGraceDays: number = DEFAULT_OFFLINE_GRACE_DAYS,
+    mode: "sandbox" | "live" = "live"
   ): string {
     const vfl = typeof features?.min_version === "string" ? features.min_version : null;
     const graceDays = Math.min(
@@ -126,6 +127,7 @@ export class LicenseService {
     return LicenseTokenService.sign({
       lic: licenseKey,
       app: appId,
+      mode,
       hw: hardwareId || null,
       eml: customerEmail || null,
       seats,
@@ -150,11 +152,12 @@ export class LicenseService {
       features?: Record<string, any> | null;
       offlineJwtGraceToken?: string | null;
       hardwareId?: string | null;
+      mode?: "sandbox" | "live";
     },
     offlineGraceDays: number = DEFAULT_OFFLINE_GRACE_DAYS
   ): Promise<string> {
     if (lic.offlineJwtGraceToken) {
-      const decoded = LicenseTokenService.verify(lic.offlineJwtGraceToken);
+      const decoded = await LicenseTokenService.verify(lic.offlineJwtGraceToken);
       if (decoded.valid && decoded.claims) {
         await db
           .insert(revokedTokens)
@@ -176,7 +179,8 @@ export class LicenseService {
       lic.customerEmail,
       lic.maxSeats || 3,
       lic.features || null,
-      offlineGraceDays
+      offlineGraceDays,
+      lic.mode || "live"
     );
 
     await db
@@ -216,26 +220,46 @@ export class LicenseService {
       params.customerEmail,
       maxSeats,
       features,
-      offlineGraceDays
+      offlineGraceDays,
+      app?.mode || "live"
     );
 
-    const [newLic] = await db
-      .insert(licenses)
-      .values({
-        id: licenseId,
-        appId: params.appId,
-        licenseKey,
-        customerEmail: params.customerEmail,
-        platform,
-        status: "ACTIVE",
-        licenseVersion,
-        features,
-        maxSeats,
-        offlineJwtGraceToken: offlineToken,
-        expiresAt,
-        apiKey: issuedApiKey,
-      })
-      .returning();
+    const actor = params.actor || { type: "SYSTEM" as const };
+    const newLic = await db.transaction(async (trx) => {
+      const [newLic] = await trx
+        .insert(licenses)
+        .values({
+          id: licenseId,
+          appId: params.appId,
+          mode: app?.mode || "live",
+          licenseKey,
+          customerEmail: params.customerEmail,
+          platform,
+          status: "ACTIVE",
+          licenseVersion,
+          features,
+          maxSeats,
+          offlineJwtGraceToken: offlineToken,
+          expiresAt,
+          apiKey: issuedApiKey,
+        })
+        .returning();
+
+      await WebhookService.emit(
+        "license.issued",
+        {
+          license: newLic,
+          app,
+          actorType: actor.type,
+          actorId: actor.id,
+          ipAddress: params.ipAddress,
+          eventId: `license.issued:${newLic.id}`,
+          payload: { customerEmail: params.customerEmail, grantDays, platform },
+        },
+        trx
+      );
+      return newLic;
+    });
 
     await EmailService.sendLicenseIssued({
       to: params.customerEmail,
@@ -257,7 +281,6 @@ export class LicenseService {
         : undefined,
     });
 
-    const actor = params.actor || { type: "SYSTEM" as const };
     await AuditService.record(
       "license.issued",
       {
@@ -276,15 +299,6 @@ export class LicenseService {
         expiresAt: expiresAt.toISOString(),
       }
     );
-
-    await WebhookService.emit("license.issued", {
-      license: newLic,
-      app,
-      actorType: actor.type,
-      actorId: actor.id,
-      ipAddress: params.ipAddress,
-      payload: { customerEmail: params.customerEmail, grantDays, platform },
-    });
 
     return {
       license: newLic,
@@ -310,67 +324,74 @@ export class LicenseService {
       };
     }
 
-    const [updated] = await db
-      .update(licenses)
-      .set({ status: "REVOKED", updatedAt: new Date() })
-      .where(whereClause)
-      .returning();
+    return db.transaction(async (trx) => {
+      const [updated] = await trx
+        .update(licenses)
+        .set({ status: "REVOKED", updatedAt: new Date() })
+        .where(whereClause)
+        .returning();
 
-    if (!updated) {
-      return {
-        success: false,
-        notFound: true,
-        message: "License not found",
-        tokenDenylisted: false,
-      };
-    }
-
-    let denylisted = false;
-    if (updated.offlineJwtGraceToken) {
-      const decoded = LicenseTokenService.verify(updated.offlineJwtGraceToken);
-      if (decoded.valid && decoded.claims) {
-        await db
-          .insert(revokedTokens)
-          .values({
-            jti: decoded.claims.jti,
-            licenseId: updated.id,
-            licenseKey: updated.licenseKey,
-            reason: "LICENSE_REVOKED",
-            expiresAt: decoded.claims.exp ? new Date(decoded.claims.exp * 1000) : null,
-          })
-          .onConflictDoNothing();
-        denylisted = true;
+      if (!updated) {
+        return {
+          success: false,
+          notFound: true,
+          message: "License not found",
+          tokenDenylisted: false,
+        };
       }
-    }
 
-    const app = await db.query.apps.findFirst({ where: eq(apps.id, updated.appId) });
-    const actor = params.actor || { type: "SYSTEM" as const };
-    await AuditService.record(
-      "license.revoked",
-      {
-        licenseId: updated.id,
-        licenseKey: updated.licenseKey,
-        appId: updated.appId,
-        actorType: actor.type,
-        actorId: actor.id,
-        ipAddress: params.ipAddress,
-      },
-      { tokenDenylisted: denylisted }
-    );
-    await WebhookService.emit("license.revoked", {
-      license: updated,
-      app: app || null,
-      actorType: actor.type,
-      actorId: actor.id,
-      ipAddress: params.ipAddress,
+      let denylisted = false;
+      if (updated.offlineJwtGraceToken) {
+        const decoded = await LicenseTokenService.verify(updated.offlineJwtGraceToken);
+        if (decoded.valid && decoded.claims) {
+          await trx
+            .insert(revokedTokens)
+            .values({
+              jti: decoded.claims.jti,
+              licenseId: updated.id,
+              licenseKey: updated.licenseKey,
+              reason: "LICENSE_REVOKED",
+              expiresAt: decoded.claims.exp ? new Date(decoded.claims.exp * 1000) : null,
+            })
+            .onConflictDoNothing();
+          denylisted = true;
+        }
+      }
+
+      const app = await trx.query.apps.findFirst({ where: eq(apps.id, updated.appId) });
+      const actor = params.actor || { type: "SYSTEM" as const };
+      await AuditService.record(
+        "license.revoked",
+        {
+          licenseId: updated.id,
+          licenseKey: updated.licenseKey,
+          appId: updated.appId,
+          actorType: actor.type,
+          actorId: actor.id,
+          ipAddress: params.ipAddress,
+        },
+        { tokenDenylisted: denylisted },
+        trx
+      );
+      await WebhookService.emit(
+        "license.revoked",
+        {
+          license: updated,
+          app: app || null,
+          actorType: actor.type,
+          actorId: actor.id,
+          ipAddress: params.ipAddress,
+        },
+        trx
+      );
+
+      return {
+        success: true,
+        message: `Kunci lisensi ${updated.licenseKey} berhasil dicabut (REVOKED).`,
+        tokenDenylisted: denylisted,
+        license: updated,
+      };
     });
-
-    return {
-      success: true,
-      message: `Kunci lisensi ${updated.licenseKey} berhasil dicabut (REVOKED).`,
-      tokenDenylisted: denylisted,
-      license: updated,
-    };
   }
 
   /**
@@ -389,45 +410,40 @@ export class LicenseService {
     },
     dbOrTrx: any = db
   ): Promise<boolean> {
+    if (dbOrTrx === db) {
+      return db.transaction((trx) => this.checkAndMarkExpired(lic, trx));
+    }
     const now = new Date();
     if (lic.status === "ACTIVE" && lic.expiresAt && lic.expiresAt < now) {
-      await dbOrTrx
+      const changed = await dbOrTrx
         .update(licenses)
         .set({ status: "EXPIRED", updatedAt: now })
-        .where(eq(licenses.id, lic.id));
-      lic.status = "EXPIRED";
-
-      // Emit audit & webhook license.expired (best-effort, non-blocking).
-      // Dipanggil dari dalam transaksi (mis. saat aktivasi/validasi) atau dari cron job.
-      try {
-        // Buat object license bersih untuk webhook (hindari UNDEFINED_VALUE di jsonb).
-        const licenseForWebhook = {
-          id: lic.id,
-          licenseKey: lic.licenseKey,
-          appId: lic.appId,
-          customerEmail: lic.customerEmail,
-          status: "EXPIRED" as const,
-        };
-
+        .where(and(eq(licenses.id, lic.id), eq(licenses.status, "ACTIVE")))
+        .returning();
+      if (changed.length) {
+        const licenseForWebhook = { ...lic, status: "EXPIRED" as const };
         await AuditService.record(
           "license.expired",
           {
-            licenseId: licenseForWebhook.id,
-            licenseKey: licenseForWebhook.licenseKey,
-            appId: licenseForWebhook.appId,
+            licenseId: lic.id,
+            licenseKey: lic.licenseKey,
+            appId: lic.appId,
             actorType: "SYSTEM",
           },
-          { expiresAt: now.toISOString() }
+          { expiresAt: now.toISOString() },
+          dbOrTrx
         );
-        await WebhookService.emit("license.expired", {
-          license: licenseForWebhook,
-          actorType: "SYSTEM",
-          payload: { expiresAt: now.toISOString() },
-        });
-      } catch (err: any) {
-        // Best-effort: jangan menggagalkan jalur verifikasi karena event gagal.
-        console.error("[License] gagal emit license.expired:", err?.message || err);
+        await WebhookService.emit(
+          "license.expired",
+          {
+            license: licenseForWebhook,
+            actorType: "SYSTEM",
+            payload: { expiresAt: now.toISOString() },
+          },
+          dbOrTrx
+        );
       }
+      lic.status = "EXPIRED";
       return true;
     }
     return lic.status === "EXPIRED";

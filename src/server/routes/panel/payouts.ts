@@ -1,7 +1,8 @@
+import { submitPayout } from "../../services/payments/payouts";
 import { db } from "../../db";
 import { transactions, builders, apps } from "../../db/schema";
-import { eq, and, inArray, desc, sql } from "drizzle-orm";
-import { DanaService } from "../../services/payments/dana/dana";
+import { eq, and, inArray, desc, sql, ne } from "drizzle-orm";
+import { resolveDisbursementAccount } from "../../services/payments/payoutAccount";
 import { getActiveGateway } from "../../services/payments/gateways";
 import { config } from "../../config";
 
@@ -10,6 +11,17 @@ import { config } from "../../config";
  */
 export async function handleBatchPayout() {
   const gateway = await getActiveGateway();
+  if (gateway.id === "sandbox")
+    return {
+      success: false,
+      error: "Gateway sandbox tidak dapat mencairkan saldo live",
+      processedCount: 0,
+      totalDisbursed: 0,
+      disbursedCount: 0,
+      totalAmount: 0,
+      details: [],
+      payouts: [],
+    };
   // Hanya transaksi dari aplikasi mode LIVE yang boleh dicairkan.
   // Transaksi sandbox adalah simulasi dan tidak pernah dikirim ke Xendit.
   const liveAppRows = await db.select({ id: apps.id }).from(apps).where(eq(apps.mode, "live"));
@@ -19,6 +31,9 @@ export async function handleBatchPayout() {
     ? await db.query.transactions.findMany({
         where: and(
           eq(transactions.paymentStatus, "PAID"),
+          inArray(transactions.refundStatus, ["NONE", "FAILED"]),
+          eq(transactions.mode, "live"),
+          ne(transactions.paymentProvider, "sandbox"),
           eq(transactions.disbursementStatus, "PENDING"),
           inArray(transactions.appId, liveAppIds)
         ),
@@ -58,7 +73,7 @@ export async function handleBatchPayout() {
       where: eq(builders.id, builderId),
     });
 
-    const bankInfo = DanaService.resolveDisbursementAccount(builder);
+    const bankInfo = resolveDisbursementAccount(builder);
     // Production TANPA rekening tersimpan → lewati builder ini (jangan pakai data palsu)
     if (!bankInfo) {
       results.push({
@@ -71,88 +86,29 @@ export async function handleBatchPayout() {
       continue;
     }
 
-    // Atomic lock using conditional UPDATE to prevent double disbursement race conditions
-    const txIds = txs.map((t) => t.id);
-    const lockedRows = await db
-      .update(transactions)
-      .set({
-        disbursementStatus: "PROCESSING",
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          inArray(transactions.id, txIds),
-          eq(transactions.paymentStatus, "PAID"),
-          eq(transactions.disbursementStatus, "PENDING")
-        )
-      )
-      .returning();
-
-    if (lockedRows.length === 0) {
-      // Already locked or processed by another concurrent request
-      continue;
-    }
-
-    const lockedNet = lockedRows.reduce((sum, t) => sum + t.netAmount, 0);
-    const externalId = `batch_disb_${builderId.substring(0, 8)}_${Date.now()}`;
     try {
-      const disb = await gateway.createDisbursement({
-        externalId,
-        amount: lockedNet,
-        ...bankInfo,
-        description: `Batch Payout tertaut.com MoR (${lockedRows.length} txs via ${gateway.displayName})`,
+      const result = await submitPayout({
+        transactionIds: txs.map((t) => t.id),
+        builderId,
+        gateway,
+        recipient: bankInfo,
+        description: `Batch Payout tertaut.com (${txs.length} txs)`,
       });
-
-      const finalStatus =
-        disb.status.toUpperCase() === "FAILED"
-          ? "FAILED"
-          : ["PENDING", "PROCESSING"].includes(disb.status.toUpperCase())
-            ? "PROCESSING"
-            : "COMPLETED";
-
-      await db
-        .update(transactions)
-        .set({
-          disbursementStatus: finalStatus,
-          disbursementId: disb.externalId || disb.id,
-          updatedAt: new Date(),
-        })
-        .where(
-          inArray(
-            transactions.id,
-            lockedRows.map((r) => r.id)
-          )
-        );
-
-      totalDisbursedAmount += lockedNet;
+      if (result.status === "COMPLETED") totalDisbursedAmount += result.amount;
       results.push({
         builderId,
         builderName: builder?.name,
-        amount: lockedNet,
-        disbursementId: disb.externalId || disb.id,
-        status: finalStatus === "FAILED" ? "FAILED" : "SUCCESS",
+        amount: result.amount,
+        disbursementId: result.id,
+        disbursementExternalId: result.externalId,
+        status: result.status === "COMPLETED" ? "SUCCESS" : result.status,
       });
-    } catch (err: any) {
-      // Rollback status to PENDING on unhandled error so it can be retried
-      await db
-        .update(transactions)
-        .set({
-          disbursementStatus: "PENDING",
-          updatedAt: new Date(),
-        })
-        .where(
-          inArray(
-            transactions.id,
-            lockedRows.map((r) => r.id)
-          )
-        );
-
+    } catch (error) {
       results.push({
         builderId,
-        builderName: builder?.name,
-        amount: lockedNet,
-        error: err.message,
+        amount: 0,
         status: "FAILED",
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }

@@ -134,10 +134,28 @@ export class RedisRateLimiterAdapter implements RateLimiterAdapter {
 }
 
 const memoryAdapter = new MemoryRateLimiterAdapter();
-let activeAdapter: RateLimiterAdapter =
-  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-    ? new RedisRateLimiterAdapter()
-    : memoryAdapter;
+let activeAdapter: RateLimiterAdapter;
+
+// Di production, wajib ada Redis; di development/testing boleh fallback ke memory
+if (process.env.NODE_ENV === "production") {
+  const hasRedisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const hasRedisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (hasRedisUrl && hasRedisToken) {
+    activeAdapter = new RedisRateLimiterAdapter();
+  } else {
+    throw new Error(
+      "[rateLimiter] Di production, UPSTASH_REDIS_REST_URL dan UPSTASH_REDIS_REST_TOKEN wajib disetel. " +
+        "Rate limiter multi-instance tidak bisa bekerja tanpa Redis."
+    );
+  }
+} else {
+  // Development/testing: gunakan memory adapter dengan peringatan
+  console.warn(
+    "[rateLimiter] NODE_ENV !== production, menggunakan in-memory rate limiter. " +
+      "Untuk production, set UPSTASH_REDIS_REST_URL dan UPSTASH_REDIS_REST_TOKEN."
+  );
+  activeAdapter = memoryAdapter;
+}
 
 export function setRateLimiterAdapter(adapter: RateLimiterAdapter) {
   activeAdapter = adapter;

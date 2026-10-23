@@ -1,3 +1,4 @@
+import { matchesLicenseEnvironment } from "../../../lib/licenseEnvironment";
 import { db } from "../../../db";
 import { licenses, apps } from "../../../db/schema";
 import { eq } from "drizzle-orm";
@@ -6,7 +7,7 @@ import {
   LicenseLeaseService,
   resolveFloatingConfig,
 } from "../../../services/licensing/licenseLease";
-import { enforceRateLimit } from "../../../services/security/rateLimiter";
+import { enforceRateLimitAsync } from "../../../services/security/rateLimiter";
 import { getClientIp } from "../../../lib/ip";
 import type { DeviceHeartbeatContext } from "./types";
 
@@ -14,7 +15,7 @@ export async function handleHeartbeat(ctx: DeviceHeartbeatContext) {
   const { body, set, request } = ctx;
   const { appId, licenseKey, hwid, leaseKey, deviceName } = body;
 
-  const rl = enforceRateLimit(request, "licensing:heartbeat", 120, 60_000);
+  const rl = await enforceRateLimitAsync(request, "licensing:heartbeat", 120, 60_000);
   if (!rl.allowed) {
     set.status = 429;
     return {
@@ -40,6 +41,17 @@ export async function handleHeartbeat(ctx: DeviceHeartbeatContext) {
   if (appId && lic.appId !== appId) {
     set.status = 403;
     return { success: false, error: "App mismatch for this license key" };
+  }
+
+  if (!(await matchesLicenseEnvironment(lic))) {
+    set.status = 403;
+    return {
+      success: false,
+      valid: false,
+      status: "ENVIRONMENT_MISMATCH",
+      reason: "ENVIRONMENT_MISMATCH",
+      errorCode: "ENVIRONMENT_MISMATCH",
+    };
   }
 
   if (lic.status !== "ACTIVE") {

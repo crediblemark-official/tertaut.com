@@ -22,7 +22,7 @@
  *
  * Usage:
  *   bun run smoke:gateway              # semua gateway
- *   bun run smoke:gateway dana xendit  # subset
+ *   bun run smoke:gateway xendit  # subset
  */
 
 import { getPaymentGateway } from "../src/server/services/payments/gateways";
@@ -40,9 +40,8 @@ import type {
 // mengisi externalStoreId). Kalau fallback itu menyala, smoke test akan
 // melaporkan "sukses" untuk integrasi yang sebenarnya rusak — persis hal yang
 // membuat 3 bug produksi lolos dari test suite.
-process.env.DANA_ALLOW_MOCK_FALLBACK = "false";
 
-const GATEWAYS = ["dana", "xendit", "xenithpay"] as const;
+const GATEWAYS = ["xendit"] as const;
 const TEST_AMOUNT = 10_000; // Rp 10.000 — nominal terkecil yang sah di semua PG
 const stamp = () =>
   new Date()
@@ -86,30 +85,15 @@ async function reportCredentials(gw: string, adapter: PaymentGatewayAdapter) {
   const sandboxMode = rows[0]?.value !== "false";
 
   const keys: string[] = [];
-  if (gw === "dana") {
-    keys.push(`clientId    ${mask(config.dana.clientId)}`);
-    keys.push(`merchantId  ${mask(config.dana.merchantId)}`);
-    keys.push(`privateKey  ${config.dana.privateKey ? "✓ terpasang" : "— KOSONG —"}`);
-    keys.push(`depositNo   ${mask(config.dana.customerNumber)}`);
-    keys.push(`baseUrl     ${config.dana.baseUrl}`);
-  } else if (gw === "xendit") {
-    const k = await (adapter as any).getCredentials?.();
-    keys.push(`secretKey   ${mask(k?.secretKey)}`);
-    keys.push(`webhookTok  ${mask(k?.webhookToken)}`);
-    keys.push(`baseUrl     https://api.xendit.co`);
-  } else {
-    const k = await (adapter as any).getCredentials?.();
-    keys.push(`accessKey   ${mask(k?.accessKey)}`);
-    keys.push(`secretKey   ${mask(k?.secretKey)}`);
-    keys.push(`webhookSec  ${mask(k?.webhookSecret)}`);
-    keys.push(`baseUrl     ${k?.baseUrl}`);
-  }
+  const credentials = await (adapter as any).getCredentials?.();
+  keys.push(`secretKey ${mask(credentials?.secretKey)}`);
+  keys.push(`webhookTok ${mask(credentials?.webhookToken)}`);
   keys.push(`sandboxMode ${sandboxMode ? "true" : "FALSE (mode produksi!)"}`);
   return keys;
 }
 
 async function runOrderStep(adapter: PaymentGatewayAdapter, gw: string): Promise<StepResult> {
-  const rail = gw === "dana" ? "qris" : "qris";
+  const rail = "qris";
   const params: CreateGatewayOrderParams = {
     externalId: extId(gw),
     amount: TEST_AMOUNT,
@@ -118,7 +102,7 @@ async function runOrderStep(adapter: PaymentGatewayAdapter, gw: string): Promise
     returnUrl: "https://tertaut.com/checkout/success",
     finishRedirectUrl: "https://tertaut.com/checkout/success",
     paymentRail: rail,
-    vaBank: gw === "xenithpay" ? "BNI" : "BCA",
+    vaBank: "BCA",
   };
 
   const { step, value } = await timed("createOrder (sandbox nyata)", () =>
@@ -177,9 +161,6 @@ async function main() {
   );
   console.log(`config.isProd   = ${config.isProd}`);
   console.log(`nominal tes     = Rp ${TEST_AMOUNT.toLocaleString("id-ID")}`);
-  console.log(
-    `mock fallback   = ${process.env.DANA_ALLOW_MOCK_FALLBACK} (harus "false" — mock tidak boleh menyamar)`
-  );
   console.log();
 
   const summary: Array<{ gw: string; ok: number; total: number; verdict: string }> = [];

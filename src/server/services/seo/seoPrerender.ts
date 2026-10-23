@@ -62,7 +62,7 @@ const STATIC_ROUTE_META: Record<string, PageMeta> = {
   "/": {
     title: "Tertaut — Merchant of Record & Monetisasi Software Indonesia",
     description:
-      "Jual aplikasi desktop, SaaS, dan tools AI di Indonesia tanpa ribet PT/CV, pajak PPN 11%, atau pembajakan. Terima pembayaran QRIS & Virtual Account instan, lisensi offline Ed25519, dan AI proxy shield.",
+      "Jual aplikasi desktop, SaaS, dan tools AI di Indonesia tanpa ribet PT/CV, pajak PPN 11%, atau pembajakan. Terima pembayaran QRIS & Virtual Account instan, lisensi offline Ed25519.",
     canonical: "https://tertaut.com/",
     badge: "Merchant of Record & Universal Licensing",
   },
@@ -76,7 +76,7 @@ const STATIC_ROUTE_META: Record<string, PageMeta> = {
   "/products": {
     title: "Katalog Solusi & Lisensi Software — Tertaut",
     description:
-      "Infrastruktur lengkap untuk software builder Indonesia: Universal Licensing Ed25519, AI Proxy Shield, dan Merchant of Record checkout.",
+      "Infrastruktur lengkap untuk software builder Indonesia: Universal Licensing Ed25519 dan Merchant of Record checkout.",
     canonical: "https://tertaut.com/products",
     badge: "Developer Infrastructure",
   },

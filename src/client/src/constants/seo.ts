@@ -48,14 +48,14 @@ export const STATIC_PAGES_META: Record<string, SeoMetaData> = {
   home: {
     title: "Tertaut — Merchant of Record & Monetisasi Software Indonesia",
     description:
-      "Jual aplikasi desktop, SaaS, dan tools AI di Indonesia tanpa ribet PT/CV, pajak PPN 11%, atau pembajakan. Terima pembayaran QRIS & Virtual Account instan, lisensi offline Ed25519, dan AI proxy shield.",
+      "Jual aplikasi desktop, SaaS, dan tools AI di Indonesia tanpa ribet PT/CV, pajak PPN 11%, atau pembajakan. Terima pembayaran QRIS & Virtual Account instan, lisensi offline Ed25519.",
     keywords: SITE_SEO_DEFAULTS.defaultKeywords,
     canonicalUrl: "/",
   },
   docs: {
     title: "Dokumentasi SDK & Integrasi API — Tertaut",
     description:
-      "Panduan integrasi resmi @tertaut/sdk untuk lisensi kriptografis Ed25519 offline 30 hari, penguncian hardware ID seat, server-to-server API, dan AI proxy shield.",
+      "Panduan integrasi resmi @tertaut/sdk untuk lisensi kriptografis Ed25519 offline 30 hari, penguncian hardware ID seat, server-to-server API.",
     canonicalUrl: "/dashboard/docs",
   },
   pricing: {
@@ -67,7 +67,7 @@ export const STATIC_PAGES_META: Record<string, SeoMetaData> = {
   products: {
     title: "Katalog Fitur & Solusi Lisensi Software — Tertaut",
     description:
-      "Infrastruktur lengkap untuk software builder Indonesia: Universal Licensing Ed25519, AI Proxy Shield, dan Merchant of Record checkout.",
+      "Infrastruktur lengkap untuk software builder Indonesia: Universal Licensing Ed25519 dan Merchant of Record checkout.",
     canonicalUrl: "/products",
   },
   privacy: {
@@ -157,7 +157,7 @@ export function createJsonLd(
         operatingSystem: "Windows, macOS, Linux, Web",
         applicationCategory: "DeveloperApplication, BusinessApplication",
         description:
-          "Universal Licensing Engine Ed25519, Merchant of Record (MoR) Payment Gateway, dan AI Proxy Shield untuk software builder di Indonesia.",
+          "Universal Licensing Engine Ed25519 dan Merchant of Record (MoR) Payment Gateway untuk software builder di Indonesia.",
         offers: {
           "@type": "Offer",
           price: "0",
@@ -205,7 +205,7 @@ export function createJsonLd(
       const defaultFaqs = [
         {
           q: "Apa itu Tertaut?",
-          a: "Tertaut adalah platform Merchant of Record (MoR) dan infrastruktur pengembang untuk kreator software di Indonesia. Kami menangani pembayaran lokal (QRIS, VA), faktur pajak resmi (PPN 11%), sistem lisensi kriptografis offline-first Ed25519, dan AI proxy shield.",
+          a: "Tertaut adalah platform Merchant of Record (MoR) dan infrastruktur pengembang untuk kreator software di Indonesia. Kami menangani pembayaran lokal (QRIS, VA), faktur pajak resmi (PPN 11%), sistem lisensi kriptografis offline-first Ed25519.",
         },
         {
           q: "Apa perbedaan Merchant of Record (MoR) dengan Payment Gateway biasa?",
@@ -222,10 +222,6 @@ export function createJsonLd(
         {
           q: "Metode pembayaran apa saja yang didukung?",
           a: "Pelanggan Anda dapat membayar secara instan menggunakan QRIS (GoPay, OVO, DANA, ShopeePay, LinkAja, dan seluruh aplikasi Mobile Banking) serta Virtual Account bank terkemuka di Indonesia.",
-        },
-        {
-          q: "Bagaimana cara kerja fitur AI Proxy Shield?",
-          a: "Master API key OpenAI/Claude Anda disimpan aman di server vault terenkripsi AES-256. Pengguna software Anda tidak pernah melihat API key asli, dan Anda dapat membatasi kuota token harian atau rate-limit untuk mencegah pembobolan biaya AI.",
         },
       ];
 

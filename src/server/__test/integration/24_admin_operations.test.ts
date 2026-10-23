@@ -1,3 +1,4 @@
+import { LicenseService } from "../../services/licensing/license";
 import { describe, it, expect, beforeAll } from "bun:test";
 import { setupTestAuth, authCookie } from "../setup";
 import { app } from "../../index";
@@ -62,6 +63,7 @@ describe("Super Admin Operations & MoR Business Engine", () => {
       .insert(transactions)
       .values({
         id: txId,
+        mode: "sandbox",
         appId: a.id,
         builderId: b.id,
         customerEmail: "buyer_ops@test.com",
@@ -86,6 +88,7 @@ describe("Super Admin Operations & MoR Business Engine", () => {
         customerEmail: "buyer_ops@test.com",
         licenseKey: `TT-${randomBytes(4).toString("hex").toUpperCase()}-${randomBytes(4).toString("hex").toUpperCase()}`,
         transactionId: tx.id,
+        offlineJwtGraceToken: LicenseService.createOfflineGraceToken("refund-fixture", a.id),
         status: "ACTIVE",
         expiresAt: new Date(Date.now() + 60 * 86400 * 1000),
       })

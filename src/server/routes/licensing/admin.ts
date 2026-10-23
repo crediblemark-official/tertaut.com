@@ -1,3 +1,4 @@
+import { matchesLicenseEnvironment } from "../../lib/licenseEnvironment";
 import { db } from "../../db";
 import {
   licenses,
@@ -6,6 +7,7 @@ import {
   builders,
   webhookEndpoints,
   webhookDeliveries,
+  transactions,
 } from "../../db/schema";
 import { eq, inArray, and, sql, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
@@ -143,8 +145,42 @@ export async function handleListLicenses({ query, request }: ListLicensesContext
     list.push(act);
     activationsByLicense.set(act.licenseId, list);
   }
+  const emails = [...new Set(licList.map((lic) => lic.customerEmail.toLowerCase()))];
+  const totals = licList.length
+    ? await db
+        .select({
+          appId: transactions.appId,
+          email: sql<string>`lower(${transactions.customerEmail})`,
+          mode: transactions.mode,
+          ltv: sql<number>`coalesce(sum(${transactions.grossAmount}),0)::bigint`,
+        })
+        .from(transactions)
+        .where(
+          and(
+            inArray(transactions.appId, [...new Set(licList.map((lic) => lic.appId))]),
+            inArray(sql`lower(${transactions.customerEmail})`, emails),
+            eq(transactions.paymentStatus, "PAID"),
+            sql`${transactions.paymentChannel} IS DISTINCT FROM 'FREE_TRIAL'`
+          )
+        )
+        .groupBy(transactions.appId, sql`lower(${transactions.customerEmail})`, transactions.mode)
+    : [];
+  const ltvByCustomer = new Map(
+    totals.map((row) => [`${row.mode}:${row.appId}:${row.email}`, Number(row.ltv)])
+  );
+  const linkedIds = licList
+    .map((lic) => lic.transactionId)
+    .filter((id): id is string => Boolean(id));
+  const linked = linkedIds.length
+    ? await db.query.transactions.findMany({ where: inArray(transactions.id, linkedIds) })
+    : [];
+  const trials = new Set(
+    linked.filter((tx) => tx.paymentChannel === "FREE_TRIAL").map((tx) => tx.id)
+  );
   const licensesWithActivations = licList.map((lic) => ({
     ...lic,
+    ltv: ltvByCustomer.get(`${lic.mode}:${lic.appId}:${lic.customerEmail.toLowerCase()}`) || 0,
+    isTrial: Boolean(lic.transactionId && trials.has(lic.transactionId)),
     seatsUsed: (activationsByLicense.get(lic.id) || []).length,
     activations: activationsByLicense.get(lic.id) || [],
   }));
@@ -275,7 +311,7 @@ export async function handleVerifyApiKey({
   }
 
   const expired = lic.expiresAt ? new Date(lic.expiresAt).getTime() < Date.now() : false;
-  const valid = lic.status === "ACTIVE" && !expired;
+  const valid = lic.status === "ACTIVE" && !expired && (await matchesLicenseEnvironment(lic));
 
   return {
     success: true,

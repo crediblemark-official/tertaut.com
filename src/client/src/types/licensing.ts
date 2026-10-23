@@ -13,6 +13,8 @@ export interface LicenseActivationItem {
 }
 
 export interface LicenseItem {
+  ltv?: number;
+  isTrial?: boolean;
   id: string;
   appId: string;
   licenseKey: string;

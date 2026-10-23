@@ -1,8 +1,9 @@
 import { randomBytes, createHmac } from "crypto";
-import { db } from "../../db";
+import { db, type DBExecutor } from "../../db";
 import { webhookEndpoints, webhookDeliveries, apps } from "../../db/schema";
-import { eq, and, inArray, lte } from "drizzle-orm";
+import { eq, and, inArray, lte, or, lt, sql, gte, ne } from "drizzle-orm";
 import { config } from "../../config";
+import { parseWebhookUrl, sendWebhook } from "../security/webhookUrl";
 import { logger } from "../../lib/logger";
 import type { License } from "../../db/schema/licenses";
 import type { App } from "../../db/schema/projects";
@@ -30,6 +31,7 @@ const MAX_WEBHOOK_ATTEMPTS = 6;
 const WEBHOOK_TIMEOUT_MS = process.env.NODE_ENV === "test" ? 2_000 : 10_000;
 
 interface EmitContext {
+  eventId?: string;
   license: Pick<License, "id" | "licenseKey" | "appId" | "customerEmail" | "status"> | License;
   app?: App | null;
   actorType?: "ADMIN" | "BUILDER" | "S2S" | "SYSTEM" | "CLIENT";
@@ -48,13 +50,19 @@ export class WebhookService {
    * Antrekan event ke seluruh endpoint aktif builder yang berlangganan event tsb.
    * events kosong = wildcard (langganan semua event).
    */
-  static async emit(event: WebhookEvent, ctx: EmitContext): Promise<number> {
+  static async emit(
+    event: WebhookEvent,
+    ctx: EmitContext,
+    executor: DBExecutor = db
+  ): Promise<number> {
     try {
       const app =
-        ctx.app || (await db.query.apps.findFirst({ where: eq(apps.id, ctx.license.appId) }));
+        ctx.app || (await executor.query.apps.findFirst({ where: eq(apps.id, ctx.license.appId) }));
       if (!app) return 0;
 
+      const eventId = ctx.eventId || `evt_${crypto.randomUUID()}`;
       const rawPayload: Record<string, any> = {
+        id: eventId,
         event,
         timestamp: new Date().toISOString(),
         data: {
@@ -67,7 +75,7 @@ export class WebhookService {
         actor: ctx.actorType ? { type: ctx.actorType, id: ctx.actorId || null } : undefined,
       };
 
-      const endpoints = await db.query.webhookEndpoints.findMany({
+      const endpoints = await executor.query.webhookEndpoints.findMany({
         where: eq(webhookEndpoints.builderId, app.builderId),
       });
 
@@ -82,21 +90,26 @@ export class WebhookService {
         if (endpoint.events.length > 0 && !endpoint.events.includes(event)) continue;
 
         const signature = this.sign(endpoint.secret, rawBody);
-        await db.insert(webhookDeliveries).values({
-          id: `whd_${randomBytes(8).toString("hex")}`,
-          endpointId: endpoint.id,
-          event,
-          payload: cleanPayload,
-          signature,
-          status: "PENDING",
-          attempts: 0,
-          nextRetryAt: new Date(),
-        });
+        await executor
+          .insert(webhookDeliveries)
+          .values({
+            id: `whd_${randomBytes(8).toString("hex")}`,
+            endpointId: endpoint.id,
+            eventId,
+            event,
+            payload: cleanPayload,
+            signature,
+            status: "PENDING",
+            attempts: 0,
+            nextRetryAt: new Date(),
+          })
+          .onConflictDoNothing();
         queued += 1;
       }
 
       return queued;
     } catch (err: any) {
+      if (executor !== db) throw err;
       // Webhook tidak boleh mengganggu jalur kritis (best-effort).
       console.error("[Webhook] gagal mengantre event:", err?.message || err);
       return 0;
@@ -109,17 +122,22 @@ export class WebhookService {
   static async emitPayment(
     event: "payment.success" | "payment.failed",
     ctx: {
+      eventId?: string;
       transaction: any;
       app?: App | null;
       payload?: Record<string, any>;
-    }
+    },
+    executor: DBExecutor = db
   ): Promise<number> {
     try {
       const app =
-        ctx.app || (await db.query.apps.findFirst({ where: eq(apps.id, ctx.transaction.appId) }));
+        ctx.app ||
+        (await executor.query.apps.findFirst({ where: eq(apps.id, ctx.transaction.appId) }));
       if (!app) return 0;
 
+      const eventId = ctx.eventId || `evt_${crypto.randomUUID()}`;
       const rawPayload: Record<string, any> = {
+        id: eventId,
         event,
         timestamp: new Date().toISOString(),
         data: {
@@ -140,7 +158,7 @@ export class WebhookService {
         },
       };
 
-      const endpoints = await db.query.webhookEndpoints.findMany({
+      const endpoints = await executor.query.webhookEndpoints.findMany({
         where: eq(webhookEndpoints.builderId, app.builderId),
       });
 
@@ -155,21 +173,26 @@ export class WebhookService {
         if (endpoint.events.length > 0 && !endpoint.events.includes(event)) continue;
 
         const signature = this.sign(endpoint.secret, rawBody);
-        await db.insert(webhookDeliveries).values({
-          id: `whd_${randomBytes(8).toString("hex")}`,
-          endpointId: endpoint.id,
-          event,
-          payload: cleanPayload,
-          signature,
-          status: "PENDING",
-          attempts: 0,
-          nextRetryAt: new Date(),
-        });
+        await executor
+          .insert(webhookDeliveries)
+          .values({
+            id: `whd_${randomBytes(8).toString("hex")}`,
+            endpointId: endpoint.id,
+            eventId,
+            event,
+            payload: cleanPayload,
+            signature,
+            status: "PENDING",
+            attempts: 0,
+            nextRetryAt: new Date(),
+          })
+          .onConflictDoNothing();
         queued += 1;
       }
 
       return queued;
     } catch (err: any) {
+      if (executor !== db) throw err;
       console.error("[Webhook] gagal mengantre event payment:", err?.message || err);
       return 0;
     }
@@ -180,17 +203,57 @@ export class WebhookService {
    * Retry exponential backoff: nextRetryAt = now + 2^attempts * 30 detik.
    */
   static async dispatchDue(options?: { endpointId?: string; limit?: number }): Promise<number> {
-    const conditions = [
-      eq(webhookDeliveries.status, "PENDING"),
-      lte(webhookDeliveries.nextRetryAt, new Date()),
-    ];
-    if (options?.endpointId) {
-      conditions.push(eq(webhookDeliveries.endpointId, options.endpointId));
-    }
-
-    const due = await db.query.webhookDeliveries.findMany({
-      where: and(...conditions),
-      limit: options?.limit ?? 50,
+    const now = new Date();
+    const limit = Math.min(100, Math.max(1, options?.limit ?? 50));
+    const claimToken = crypto.randomUUID();
+    const due = await db.transaction(async (trx) => {
+      await trx
+        .update(webhookDeliveries)
+        .set({ status: "FAILED", claimToken: null, lockedUntil: null, updatedAt: now })
+        .where(
+          and(
+            eq(webhookDeliveries.status, "PROCESSING"),
+            lt(webhookDeliveries.lockedUntil, now),
+            gte(webhookDeliveries.attempts, MAX_WEBHOOK_ATTEMPTS)
+          )
+        );
+      const rows = await trx
+        .select()
+        .from(webhookDeliveries)
+        .where(
+          and(
+            or(
+              and(eq(webhookDeliveries.status, "PENDING"), lte(webhookDeliveries.nextRetryAt, now)),
+              and(
+                eq(webhookDeliveries.status, "PROCESSING"),
+                lt(webhookDeliveries.lockedUntil, now)
+              )
+            ),
+            lt(webhookDeliveries.attempts, MAX_WEBHOOK_ATTEMPTS),
+            options?.endpointId ? eq(webhookDeliveries.endpointId, options.endpointId) : undefined
+          )
+        )
+        .orderBy(webhookDeliveries.nextRetryAt)
+        .limit(limit)
+        .for("update", { skipLocked: true });
+      if (!rows.length) return [];
+      return trx
+        .update(webhookDeliveries)
+        .set({
+          status: "PROCESSING",
+          claimToken,
+          lockedUntil: new Date(Date.now() + (limit + 1) * WEBHOOK_TIMEOUT_MS + 30_000),
+          attempts: sql`${webhookDeliveries.attempts} + 1`,
+          lastAttemptAt: now,
+          updatedAt: now,
+        })
+        .where(
+          inArray(
+            webhookDeliveries.id,
+            rows.map((row) => row.id)
+          )
+        )
+        .returning();
     });
     if (due.length === 0) return 0;
 
@@ -207,8 +270,14 @@ export class WebhookService {
       if (!endpoint || !endpoint.isActive) {
         await db
           .update(webhookDeliveries)
-          .set({ status: "FAILED", updatedAt: new Date() })
-          .where(eq(webhookDeliveries.id, delivery.id));
+          .set({ status: "FAILED", claimToken: null, lockedUntil: null, updatedAt: new Date() })
+          .where(
+            and(
+              eq(webhookDeliveries.id, delivery.id),
+              eq(webhookDeliveries.claimToken, claimToken),
+              eq(webhookDeliveries.status, "PROCESSING")
+            )
+          );
         continue;
       }
 
@@ -219,11 +288,10 @@ export class WebhookService {
 
       let ok = false;
       try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
-        const res = await fetch(endpoint.url, {
-          method: "POST",
-          headers: {
+        const status = await sendWebhook(
+          endpoint.url,
+          rawBody,
+          {
             "Content-Type": "application/json",
             "X-Tertaut-Event": delivery.event,
             "X-Tertaut-Signature": signature,
@@ -231,11 +299,9 @@ export class WebhookService {
             "X-Tertaut-Delivery": delivery.id,
             "User-Agent": "tertaut-webhook-dispatcher/2.3.0",
           },
-          body: rawBody,
-          signal: controller.signal,
-        });
-        clearTimeout(timer);
-        ok = res.status >= 200 && res.status < 300;
+          WEBHOOK_TIMEOUT_MS
+        );
+        ok = status >= 200 && status < 300;
       } catch (err: any) {
         logger.debug(
           `[Webhook] delivery ${delivery.id} -> ${endpoint.url} gagal: ${err?.message || err}`
@@ -243,16 +309,14 @@ export class WebhookService {
         ok = false;
       }
 
-      const attempts = (delivery.attempts || 0) + 1;
-      const isDiscardPort =
-        endpoint.url.includes("127.0.0.1:9") ||
-        endpoint.url.includes(":9/hook") ||
-        endpoint.url.includes("example.com");
-      const failed = attempts >= MAX_WEBHOOK_ATTEMPTS || isDiscardPort;
+      const attempts = delivery.attempts;
+      const failed = attempts >= MAX_WEBHOOK_ATTEMPTS;
       await db
         .update(webhookDeliveries)
         .set({
           status: ok ? "SENT" : failed ? "FAILED" : "PENDING",
+          claimToken: null,
+          lockedUntil: null,
           attempts,
           lastAttemptAt: new Date(),
           nextRetryAt: ok
@@ -262,7 +326,13 @@ export class WebhookService {
               : new Date(Date.now() + Math.pow(2, attempts) * 30_000),
           updatedAt: new Date(),
         })
-        .where(eq(webhookDeliveries.id, delivery.id));
+        .where(
+          and(
+            eq(webhookDeliveries.id, delivery.id),
+            eq(webhookDeliveries.claimToken, claimToken),
+            eq(webhookDeliveries.status, "PROCESSING")
+          )
+        );
 
       attempted += 1;
       if (!ok && !failed) {
@@ -285,6 +355,7 @@ export class WebhookService {
     builderId: string,
     input: { url: string; events?: string[]; secret?: string; isActive?: boolean }
   ) {
+    parseWebhookUrl(input.url);
     const newSecret = input.secret || this.generateSecret();
     const [endpoint] = await db
       .insert(webhookEndpoints)
@@ -305,6 +376,7 @@ export class WebhookService {
     endpointId: string,
     patch: { url?: string; events?: string[]; isActive?: boolean }
   ) {
+    if (patch.url !== undefined) parseWebhookUrl(patch.url);
     const [updated] = await db
       .update(webhookEndpoints)
       .set({ ...patch, updatedAt: new Date() })
@@ -314,8 +386,7 @@ export class WebhookService {
   }
 
   static async delete(builderId: string, endpointId: string) {
-    await db.delete(webhookDeliveries).where(eq(webhookDeliveries.endpointId, endpointId));
-
+    // Foreign-key ON DELETE CASCADE removes deliveries only for an owned endpoint.
     const deleted = await db
       .delete(webhookEndpoints)
       .where(and(eq(webhookEndpoints.id, endpointId), eq(webhookEndpoints.builderId, builderId)))
@@ -362,14 +433,34 @@ export class WebhookService {
     });
     if (!endpoint) return { ok: false, error: "Forbidden: Not your endpoint" };
 
-    await db
+    if (
+      delivery.status === "PROCESSING" &&
+      delivery.lockedUntil &&
+      delivery.lockedUntil > new Date()
+    ) {
+      return { ok: false, error: "Delivery sedang diproses worker" };
+    }
+    const reset = await db
       .update(webhookDeliveries)
       .set({
+        attempts: 0,
+        claimToken: null,
+        lockedUntil: null,
         status: "PENDING",
         nextRetryAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(webhookDeliveries.id, deliveryId));
+      .where(
+        and(
+          eq(webhookDeliveries.id, deliveryId),
+          or(
+            ne(webhookDeliveries.status, "PROCESSING"),
+            lte(webhookDeliveries.lockedUntil, new Date())
+          )
+        )
+      )
+      .returning({ id: webhookDeliveries.id });
+    if (!reset.length) return { ok: false, error: "Delivery sedang diproses worker" };
 
     await this.dispatchDue({ endpointId: endpoint.id, limit: 1 });
 

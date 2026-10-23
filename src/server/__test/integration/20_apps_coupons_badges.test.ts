@@ -9,7 +9,7 @@ import {
   handleGetBySlug,
 } from "../../routes/apps/queries";
 import { resolveCurrentBuilder, seedSandboxBuilderIfNeeded } from "../../routes/apps/builder";
-import { DanaService } from "../../services/payments/dana/dana";
+import { xenditGateway } from "../../services/payments/gateways/xenditGateway";
 import { db } from "../../db";
 import { apps, builders, transactions, coupons } from "../../db/schema";
 import { eq } from "drizzle-orm";
@@ -55,7 +55,7 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
       testApp = a;
     } catch {
       // DB tidak tersedia (misal lokal tanpa Docker) — test yang tidak memerlukan
-      // DB (seperti DanaService) tetap akan berjalan.
+      // DB (seperti Xendit gateway) tetap akan berjalan.
     }
   });
 
@@ -267,79 +267,5 @@ describe("Apps Queries, Builder Resolution, Badges, and Coupons", () => {
       method: "DELETE",
     });
     expect(del404.status).toBe(404);
-  });
-
-  it("should test DanaService (calculateMorBreakdown, createOrder, verifyWebhook, createDisbursement)", async () => {
-    // 1. calculateMorBreakdown
-    const mor = DanaService.calculateMorBreakdown(100000);
-    expect(mor.grossAmount).toBe(100000);
-    expect(mor.platformFee).toBe(5000);
-    expect(mor.netAmount).toBe(95000);
-
-    // 2. createOrder via gateway
-    const stubGateway = {
-      createOrder: async () => ({
-        referenceNo: `dana_order_${Date.now()}`,
-        webRedirectUrl: "http://localhost:3001/checkout/dana/finish?externalId=test",
-      }),
-    };
-    const order = await DanaService.createOrder(
-      {
-        externalId: `dana_order_${Date.now()}`,
-        amount: 75000,
-        payerEmail: "buyer@dana.com",
-        description: "Test Order",
-      },
-      stubGateway
-    );
-    expect(order.orderId).toBeDefined();
-    expect(order.checkoutUrl).toContain("checkout/dana/finish");
-
-    // 3. verifyWebhook
-    const validWebhook = DanaService.verifyWebhook({}, { status: "PAID" });
-    expect(typeof validWebhook).toBe("boolean");
-
-    const missingSig = DanaService.verifyWebhook({}, "{}");
-    expect(typeof missingSig).toBe("boolean");
-
-    // 4. createDisbursement — mock fetch dipakai jika credentials tersedia.
-    // Jika tidak ada credentials (CI tanpa secret / lokal), verifikasi bahwa
-    // error yang benar dilempar (fail-closed, bukan silent corrupt).
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (url: any, init: any) => {
-      const urlStr = typeof url === "string" ? url : url?.url || "";
-      if (urlStr.includes("transfer-bank") || urlStr.includes("dana/v1/disbursement")) {
-        return new Response(
-          JSON.stringify({
-            responseCode: "2004300",
-            responseMessage: "Successful",
-            referenceNo: "dana_disb_mock_123",
-          }),
-          { status: 200 }
-        );
-      }
-      return originalFetch(url, init);
-    }) as any;
-
-    try {
-      const disb = await DanaService.createDisbursement({
-        externalId: `dana_disb_${Date.now()}`,
-        amount: 50000,
-        bankCode: "BCA",
-        accountHolderName: "John Dana",
-        accountNumber: "12345678",
-        description: "Payout Dana",
-      });
-      // Jika credentials tersedia, verifikasi hasil disbursement
-      expect(disb.id).toBeDefined();
-      expect(disb.status).toBe("COMPLETED");
-    } catch (err: unknown) {
-      // Tanpa credentials DANA (CI / lokal), service harus fail-closed dengan pesan jelas.
-      // Ini perilaku yang benar — bukan bug, bukan silent corrupt.
-      const msg = err instanceof Error ? err.message : String(err);
-      expect(msg).toMatch(/DANA Disbursement Failed/);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
   });
 });

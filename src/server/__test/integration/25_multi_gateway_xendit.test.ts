@@ -8,7 +8,7 @@ import { XenditService } from "../../services/payments/xendit";
 import { getActivePaymentGateway } from "../../services/payments/paymentGateway";
 import { xenditGateway } from "../../services/payments/gateways/xenditGateway";
 
-describe("Multi-Payment Gateway Integration (DANA & Xendit)", () => {
+describe("Xendit Payment Gateway Integration", () => {
   setupTestAuth();
 
   let testAppId: string;
@@ -39,12 +39,12 @@ describe("Multi-Payment Gateway Integration (DANA & Xendit)", () => {
       .insert(platformSettings)
       .values({
         key: "active_payment_gateway",
-        value: "dana",
+        value: "xendit",
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: platformSettings.key,
-        set: { value: "dana", updatedAt: new Date() },
+        set: { value: "xendit", updatedAt: new Date() },
       });
 
     const builder = await db.query.builders.findFirst();
@@ -105,7 +105,7 @@ describe("Multi-Payment Gateway Integration (DANA & Xendit)", () => {
   it("should update and retrieve active_payment_gateway from Super Admin panel settings", async () => {
     // 1. Cek default gateway
     const initialPg = await getActivePaymentGateway();
-    expect(initialPg).toBe("dana");
+    expect(initialPg).toBe("xendit");
 
     // 2. Set ke xendit lewat endpoint panel settings
     const updateRes = await app.handle(
@@ -299,12 +299,12 @@ describe("Multi-Payment Gateway Integration (DANA & Xendit)", () => {
       .insert(platformSettings)
       .values({
         key: "active_payment_gateway",
-        value: "dana",
+        value: "xendit",
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: platformSettings.key,
-        set: { value: "dana", updatedAt: new Date() },
+        set: { value: "xendit", updatedAt: new Date() },
       });
 
     // Pulihkan kredensial Xendit asli yang sempat ditimpa dummy.

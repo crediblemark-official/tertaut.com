@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { setupTestAuth, authCookie, danaWebhookHeaders } from "../setup";
+import { setupTestAuth, authCookie } from "../setup";
 import { app } from "../../index";
 import { db } from "../../db";
 import {
@@ -12,10 +12,6 @@ import {
 } from "../../db/schema";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../../routes/apps/api-key";
 import { LicenseService } from "../../services/licensing/license";
-import {
-  handleDanaFinishPaymentWebhook,
-  handleDanaDisburseNotifyWebhook,
-} from "../../routes/webhook/dana";
 import { fulfillPaymentTransaction } from "../../routes/webhook/fulfill";
 import { handleBatchPayout } from "../../routes/panel/payouts";
 import { handleActivateLicense } from "../../routes/licensing/device/activate";
@@ -145,102 +141,6 @@ describe("Coverage Booster3: webhook/fulfill.ts", () => {
       where: eq(licenses.transactionId, tx.id),
     });
     expect(lic).toBeUndefined();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  webhook/dana.ts — rate limited, payment webhook, disbursement webhook
-// ─────────────────────────────────────────────────────────────────────────────
-describe("Coverage Booster3: webhook/dana.ts", () => {
-  it("handleDanaFinishPaymentWebhook: lookup by externalId / partnerReferenceNo", async () => {
-    const { builder, app: a } = await seedBuilderApp();
-    const tx = await createTx(builder.id, a.id);
-    const body = {
-      partnerReferenceNo: tx.xenditExternalId,
-      resultInfo: { resultStatus: "00" },
-    };
-    const set: any = {};
-    const res = await handleDanaFinishPaymentWebhook({
-      request: new Request("http://localhost"),
-      headers: danaWebhookHeaders(body),
-      body,
-      set,
-    });
-    expect(res).toBeDefined();
-    resetRateLimits();
-  });
-
-  it("handleDanaFinishPaymentWebhook: EXPIRED status marks transaction expired", async () => {
-    const { builder, app: a } = await seedBuilderApp();
-    const tx = await createTx(builder.id, a.id);
-    const body = {
-      partnerReferenceNo: tx.xenditExternalId,
-      latestTransactionStatus: "05",
-    };
-    const set: any = {};
-    const res = await handleDanaFinishPaymentWebhook({
-      request: new Request("http://localhost"),
-      headers: danaWebhookHeaders(body),
-      body,
-      set,
-    });
-    expect(res).toBeDefined();
-    const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) });
-    expect(updated?.paymentStatus).toBe("EXPIRED");
-  });
-
-  it("handleDanaFinishPaymentWebhook: FAILED status marks transaction failed", async () => {
-    const { builder, app: a } = await seedBuilderApp();
-    const tx = await createTx(builder.id, a.id);
-    const body = {
-      partnerReferenceNo: tx.xenditExternalId,
-      latestTransactionStatus: "06",
-    };
-    const set: any = {};
-    await handleDanaFinishPaymentWebhook({
-      request: new Request("http://localhost"),
-      headers: danaWebhookHeaders(body),
-      body,
-      set,
-    });
-    const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) });
-    expect(updated?.paymentStatus).toBe("FAILED");
-  });
-
-  it("handleDanaDisburseNotifyWebhook: COMPLETED status finalizes disbursement", async () => {
-    const { builder, app: a } = await seedBuilderApp();
-    const extId = `disb_${suffix()}`;
-    const tx = await createTx(builder.id, a.id, {
-      paymentStatus: "PAID",
-      disbursementStatus: "PROCESSING",
-      providerReferenceId: extId,
-    });
-    const body = { partnerReferenceNo: extId, status: "SUCCESS" };
-    const set: any = {};
-    const res = await handleDanaDisburseNotifyWebhook({
-      request: new Request("http://localhost"),
-      headers: danaWebhookHeaders(body),
-      body,
-      set,
-    });
-    expect((res as any).status).toBe("COMPLETED");
-    const updated = await db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) });
-    expect(updated?.disbursementStatus).toBe("COMPLETED");
-  });
-
-  it("handleDanaDisburseNotifyWebhook: rate limited returns 429", async () => {
-    resetRateLimits();
-    const req = new Request("http://localhost", { headers: { "x-real-ip": "10.0.0.1" } });
-    for (let i = 0; i < 121; i++) enforceRateLimit(req, "webhook:dana:disburse", 120, 60_000);
-    const set: any = {};
-    const res = await handleDanaDisburseNotifyWebhook({
-      request: req,
-      headers: {},
-      body: {},
-      set,
-    });
-    expect(set.status).toBe(429);
-    resetRateLimits();
   });
 });
 

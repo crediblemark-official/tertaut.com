@@ -326,6 +326,11 @@ export class LicensingModule {
     return verifyEd25519OfflineToken(token, {
       baseUrl: this.ctx.baseUrl,
       ...options,
+      expectedMode: this.ctx.apiKey.startsWith("tt_test_")
+        ? "sandbox"
+        : this.ctx.apiKey.startsWith("tt_live_")
+          ? "live"
+          : undefined,
     });
   }
 

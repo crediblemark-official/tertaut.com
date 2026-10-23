@@ -737,6 +737,41 @@ describe("Unit Tests - Tertaut SDK", () => {
     expect(res.claims.lic).toBe("TT-VALID-123");
     expect(res.claims.feat["ai-pro"]).toBe(true);
 
+    // A newly signed sandbox token must not grant a live SDK entitlement.
+    const sandboxBody = Buffer.from(JSON.stringify({ ...validClaims, mode: "sandbox" })).toString(
+      "base64url"
+    );
+    const sandboxSignature = await crypto.subtle.sign(
+      "Ed25519" as any,
+      keyPair.privateKey,
+      new TextEncoder().encode(`${header}.${sandboxBody}`)
+    );
+    const sandboxToken = `${header}.${sandboxBody}.${Buffer.from(sandboxSignature).toString("base64url")}`;
+    const liveSdk = new Tertaut({
+      apiKey: "tt_live_offline",
+      appId: "app_test",
+      baseUrl: "https://audit.invalid",
+    });
+    expect(
+      (await liveSdk.licensing.verifyOfflineToken(sandboxToken, { publicKeyJwk })).reason
+    ).toBe("ENVIRONMENT_MISMATCH");
+    const sandboxSdk = new Tertaut({
+      apiKey: "tt_test_offline",
+      appId: "app_test",
+      baseUrl: "https://audit.invalid",
+    });
+    expect(
+      (await sandboxSdk.licensing.verifyOfflineToken(sandboxToken, { publicKeyJwk })).valid
+    ).toBe(true);
+
+    const serverSdk = new Tertaut({
+      apiKey: "tt_secret_offline",
+      baseUrl: "https://audit.invalid",
+    });
+    expect(
+      (await serverSdk.licensing.verifyOfflineToken(sandboxToken, { publicKeyJwk })).valid
+    ).toBe(true);
+
     // 4. Verifikasi kegagalan jika appVersion terlalu tua (vfl: 1.0.0 vs appVersion: 0.9.0)
     const resOld = await verifyEd25519OfflineToken(validToken, {
       publicKeyJwk,

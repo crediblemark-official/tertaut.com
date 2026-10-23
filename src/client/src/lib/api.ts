@@ -170,6 +170,21 @@ export const api = {
     return parseJson(res);
   },
 
+  async getSubscriptionStats(): Promise<{
+    success: boolean;
+    billingMode: "manual";
+    stats: {
+      activeCount: number;
+      activeRecurringCount: number;
+      totalCount: number;
+      monthlyEquivalent: number;
+      avgLtv: number;
+      expiringSoon: number;
+    };
+  }> {
+    return parseJson(await apiFetch(withMode("/api/v1/apps/stats/subscriptions")));
+  },
+
   async getCatalogStats(mode?: "sandbox" | "live" | "all"): Promise<CatalogKPIStats> {
     const url =
       mode === "all"
@@ -312,7 +327,7 @@ export const api = {
 
   async createCheckoutSession(data: {
     appId: string;
-    paymentGateway?: "dana" | "xendit" | string;
+    paymentGateway?: "xendit" | "sandbox";
     demoMode?: boolean;
     amount: number;
     customerEmail: string;
@@ -396,7 +411,7 @@ export const api = {
   },
 
   async getTransactions(
-    options?: { appId?: string; page?: number; limit?: number } | string
+    options?: { appId?: string; customerEmail?: string; page?: number; limit?: number } | string
   ): Promise<{
     success: boolean;
     transactions: TransactionItem[];
@@ -408,6 +423,8 @@ export const api = {
     const opts = typeof options === "string" ? { appId: options } : options || {};
     const params = new URLSearchParams();
     if (opts.appId) params.append("appId", opts.appId);
+    if ("customerEmail" in opts && opts.customerEmail)
+      params.append("customerEmail", opts.customerEmail);
     if (opts.page) params.append("page", opts.page.toString());
     if (opts.limit) params.append("limit", opts.limit.toString());
 

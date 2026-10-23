@@ -71,7 +71,7 @@ describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)
       maxSeats: 2,
     });
 
-    const decoded = LicenseTokenService.verify(issued.license.offlineJwtGraceToken!);
+    const decoded = await LicenseTokenService.verify(issued.license.offlineJwtGraceToken!);
     expect(decoded.valid).toBe(true);
     const claims = decoded.claims!;
     expect(claims.typ).toBe("license");
@@ -92,7 +92,7 @@ describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)
     });
 
     const oldToken = issued.license.offlineJwtGraceToken!;
-    const oldDecoded = LicenseTokenService.verify(oldToken);
+    const oldDecoded = await LicenseTokenService.verify(oldToken);
     expect(oldDecoded.valid).toBe(true);
 
     // Panggil /verify (online) → token dirotasi oleh server
@@ -152,7 +152,7 @@ describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)
       nbf: now - CLOCK_SKEW_LEEWAY_SECONDS,
       exp: now + 86_400,
     });
-    const fwd = LicenseTokenService.verify(forward);
+    const fwd = await LicenseTokenService.verify(forward);
     expect(fwd.valid).toBe(false);
     expect(fwd.reason).toBe("TOO_FORWARD_IAT");
 
@@ -171,7 +171,7 @@ describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)
       nbf: now + CLOCK_SKEW_LEEWAY_SECONDS + 360,
       exp: now + 86_400,
     });
-    const early = LicenseTokenService.verify(tooEarly);
+    const early = await LicenseTokenService.verify(tooEarly);
     expect(early.valid).toBe(false);
     expect(early.reason).toBe("NOT_YET_VALID");
 
@@ -190,7 +190,7 @@ describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)
       nbf: now + 100,
       exp: now + 86_400,
     });
-    const ok = LicenseTokenService.verify(withinLeeway);
+    const ok = await LicenseTokenService.verify(withinLeeway);
     expect(ok.valid).toBe(true);
   });
 
@@ -206,7 +206,7 @@ describe("Fase 5: Token hardening (nbf, clock-skew leeway, rotasi & anti-replay)
     const token = issued.license.offlineJwtGraceToken!;
     const [h, b] = token.split(".");
     const tampered = `${h}.${b}.${base64url("broken-signature")}`;
-    const bad = LicenseTokenService.verify(tampered);
+    const bad = await LicenseTokenService.verify(tampered);
     expect(bad.valid).toBe(false);
     expect(bad.reason).toBe("INVALID_SIGNATURE");
 

@@ -19,7 +19,7 @@ import { eq } from "drizzle-orm";
 import { ensurePlatformSettings } from "./ensureSettings";
 import { CryptoService } from "../services/security/crypto";
 import { LicenseService } from "../services/licensing/license";
-import { DanaService } from "../services/payments/dana/dana";
+import { calculateMor } from "../utils/payment";
 import { randomBytes } from "crypto";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "../routes/apps/api-key";
 import type { DeliveryConfig } from "../db/schema/projects";
@@ -417,24 +417,25 @@ export async function seed() {
     seededCoupons.map((c) => c.code)
   );
 
-  // 6. Transaksi DANA
+  // 6. Transaksi sandbox
   await db.insert(transactions).values(
     TXS.map((t) => ({
       id: t.id,
       appId: t.appId,
+      mode: APPS.find((a) => a.id === t.appId)?.mode || "live",
       builderId: primaryBuilder.id,
       xenditExternalId: t.xenditExternalId,
       xenditInvoiceId: t.xenditInvoiceId,
       customerEmail: t.customerEmail,
       amount: t.amount,
-      paymentProvider: "dana",
-      providerReferenceId: `dana_inv_${t.id.slice(3)}`,
+      paymentProvider: "sandbox",
+      providerReferenceId: `inv_sandbox_${t.id.slice(3)}`,
       paymentChannel: t.channel,
       paymentStatus: t.status,
       disbursementStatus: t.disbursementStatus,
-      disbursementId: t.status === "PAID" ? `disb_dana_${t.id.slice(3)}` : null,
+      disbursementId: t.status === "PAID" ? `disb_sandbox_${t.id.slice(3)}` : null,
       grantDays: t.grantDays,
-      ...DanaService.calculateMorBreakdown(t.amount),
+      ...calculateMor(t.amount, 5),
       paidAt: t.paidAt,
       createdAt: t.paidAt,
     }))
@@ -448,6 +449,7 @@ export async function seed() {
       LICENSES.map((l) => ({
         id: l.id,
         appId: l.appId,
+        mode: APPS.find((a) => a.id === l.appId)?.mode || "live",
         transactionId: l.txId,
         licenseKey: l.key,
         customerEmail: l.email,
@@ -462,7 +464,11 @@ export async function seed() {
           l.key,
           l.appId,
           l.hwidRaw ? LicenseService.hashHardwareId(l.hwidRaw) : null,
-          l.email
+          l.email,
+          l.floating ? 5 : 3,
+          l.floating ? { floating: true } : {},
+          undefined,
+          APPS.find((a) => a.id === l.appId)?.mode || "live"
         ),
         lastValidatedAt: new Date(),
         createdAt: new Date(),

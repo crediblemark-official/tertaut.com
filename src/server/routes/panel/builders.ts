@@ -28,6 +28,7 @@ export async function handlePanelBuilders() {
         grossAmount: transactions.grossAmount,
         netAmount: transactions.netAmount,
         disbursementStatus: transactions.disbursementStatus,
+        refundStatus: transactions.refundStatus,
       })
       .from(transactions)
       .where(eq(transactions.paymentStatus, "PAID")),
@@ -54,7 +55,9 @@ export async function handlePanelBuilders() {
     const gmv = builderTxs.reduce((sum, tx) => sum + tx.grossAmount, 0);
     const net = builderTxs.reduce((sum, tx) => sum + tx.netAmount, 0);
     const pending = builderTxs
-      .filter((tx) => tx.disbursementStatus === "PENDING")
+      .filter(
+        (tx) => tx.disbursementStatus === "PENDING" && ["NONE", "FAILED"].includes(tx.refundStatus)
+      )
       .reduce((sum, tx) => sum + tx.netAmount, 0);
 
     return {

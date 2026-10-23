@@ -5,7 +5,7 @@ tertaut.com: checkout Merchant-of-Record (MoR) dinamis dan universal licensing.
 
 Berjalan di **Browser**, **Chrome Extension**, **Desktop (Tauri/Electron)**, **Node.js / Bun**, dan **React Native**.
 
-> Untuk API Server-to-Server lewat HTTP langsung (tanpa SDK), lihat **[Server-to-Server API](/server-to-server)**.
+> Untuk API Server-to-Server lewat HTTP langsung (tanpa SDK), lihat **[Server-to-Server API](/api/server-to-server)**.
 
 ---
 
@@ -43,7 +43,7 @@ const tertaut = new Tertaut({
 
 SDK **tidak** membaca variabel environment secara otomatis — ketiga nilai wajib
 di-inject eksplisit ke konstruktor. Penjelasan & contoh per framework (Vite,
-Next.js, SvelteKit, Node/Bun) ada di **[Environment Client](/environment)**.
+Next.js, SvelteKit, Node/Bun) ada di **[Environment Client](/guide/environment)**.
 
 **Keamanan:** ketiga nilai ini bersifat publik dan aman di-commit ke frontend
 (pola publishable key). **Jangan pernah** menaruh `tt_secret_…` di env browser —
@@ -160,22 +160,9 @@ status pembayaran serta mengambil faktur.
 
 ### Ketersediaan `paymentRail` per gateway
 
-Rail **tidak seragam antar gateway**. Mengirim rail yang tidak didukung gateway
-aktif akan membuat gateway tersebut menolak permintaan.
+Pembayaran riil diproses melalui Xendit. Rail yang tersedia mengikuti kanal aktif pada akun Xendit; ambil daftar melalui `/api/v1/checkout/channels`. Tertaut Sandbox (Simulasi), atau Sandbox Tertaut, menyediakan simulasi tanpa uang riil.
 
-| Rail      | DANA             | Xendit | XenithPay | Tertaut Sandbox (Simulasi) |
-| --------- | ---------------- | ------ | --------- | -------------------------- |
-| `qris`    | ✅               | ✅     | ✅        | ✅                         |
-| `va`      | ✅               | ✅     | ✅        | ✅                         |
-| `ewallet` | ✅               | ✅     | ✅        | ✅                         |
-| `card`    | ❌               | ✅     | ✅        | ✅                         |
-| `retail`  | ❌               | ✅     | ✅        | ✅                         |
-| `balance` | ✅ (khusus DANA) | ❌     | ❌        | ❌                         |
-
-Bila `paymentRail` tidak diisi, server memakai rail default dari produk. Untuk
-kode yang harus jalan di semua gateway, lakukan branch berdasarkan
-`paymentGateway` pada respons sesi checkout daripada mengasumsikan satu rail
-berlaku universal.
+Rail yang diterima: `qris`, `va`, `ewallet`, `card`, dan `retail`. Bila tidak diisi, server memakai rail default produk. Permintaan gateway yang sudah dihapus ditolak.
 
 ### Status pembayaran
 

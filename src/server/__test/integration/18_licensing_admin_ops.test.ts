@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeAll } from "bun:test";
+import * as webhookTransport from "../../services/security/webhookUrl";
+import { describe, it, expect, beforeAll, afterAll, spyOn } from "bun:test";
 import { setupTestAuth } from "../setup";
 import {
   handleListLicenses,
@@ -27,6 +28,10 @@ describe("Licensing Admin Routes & Operations", () => {
   let testApp: any;
   let testBuilder: any;
   let adminHeaders: Headers;
+
+  // Hindari DNS/jaringan nyata saat "test delivery" webhook.
+  const transportSpy = spyOn(webhookTransport, "sendWebhook").mockImplementation(async () => 200);
+  afterAll(() => transportSpy.mockRestore());
 
   beforeAll(async () => {
     const { authCookie } = await import("../setup");

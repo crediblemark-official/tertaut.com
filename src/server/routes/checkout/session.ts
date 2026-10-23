@@ -4,7 +4,6 @@ import { platformSettings } from "../../db/schema/settings";
 import { eq, and, inArray } from "drizzle-orm";
 import { getClientIp } from "../../lib/ip";
 import { logger } from "../../lib/logger";
-import { DanaService } from "../../services/payments/dana/dana";
 import { XenditService } from "../../services/payments/xendit";
 import { getActivePaymentGateway } from "../../services/payments/paymentGateway";
 import { getPaymentGateway as getGatewayAdapter } from "../../services/payments/gateways";
@@ -19,7 +18,8 @@ import { CouponService } from "../../services/monetization/coupon";
 import { LicenseService } from "../../services/licensing/license";
 import { EmailService } from "../../services/notifications/email";
 import { config as checkoutConfig, resolveRequestOrigin } from "../../config";
-import { enforceRateLimit } from "../../services/security/rateLimiter";
+import { enforceRateLimitAsync } from "../../services/security/rateLimiter";
+import { handleFreeTrialCheckout } from "./freeTrial";
 import { createPollTicket } from "../../utils/pollTicket";
 import { randomBytes } from "crypto";
 import QRCode from "qrcode";
@@ -76,7 +76,7 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
   try {
     // BUG-6: batasi pembuatan sesi per IP agar endpoint publik ini tidak bisa
     // dipakai untuk brute-force / spam invoice.
-    const rl = enforceRateLimit(request, "checkout:session", 60, 60_000);
+    const rl = await enforceRateLimitAsync(request, "checkout:session", 60, 60_000);
     if (!rl.allowed) {
       set.status = 429;
       return { success: false, error: "Terlalu banyak permintaan. Coba lagi sebentar lagi." };
@@ -104,7 +104,13 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
       retailOutlet,
       customerName,
       metadata,
+      paymentChannel: rawPaymentChannel,
     } = body;
+
+    // Normalisasi paymentChannel ke uppercase untuk konsistensi dengan index parsial DB
+    const paymentChannel = String(rawPaymentChannel || "")
+      .trim()
+      .toUpperCase();
 
     // B8: Dukung preferredPaymentChannel (dari PayView) maupun paymentRail secara konsisten
     const selectedRail = (paymentRail || preferredPaymentChannel || "") as
@@ -181,7 +187,7 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
       };
     }
 
-    const isSandboxApp = app.mode === "sandbox" || app.slug === "fastmail-ai";
+    const isSandboxApp = app.mode === "sandbox";
     const email = (buyerEmail || customerEmail || "").trim().toLowerCase();
     if (!email || !email.includes("@")) {
       set.status = 400;
@@ -210,247 +216,18 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
         .toUpperCase() === "FREE_TRIAL"
     );
     if (isTrialRequested && (app.trialPeriodDays ?? 0) > 0) {
-      // Pre-check cepat 1 (UX): 409 bila email sudah pernah trial
-      const existingTrial = await db.query.transactions.findFirst({
-        where: and(
-          eq(transactions.appId, app.id),
-          eq(transactions.customerEmail, email),
-          eq(transactions.paymentChannel, "FREE_TRIAL")
-        ),
+      return await handleFreeTrialCheckout({
+        app,
+        builder,
+        email,
+        rawHwid,
+        clientIp,
+        body,
+        set,
+        requestOrigin,
+        redirectUrl,
+        metadata,
       });
-
-      if (existingTrial) {
-        set.status = 409;
-        return {
-          success: false,
-          error: "Email ini sudah pernah mengaktifkan masa uji coba untuk produk ini.",
-          errorCode: "TRIAL_EMAIL_ALREADY_USED",
-        };
-      }
-
-      // Pre-check 2 (1.6 Device Fingerprinting Anti-Abuse):
-      // Jika HWID/Device Fingerprint disertakan, tolak bila perangkat sudah pernah klaim trial app ini
-      let lookupHashes: string[] = [];
-      if (rawHwid) {
-        lookupHashes = LicenseService.hwidLookupHashes(rawHwid);
-
-        // Pre-check 2a: Lisensi trial yang sudah mengikat hardwareId ini
-        const [existingHwidLic] = await db
-          .select({ id: licenses.id })
-          .from(licenses)
-          .innerJoin(transactions, eq(licenses.transactionId, transactions.id))
-          .where(
-            and(
-              eq(licenses.appId, app.id),
-              eq(transactions.paymentChannel, "FREE_TRIAL"),
-              inArray(licenses.hardwareId, lookupHashes)
-            )
-          )
-          .limit(1);
-
-        if (existingHwidLic) {
-          set.status = 409;
-          return {
-            success: false,
-            error: "Perangkat ini sudah pernah mengaktifkan masa uji coba untuk produk ini.",
-            errorCode: "TRIAL_DEVICE_ALREADY_USED",
-          };
-        }
-
-        // Pre-check 2b: Aktivasi perangkat pada lisensi trial
-        const [existingActivation] = await db
-          .select({ id: licenseActivations.id })
-          .from(licenseActivations)
-          .innerJoin(licenses, eq(licenseActivations.licenseId, licenses.id))
-          .innerJoin(transactions, eq(licenses.transactionId, transactions.id))
-          .where(
-            and(
-              eq(licenses.appId, app.id),
-              eq(transactions.paymentChannel, "FREE_TRIAL"),
-              inArray(licenseActivations.hwidHash, lookupHashes)
-            )
-          )
-          .limit(1);
-
-        if (existingActivation) {
-          set.status = 409;
-          return {
-            success: false,
-            error: "Perangkat ini sudah pernah mengaktifkan masa uji coba untuk produk ini.",
-            errorCode: "TRIAL_DEVICE_ALREADY_USED",
-          };
-        }
-      }
-
-      const trialDays = app.trialPeriodDays!;
-      const trialApiKey = app.deliveryConfig?.apiAccess?.enabled
-        ? `tt_cust_${randomBytes(16).toString("hex")}`
-        : undefined;
-      const licenseKey = LicenseService.generateLicenseKey();
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + trialDays);
-
-      const txId = `tx_trial_${randomBytes(8).toString("hex")}`;
-      const licId = `lic_${randomBytes(8).toString("hex")}`;
-
-      let issued:
-        | { duplicate: true; reason: "email" | "device" }
-        | { trialTx: typeof transactions.$inferSelect; newLic: typeof licenses.$inferSelect };
-      try {
-        issued = await db.transaction(async (trx) => {
-          // Cek ulang DI DALAM transaksi: anti-race (TOCTOU)
-          const dupCheck = await trx.query.transactions.findFirst({
-            where: and(
-              eq(transactions.appId, app.id),
-              eq(transactions.customerEmail, email),
-              eq(transactions.paymentChannel, "FREE_TRIAL")
-            ),
-          });
-          if (dupCheck) return { duplicate: true, reason: "email" };
-
-          // Cek ulang HWID DI DALAM transaksi
-          if (lookupHashes.length > 0) {
-            const [hwidDup] = await trx
-              .select({ id: licenses.id })
-              .from(licenses)
-              .innerJoin(transactions, eq(licenses.transactionId, transactions.id))
-              .where(
-                and(
-                  eq(licenses.appId, app.id),
-                  eq(transactions.paymentChannel, "FREE_TRIAL"),
-                  inArray(licenses.hardwareId, lookupHashes)
-                )
-              )
-              .limit(1);
-            if (hwidDup) return { duplicate: true, reason: "device" };
-
-            const [actDup] = await trx
-              .select({ id: licenseActivations.id })
-              .from(licenseActivations)
-              .innerJoin(licenses, eq(licenseActivations.licenseId, licenses.id))
-              .innerJoin(transactions, eq(licenses.transactionId, transactions.id))
-              .where(
-                and(
-                  eq(licenses.appId, app.id),
-                  eq(transactions.paymentChannel, "FREE_TRIAL"),
-                  inArray(licenseActivations.hwidHash, lookupHashes)
-                )
-              )
-              .limit(1);
-            if (actDup) return { duplicate: true, reason: "device" };
-          }
-
-          const primaryHwidHash = rawHwid ? LicenseService.hashHardwareIdSecure(rawHwid) : null;
-
-          const [tTx] = await trx
-            .insert(transactions)
-            .values({
-              id: txId,
-              appId: app.id,
-              builderId: app.builderId,
-              paymentProvider: "xendit",
-              paymentChannel: "FREE_TRIAL",
-              xenditExternalId: txId,
-              customerEmail: email,
-              grossAmount: 0,
-              platformFee: 0,
-              netAmount: 0,
-              paymentStatus: "PAID",
-              disbursementStatus: "COMPLETED",
-              grantDays: trialDays,
-              metadata: {
-                ...(typeof metadata === "object" && metadata !== null ? metadata : {}),
-                hwidHash: primaryHwidHash,
-                clientIp,
-                deviceFingerprint: rawHwid || undefined,
-              },
-            })
-            .returning();
-
-          const [nLic] = await trx
-            .insert(licenses)
-            .values({
-              id: licId,
-              appId: app.id,
-              transactionId: tTx.id,
-              customerEmail: email,
-              licenseKey,
-              hardwareId: primaryHwidHash,
-              status: "ACTIVE",
-              expiresAt,
-              maxSeats: app.deliveryConfig?.licenseKey?.maxSeats ?? 3,
-              apiKey: trialApiKey,
-            })
-            .returning();
-
-          if (primaryHwidHash) {
-            await trx.insert(licenseActivations).values({
-              id: `act_${randomBytes(8).toString("hex")}`,
-              licenseId: licId,
-              hwidHash: primaryHwidHash,
-              deviceName: body.deviceName || "Primary Trial Device",
-              ipAddress: clientIp,
-            });
-          }
-
-          return { trialTx: tTx, newLic: nLic };
-        });
-      } catch (err: any) {
-        // Backstop unik DB (uniq_transactions_trial_per_app_email): bila dua request
-        // paralel menang balapan, salah satunya gagal di sini → balas 409, bukan 500.
-        if (err?.code === "23505") {
-          set.status = 409;
-          return {
-            success: false,
-            error:
-              "Email ini sudah pernah mengaktifkan masa uji coba untuk produk ini (permintaan bersamaan).",
-            errorCode: "TRIAL_EMAIL_ALREADY_USED",
-          };
-        }
-        throw err;
-      }
-
-      if ("duplicate" in issued) {
-        set.status = 409;
-        const isDevice = issued.reason === "device";
-        return {
-          success: false,
-          error: isDevice
-            ? "Perangkat ini sudah pernah mengaktifkan masa uji coba untuk produk ini."
-            : "Email ini sudah pernah mengaktifkan masa uji coba untuk produk ini.",
-          errorCode: isDevice ? "TRIAL_DEVICE_ALREADY_USED" : "TRIAL_EMAIL_ALREADY_USED",
-        };
-      }
-
-      const { trialTx, newLic } = issued;
-
-      await EmailService.sendLicenseIssued({
-        to: email,
-        appName: app.name,
-        licenseKey,
-        expiresAt,
-        deliveryDetails: {
-          fileDownload: app.deliveryConfig?.fileDownload,
-          privateNote: app.deliveryConfig?.privateNote,
-          apiAccess: app.deliveryConfig?.apiAccess
-            ? { ...app.deliveryConfig.apiAccess, apiKey: trialApiKey }
-            : undefined,
-        },
-      }).catch(() => null);
-
-      return {
-        success: true,
-        isTrial: true,
-        trialPeriodDays: trialDays,
-        transactionId: trialTx.id,
-        licenseKey,
-        expiresAt: expiresAt.toISOString(),
-        message: `Masa uji coba gratis ${trialDays} hari berhasil diaktifkan!`,
-        redirectUrl:
-          redirectUrl ||
-          app.redirectUrl ||
-          `${requestOrigin}/checkout/success?licenseKey=${licenseKey}`,
-      };
     }
 
     // B2: grantDays sepenuhnya ditentukan oleh otoritas konfigurasi produk (deliveryConfig), bukan input klien.
@@ -473,10 +250,19 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
       : authHeader.trim();
     const isS2SAuth = Boolean(builder?.secretApiKey && bearerKey === builder.secretApiKey);
 
+    if (!isS2SAuth && app.appType === "saas_web" && appPrice <= 0) {
+      set.status = 401;
+      return {
+        success: false,
+        error: "Checkout dengan nominal dinamis memerlukan secret API key builder",
+        errorCode: "S2S_REQUIRED",
+      };
+    }
+
     // List price sebelum diskon:
     let listPrice: number;
-    if (isS2SAuth || app.appType === "saas_web") {
-      // Otoritas Server-to-Server (S2S) atau SaaS Web: nominal dinamis penuh dari kodingan backend
+    if (isS2SAuth) {
+      // Hanya backend builder terautentikasi yang berwenang menentukan nominal dinamis.
       listPrice =
         typeof requestedAmount === "number" && requestedAmount > 0
           ? requestedAmount
@@ -511,14 +297,8 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
       discountPercent = couponResult.discountPercent || 0;
     }
 
-    // Validasi jika pembeli sengaja mengirim nominal di bawah listPrice tanpa kupon yang sah (hanya berlaku untuk retail fixed DRM bukan S2S/SaaS Web)
-    if (
-      !isS2SAuth &&
-      app.appType !== "saas_web" &&
-      appPrice > 0 &&
-      requestedAmount !== null &&
-      requestedAmount < appPrice
-    ) {
+    // Public checkout cannot underpay the product price without a valid coupon.
+    if (!isS2SAuth && appPrice > 0 && requestedAmount !== null && requestedAmount < appPrice) {
       const expectedPayable = Math.max(0, listPrice - discountAmount);
       // Jika requestedAmount tidak cocok dengan harga diskon kupon yang sah
       if (!coupon || requestedAmount !== expectedPayable) {
@@ -541,15 +321,28 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
     // Resolve payment gateway: request body -> setting platform -> gateway default.
     // Semua normalisasi nama (alias, allowlist)diurus registry.
     const activePlatformPg = await getActivePaymentGateway();
+    if (body.paymentGateway && !normalizeGatewayId(body.paymentGateway)) {
+      set.status = 400;
+      return { success: false, error: "Gateway pembayaran tidak didukung. Gunakan Xendit." };
+    }
     let selectedGateway: GatewayId = demoMode
       ? "sandbox"
-      : (normalizeGatewayId(body.paymentGateway) ?? activePlatformPg);
+      : (normalizeGatewayId(body.paymentGateway) ?? (activePlatformPg as GatewayId));
+
+    if (!isSandboxApp && (demoMode || selectedGateway === "sandbox")) {
+      set.status = 403;
+      return {
+        success: false,
+        error: "Simulasi hanya tersedia untuk aplikasi sandbox",
+        errorCode: "SANDBOX_NOT_ALLOWED",
+      };
+    }
 
     // Rail yang tidak didukung gateway terpilih dialihkan ke gateway TERDAFTAR
     // lain yang mendukungnya.
     //
     // Sebelumnya logikanya ditulis sebagai daftar "Xendit-exclusive rail"
-    // hardcode (card/retail/e-wallet non-DANA/bank tertentu → paksa Xendit).
+    // hardcode per metode pembayaran.
     // Sekarang pertanyaannya generik: "gateway mana yang bisa lays down rail ini?"
     const railCtx = {
       rail: selectedRail,
@@ -585,7 +378,8 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
 
     // Path finish diambil dari registry
     const finishPath = gatewayDescriptor(effectiveGatewayId)?.finishPath ?? "/checkout/success";
-    const finishRedirectUrl = `${requestOrigin}${finishPath}?externalId=${externalId}`;
+    const pollTicket = createPollTicket(txId);
+    const finishRedirectUrl = `${requestOrigin}${finishPath}?externalId=${externalId}&ticket=${encodeURIComponent(pollTicket)}`;
 
     const resolvedBank = (
       vaBank ||
@@ -635,6 +429,7 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
               ? undefined
               : selectedRail || undefined,
         vaBank: resolvedBank,
+        ewalletChannel,
         retailOutlet,
       });
 
@@ -662,6 +457,10 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
           id: txId,
           appId: app.id,
           builderId: app.builderId,
+          mode: app.mode,
+          paymentCode: orderResult.paymentCode || null,
+          qrDataUrl: orderResult.qrDataUrl || null,
+          paymentExpiresAt: expiryDate ? new Date(expiryDate) : null,
           paymentProvider: effectiveGatewayId,
           providerReferenceId: invoiceId,
           xenditInvoiceId: invoiceId,
@@ -687,10 +486,6 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
       }
       throw err;
     }
-
-    // Ticket polling status: bukti kepemilikan transaksi (BUG-5) supaya licenseKey
-    // tidak bisa diambil oleh siapa pun yang hanya mengetahui txId.
-    const pollTicket = createPollTicket(newTx.id);
 
     const gatewayLabel = gatewayDescriptorForTx?.displayName ?? selectedGateway;
 
@@ -739,23 +534,6 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
     set.status = 400;
     let errorMsg = "Terjadi kesalahan internal saat membuat sesi checkout. Silakan coba lagi.";
     if (
-      msg.includes("Invalid Merchant") ||
-      msg.includes("externalStoreId") ||
-      msg.includes("submerchant")
-    ) {
-      errorMsg =
-        "Gateway DANA menolak transaksi: merchant/submerchant (externalStoreId) untuk " +
-        "metode pembayaran ini belum terdaftar di dashboard DANA. Daftarkan di " +
-        "https://dashboard.dana.id/sandbox/submerchants, atau gunakan aplikasi mode Sandbox untuk pengujian.";
-      set.status = 400;
-    } else if (
-      msg.includes("DANA_CLIENT_ID") ||
-      msg.includes("DANA_PRIVATE_KEY") ||
-      (msg.includes("DANA") && msg.includes("tidak dikonfigurasi"))
-    ) {
-      errorMsg = "Gateway pembayaran DANA belum dikonfigurasi dengan benar di server.";
-      set.status = 400;
-    } else if (
       err?.errorCode === "UNAUTHORIZED_SENDER_IP" ||
       err?.errorMessage?.includes("IP Allowlist") ||
       msg.includes("IP Allowlist") ||
@@ -776,19 +554,6 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
     ) {
       errorMsg =
         "Gateway pembayaran Xendit belum dikonfigurasi dengan benar di server atau Super Admin Panel.";
-      set.status = 400;
-    } else if (msg.includes("XenithPay") && msg.includes("belum dikonfigurasi")) {
-      errorMsg =
-        "Gateway pembayaran XenithPay belum dikonfigurasi di panel atau environment server.";
-      set.status = 400;
-    } else if (
-      msg.includes("XenithPay API error") &&
-      msg.toLowerCase().includes("ip address") &&
-      msg.toLowerCase().includes("unauthorized")
-    ) {
-      errorMsg =
-        "XenithPay menolak server ini: IP publik server belum diizinkan. " +
-        "Tambahkan IP publik server ke allowlist akun XenithPay lalu coba lagi.";
       set.status = 400;
     } else if (msg.toLowerCase().includes("timeout")) {
       errorMsg = "Gateway pembayaran tidak merespons tepat waktu. Silakan coba lagi beberapa saat.";

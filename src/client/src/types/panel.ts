@@ -64,6 +64,8 @@ export interface PanelTransactionItem {
   platformFee: number;
   netAmount: number;
   paymentStatus: string;
+  refundStatus?: string;
+  refundOperationId?: string | null;
   disbursementStatus: string;
   disbursementId: string | null;
   createdAt: string;
@@ -77,17 +79,9 @@ export interface PlatformSettingsFormData {
   active_payment_gateway: string;
   xendit_secret_key: string;
   xendit_webhook_token: string;
-  xenithpay_sandbox_access_key: string;
-  xenithpay_sandbox_secret_key: string;
-  xenithpay_sandbox_webhook_secret: string;
-  dana_sandbox_client_id: string;
-  dana_sandbox_client_secret: string;
-  dana_sandbox_merchant_id: string;
   checkout_mode: string;
   sandbox_mode: string;
   xendit_configured?: string;
-  dana_configured?: string;
-  xenithpay_configured?: string;
 }
 
 export interface PanelAppItem {

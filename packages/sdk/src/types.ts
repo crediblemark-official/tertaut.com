@@ -46,8 +46,7 @@ export interface CheckoutOptions {
   /**
    * Rail pembayaran. Ketersediaan bergantung gateway aktif:
    * - `qris` | `va` | `ewallet` → semua gateway
-   * - `card` | `retail`           → Xendit & XenithPay saja
-   * - `balance`                   → DANA saja
+   * - `card` | `retail`           → Xendit
    *
    * Mengirim rail yang tidak didukung gateway aktif akan ditolak gateway itu.
    * Bila dikosongkan, server memakai rail default dari produk.
@@ -208,7 +207,7 @@ export interface LicenseCheckResult {
 
 /**
  * Respons `POST /api/v1/licensing/validate`.
- * Catatan: endpoint ini tidak mengembalikan `seatsUsed`/`maxSeats`/`credits`;
+ * Catatan: endpoint ini tidak mengembalikan `seatsUsed`/`maxSeats`;
  * token offline untuk verifikasi lokal ada di `offlineGraceToken`.
  */
 export interface LicenseValidateResult {
@@ -309,6 +308,7 @@ export interface OfflineTokenVerifyResult {
     typ?: string;
     lic?: string;
     app?: string;
+    mode?: "sandbox" | "live";
     hw?: string | null;
     eml?: string | null;
     seats?: number;

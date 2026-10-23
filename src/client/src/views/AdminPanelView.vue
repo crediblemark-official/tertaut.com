@@ -213,7 +213,7 @@ async function handleLogout() {
 async function handleRefundTransaction(tx: PanelTransactionItem) {
   const confirmed = await confirmDialog({
     title: "Konfirmasi Refund Transaksi",
-    message: `Kembalikan dana sebesar Rp ${tx.grossAmount.toLocaleString("id-ID")} untuk transaksi ${tx.id}? Lisensi terkait akan otomatis dicabut (REVOKED).`,
+    message: `Kembalikan dana sebesar Rp ${tx.grossAmount.toLocaleString("id-ID")} untuk transaksi ${tx.id}? Lisensi terkait dicabut setelah provider mengonfirmasi refund selesai.`,
     confirmText: "Ya, Refund Transaksi",
     variant: "danger",
   });
@@ -222,7 +222,7 @@ async function handleRefundTransaction(tx: PanelTransactionItem) {
   try {
     const res = await api.refundTransaction(tx.id, "Refund diminta oleh Super Admin");
     if (res.success) {
-      showAlert("success", res.message || "Transaksi berhasil di-refund.");
+      showAlert("success", res.message || "Permintaan refund diterima.");
       await loadAllData();
     } else {
       showAlert("error", res.error || "Gagal memproses refund.");

@@ -69,6 +69,18 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         };
       }
 
+      // Refunded transactions are terminal; delayed callbacks must not resurrect them.
+      if (locked.paymentStatus === "REFUNDED") {
+        throw new Error("Transaksi yang telah di-refund tidak dapat diproses kembali");
+      }
+      // Baca konfigurasi delivery produk untuk seat dan durasi
+      const app = await trx.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
+      if (locked.mode === "sandbox" && app?.mode !== "sandbox") {
+        throw new Error("Transaksi sandbox tidak dapat menerbitkan lisensi produk live");
+      }
+      if (locked.paymentProvider === "sandbox" && locked.mode !== "sandbox") {
+        throw new Error("Provider simulasi tidak diizinkan untuk transaksi live");
+      }
       await trx
         .update(transactions)
         .set({
@@ -79,8 +91,6 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         })
         .where(eq(transactions.id, tx.id));
 
-      // Baca konfigurasi delivery produk untuk seat dan durasi
-      const app = await trx.query.apps.findFirst({ where: eq(apps.id, tx.appId) });
       const isSaasWeb = app?.appType === "saas_web";
       const shouldIssueLicense = !(isSaasWeb && app?.deliveryConfig?.licenseKey?.enabled === false);
 
@@ -106,7 +116,9 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
           null,
           tx.customerEmail,
           maxSeats,
-          features
+          features,
+          app?.deliveryConfig?.licenseKey?.offlineGraceDays,
+          locked.mode
         );
 
         // P4 & P5: Generate auto-provisioned API key jika apiAccess aktif
@@ -119,6 +131,7 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
           id: licId,
           appId: tx.appId,
           transactionId: tx.id,
+          mode: locked.mode,
           licenseKey,
           customerEmail: tx.customerEmail,
           status: "ACTIVE",
@@ -131,6 +144,27 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         });
       }
 
+      const paymentData = { ...locked, paymentChannel, paymentStatus: "PAID", paidAt: now };
+      await WebhookService.emitPayment(
+        "payment.success",
+        { transaction: paymentData, app, eventId: `payment.success:${locked.id}` },
+        trx
+      );
+      if (licId) {
+        const issued = await trx.query.licenses.findFirst({ where: eq(licenses.id, licId) });
+        if (issued)
+          await WebhookService.emit(
+            "license.issued",
+            {
+              license: issued,
+              app,
+              actorType: "SYSTEM",
+              eventId: `license.issued:${issued.id}`,
+              payload: { transactionId: locked.id },
+            },
+            trx
+          );
+      }
       const maskedKey = licenseKey ? `${licenseKey.slice(0, 4)}****` : "N/A (SaaS Web)";
       console.log(`[Webhook] Payment confirmed for TX: ${tx.id}, License issued: ${maskedKey}`);
 
@@ -159,17 +193,6 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         paymentChannel,
       }).catch(() => null);
 
-      // Emit Webhook payment.success untuk integrasi developer SaaS
-      await WebhookService.emitPayment("payment.success", {
-        transaction: {
-          ...tx,
-          paymentChannel,
-          paymentStatus: "PAID",
-          paidAt: now,
-        },
-        app,
-      });
-
       // BUG B1: lisensi hasil pembayaran (jalur revenue utama) harus memicu
       // webhook license.issued + audit — konsisten dengan LicenseService.issueDirect.
       const issuedLic = await db.query.licenses.findFirst({
@@ -191,17 +214,6 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
             expiresAt: result.expiresAt,
           }
         );
-        await WebhookService.emit("license.issued", {
-          license: issuedLic,
-          app,
-          actorType: "SYSTEM",
-          payload: {
-            customerEmail: issuedLic.customerEmail,
-            paymentChannel,
-            transactionId: tx.id,
-            expiresAt: result.expiresAt,
-          },
-        });
       }
     }
 

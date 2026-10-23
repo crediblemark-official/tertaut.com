@@ -18,9 +18,7 @@ import {
 } from "lucide-vue-next";
 import { formatRupiah } from "../../lib/utils";
 import { api } from "../../lib/api";
-import PayDanaForm from "./PayDanaForm.vue";
 import PayXenditForm from "./PayXenditForm.vue";
-import PayXenithForm from "./PayXenithForm.vue";
 
 interface ProductData {
   id: string;
@@ -28,7 +26,7 @@ interface ProductData {
   slug: string;
   mode: "sandbox" | "live";
   checkoutMode?: "custom" | "hosted";
-  activePaymentGateway?: "dana" | "xendit" | "xenithpay";
+  activePaymentGateway?: "xendit" | "sandbox";
   availableChannels?: import("../../types/app").AvailableChannels;
   deliveryConfig?: import("../../types/app").DeliveryConfig | null;
   redirectUrl?: string | null;
@@ -38,7 +36,7 @@ interface ProductData {
 const props = defineProps<{
   product: ProductData;
   checkoutMode?: "custom" | "hosted";
-  activeGateway?: "dana" | "xendit" | "xenithpay";
+  activeGateway?: "xendit" | "sandbox";
   demoMode?: boolean;
   emailInput: string;
   selectedPaymentRail: "qris" | "va" | "ewallet" | "card" | "retail";
@@ -92,10 +90,6 @@ const emit = defineEmits<{
   resetOrder: [];
   paymentSuccess: [result: { licenseKey?: string; message?: string }];
 }>();
-
-const effectiveGateway = computed<"dana" | "xendit" | "xenithpay">(() => {
-  return props.activeGateway || props.product?.activePaymentGateway || "dana";
-});
 
 const copiedVa = ref(false);
 const copiedLicense = ref(false);
@@ -739,43 +733,8 @@ function copyToClipboard(text: string, isLicense = false) {
     <!-- 3. INITIAL PAYMENT SELECTION (Modular per Gateway)       -->
     <!-- ======================================================== -->
     <div v-else>
-      <!-- Gateway DANA -->
-      <PayDanaForm
-        v-if="effectiveGateway === 'dana'"
-        :product="product"
-        :checkout-mode="checkoutMode"
-        :email-input="emailInput"
-        :selected-payment-rail="selectedPaymentRail"
-        :selected-bank="selectedBank"
-        :payable-amount="payableAmount"
-        :is-submitting="isSubmitting"
-        :error-message="errorMessage"
-        @update:selected-payment-rail="emit('update:selectedPaymentRail', $event)"
-        @update:selected-bank="emit('update:selectedBank', $event)"
-        @pay="emit('pay', $event)"
-      />
-
-      <!-- Gateway XENITHPAY -->
-      <PayXenithForm
-        v-else-if="effectiveGateway === 'xenithpay'"
-        :product="product"
-        :checkout-mode="checkoutMode"
-        :email-input="emailInput"
-        :selected-payment-rail="selectedPaymentRail"
-        :selected-bank="selectedBank"
-        :selected-ewallet="selectedEwallet"
-        :payable-amount="payableAmount"
-        :is-submitting="isSubmitting"
-        :error-message="errorMessage"
-        @update:selected-payment-rail="emit('update:selectedPaymentRail', $event)"
-        @update:selected-bank="emit('update:selectedBank', $event)"
-        @update:selected-ewallet="emit('update:selectedEwallet', $event)"
-        @pay="emit('pay', $event)"
-      />
-
       <!-- Gateway XENDIT -->
       <PayXenditForm
-        v-else
         :product="product"
         :active-gateway="'xendit'"
         :checkout-mode="checkoutMode"

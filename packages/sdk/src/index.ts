@@ -121,7 +121,7 @@ export class Tertaut {
   /**
    * Paket kontekstual yang dibagi ke seluruh modul.
    * Dibuat ulang per modul karena setiap modul menambah header sendiri
-   * (mis. `Authorization` untuk S2S, `x-api-key` untuk metering).
+   * (mis. `Authorization` untuk S2S).
    */
   private executor(): TertautExecutor {
     return {
