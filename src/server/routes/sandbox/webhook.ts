@@ -1,13 +1,15 @@
 import { db } from "../../db";
 import { transactions, apps } from "../../db/schema";
 import { eq, or } from "drizzle-orm";
-import { fulfillPaymentTransaction } from "./fulfill";
-import type { WebhookSimpleContext } from "./types";
+import { fulfillPaymentTransaction } from "../webhook/fulfill";
+import type { WebhookSimpleContext } from "../webhook/types";
 
 /**
- * Webhook callback handler untuk simulasi pembayaran internal Tertaut Sandbox.
- * Endpoint ini memungkinkan sistem eksternal atau test runner memicu pelunasan
- * transaksi sandbox tanpa uang riil.
+ * Webhook callback handler khusus simulasi pembayaran internal Tertaut Sandbox.
+ * Endpoint ini memungkinkan sistem pengujian memicu pelunasan transaksi sandbox tanpa uang riil.
+ *
+ * GUARD KEAMANAN:
+ * - Menolak keras (403) jika transaksi atau aplikasi ber-mode LIVE.
  */
 export async function handleSandboxPaymentWebhook({ body, set }: WebhookSimpleContext) {
   try {
@@ -29,7 +31,7 @@ export async function handleSandboxPaymentWebhook({ body, set }: WebhookSimpleCo
       return { success: false, error: "Transaksi sandbox tidak ditemukan" };
     }
 
-    // PROTEKSI KEAMANAN (BUG-5):
+    // PROTEKSI KEAMANAN:
     // Pastikan transaksi BENAR-BENAR ber-mode sandbox.
     // Transaksi riil (live) mutlak dilarang dilunasi melalui webhook simulasi sandbox!
     const app = await db.query.apps.findFirst({ where: eq(apps.id, tx.appId) });

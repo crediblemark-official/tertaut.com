@@ -6,7 +6,6 @@ import type { AppItem, DashboardStats } from "../../types/app";
 import type { TransactionItem } from "../../types/transaction";
 import { dashboardEnv, envPath } from "../../lib/environment";
 import { formatRupiah, formatDate as formatUtilsDate } from "../../lib/utils";
-import { useClipboard } from "../../composables/useClipboard";
 import {
   CreditCard,
   Receipt,
@@ -14,20 +13,16 @@ import {
   CheckCircle2,
   AlertTriangle,
   ExternalLink,
-  X,
   RefreshCw,
-  Zap,
-  ArrowUpRight,
-  ShieldCheck,
-  Building2,
-  Wallet,
-  TicketPercent,
-  Send,
-  Copy,
-  Check,
   Plus,
 } from "lucide-vue-next";
 import TableSkeleton from "../common/TableSkeleton.vue";
+import TableContainer from "../common/TableContainer.vue";
+import TablePagination from "../common/TablePagination.vue";
+import StatsBar from "../common/StatsBar.vue";
+import StatItem from "../common/StatItem.vue";
+import SearchPicker from "../common/SearchPicker.vue";
+import PaymentDetailModal from "./PaymentDetailModal.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -60,7 +55,10 @@ const hasMore = ref(false);
 const searchQuery = ref("");
 const selectedStatus = ref<"ALL" | "PAID" | "PENDING" | "FAILED" | "EXPIRED">("ALL");
 const selectedAppId = ref<string>(
-  props.filterAppId || (typeof route?.query?.appId === "string" ? route.query.appId : "ALL")
+  props.filterAppId ||
+    (typeof route?.query?.appId === "string" && route.query.appId !== "ALL"
+      ? route.query.appId
+      : "")
 );
 
 const selectedTx = ref<TransactionItem | null>(null);
@@ -68,8 +66,6 @@ const isDetailModalOpen = ref(false);
 
 const disburseLoading = ref<string | null>(null);
 const disburseAlert = ref<string | null>(null);
-
-const { copied: txIdCopied, copy: copyTxId } = useClipboard();
 
 async function loadData() {
   loading.value = true;
@@ -80,7 +76,8 @@ async function loadData() {
         page: page.value,
         limit: limit.value,
         appId:
-          props.filterAppId || (selectedAppId.value !== "ALL" ? selectedAppId.value : undefined),
+          props.filterAppId ||
+          (selectedAppId.value && selectedAppId.value !== "ALL" ? selectedAppId.value : undefined),
       }),
       api.getApps(),
       api.getStats().catch(() => null),
@@ -148,7 +145,7 @@ const filteredTransactions = computed(() => {
     if (selectedStatus.value !== "ALL" && tx.paymentStatus !== selectedStatus.value) {
       return false;
     }
-    if (selectedAppId.value !== "ALL" && tx.appId !== selectedAppId.value) {
+    if (selectedAppId.value && selectedAppId.value !== "ALL" && tx.appId !== selectedAppId.value) {
       return false;
     }
     if (searchQuery.value.trim()) {
@@ -269,22 +266,15 @@ defineExpose({
         </div>
 
         <!-- Filter Per Project Dropdown -->
-        <div class="relative shrink-0">
-          <select
-            v-model="selectedAppId"
-            class="h-7 px-2.5 rounded-md bg-white/10 border border-white/15 text-xs text-white focus:outline-none focus:bg-white/15 focus:border-gold transition cursor-pointer"
-          >
-            <option value="ALL" class="bg-jetblack text-white">Semua Project</option>
-            <option
-              v-for="app in appsList"
-              :key="app.id"
-              :value="app.id"
-              class="bg-jetblack text-white"
-            >
-              {{ app.name }}
-            </option>
-          </select>
-        </div>
+        <SearchPicker
+          v-model="selectedAppId"
+          :items="appsList"
+          :dark="true"
+          all-option-label="Semua Project"
+          placeholder="Semua Project"
+          search-placeholder="Cari software SaaS..."
+          button-class="!h-7 !rounded-md !min-w-[150px] !text-xs"
+        />
 
         <!-- Status Filter Pills -->
         <div
@@ -389,464 +379,214 @@ defineExpose({
     </div>
 
     <!-- KPI Stats Summary Bar -->
-    <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 py-2.5 sm:py-3 border-b border-jetblack/15 bg-white"
-    >
-      <div class="space-y-0.5">
-        <div class="text-xs font-semibold text-jetblack/60">Gross Volume (Bruto)</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
-          {{ formatRupiah(kpiStats.totalGross) }}
-        </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">
-          {{ kpiStats.paidCount }} transaksi sukses
-        </div>
-      </div>
+    <StatsBar>
+      <StatItem
+        label="Gross Volume (Bruto)"
+        :value="formatRupiah(kpiStats.totalGross)"
+        :sublabel="`${kpiStats.paidCount} transaksi sukses`"
+        :loading="loading"
+      />
 
-      <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
-        <div class="text-xs font-semibold text-jetblack/60">Net Builder (95%)</div>
-        <div class="text-2xl font-bold text-forest font-mono tracking-tight">
-          {{ formatRupiah(kpiStats.totalNet) }}
-        </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">
-          Fee MoR Tertaut 5% ({{ formatRupiah(kpiStats.totalFee) }})
-        </div>
-      </div>
+      <StatItem
+        label="Net Builder (95%)"
+        :value="formatRupiah(kpiStats.totalNet)"
+        :sublabel="`Fee MoR Tertaut 5% (${formatRupiah(kpiStats.totalFee)})`"
+        variant="forest"
+        bordered
+        :loading="loading"
+      />
 
-      <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
-        <div class="text-xs font-semibold text-jetblack/60">Transaksi Berhasil</div>
-        <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
-          {{ kpiStats.paidCount }}
-        </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">
-          dari total {{ kpiStats.totalCount }} pesanan
-        </div>
-      </div>
+      <StatItem
+        label="Transaksi Berhasil"
+        :value="kpiStats.paidCount"
+        :sublabel="`dari total ${kpiStats.totalCount} pesanan`"
+        bordered
+        :loading="loading"
+      />
 
-      <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
-        <div class="text-xs font-semibold text-jetblack/60">Menunggu Pembayaran</div>
-        <div class="text-2xl font-bold text-gold font-mono tracking-tight">
-          {{ kpiStats.pendingCount }}
-        </div>
-        <div class="text-[11px] text-jetblack/50 font-medium">menunggu konfirmasi webhook</div>
-      </div>
-    </div>
+      <StatItem
+        label="Menunggu Pembayaran"
+        :value="kpiStats.pendingCount"
+        sublabel="menunggu konfirmasi webhook"
+        variant="gold"
+        bordered
+        :loading="loading"
+      />
+    </StatsBar>
 
     <!-- Edge-to-Edge Responsive Table -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
-      <table
-        class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15"
+    <TableContainer tbody-class="bg-white">
+      <template #head>
+        <tr>
+          <th class="py-2.5 pr-2.5 pl-3.5 sm:pl-4 md:pl-6">ID Transaksi</th>
+          <th class="py-2.5 px-2.5">Email Klien / Pembeli</th>
+          <th class="py-2.5 px-2.5">Aplikasi</th>
+          <th class="py-2.5 px-2.5">Gross</th>
+          <th class="py-2.5 px-2.5">Fee (5%)</th>
+          <th class="py-2.5 px-2.5">Net (95%)</th>
+          <th class="py-2.5 px-2.5">Metode</th>
+          <th class="py-2.5 px-2.5">Status Bayar</th>
+          <th class="py-2.5 px-2.5">Waktu</th>
+          <th class="py-2.5 pl-2.5 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
+        </tr>
+      </template>
+
+      <TableSkeleton v-if="loading" :columns="10" :rows="6" />
+      <tr v-else-if="filteredTransactions.length === 0">
+        <td colspan="10" class="py-10 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
+          <div class="space-y-1">
+            <Receipt class="w-7 h-7 mx-auto text-jetblack/30" />
+            <p class="font-semibold text-xs text-jetblack/70">
+              Tidak ada riwayat transaksi ditemukan.
+            </p>
+            <p class="text-[11px] text-jetblack/50">
+              Coba sesuaikan kata kunci pencarian atau filter status Anda.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr
+        v-else
+        v-for="tx in filteredTransactions"
+        :key="tx.id"
+        class="hover:bg-slate-50/70 transition group cursor-pointer"
+        @click="openDetail(tx)"
       >
-        <thead class="border-b border-jetblack/20 text-xs font-semibold text-jetblack/70 bg-white">
-          <tr>
-            <th class="py-2.5 pr-2.5 pl-3.5 sm:pl-4 md:pl-6">ID Transaksi</th>
-            <th class="py-2.5 px-2.5">Email Klien / Pembeli</th>
-            <th class="py-2.5 px-2.5">Aplikasi</th>
-            <th class="py-2.5 px-2.5">Gross</th>
-            <th class="py-2.5 px-2.5">Fee (5%)</th>
-            <th class="py-2.5 px-2.5">Net (95%)</th>
-            <th class="py-2.5 px-2.5">Metode</th>
-            <th class="py-2.5 px-2.5">Status Bayar</th>
-            <th class="py-2.5 px-2.5">Waktu</th>
-            <th class="py-2.5 pl-2.5 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-jetblack/15 bg-white">
-          <TableSkeleton v-if="loading" :columns="10" :rows="6" />
-          <tr v-else-if="filteredTransactions.length === 0">
-            <td colspan="10" class="py-10 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
-              <div class="space-y-1">
-                <Receipt class="w-7 h-7 mx-auto text-jetblack/30" />
-                <p class="font-semibold text-xs text-jetblack/70">
-                  Tidak ada riwayat transaksi ditemukan.
-                </p>
-                <p class="text-[11px] text-jetblack/50">
-                  Coba sesuaikan kata kunci pencarian atau filter status Anda.
-                </p>
+        <td class="py-3 pr-2.5 pl-3.5 sm:pl-4 md:pl-6 font-mono font-bold text-jetblack">
+          <div class="flex items-center gap-1.5">
+            <span>{{ tx.id }}</span>
+            <span
+              v-if="env === 'sandbox'"
+              class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-gold/15 text-[#8a6d1f] border border-gold/30"
+            >
+              SIM
+            </span>
+          </div>
+        </td>
+        <td class="py-3 px-2.5">
+          <div class="flex items-center gap-1.5">
+            <div>
+              <div class="font-medium text-jetblack leading-tight">
+                {{ tx.customerEmail || "-" }}
               </div>
-            </td>
-          </tr>
-          <tr
-            v-else
-            v-for="tx in filteredTransactions"
-            :key="tx.id"
-            class="hover:bg-slate-50/70 transition group cursor-pointer"
-            @click="openDetail(tx)"
+              <div
+                v-if="tx.customerName"
+                class="text-[10.5px] text-jetblack/50 leading-tight mt-0.5"
+              >
+                {{ tx.customerName }}
+              </div>
+            </div>
+            <span
+              v-if="tx.couponCode"
+              class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-gold/15 border border-gold/30 text-[9px] font-bold text-jetblack font-mono shrink-0"
+              title="Kupon Diskon Digunakan"
+            >
+              <TicketPercent class="w-2.5 h-2.5" />
+              {{ tx.couponCode }}
+            </span>
+            <span
+              v-if="tx.metadata && Object.keys(tx.metadata).length > 0"
+              class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-jetblack/5 border border-jetblack/15 text-[9px] font-bold text-jetblack/70 font-mono shrink-0"
+              title="Membawa metadata kustom SaaS"
+            >
+              META
+            </span>
+          </div>
+        </td>
+        <td class="py-3 px-2.5">
+          <span class="font-medium text-jetblack/80">{{ getAppName(tx.appId) }}</span>
+        </td>
+        <td class="py-3 px-2.5 font-mono font-bold text-jetblack">
+          {{ formatRupiah(tx.grossAmount) }}
+        </td>
+        <td class="py-3 px-2.5 font-mono text-red-600 text-[11px]">
+          -{{ formatRupiah(tx.platformFee) }}
+        </td>
+        <td class="py-3 px-2.5 font-mono font-bold text-forest">
+          {{ formatRupiah(tx.netAmount) }}
+        </td>
+        <td class="py-3 px-2.5">
+          <span
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-medium bg-slate-100 text-slate-700"
           >
-            <td class="py-3 pr-2.5 pl-3.5 sm:pl-4 md:pl-6 font-mono font-bold text-jetblack">
-              <div class="flex items-center gap-1.5">
-                <span>{{ tx.id }}</span>
-                <span
-                  v-if="env === 'sandbox'"
-                  class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-gold/15 text-[#8a6d1f] border border-gold/30"
-                >
-                  SIM
-                </span>
-              </div>
-            </td>
-            <td class="py-3 px-2.5">
-              <div class="flex items-center gap-1.5">
-                <div>
-                  <div class="font-medium text-jetblack leading-tight">
-                    {{ tx.customerEmail || "-" }}
-                  </div>
-                  <div
-                    v-if="tx.customerName"
-                    class="text-[10.5px] text-jetblack/50 leading-tight mt-0.5"
-                  >
-                    {{ tx.customerName }}
-                  </div>
-                </div>
-                <span
-                  v-if="tx.couponCode"
-                  class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-gold/15 border border-gold/30 text-[9px] font-bold text-jetblack font-mono shrink-0"
-                  title="Kupon Diskon Digunakan"
-                >
-                  <TicketPercent class="w-2.5 h-2.5" />
-                  {{ tx.couponCode }}
-                </span>
-                <span
-                  v-if="tx.metadata && Object.keys(tx.metadata).length > 0"
-                  class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-jetblack/5 border border-jetblack/15 text-[9px] font-bold text-jetblack/70 font-mono shrink-0"
-                  title="Membawa metadata kustom SaaS"
-                >
-                  META
-                </span>
-              </div>
-            </td>
-            <td class="py-3 px-2.5">
-              <span class="font-medium text-jetblack/80">{{ getAppName(tx.appId) }}</span>
-            </td>
-            <td class="py-3 px-2.5 font-mono font-bold text-jetblack">
-              {{ formatRupiah(tx.grossAmount) }}
-            </td>
-            <td class="py-3 px-2.5 font-mono text-red-600 text-[11px]">
-              -{{ formatRupiah(tx.platformFee) }}
-            </td>
-            <td class="py-3 px-2.5 font-mono font-bold text-forest">
-              {{ formatRupiah(tx.netAmount) }}
-            </td>
-            <td class="py-3 px-2.5">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-medium bg-slate-100 text-slate-700"
-              >
-                <CreditCard class="w-3 h-3 text-gold" />
-                <span>{{ tx.paymentChannel || "QRIS / VA" }}</span>
-              </span>
-            </td>
-            <td class="py-3 px-2.5">
-              <span
-                :class="[
-                  'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
-                  tx.paymentStatus === 'PAID'
-                    ? 'bg-forest/10 text-forest border border-forest/30'
-                    : tx.paymentStatus === 'PENDING'
-                      ? 'bg-gold/15 text-[#8a6d1f] border border-gold/30'
-                      : 'bg-red-50 text-red-600 border border-red-200',
-                ]"
-              >
-                <span
-                  class="w-1.5 h-1.5 rounded-full"
-                  :class="
-                    tx.paymentStatus === 'PAID'
-                      ? 'bg-forest'
-                      : tx.paymentStatus === 'PENDING'
-                        ? 'bg-gold'
-                        : 'bg-red-500'
-                  "
-                ></span>
-                {{ tx.paymentStatus }}
-              </span>
-            </td>
+            <CreditCard class="w-3 h-3 text-gold" />
+            <span>{{ tx.paymentChannel || "QRIS / VA" }}</span>
+          </span>
+        </td>
+        <td class="py-3 px-2.5">
+          <span
+            :class="[
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
+              tx.paymentStatus === 'PAID'
+                ? 'bg-forest/10 text-forest border border-forest/30'
+                : tx.paymentStatus === 'PENDING'
+                  ? 'bg-gold/15 text-[#8a6d1f] border border-gold/30'
+                  : 'bg-red-50 text-red-600 border border-red-200',
+            ]"
+          >
+            <span
+              class="w-1.5 h-1.5 rounded-full"
+              :class="
+                tx.paymentStatus === 'PAID'
+                  ? 'bg-forest'
+                  : tx.paymentStatus === 'PENDING'
+                    ? 'bg-gold'
+                    : 'bg-red-500'
+              "
+            ></span>
+            {{ tx.paymentStatus }}
+          </span>
+        </td>
 
-            <td class="py-3 px-2.5 text-[11px] text-jetblack/60 font-mono">
-              {{ formatDate(tx.paidAt || tx.createdAt) }}
-            </td>
-            <td class="py-3 pl-2.5 pr-3.5 sm:pr-4 md:pr-6 text-right" @click.stop>
-              <div class="flex items-center justify-end gap-1.5">
-                <!-- Direct Link to Customer Checkout Invoice for pending tx -->
-                <a
-                  v-if="tx.xenditInvoiceUrl && tx.paymentStatus === 'PENDING'"
-                  :href="tx.xenditInvoiceUrl"
-                  target="_blank"
-                  title="Buka Tautan Kasir / Invoice Pembeli"
-                  class="px-2 py-0.5 rounded bg-jetblack text-white hover:bg-jetblack-hover text-[10.5px] font-bold transition inline-flex items-center gap-1"
-                >
-                  <ExternalLink class="w-2.5 h-2.5" />
-                  <span>Link Kasir</span>
-                </a>
+        <td class="py-3 px-2.5 text-[11px] text-jetblack/60 font-mono">
+          {{ formatDate(tx.paidAt || tx.createdAt) }}
+        </td>
+        <td class="py-3 pl-2.5 pr-3.5 sm:pr-4 md:pr-6 text-right" @click.stop>
+          <div class="flex items-center justify-end gap-1.5">
+            <!-- Direct Link to Customer Checkout Invoice for pending tx -->
+            <a
+              v-if="tx.xenditInvoiceUrl && tx.paymentStatus === 'PENDING'"
+              :href="tx.xenditInvoiceUrl"
+              target="_blank"
+              title="Buka Tautan Kasir / Invoice Pembeli"
+              class="px-2 py-0.5 rounded bg-jetblack text-white hover:bg-jetblack-hover text-[10.5px] font-bold transition inline-flex items-center gap-1"
+            >
+              <ExternalLink class="w-2.5 h-2.5" />
+              <span>Link Kasir</span>
+            </a>
 
-                <!-- Detail Modal Button -->
-                <button
-                  type="button"
-                  @click="openDetail(tx)"
-                  class="px-2 py-0.5 rounded-md text-[11px] font-semibold border border-slate-300 hover:bg-jetblack hover:text-white hover:border-jetblack transition cursor-pointer"
-                >
-                  Detail
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+            <!-- Detail Modal Button -->
+            <button
+              type="button"
+              @click="openDetail(tx)"
+              class="px-2 py-0.5 rounded-md text-[11px] font-semibold border border-slate-300 hover:bg-jetblack hover:text-white hover:border-jetblack transition cursor-pointer"
+            >
+              Detail
+            </button>
+          </div>
+        </td>
+      </tr>
+    </TableContainer>
 
     <!-- Pagination Bar -->
-    <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-2.5 border-b border-jetblack/15 bg-white flex flex-col sm:flex-row items-center justify-between gap-3 text-xs"
-    >
-      <div class="text-jetblack/60">
-        Menampilkan
-        <span class="font-semibold text-jetblack">{{
-          total > 0 ? (page - 1) * limit + 1 : 0
-        }}</span>
-        - <span class="font-semibold text-jetblack">{{ Math.min(page * limit, total) }}</span> dari
-        <span class="font-semibold text-jetblack">{{ total }}</span> transaksi
-      </div>
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          @click="prevPage"
-          :disabled="page <= 1 || loading"
-          class="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-jetblack transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-        >
-          Sebelumnya
-        </button>
-        <span class="px-2 font-mono font-medium text-jetblack">
-          Hal {{ page }} / {{ totalPages }}
-        </span>
-        <button
-          type="button"
-          @click="nextPage"
-          :disabled="page >= totalPages || loading"
-          class="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-jetblack transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-        >
-          Selanjutnya
-        </button>
-      </div>
-    </div>
+    <TablePagination
+      v-model:page="page"
+      :total-pages="totalPages"
+      :total="total"
+      :limit="limit"
+      :loading="loading"
+      item-label="transaksi"
+      @prev="prevPage"
+      @next="nextPage"
+    />
 
     <!-- Transaction Detail Modal -->
-    <div
-      v-if="isDetailModalOpen && selectedTx"
-      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
-      @click.self="closeDetail"
-    >
-      <div
-        class="bg-white border border-jetblack/15 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-scaleIn flex flex-col max-h-[90vh]"
-      >
-        <!-- Header -->
-        <div
-          class="px-5 py-3.5 border-b border-jetblack/10 flex items-center justify-between bg-white shrink-0"
-        >
-          <div class="flex items-center gap-2">
-            <div class="w-2 h-2 rounded-full bg-gold"></div>
-            <h3 class="text-xs font-bold uppercase tracking-wider text-jetblack">
-              Rincian Transaksi Builder & MoR
-            </h3>
-          </div>
-          <button
-            type="button"
-            @click="closeDetail"
-            class="text-jetblack/40 hover:text-jetblack p-1 rounded-md hover:bg-jetblack/5 transition cursor-pointer"
-          >
-            <X class="w-4 h-4" />
-          </button>
-        </div>
-
-        <!-- Body -->
-        <div class="px-5 py-4 overflow-y-auto space-y-4 text-xs">
-          <!-- Top Amount Card -->
-          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-[11px] text-jetblack/60 font-semibold">Total Nilai Pembayaran</span>
-              <span
-                :class="
-                  selectedTx.paymentStatus === 'PAID'
-                    ? 'bg-forest/10 text-forest border-forest/20'
-                    : 'bg-amber-500/10 text-amber-700 border-amber-500/20'
-                "
-                class="text-[10px] font-bold px-2 py-0.5 rounded-full border"
-              >
-                {{ selectedTx.paymentStatus === "PAID" ? "LUNAS (PAID)" : "MENUNGGU PEMBAYARAN" }}
-              </span>
-            </div>
-            <div class="text-2xl font-mono font-bold text-jetblack">
-              {{ formatRupiah(selectedTx.grossAmount) }}
-            </div>
-            <div class="pt-2 border-t border-slate-200 grid grid-cols-2 gap-2 text-[11px]">
-              <div>
-                <span class="text-jetblack/50 block">Biaya MoR Tertaut (5%):</span>
-                <span class="font-mono font-bold text-red-600"
-                  >- {{ formatRupiah(selectedTx.platformFee) }}</span
-                >
-              </div>
-              <div>
-                <span class="text-jetblack/50 block">Net Builder (95%):</span>
-                <span class="font-mono font-bold text-forest">{{
-                  formatRupiah(selectedTx.netAmount)
-                }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Transaction Fields Details -->
-          <div class="space-y-2.5">
-            <div class="flex justify-between items-center py-1 border-b border-slate-100">
-              <span class="text-jetblack/60">ID Transaksi</span>
-              <div class="flex items-center gap-1.5">
-                <span class="font-mono font-semibold text-jetblack">{{ selectedTx.id }}</span>
-                <button
-                  type="button"
-                  @click="copyTxId(selectedTx.id)"
-                  class="p-1 rounded text-slate-400 hover:text-slate-700 transition"
-                  title="Salin ID Transaksi"
-                >
-                  <component :is="txIdCopied ? Check : Copy" class="w-3 h-3 text-gold" />
-                </button>
-              </div>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-100">
-              <span class="text-jetblack/60">Email Klien / Pembeli</span>
-              <span class="font-semibold text-jetblack">{{ selectedTx.customerEmail || "-" }}</span>
-            </div>
-            <div
-              v-if="selectedTx.customerName"
-              class="flex justify-between py-1 border-b border-slate-100"
-            >
-              <span class="text-jetblack/60">Nama Pelanggan</span>
-              <span class="font-semibold text-jetblack">{{ selectedTx.customerName }}</span>
-            </div>
-            <div
-              v-if="selectedTx.couponCode"
-              class="flex justify-between py-1 border-b border-slate-100"
-            >
-              <span class="text-jetblack/60">Kupon Diskon</span>
-              <span
-                class="font-mono font-bold text-jetblack bg-gold/15 px-1.5 py-0.2 rounded border border-gold/30"
-              >
-                {{ selectedTx.couponCode }}
-              </span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-100">
-              <span class="text-jetblack/60">Aplikasi / Software</span>
-              <span class="font-semibold text-jetblack">{{ getAppName(selectedTx.appId) }}</span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-100">
-              <span class="text-jetblack/60">Kanal Pembayaran</span>
-              <span class="font-mono font-semibold text-jetblack uppercase">{{
-                selectedTx.paymentChannel || "QRIS"
-              }}</span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-100">
-              <span class="text-jetblack/60">Gateway / MoR Provider</span>
-              <span class="font-semibold text-jetblack uppercase">{{
-                selectedTx.paymentProvider || "XENDIT"
-              }}</span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-100">
-              <span class="text-jetblack/60">Status Pencairan</span>
-              <span
-                class="font-semibold"
-                :class="
-                  selectedTx.disbursementStatus === 'COMPLETED' ? 'text-forest' : 'text-slate-600'
-                "
-              >
-                {{
-                  selectedTx.disbursementStatus === "COMPLETED"
-                    ? "Sudah Ditransfer"
-                    : "Menunggu Pencairan"
-                }}
-              </span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-100">
-              <span class="text-jetblack/60">Waktu Pembayaran</span>
-              <span class="text-jetblack">{{
-                formatDate(selectedTx.paidAt || selectedTx.createdAt)
-              }}</span>
-            </div>
-            <div
-              v-if="selectedTx.metadata && Object.keys(selectedTx.metadata).length > 0"
-              class="pt-2 border-t border-slate-100 space-y-1.5"
-            >
-              <span class="text-[10px] font-bold text-jetblack/50 uppercase tracking-wider block">
-                Metadata Kustom SaaS
-              </span>
-              <div
-                class="p-2.5 rounded-xl bg-jetblack/5 font-mono text-[11px] text-jetblack overflow-x-auto max-h-36 border border-jetblack/10"
-              >
-                <pre class="whitespace-pre-wrap leading-relaxed">{{
-                  JSON.stringify(selectedTx.metadata, null, 2)
-                }}</pre>
-              </div>
-            </div>
-          </div>
-
-          <!-- Saldo info: mengarahkan ke /balances untuk tarik dana agregat -->
-          <div
-            v-if="
-              selectedTx.paymentStatus === 'PAID' && selectedTx.disbursementStatus !== 'COMPLETED'
-            "
-            class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-start gap-2.5"
-          >
-            <Wallet class="w-4 h-4 text-gold shrink-0 mt-0.5" />
-            <div class="space-y-1">
-              <div class="text-xs font-bold text-jetblack">Saldo Menunggu Penarikan</div>
-              <p class="text-[11px] text-jetblack/60">
-                Net builder
-                <span class="font-mono font-bold text-forest">{{
-                  formatRupiah(selectedTx.netAmount)
-                }}</span>
-                dari transaksi ini masuk ke akumulasi saldo Anda. Penarikan dana dilakukan secara
-                agregat dari seluruh software di halaman Balances.
-              </p>
-              <router-link
-                :to="envPath(env, '/balances')"
-                class="inline-flex items-center gap-1.5 mt-1 text-[11px] font-bold text-jetblack hover:text-gold transition"
-              >
-                <ArrowUpRight class="w-3.5 h-3.5" />
-                Tarik Dana di Halaman Balances
-              </router-link>
-            </div>
-          </div>
-
-          <!-- Sandbox Real Gateway Testing box -->
-          <div
-            v-if="env === 'sandbox' && selectedTx.paymentStatus === 'PENDING'"
-            class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-2"
-          >
-            <div class="flex items-center gap-1.5 text-xs font-bold text-amber-900">
-              <Zap class="w-3.5 h-3.5 text-amber-600" />
-              <span>Sandbox Gateway Testing</span>
-            </div>
-            <p class="text-[11px] text-amber-800/80">
-              Transaksi ini berada di mode Sandbox. Buka tautan kasir / invoice gateway resmi untuk
-              menyelesaikan simulasi pembayaran langsung melalui simulator resmi Payment Gateway.
-            </p>
-            <a
-              v-if="selectedTx.xenditInvoiceUrl"
-              :href="selectedTx.xenditInvoiceUrl"
-              target="_blank"
-              class="w-full py-2 btn-gold rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-center block"
-            >
-              <ExternalLink class="w-3.5 h-3.5" />
-              <span>Buka Halaman Kasir Sandbox</span>
-            </a>
-          </div>
-        </div>
-
-        <!-- Footer -->
-        <div
-          class="px-5 py-3 border-t border-jetblack/10 bg-slate-50/70 shrink-0 flex items-center justify-end"
-        >
-          <button
-            type="button"
-            @click="closeDetail"
-            class="h-8 px-4 rounded-lg border border-slate-300 hover:bg-slate-100 text-xs font-bold text-jetblack transition cursor-pointer"
-          >
-            Tutup
-          </button>
-        </div>
-      </div>
-    </div>
+    <PaymentDetailModal
+      :is-open="isDetailModalOpen"
+      :transaction="selectedTx"
+      :apps-list="appsList"
+      :env="env"
+      @close="closeDetail"
+    />
   </div>
 </template>

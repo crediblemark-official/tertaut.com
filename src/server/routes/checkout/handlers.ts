@@ -37,7 +37,7 @@ export interface PaymentStatusContext {
  * Polling status pembayaran untuk Gapura Custom Checkout
  */
 export async function handleGetPaymentStatus({
-  params = {} as any,
+  params = {},
   query,
   request,
   set = {},
@@ -76,7 +76,7 @@ export async function handleGetPaymentStatus({
   // di-throttle maksimal 1x per 15 detik atau bila diminta eksplisit (?sync=true) agar tidak lemot.
   const nowMs = Date.now();
   const lastSync = gatewaySyncThrottleMap.get(tx.id) || 0;
-  const isExplicitSync = (query as any)?.sync === "true" || (query as any)?.refresh === "true";
+  const isExplicitSync = query?.sync === "true" || query?.refresh === "true";
   const isInternalSandbox =
     tx.paymentProvider === "sandbox" || tx.xenditInvoiceId?.startsWith("inv_sandbox_");
   const shouldSyncRemote =
@@ -122,7 +122,7 @@ export async function handleGetPaymentStatus({
           .update(transactions)
           .set({ paymentStatus: "EXPIRED", updatedAt: new Date() })
           .where(eq(transactions.id, tx.id));
-        tx = { ...tx, paymentStatus: "EXPIRED" as any };
+        tx = { ...tx, paymentStatus: "EXPIRED" };
       }
     } catch {
       // Abaikan error jaringan saat polling status
@@ -134,7 +134,7 @@ export async function handleGetPaymentStatus({
     // BUG-5: licenseKey hanya dibeberkan ke pemanggil yang memiliki poll ticket valid
     // (dikembalikan oleh create-session / disematkan di redirect finish). Mengetahui
     // txId saja tidak lagi cukup untuk mencuri lisensi.
-    const ticket = (query as any)?.ticket;
+    const ticket = query?.ticket;
     if (verifyPollTicket(tx.id, ticket)) {
       const lic = await db.query.licenses.findFirst({
         where: eq(licenses.transactionId, tx.id),
@@ -147,7 +147,7 @@ export async function handleGetPaymentStatus({
   // licenseKey) HANYA dibeberkan ke pemegang poll ticket yang sah (hasil
   // create-session / redirect finish). Pemegang txId saja hanya menerima status —
   // cukup untuk polling UX, tanpa membocorkan data pembayaran pengguna lain.
-  const reqTicket = (query as any)?.ticket;
+  const reqTicket = query?.ticket;
   const isTicketValid = Boolean(reqTicket) && verifyPollTicket(tx.id, reqTicket);
 
   const base = {
@@ -235,92 +235,6 @@ export async function handleGetPaymentChannels({ request, set = {} }: PaymentCha
   }
 }
 
-export interface SimulateSandboxContext {
-  body?: {
-    transactionId?: string;
-    txId?: string;
-    ticket?: string;
-    scenario?: string;
-    failureReason?: string;
-    [key: string]: any;
-  };
-  request?: Request | any;
-  set?: CheckoutHandlerSet;
-  [key: string]: any;
-}
-
-/**
- * Simulasi pelunasan instan untuk transaksi Sandbox Tertaut (Testing & UAT)
- */
-export async function handleSimulateSandboxPayment({
-  body,
-  request,
-  set = {},
-}: SimulateSandboxContext) {
-  const rl = await enforceRateLimitAsync(request, "checkout:simulate", 30, 60_000);
-  if (!rl.allowed) {
-    set.status = 429;
-    return { error: "Terlalu banyak permintaan simulasi. Coba lagi sebentar lagi." };
-  }
-
-  const { transactionId, ticket } = body || {};
-  if (!transactionId) {
-    set.status = 400;
-    return { error: "transactionId wajib disertakan" };
-  }
-
-  let tx = await db.query.transactions.findFirst({
-    where: or(eq(transactions.id, transactionId), eq(transactions.xenditExternalId, transactionId)),
-  });
-
-  if (!tx) {
-    set.status = 404;
-    return { error: "Transaksi tidak ditemukan" };
-  }
-
-  if (!ticket || !verifyPollTicket(tx.id, ticket)) {
-    set.status = 403;
-    return { error: "Ticket autentikasi checkout tidak valid" };
-  }
-
-  const app = await db.query.apps.findFirst({
-    where: eq(apps.id, tx.appId),
-  });
-
-  const isSandbox = app?.mode === "sandbox" && tx.mode === "sandbox";
-
-  if (!isSandbox) {
-    set.status = 400;
-    return { error: "Simulasi pembayaran hanya diizinkan untuk produk dalam mode Sandbox" };
-  }
-
-  if (tx.paymentStatus === "PAID") {
-    const lic = await db.query.licenses.findFirst({
-      where: eq(licenses.transactionId, tx.id),
-    });
-    return {
-      success: true,
-      paymentStatus: "PAID",
-      licenseKey: lic?.licenseKey || null,
-      message: "Transaksi sudah lunas sebelumnya",
-    };
-  }
-
-  const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
-  await fulfillPaymentTransaction(tx, tx.paymentChannel || "VA_BCA");
-
-  const lic = await db.query.licenses.findFirst({
-    where: eq(licenses.transactionId, tx.id),
-  });
-
-  return {
-    success: true,
-    paymentStatus: "PAID",
-    licenseKey: lic?.licenseKey || null,
-    message: "Pembayaran sandbox berhasil diselesaikan (Simulasi Lunas)",
-  };
-}
-
 export interface PreviewCouponContext {
   body?: { appId?: string; couponCode?: string; amount?: number; [key: string]: any };
   set?: CheckoutHandlerSet;
@@ -330,7 +244,7 @@ export interface PreviewCouponContext {
 /**
  * Preview kupon tanpa membuat transaksi (dipakai halaman /pay/:slug)
  */
-export async function handlePreviewCoupon({ body = {} as any, set = {} }: PreviewCouponContext) {
+export async function handlePreviewCoupon({ body = {}, set = {} }: PreviewCouponContext) {
   const { appId, couponCode, amount } = body;
   if (!appId || !couponCode) {
     set.status = 400;
@@ -468,7 +382,7 @@ export interface InvoiceDataContext {
  * Ambil data invoice resmi / E-Receipt untuk cetak dan unduh PDF
  */
 export async function handleGetInvoiceData({
-  params = {} as any,
+  params = {},
   query,
   request,
   set = {},

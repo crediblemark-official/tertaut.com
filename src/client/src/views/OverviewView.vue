@@ -43,11 +43,19 @@ watch(dashboardEnv, () => {
 </script>
 
 <template>
-  <div class="space-y-5 animate-fadeIn pb-12">
+  <div class="space-y-4 animate-fadeIn pb-12">
     <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
     <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-3"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-0 relative overflow-hidden"
     >
+      <!-- Subtle Gold Loading Bar along bottom border -->
+      <div
+        v-if="loading"
+        class="absolute bottom-0 left-0 right-0 h-[2px] bg-white/10 overflow-hidden"
+      >
+        <div class="h-full bg-gold animate-pulse w-full"></div>
+      </div>
+
       <div class="flex items-center gap-2">
         <LayoutDashboard class="w-3.5 h-3.5 text-gold shrink-0" />
         <span
@@ -80,9 +88,13 @@ watch(dashboardEnv, () => {
     </div>
 
     <!-- Overview Stats KPI -->
-    <OverviewKpiCards :stats="stats" />
+    <OverviewKpiCards :stats="stats" :loading="loading" />
 
     <!-- Analitik & Performa Penjualan -->
-    <OverviewAnalyticsChart :transactions="allTransactions" :licenses="allLicenses" />
+    <OverviewAnalyticsChart
+      :transactions="allTransactions"
+      :licenses="allLicenses"
+      :loading="loading"
+    />
   </div>
 </template>

@@ -4,6 +4,8 @@ export interface PanelStats {
   netBuilderShare: number;
   totalTransactions: number;
   paidTransactions: number;
+  sandboxGMV?: number;
+  sandboxTransactions?: number;
   pendingDisbursementsAmount: number;
   pendingDisbursementsCount: number;
   totalApps: number;
@@ -60,6 +62,7 @@ export interface PanelTransactionItem {
   appName: string;
   builderEmail: string;
   customerEmail: string;
+  mode?: "sandbox" | "live" | string;
   grossAmount: number;
   platformFee: number;
   netAmount: number;
@@ -107,6 +110,7 @@ export interface PanelLicenseItem {
   appId: string;
   appName: string;
   appSlug: string;
+  mode?: "sandbox" | "live" | string;
   builderName: string;
   builderEmail: string;
   customerEmail: string;

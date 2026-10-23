@@ -144,10 +144,11 @@ describe("Docs parity: @tertaut/sdk ↔ docs/sdk.md", () => {
       expect(descriptor.rails.length).toBeGreaterThan(0);
       expect(descriptor.finishPath.length).toBeGreaterThan(0);
 
-      // file webhook milik gateway ada (dari nama descriptor)
+      // file webhook milik gateway ada (dari descriptor webhookFile)
+      const webhookFile = descriptor.webhookFile ?? `src/server/routes/webhook/${id}.ts`;
       expect(
-        existsSync(`src/server/routes/webhook/${id}.ts`),
-        `webhook handler untuk "${id}" tidak ditemukan`
+        existsSync(webhookFile),
+        `webhook handler untuk "${id}" tidak ditemukan di ${webhookFile}`
       ).toBe(true);
 
       // tampil di tabel rail pada docs

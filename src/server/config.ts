@@ -23,7 +23,7 @@ export function getEnv(key: string, fallback = ""): string {
 
 const nodeEnv = getEnv("NODE_ENV", "development");
 const isProd = nodeEnv === "production";
-const isTest = nodeEnv === "test";
+const isTest = nodeEnv === "test" || process.env.NODE_ENV === "test";
 
 const DEFAULT_JWT_SECRET = "tertaut_default_jwt_secret_change_me_in_production";
 
@@ -300,8 +300,20 @@ export const config = {
   defaultPrice: Number(getEnv("DEFAULT_PRICE", "0")),
 
   database: {
-    /** Satu sumber koneksi: connection string PostgreSQL dari environment. */
-    url: requireEnv("DATABASE_URL"),
+    /**
+     * Satu sumber koneksi: connection string PostgreSQL dari environment.
+     * Saat pengujian otomatis (isTest / bun test), otomatis dialihkan ke DATABASE_URL_TEST
+     * atau database '[dbname]_test' agar tidak pernah mengotori database development.
+     */
+    url: (() => {
+      const testEnv = getEnv("DATABASE_URL_TEST");
+      if (isTest && testEnv) return testEnv;
+      const mainUrl = requireEnv("DATABASE_URL");
+      if (isTest) {
+        return mainUrl.replace(/\/([^/?]+)(\?.*)?$/, "/$1_test$2");
+      }
+      return mainUrl;
+    })(),
   },
 
   security: (() => {

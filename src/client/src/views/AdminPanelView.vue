@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { clearClientSessionCache } from "../router";
 import { api } from "../lib/api";
 import type {
   PanelStats,
@@ -79,18 +80,33 @@ const VALID_TABS = [
 ] as const;
 type TabType = (typeof VALID_TABS)[number];
 
+const parseTab = (val: unknown): TabType => {
+  const t = String(val || "").toLowerCase() as TabType;
+  return VALID_TABS.includes(t) ? t : "overview";
+};
+
+const selectedTab = ref<TabType>(parseTab(route.params.tab));
+
 const activeTab = computed<TabType>({
   get() {
-    const t = String(route.params.tab || "").toLowerCase() as TabType;
-    return VALID_TABS.includes(t) ? t : "overview";
+    return selectedTab.value;
   },
   set(newTab) {
-    const target = newTab === "overview" ? "/panel" : `/panel/${newTab}`;
+    const valid = parseTab(newTab);
+    selectedTab.value = valid;
+    const target = valid === "overview" ? "/panel" : `/panel/${valid}`;
     if (route.path !== target) {
       router.push(target);
     }
   },
 });
+
+watch(
+  () => route.params.tab,
+  (newParam) => {
+    selectedTab.value = parseTab(newParam);
+  }
+);
 
 // Search & Filters
 const txStatusFilter = ref<string>("");
@@ -204,6 +220,7 @@ async function handleTriggerBatchPayout() {
 }
 
 async function handleLogout() {
+  clearClientSessionCache();
   try {
     await authClient.signOut();
   } catch {}

@@ -13,6 +13,22 @@ const route = useRoute();
 const router = useRouter();
 const env = dashboardEnv;
 
+const isPageNavigating = ref(false);
+let navigationTimeout: ReturnType<typeof setTimeout> | null = null;
+
+router.beforeEach((to, from) => {
+  if (to.path !== from.path) {
+    if (navigationTimeout) clearTimeout(navigationTimeout);
+    isPageNavigating.value = true;
+  }
+});
+
+router.afterEach(() => {
+  navigationTimeout = setTimeout(() => {
+    isPageNavigating.value = false;
+  }, 200);
+});
+
 const authSession = authClient.useSession();
 const fallbackUser = ref<{ name?: string; email?: string } | null>(null);
 const authUser = computed(() => authSession.value?.data?.user || fallbackUser.value);
@@ -160,7 +176,15 @@ onUnmounted(() => {
       @switch-env="switchEnv"
     />
 
-    <div class="flex-1 min-w-0 flex flex-col min-h-screen md:h-screen overflow-hidden">
+    <div class="flex-1 min-w-0 flex flex-col min-h-screen md:h-screen overflow-hidden relative">
+      <!-- Top Navigation Loading Bar -->
+      <div
+        v-if="isPageNavigating"
+        class="absolute top-0 left-0 right-0 h-[2px] bg-gold/20 z-50 overflow-hidden pointer-events-none"
+      >
+        <div class="h-full bg-gold animate-pulse w-full"></div>
+      </div>
+
       <DashboardTopHeader
         :current-page="currentPage"
         :auth-user="authUser"

@@ -393,7 +393,7 @@ export const api = {
     message?: string;
     error?: string;
   }> {
-    const res = await apiFetch("/api/v1/checkout/simulate-payment", {
+    const res = await apiFetch("/api/v1/sandbox/simulate-payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ transactionId, ticket }),

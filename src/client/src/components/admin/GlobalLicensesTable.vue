@@ -26,6 +26,7 @@ const emit = defineEmits<{
 
 const searchQuery = ref("");
 const statusFilter = ref("");
+const modeFilter = ref("");
 const copiedId = ref<string | null>(null);
 
 function copyLicenseKey(key: string, id: string) {
@@ -37,12 +38,19 @@ function copyLicenseKey(key: string, id: string) {
 }
 
 function handleExportCsv() {
-  window.open("/api/v1/panel/export/licenses", "_blank");
+  const params = new URLSearchParams();
+  if (statusFilter.value) params.append("status", statusFilter.value);
+  if (modeFilter.value) params.append("mode", modeFilter.value);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  window.open(`/api/v1/panel/export/licenses${q}`, "_blank");
 }
 
 const filteredLicenses = computed(() => {
   return props.licenses.filter((lic) => {
     if (statusFilter.value && lic.status !== statusFilter.value) {
+      return false;
+    }
+    if (modeFilter.value && (lic.mode || "live") !== modeFilter.value) {
       return false;
     }
     if (searchQuery.value.trim()) {
@@ -112,6 +120,15 @@ const expiredCount = computed(() => props.licenses.filter((l) => l.status === "E
 
       <div class="flex items-center gap-2">
         <select
+          v-model="modeFilter"
+          class="h-9 px-3 text-xs rounded-lg border border-slate-300/80 hover:border-slate-400 bg-white font-medium text-jetblack focus:outline-none focus:ring-2 focus:ring-gold/20 focus:border-gold shadow-2xs transition"
+        >
+          <option value="">Semua Mode</option>
+          <option value="live">Mode LIVE</option>
+          <option value="sandbox">Mode SANDBOX</option>
+        </select>
+
+        <select
           v-model="statusFilter"
           class="h-9 px-3 text-xs rounded-lg border border-slate-300/80 hover:border-slate-400 bg-white font-medium text-jetblack focus:outline-none focus:ring-2 focus:ring-gold/20 focus:border-gold shadow-2xs transition"
         >
@@ -169,6 +186,16 @@ const expiredCount = computed(() => props.licenses.filter((l) => l.status === "E
                   class="font-mono font-bold text-jetblack bg-jetblack/5 px-2 py-0.5 rounded border border-jetblack/10"
                 >
                   {{ lic.licenseKey }}
+                </span>
+                <span
+                  :class="[
+                    'px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase border',
+                    lic.mode === 'sandbox'
+                      ? 'bg-amber-50 text-amber-800 border-amber-300'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-300',
+                  ]"
+                >
+                  {{ lic.mode || "live" }}
                 </span>
                 <button
                   @click="copyLicenseKey(lic.licenseKey, lic.id)"

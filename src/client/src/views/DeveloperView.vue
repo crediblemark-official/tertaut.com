@@ -6,6 +6,10 @@ import { useClipboard } from "../composables/useClipboard";
 import { useConfirm } from "../composables/useConfirm";
 import { formatRupiah } from "../lib/utils";
 import type { AppItem } from "../types/app";
+import DevDeliveryModal from "../components/developer/DevDeliveryModal.vue";
+import TableSkeleton from "../components/common/TableSkeleton.vue";
+import TableContainer from "../components/common/TableContainer.vue";
+import SearchPicker from "../components/common/SearchPicker.vue";
 import {
   KeyRound,
   ShieldAlert,
@@ -64,8 +68,6 @@ function setFeedback(type: "success" | "error", text: string) {
   }, 4500);
 }
 
-// Active code snippet tab
-const activeTab = ref<"sdk" | "curl" | "node" | "python" | "php">("sdk");
 const activeSection = ref<"checkout" | "webhook">("checkout");
 
 // Selected SaaS App
@@ -81,15 +83,30 @@ const currentAppPrice = computed(() => currentApp.value?.targetPrice || 135000);
 // Create Webhook modal state
 const isWebhookModalOpen = ref(false);
 const webhookUrlInput = ref("");
+const webhookEventsInput = ref<string[]>([]);
+const webhookSecretInput = ref("");
 const isSubmittingWebhook = ref(false);
 const webhookError = ref<string | null>(null);
 
-const originUrl = computed(() => {
-  if (typeof window !== "undefined") {
-    return window.location.origin;
-  }
-  return "https://tertaut.com";
-});
+const ALL_WEBHOOK_EVENTS = [
+  { id: "payment.success", label: "payment.success (Lunas)" },
+  { id: "payment.failed", label: "payment.failed (Gagal)" },
+  { id: "license.issued", label: "license.issued (Diterbitkan)" },
+  { id: "license.activated", label: "license.activated (Seat Aktif)" },
+  { id: "license.deactivated", label: "license.deactivated (Seat Dilepas)" },
+  { id: "license.seat_full", label: "license.seat_full (Seat Penuh)" },
+  { id: "license.revoked", label: "license.revoked (Dicabut)" },
+  { id: "license.expired", label: "license.expired (Kadaluarsa)" },
+  { id: "license.renewed", label: "license.renewed (Diperpanjang)" },
+  { id: "license.transferred", label: "license.transferred (Dipindah)" },
+  { id: "license.unbound", label: "license.unbound (Reset HWID)" },
+];
+
+function toggleWebhookEvent(evId: string) {
+  const idx = webhookEventsInput.value.indexOf(evId);
+  if (idx >= 0) webhookEventsInput.value.splice(idx, 1);
+  else webhookEventsInput.value.push(evId);
+}
 
 const baseUrl = computed(() => {
   if (typeof window !== "undefined") {
@@ -202,13 +219,21 @@ async function handleCreateWebhook() {
   isSubmittingWebhook.value = true;
   webhookError.value = null;
   try {
+    const eventsToSend =
+      webhookEventsInput.value.length > 0
+        ? [...webhookEventsInput.value]
+        : ALL_WEBHOOK_EVENTS.map((e) => e.id);
+
     const res = await api.createWebhook({
       url: webhookUrlInput.value.trim(),
-      events: ["payment.success", "payment.failed"],
+      events: eventsToSend,
+      secret: webhookSecretInput.value.trim() || undefined,
     });
     if (res.success) {
       isWebhookModalOpen.value = false;
       webhookUrlInput.value = "";
+      webhookEventsInput.value = [];
+      webhookSecretInput.value = "";
       setFeedback("success", "Endpoint webhook berhasil didaftarkan!");
       await loadWebhooks();
     } else {
@@ -291,176 +316,6 @@ function formatTimestamp(dt: string | Date | null | undefined) {
     timeStyle: "medium",
   });
 }
-
-// Sample target app for code preview
-const sampleAppId = computed(() => appsList.value[0]?.id || "app_my_saas_01");
-const sampleSecretKey = computed(() => secretApiKey.value || "tt_secret_live_your_key_here");
-
-// Code Generator
-const checkoutSdkSnippet = computed(() => {
-  return `import { Tertaut } from "@tertaut/sdk";
-
-// Inisialisasi SDK klien
-const tertaut = new Tertaut({
-  apiKey: "${builderApiKey.value || "tt_live_public_key"}",
-  baseUrl: "${originUrl.value}",
-  appId: "${currentAppId.value}",
-});
-
-// 1. Buat sesi Hosted Checkout MoR (browser/klien)
-const { checkoutUrl, transactionId } = await tertaut.checkout({
-  amount: ${currentAppPrice.value},
-  customerEmail: "pelanggan@domain.com",
-  redirectUrl: "https://namasaas.com/dashboard?billing=success",
-  autoRedirect: true, // Otomatis alihkan browser ke halaman pembayaran
-});
-
-// 2. Aktivasi & Binding Lisensi Perangkat
-const res = await tertaut.licensing.activate({
-  licenseKey: "TT-XXXX-XXXX-XXXX",
-  hwid: "device_hardware_fingerprint",
-  deviceName: "MacBook Pro",
-});
-console.log("Token offline Ed25519:", res.data.licenseToken);`;
-});
-
-const checkoutCurlSnippet = computed(() => {
-  return `curl -X POST ${baseUrl.value}/checkout/session \\
-  -H "Authorization: Bearer ${sampleSecretKey.value}" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "appId": "${currentAppId.value}",
-    "orderId": "ORD-${Date.now().toString().slice(-6)}",
-    "amount": ${currentAppPrice.value},
-    "customerEmail": "pelanggan@domain.com",
-    "customerName": "Budi Santoso",
-    "description": "Langganan ${currentApp.value?.name || "Paket Pro"}",
-    "paymentRail": "qris",
-    "redirectUrl": "https://namasaas.com/dashboard?billing=success",
-    "metadata": {
-      "userId": "usr_9981",
-      "tier": "pro"
-    }
-  }'`;
-});
-
-const checkoutNodeSnippet = computed(() => {
-  return `import fetch from "node-fetch";
-
-async function createCheckout() {
-  const response = await fetch("${baseUrl.value}/checkout/session", {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer ${sampleSecretKey.value}",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      appId: "${currentAppId.value}",
-      orderId: "ORD-${Date.now().toString().slice(-6)}",
-      amount: ${currentAppPrice.value}, // Nominal dinamis dari kalkulasi SaaS Anda
-      customerEmail: "pelanggan@domain.com",
-      customerName: "Budi Santoso",
-      description: "Langganan ${currentApp.value?.name || "Paket Pro"}",
-      redirectUrl: "https://namasaas.com/dashboard?billing=success",
-      metadata: { userId: "usr_9981", tier: "pro" }
-    })
-  });
-
-  const data = await response.json();
-  if (data.success) {
-    // Alihkan pembeli ke halaman kasir resmi Tertaut
-    console.log("Hosted Checkout URL:", data.checkoutUrl);
-    // window.location.href = data.checkoutUrl;
-  }
-}`;
-});
-
-const checkoutPythonSnippet = computed(() => {
-  return `import requests
-
-url = "${baseUrl.value}/checkout/session"
-headers = {
-    "Authorization": "Bearer ${sampleSecretKey.value}",
-    "Content-Type": "application/json"
-}
-payload = {
-    "appId": "${currentAppId.value}",
-    "orderId": "ORD-0091",
-    "amount": ${currentAppPrice.value},
-    "customerEmail": "pelanggan@domain.com",
-    "customerName": "Budi Santoso",
-    "description": "Langganan ${currentApp.value?.name || "Paket Pro"}",
-    "redirectUrl": "https://namasaas.com/dashboard?billing=success",
-    "metadata": {"userId": "usr_9981", "tier": "pro"}
-}
-
-response = requests.post(url, json=payload, headers=headers)
-data = response.json()
-print("Checkout URL:", data.get("checkoutUrl"))`;
-});
-
-const checkoutPhpSnippet = computed(() => {
-  return `<?php
-$curl = curl_init();
-
-$payload = [
-    "appId" => "${currentAppId.value}",
-    "orderId" => "ORD-" . time(),
-    "amount" => ${currentAppPrice.value},
-    "customerEmail" => "pelanggan@domain.com",
-    "customerName" => "Budi Santoso",
-    "description" => "Langganan ${currentApp.value?.name || "Paket Pro"}",
-    "redirectUrl" => "https://namasaas.com/dashboard?billing=success",
-    "metadata" => ["userId" => "usr_9981", "tier" => "pro"]
-];
-
-curl_setopt_array($curl, [
-    CURLOPT_URL => "${baseUrl.value}/checkout/session",
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_POST => true,
-    CURLOPT_POSTFIELDS => json_encode($payload),
-    CURLOPT_HTTPHEADER => [
-        "Authorization: Bearer ${sampleSecretKey.value}",
-        "Content-Type: application/json"
-    ],
-]);
-
-$response = curl_exec($curl);
-$data = json_decode($response, true);
-curl_close($curl);
-
-// Redirect pembeli ke kasir Tertaut
-header("Location: " . $data["checkoutUrl"]);
-exit;`;
-});
-
-const webhookNodeSnippet = computed(() => {
-  return `import crypto from "crypto";
-
-// Handler Webhook Express / Elysia / Fastify
-export function handleTertautWebhook(req, res) {
-  const signatureHeader = req.headers["x-tertaut-signature"] || req.headers["x-hub-signature-256"];
-  const webhookSecret = "tt_whsec_your_endpoint_secret"; // Dari daftar webhook di atas
-
-  // 1. Verifikasi keaslian signature HMAC
-  const hmac = crypto.createHmac("sha256", webhookSecret);
-  const digest = "hmac-sha256=" + hmac.update(req.rawBody || JSON.stringify(req.body)).digest("hex");
-
-  if (signatureHeader !== digest) {
-    return res.status(401).send("Invalid Signature");
-  }
-
-  // 2. Proses event sukses pembayaran
-  const event = req.body;
-  if (event.event === "payment.success") {
-    const { transactionId, orderId, amount, customerEmail, metadata } = event.data;
-    console.log(\`Pembayaran sukses untuk Order \${orderId}: Rp \${amount}\`);
-    // Aktifkan kuota / upgrade paket pengguna di database SaaS Anda
-  }
-
-  res.status(200).json({ received: true });
-}`;
-});
 </script>
 
 <template>
@@ -569,14 +424,13 @@ export function handleTertautWebhook(req, res) {
         <label class="text-[11px] font-semibold text-jetblack/50 hidden sm:inline"
           >Ganti Proyek:</label
         >
-        <select
+        <SearchPicker
           v-model="selectedAppId"
-          class="bg-white border border-jetblack/20 rounded-md px-2.5 py-1 text-xs font-bold text-jetblack focus:outline-none focus:border-gold transition cursor-pointer shadow-2xs"
-        >
-          <option v-for="app in appsList" :key="app.id" :value="app.id">
-            {{ app.name }} ({{ app.id }})
-          </option>
-        </select>
+          :items="appsList"
+          placeholder="Pilih Proyek SaaS..."
+          search-placeholder="Cari software SaaS..."
+          button-class="!h-8 !rounded-lg !min-w-[200px] sm:!min-w-[240px] !bg-white !border-jetblack/20 hover:!border-gold !shadow-2xs text-xs font-bold"
+        />
       </div>
     </div>
 
@@ -791,103 +645,25 @@ export function handleTertautWebhook(req, res) {
       </div>
     </div>
 
-    <!-- Section: Contoh Integrasi Kode (Garis Pemisah, Flush Canvas) -->
+    <!-- Section: Panduan Integrasi Docs Callout (Compact & Rapi) -->
     <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 border-b border-jetblack/15 py-5 space-y-3"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-3 bg-jetblack/[0.02] border-b border-jetblack/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
     >
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <div class="flex items-center gap-2">
-            <Terminal class="w-4 h-4 text-gold" />
-            <h2 class="text-sm font-bold text-jetblack">
-              Contoh Integrasi Kode (S2S Dynamic Payment &amp; SDK)
-            </h2>
-          </div>
-          <p class="text-xs text-jetblack/60 mt-0.5">
-            Gunakan cuplikan kode di bawah untuk mengintegrasikan backend SaaS Anda dengan engine
-            MoR Tertaut.
-          </p>
-        </div>
-
-        <!-- Language Tabs -->
-        <div
-          class="flex items-center p-0.5 rounded-lg bg-jetblack/5 border border-jetblack/15 overflow-x-auto top-scrollbar max-w-full"
-        >
-          <button
-            type="button"
-            v-for="tab in ['sdk', 'curl', 'node', 'python', 'php'] as const"
-            :key="tab"
-            @click="activeTab = tab"
-            class="px-2.5 py-1 rounded text-xs font-bold transition cursor-pointer whitespace-nowrap"
-            :class="
-              activeTab === tab
-                ? 'btn-gold shadow-xs'
-                : 'text-jetblack/60 hover:text-jetblack hover:bg-white/50'
-            "
-          >
-            {{
-              tab === "sdk" ? "SDK (@tertaut/sdk)" : tab === "node" ? "Node.js" : tab.toUpperCase()
-            }}
-          </button>
-        </div>
+      <div class="flex items-center gap-2">
+        <BookOpen class="w-4 h-4 text-gold shrink-0" />
+        <span class="text-jetblack/70">
+          Butuh panduan integrasi lengkap untuk <strong>@tertaut/sdk</strong>, cURL S2S, Node.js,
+          Python, atau PHP?
+        </span>
       </div>
-
-      <!-- Code Box -->
-      <div class="relative group">
-        <button
-          type="button"
-          @click="
-            copyClipboard(
-              activeTab === 'sdk'
-                ? checkoutSdkSnippet
-                : activeTab === 'curl'
-                  ? checkoutCurlSnippet
-                  : activeTab === 'node'
-                    ? checkoutNodeSnippet
-                    : activeTab === 'python'
-                      ? checkoutPythonSnippet
-                      : checkoutPhpSnippet
-            )
-          "
-          class="absolute top-3 right-3 z-10 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer backdrop-blur-md"
-        >
-          <Check v-if="copied" class="w-3.5 h-3.5 text-gold stroke-[3]" />
-          <Copy v-else class="w-3.5 h-3.5" />
-          <span>{{ copied ? "Tersalin" : "Salin Kode" }}</span>
-        </button>
-
-        <pre
-          class="p-4 rounded-xl bg-jetblack text-neutral-100 font-mono text-xs overflow-x-auto top-scrollbar leading-relaxed border border-jetblack/20"
-        ><code>{{
-          activeTab === 'sdk'
-            ? checkoutSdkSnippet
-            : activeTab === 'curl'
-              ? checkoutCurlSnippet
-              : activeTab === 'node'
-                ? checkoutNodeSnippet
-                : activeTab === 'python'
-                  ? checkoutPythonSnippet
-                  : checkoutPhpSnippet
-        }}</code></pre>
-      </div>
-
-      <!-- Webhook Verification Tip (Garis Pembatas Lembut) -->
-      <div class="p-3 rounded-lg bg-gold/10 border border-gold/30 flex items-start gap-2.5">
-        <Sparkles class="w-4 h-4 text-gold shrink-0 mt-0.5" />
-        <div class="text-xs text-jetblack/80 space-y-1">
-          <p class="font-bold text-jetblack">Verifikasi Keaslian Webhook di Server Anda:</p>
-          <p class="leading-relaxed">
-            Setiap notifikasi webhook dikirim dengan header
-            <code class="font-mono bg-white/70 px-1 py-0.5 rounded text-[11px]"
-              >X-Tertaut-Signature: hmac-sha256=...</code
-            >. Cocokkan tanda tangan tersebut menggunakan HMAC-SHA256 bersama
-            <code class="font-mono bg-white/70 px-1 py-0.5 rounded text-[11px]"
-              >Webhook Secret</code
-            >
-            Anda untuk memastikan payload benar-benar berasal dari Tertaut MoR.
-          </p>
-        </div>
-      </div>
+      <a
+        href="/docs/api/sdk"
+        target="_blank"
+        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-jetblack hover:bg-jetblack-hover text-white text-xs font-bold transition shadow-2xs shrink-0 self-start sm:self-auto"
+      >
+        <span>Buka Dokumentasi SDK</span>
+        <ExternalLink class="w-3 h-3 text-gold" />
+      </a>
     </div>
 
     <!-- Section: Webhook Endpoints (Garis Pemisah, Flush Canvas) -->
@@ -899,12 +675,12 @@ export function handleTertautWebhook(req, res) {
           <div class="flex items-center gap-2">
             <Webhook class="w-4 h-4 text-gold" />
             <h2 class="text-sm font-bold text-jetblack">
-              Webhook Endpoints (Notifikasi Pembayaran)
+              Webhook Endpoints (Notifikasi Pembayaran &amp; Lisensi)
             </h2>
           </div>
           <p class="text-xs text-jetblack/60 mt-0.5">
             Tertaut mengirimkan notifikasi HTTP POST bertanda tangan HMAC saat transaksi berhasil
-            (payment.success).
+            maupun perubahan status lisensi &amp; seat perangkat.
           </p>
         </div>
 
@@ -919,98 +695,86 @@ export function handleTertautWebhook(req, res) {
       </div>
 
       <!-- Table of Registered Webhooks (Flush Edge-to-Edge) -->
-      <div class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
-        <table class="w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15">
-          <thead
-            class="border-b border-jetblack/15 text-[11px] font-semibold text-jetblack/70 bg-jetblack/[0.02]"
-          >
-            <tr>
-              <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:px-6">URL Endpoint</th>
-              <th class="py-2.5 px-3">Webhook Secret (HMAC)</th>
-              <th class="py-2.5 px-3">Events Langganan</th>
-              <th class="py-2.5 px-3">Status</th>
-              <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-jetblack/10">
-            <tr v-if="loadingEndpoints">
-              <td colspan="5" class="py-6 text-center text-jetblack/40">Memuat endpoints...</td>
-            </tr>
-            <tr v-else-if="endpoints.length === 0">
-              <td colspan="5" class="py-6 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/50">
-                Belum ada endpoint webhook terdaftar. Klik tombol di atas untuk menambahkan URL
-                webhook backend SaaS Anda.
-              </td>
-            </tr>
-            <tr
-              v-else
-              v-for="ep in endpoints"
-              :key="ep.id"
-              class="hover:bg-jetblack/[0.02] transition"
+      <TableContainer>
+        <template #head>
+          <tr>
+            <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:px-6">URL Endpoint</th>
+            <th class="py-2.5 px-3">Webhook Secret (HMAC)</th>
+            <th class="py-2.5 px-3">Events Langganan</th>
+            <th class="py-2.5 px-3">Status</th>
+            <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
+          </tr>
+        </template>
+
+        <TableSkeleton v-if="loadingEndpoints" :columns="5" :rows="3" />
+        <tr v-else-if="endpoints.length === 0">
+          <td colspan="5" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/50">
+            Belum ada endpoint webhook terdaftar. Klik tombol di atas untuk menambahkan URL webhook
+            backend SaaS Anda.
+          </td>
+        </tr>
+        <tr v-else v-for="ep in endpoints" :key="ep.id" class="hover:bg-jetblack/[0.02] transition">
+          <td class="py-3 pr-3 pl-3.5 sm:pl-4 md:px-6 font-mono font-semibold text-jetblack">
+            {{ ep.url }}
+          </td>
+          <td class="py-3 px-3 font-mono text-jetblack/70">
+            <div class="flex items-center gap-1.5">
+              <span class="bg-jetblack/5 px-1.5 py-0.5 rounded text-[10px]">
+                {{ ep.secret ? ep.secret.slice(0, 10) + "••••" : "tt_whsec_••••" }}
+              </span>
+              <button
+                type="button"
+                @click="copyClipboard(ep.secret)"
+                class="hover:text-forest transition p-0.5 cursor-pointer"
+                title="Salin Webhook Secret"
+              >
+                <Copy class="w-3 h-3" />
+              </button>
+            </div>
+          </td>
+          <td class="py-3 px-3">
+            <span
+              class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200"
             >
-              <td class="py-3 pr-3 pl-3.5 sm:pl-4 md:px-6 font-mono font-semibold text-jetblack">
-                {{ ep.url }}
-              </td>
-              <td class="py-3 px-3 font-mono text-jetblack/70">
-                <div class="flex items-center gap-1.5">
-                  <span class="bg-jetblack/5 px-1.5 py-0.5 rounded text-[10px]">
-                    {{ ep.secret ? ep.secret.slice(0, 10) + "••••" : "tt_whsec_••••" }}
-                  </span>
-                  <button
-                    type="button"
-                    @click="copyClipboard(ep.secret)"
-                    class="hover:text-forest transition p-0.5 cursor-pointer"
-                    title="Salin Webhook Secret"
-                  >
-                    <Copy class="w-3 h-3" />
-                  </button>
-                </div>
-              </td>
-              <td class="py-3 px-3">
-                <span
-                  class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200"
-                >
-                  {{ ep.events?.length ? ep.events.join(", ") : "Semua Event" }}
-                </span>
-              </td>
-              <td class="py-3 px-3">
-                <span
-                  class="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                  :class="
-                    ep.isActive
-                      ? 'bg-forest/10 text-forest border border-forest/20'
-                      : 'bg-neutral-100 text-neutral-500'
-                  "
-                >
-                  {{ ep.isActive ? "Aktif" : "Nonaktif" }}
-                </span>
-              </td>
-              <td class="py-3 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
-                <div class="flex items-center justify-end gap-1.5">
-                  <button
-                    type="button"
-                    @click="handleTestWebhook(ep.id)"
-                    class="px-2 py-1 rounded text-[11px] font-bold text-forest bg-forest/10 hover:bg-forest/20 transition inline-flex items-center gap-1 cursor-pointer"
-                    title="Kirim payload ping uji coba ke endpoint ini"
-                  >
-                    <Send class="w-2.5 h-2.5" />
-                    <span>Test Ping</span>
-                  </button>
-                  <button
-                    type="button"
-                    @click="handleDeleteWebhook(ep.id)"
-                    class="px-2 py-1 rounded text-[11px] font-bold text-crimson hover:bg-rose-50 transition inline-flex items-center gap-1 cursor-pointer"
-                    title="Hapus webhook"
-                  >
-                    <Trash2 class="w-3 h-3" />
-                    <span>Hapus</span>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+              {{ ep.events?.length ? ep.events.join(", ") : "Semua Event" }}
+            </span>
+          </td>
+          <td class="py-3 px-3">
+            <span
+              class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+              :class="
+                ep.isActive
+                  ? 'bg-forest/10 text-forest border border-forest/20'
+                  : 'bg-neutral-100 text-neutral-500'
+              "
+            >
+              {{ ep.isActive ? "Aktif" : "Nonaktif" }}
+            </span>
+          </td>
+          <td class="py-3 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
+            <div class="flex items-center justify-end gap-1.5">
+              <button
+                type="button"
+                @click="handleTestWebhook(ep.id)"
+                class="px-2 py-1 rounded text-[11px] font-bold text-forest bg-forest/10 hover:bg-forest/20 transition inline-flex items-center gap-1 cursor-pointer"
+                title="Kirim payload ping uji coba ke endpoint ini"
+              >
+                <Send class="w-2.5 h-2.5" />
+                <span>Test Ping</span>
+              </button>
+              <button
+                type="button"
+                @click="handleDeleteWebhook(ep.id)"
+                class="px-2 py-1 rounded text-[11px] font-bold text-crimson hover:bg-rose-50 transition inline-flex items-center gap-1 cursor-pointer"
+                title="Hapus webhook"
+              >
+                <Trash2 class="w-3 h-3" />
+                <span>Hapus</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </TableContainer>
     </div>
 
     <!-- Section: Webhook Outbox Delivery Logs (Garis Pemisah, Flush Canvas) -->
@@ -1041,123 +805,117 @@ export function handleTertautWebhook(req, res) {
         </button>
       </div>
 
-      <div v-if="loadingDeliveries" class="py-8 text-center text-xs text-jetblack/50">
-        Memuat log pengiriman webhook...
-      </div>
+      <TableContainer>
+        <template #head>
+          <tr>
+            <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:px-6">Status</th>
+            <th class="py-2.5 px-3">Event</th>
+            <th class="py-2.5 px-3">Target Endpoint</th>
+            <th class="py-2.5 px-3 text-center">Percobaan</th>
+            <th class="py-2.5 px-3">Terakhir Dicoba</th>
+            <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
+          </tr>
+        </template>
 
-      <div
-        v-else-if="deliveries.length === 0"
-        class="py-8 text-center border border-dashed border-jetblack/15 rounded-xl"
-      >
-        <Radio class="w-8 h-8 text-jetblack/20 mx-auto mb-2" />
-        <p class="text-xs font-bold text-jetblack">Belum ada pengiriman webhook</p>
-        <p class="text-[11px] text-jetblack/50 mt-1 max-w-sm mx-auto">
-          Log pengiriman akan muncul secara otomatis ketika terjadi event pembayaran atau saat Anda
-          menguji endpoint dengan Test Ping.
-        </p>
-      </div>
-
-      <div v-else class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
-        <table class="w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15">
-          <thead
-            class="border-b border-jetblack/15 text-jetblack/70 font-bold uppercase tracking-wider text-[10px] bg-jetblack/[0.02]"
-          >
-            <tr>
-              <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:px-6">Status</th>
-              <th class="py-2.5 px-3">Event</th>
-              <th class="py-2.5 px-3">Target Endpoint</th>
-              <th class="py-2.5 px-3 text-center">Percobaan</th>
-              <th class="py-2.5 px-3">Terakhir Dicoba</th>
-              <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-jetblack/10">
-            <tr v-for="del in deliveries" :key="del.id" class="hover:bg-jetblack/[0.02] transition">
-              <td class="py-3 pr-3 pl-3.5 sm:pl-4 md:px-6">
-                <span
-                  v-if="del.status === 'SENT'"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-forest/10 text-forest border border-forest/20"
-                >
-                  <CheckCircle2 class="w-3 h-3 text-forest" />
-                  <span>Terkirim</span>
-                </span>
-                <span
-                  v-else-if="del.status === 'FAILED'"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200"
-                >
-                  <AlertTriangle class="w-3 h-3 text-rose-600" />
-                  <span>Gagal</span>
-                </span>
-                <span
-                  v-else
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-gold-deep border border-gold/30"
-                >
-                  <Clock class="w-3 h-3 text-gold-deep" />
-                  <span>Pending</span>
-                </span>
-              </td>
-              <td class="py-3 px-3">
-                <span
-                  class="font-mono text-[11px] font-bold text-jetblack bg-jetblack/5 px-2 py-0.5 rounded"
-                >
-                  {{ del.event || del.payload?.event || "event" }}
-                </span>
-              </td>
-              <td class="py-3 px-3">
-                <div
-                  class="font-mono text-[11px] text-jetblack truncate max-w-[240px]"
-                  :title="getEndpointUrl(del.endpointId)"
-                >
-                  {{ getEndpointUrl(del.endpointId) }}
-                </div>
-              </td>
-              <td class="py-3 px-3 text-center">
-                <span class="text-xs font-semibold text-jetblack/70">
-                  {{ del.attempts || 1 }}x
-                </span>
-              </td>
-              <td class="py-3 px-3 text-jetblack/60 text-[11px]">
-                {{ formatTimestamp(del.lastAttemptAt || del.createdAt) }}
-              </td>
-              <td class="py-3 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
-                <div class="flex items-center justify-end gap-1.5">
-                  <button
-                    type="button"
-                    @click="openDeliveryDetail(del)"
-                    class="px-2 py-1 rounded text-[11px] font-bold text-jetblack/70 bg-jetblack/5 hover:bg-jetblack/10 transition inline-flex items-center gap-1 cursor-pointer"
-                    title="Lihat detail payload JSON"
-                  >
-                    <FileJson class="w-3 h-3 text-gold" />
-                    <span>Payload</span>
-                  </button>
-                  <button
-                    type="button"
-                    :disabled="retryingDeliveryId === del.id"
-                    @click="handleRetryDelivery(del.id)"
-                    class="px-2 py-1 rounded text-[11px] font-bold text-forest bg-forest/10 hover:bg-forest/20 transition inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                    title="Coba kirim ulang webhook sekarang"
-                  >
-                    <RefreshCw
-                      class="w-3 h-3"
-                      :class="{ 'animate-spin': retryingDeliveryId === del.id }"
-                    />
-                    <span>{{ retryingDeliveryId === del.id ? "Mengirim..." : "Retry" }}</span>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <TableSkeleton v-if="loadingDeliveries" :columns="6" :rows="4" />
+        <tr v-else-if="deliveries.length === 0">
+          <td colspan="6" class="py-12 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/50">
+            <Radio class="w-8 h-8 text-jetblack/20 mx-auto mb-2" />
+            <p class="text-xs font-bold text-jetblack">Belum ada pengiriman webhook</p>
+            <p class="text-[11px] text-jetblack/50 mt-1 max-w-sm mx-auto">
+              Log pengiriman akan muncul secara otomatis ketika terjadi event pembayaran atau saat
+              Anda menguji endpoint dengan Test Ping.
+            </p>
+          </td>
+        </tr>
+        <tr
+          v-else
+          v-for="del in deliveries"
+          :key="del.id"
+          class="hover:bg-jetblack/[0.02] transition"
+        >
+          <td class="py-3 pr-3 pl-3.5 sm:pl-4 md:px-6">
+            <span
+              v-if="del.status === 'SENT'"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-forest/10 text-forest border border-forest/20"
+            >
+              <CheckCircle2 class="w-3 h-3 text-forest" />
+              <span>Terkirim</span>
+            </span>
+            <span
+              v-else-if="del.status === 'FAILED'"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200"
+            >
+              <AlertTriangle class="w-3 h-3 text-rose-600" />
+              <span>Gagal</span>
+            </span>
+            <span
+              v-else
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-gold-deep border border-gold/30"
+            >
+              <Clock class="w-3 h-3 text-gold-deep" />
+              <span>Pending</span>
+            </span>
+          </td>
+          <td class="py-3 px-3">
+            <span
+              class="font-mono text-[11px] font-bold text-jetblack bg-jetblack/5 px-2 py-0.5 rounded"
+            >
+              {{ del.event || del.payload?.event || "event" }}
+            </span>
+          </td>
+          <td class="py-3 px-3">
+            <div
+              class="font-mono text-[11px] text-jetblack truncate max-w-[240px]"
+              :title="getEndpointUrl(del.endpointId)"
+            >
+              {{ getEndpointUrl(del.endpointId) }}
+            </div>
+          </td>
+          <td class="py-3 px-3 text-center">
+            <span class="text-xs font-semibold text-jetblack/70"> {{ del.attempts || 1 }}x </span>
+          </td>
+          <td class="py-3 px-3 text-jetblack/60 text-[11px]">
+            {{ formatTimestamp(del.lastAttemptAt || del.createdAt) }}
+          </td>
+          <td class="py-3 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
+            <div class="flex items-center justify-end gap-1.5">
+              <button
+                type="button"
+                @click="openDeliveryDetail(del)"
+                class="px-2 py-1 rounded text-[11px] font-bold text-jetblack/70 bg-jetblack/5 hover:bg-jetblack/10 transition inline-flex items-center gap-1 cursor-pointer"
+                title="Lihat detail payload JSON"
+              >
+                <FileJson class="w-3 h-3 text-gold" />
+                <span>Payload</span>
+              </button>
+              <button
+                type="button"
+                :disabled="retryingDeliveryId === del.id"
+                @click="handleRetryDelivery(del.id)"
+                class="px-2 py-1 rounded text-[11px] font-bold text-forest bg-forest/10 hover:bg-forest/20 transition inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                title="Coba kirim ulang webhook sekarang"
+              >
+                <RefreshCw
+                  class="w-3 h-3"
+                  :class="{ 'animate-spin': retryingDeliveryId === del.id }"
+                />
+                <span>{{ retryingDeliveryId === del.id ? "Mengirim..." : "Retry" }}</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </TableContainer>
     </div>
 
     <!-- Modal Tambah Webhook -->
     <div
       v-if="isWebhookModalOpen"
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-jetblack/60 backdrop-blur-xs animate-fadeIn"
+      @click.self="isWebhookModalOpen = false"
     >
       <div
-        class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-jetblack/15"
+        class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-jetblack/15 max-h-[90vh] flex flex-col"
       >
         <div class="flex items-center justify-between border-b border-jetblack/10 pb-3">
           <div class="flex items-center gap-2">
@@ -1173,7 +931,7 @@ export function handleTertautWebhook(req, res) {
           </button>
         </div>
 
-        <div class="space-y-3">
+        <div class="space-y-3.5 overflow-y-auto flex-1 pr-1 text-xs">
           <div>
             <label class="block text-xs font-bold text-jetblack mb-1">
               URL Webhook Server SaaS
@@ -1185,9 +943,56 @@ export function handleTertautWebhook(req, res) {
               class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/20 text-xs text-jetblack placeholder:text-jetblack/35 focus:outline-none focus:border-gold font-mono"
             />
             <p class="text-[10px] text-jetblack/50 mt-1">
-              Endpoint ini wajib dapat diakses publik dan menerima HTTP POST request bertanda
-              tangan.
+              Endpoint ini wajib dapat diakses publik dan menerima HTTP POST request bertanda tangan
+              HMAC-SHA256.
             </p>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="font-bold text-xs text-jetblack">Event yang Dilanggan</label>
+              <span class="text-[10px] text-jetblack/50">
+                {{
+                  webhookEventsInput.length === 0
+                    ? "Semua event aktif (default)"
+                    : `${webhookEventsInput.length} event dipilih`
+                }}
+              </span>
+            </div>
+            <div
+              class="flex flex-wrap gap-1.5 p-2 rounded-xl bg-jetblack/[0.02] border border-jetblack/10"
+            >
+              <button
+                type="button"
+                v-for="ev in ALL_WEBHOOK_EVENTS"
+                :key="ev.id"
+                @click="toggleWebhookEvent(ev.id)"
+                :class="[
+                  'px-2 py-1 rounded-md text-[10px] font-mono font-bold transition cursor-pointer border',
+                  webhookEventsInput.includes(ev.id)
+                    ? 'bg-jetblack text-white border-jetblack shadow-2xs'
+                    : 'bg-white text-jetblack/60 border-jetblack/15 hover:border-jetblack/40',
+                ]"
+              >
+                {{ ev.label }}
+              </button>
+            </div>
+            <p class="text-[10px] text-jetblack/40 mt-1">
+              Kosongkan seleksi di atas jika ingin menerima seluruh event pembayaran dan siklus
+              lisensi secara otomatis.
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-jetblack mb-1">
+              Secret Kustom (Opsional)
+            </label>
+            <input
+              v-model="webhookSecretInput"
+              type="password"
+              placeholder="Kosongkan untuk generate otomatis (tt_whsec_...)"
+              class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/20 text-xs text-jetblack placeholder:text-jetblack/35 focus:outline-none focus:border-gold font-mono"
+            />
           </div>
 
           <div
@@ -1198,7 +1003,7 @@ export function handleTertautWebhook(req, res) {
           </div>
         </div>
 
-        <div class="flex items-center justify-end gap-2 pt-2 border-t border-jetblack/10">
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-jetblack/10">
           <button
             type="button"
             @click="isWebhookModalOpen = false"
@@ -1219,100 +1024,12 @@ export function handleTertautWebhook(req, res) {
     </div>
 
     <!-- Modal Payload Detail Webhook -->
-    <div
-      v-if="isDeliveryModalOpen && selectedDelivery"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-jetblack/60 backdrop-blur-xs animate-fadeIn"
-    >
-      <div
-        class="bg-white rounded-xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col border border-jetblack/15"
-      >
-        <div class="flex items-center justify-between border-b border-jetblack/10 pb-3">
-          <div class="flex items-center gap-2">
-            <Radio class="w-4 h-4 text-emerald-600" />
-            <h3 class="text-sm font-bold text-jetblack">Detail Pengiriman Webhook</h3>
-          </div>
-          <button
-            type="button"
-            @click="isDeliveryModalOpen = false"
-            class="text-jetblack/40 hover:text-jetblack cursor-pointer font-bold text-base"
-          >
-            ×
-          </button>
-        </div>
-
-        <div class="space-y-3 overflow-y-auto flex-1 pr-1 text-xs">
-          <div
-            class="grid grid-cols-2 gap-2 p-3 rounded-lg bg-jetblack/5 border border-jetblack/10"
-          >
-            <div>
-              <span class="text-[10px] text-jetblack/50 uppercase font-bold block"
-                >Delivery ID</span
-              >
-              <span class="font-mono text-jetblack font-bold text-[11px] truncate block">{{
-                selectedDelivery.id
-              }}</span>
-            </div>
-            <div>
-              <span class="text-[10px] text-jetblack/50 uppercase font-bold block">Event</span>
-              <span class="font-mono text-jetblack font-bold text-[11px]">{{
-                selectedDelivery.event
-              }}</span>
-            </div>
-            <div>
-              <span class="text-[10px] text-jetblack/50 uppercase font-bold block">Status</span>
-              <span
-                class="font-bold text-[11px]"
-                :class="selectedDelivery.status === 'SENT' ? 'text-forest' : 'text-crimson'"
-              >
-                {{ selectedDelivery.status }}
-              </span>
-            </div>
-            <div>
-              <span class="text-[10px] text-jetblack/50 uppercase font-bold block">Percobaan</span>
-              <span class="font-bold text-[11px]">{{ selectedDelivery.attempts }}x</span>
-            </div>
-          </div>
-
-          <div>
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-xs font-bold text-jetblack">HTTP Request Payload (JSON)</span>
-              <button
-                type="button"
-                @click="copyClipboard(JSON.stringify(selectedDelivery.payload, null, 2))"
-                class="inline-flex items-center gap-1 text-[11px] font-bold text-forest hover:underline cursor-pointer"
-              >
-                <Copy class="w-3 h-3" />
-                <span>Salin JSON</span>
-              </button>
-            </div>
-            <pre
-              class="p-3 rounded-lg bg-jetblack text-neutral-100 font-mono text-[11px] overflow-x-auto max-h-64 leading-relaxed border border-jetblack/20"
-              >{{ JSON.stringify(selectedDelivery.payload, null, 2) }}</pre>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between pt-3 border-t border-jetblack/10">
-          <button
-            type="button"
-            :disabled="retryingDeliveryId === selectedDelivery.id"
-            @click="handleRetryDelivery(selectedDelivery.id)"
-            class="px-3.5 py-1.5 rounded-lg bg-forest text-white hover:bg-forest/90 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw
-              class="w-3 h-3"
-              :class="{ 'animate-spin': retryingDeliveryId === selectedDelivery.id }"
-            />
-            <span>Kirim Ulang Sekarang</span>
-          </button>
-          <button
-            type="button"
-            @click="isDeliveryModalOpen = false"
-            class="px-4 py-1.5 rounded-lg border border-jetblack/20 text-xs font-bold text-jetblack/70 hover:text-jetblack hover:bg-jetblack/5 cursor-pointer"
-          >
-            Tutup
-          </button>
-        </div>
-      </div>
-    </div>
+    <DevDeliveryModal
+      :is-open="isDeliveryModalOpen"
+      :delivery="selectedDelivery"
+      :retrying="retryingDeliveryId === selectedDelivery?.id"
+      @close="isDeliveryModalOpen = false"
+      @retry="handleRetryDelivery"
+    />
   </div>
 </template>

@@ -3,17 +3,16 @@ import { ref, onMounted, onUnmounted, watch } from "vue";
 import { api } from "../lib/api";
 import type { AppItem } from "../types/app";
 import type { LicenseItem, LicensePlatform } from "../types/licensing";
-import { dashboardEnv } from "../lib/environment";
+import { dashboardEnv, envPath } from "../lib/environment";
 import { CheckCircle2, KeyRound, Webhook } from "lucide-vue-next";
 import { useClipboard } from "../composables/useClipboard";
 import { useConfirm } from "../composables/useConfirm";
 import LicenseTable from "../components/licensing/LicenseTable.vue";
 
 import IssueLicenseModal from "../components/licensing/IssueLicenseModal.vue";
-import WebhookManager from "../components/licensing/WebhookManager.vue";
 import LicenseActivityPanel from "../components/licensing/LicenseActivityPanel.vue";
 
-const activeTab = ref<"licenses" | "webhooks">("licenses");
+const env = dashboardEnv;
 const appsList = ref<AppItem[]>([]);
 const licensesList = ref<LicenseItem[]>([]);
 const loadingLicenses = ref(true);
@@ -137,13 +136,6 @@ function closeDetail() {
   activeLicense.value = null;
 }
 
-function switchTab(tab: "licenses" | "webhooks") {
-  activeTab.value = tab;
-  if (tab === "licenses") {
-    loadData();
-  }
-}
-
 /** Beri tahu sidebar (App.vue) bahwa daftar lisensi berubah agar badge ter-update. */
 function notifyLicensesChanged() {
   window.dispatchEvent(new Event("tertaut:licenses-changed"));
@@ -170,71 +162,42 @@ watch(dashboardEnv, () => {
 
 <template>
   <div class="animate-fadeIn pb-12">
-    <!-- Licenses tab -->
-    <template v-if="activeTab === 'licenses'">
-      <LicenseTable
-        :licenses-list="licensesList"
-        :loading="loadingLicenses"
-        @refresh="loadData"
-        @issue="isIssueModalOpen = true"
-        @copy="copyToClipboard"
-        @unbind-hardware="unbindHardware"
-        @deactivate-seat="handleDeactivateSeat"
-        @revoke="revokeLicense"
-        @detail="openDetail"
-      >
-        <template #tabs>
-          <div class="flex items-center gap-1.5 shrink-0">
-            <button
-              @click="switchTab('licenses')"
-              class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer bg-white/20 text-white shadow-2xs"
-            >
-              <KeyRound class="w-3.5 h-3.5 text-gold" />
-              <span>Lisensi</span>
-              <span
-                class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 font-mono text-white font-bold ml-0.5"
-              >
-                {{ licensesList.length }}
-              </span>
-            </button>
-            <button
-              @click="switchTab('webhooks')"
-              class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer text-white/60 hover:text-white hover:bg-white/10"
-            >
-              <Webhook class="w-3.5 h-3.5" />
-              <span>Webhooks</span>
-            </button>
-          </div>
-        </template>
-      </LicenseTable>
-    </template>
-
-    <!-- Webhooks tab -->
-    <WebhookManager v-else>
+    <!-- License Table -->
+    <LicenseTable
+      :licenses-list="licensesList"
+      :loading="loadingLicenses"
+      @refresh="loadData"
+      @issue="isIssueModalOpen = true"
+      @copy="copyToClipboard"
+      @unbind-hardware="unbindHardware"
+      @deactivate-seat="handleDeactivateSeat"
+      @revoke="revokeLicense"
+      @detail="openDetail"
+    >
       <template #tabs>
-        <div class="flex items-center gap-1.5 shrink-0">
-          <button
-            @click="switchTab('licenses')"
-            class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer text-white/60 hover:text-white hover:bg-white/10"
-          >
-            <KeyRound class="w-3.5 h-3.5" />
-            <span>Lisensi</span>
+        <div class="flex items-center gap-2.5">
+          <div class="flex items-center gap-2">
+            <KeyRound class="w-3.5 h-3.5 text-gold" />
+            <h2 class="text-xs font-bold uppercase tracking-wider text-white">Daftar Lisensi</h2>
             <span
-              class="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 font-mono text-white font-bold ml-0.5"
+              class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
             >
-              {{ licensesList.length }}
+              {{ licensesList.length }} keys
             </span>
-          </button>
-          <button
-            @click="switchTab('webhooks')"
-            class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer bg-white/20 text-white shadow-2xs"
+          </div>
+
+          <router-link
+            :to="envPath(env, '/developer')"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition"
+            title="Kelola Webhook Endpoints & Outbox Logs di Developer Portal"
           >
-            <Webhook class="w-3.5 h-3.5 text-gold" />
-            <span>Webhooks</span>
-          </button>
+            <Webhook class="w-3 h-3 text-gold" />
+            <span class="hidden sm:inline">Kelola Webhook di Developer Portal</span>
+            <span class="sm:hidden">Webhooks</span>
+          </router-link>
         </div>
       </template>
-    </WebhookManager>
+    </LicenseTable>
 
     <!-- Alert Feedback -->
     <div

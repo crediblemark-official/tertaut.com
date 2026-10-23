@@ -24,6 +24,7 @@ const props = withDefaults(
     allOptionLabel?: string;
     buttonClass?: string;
     wrapperClass?: string;
+    dark?: boolean;
   }>(),
   {
     placeholder: "Pilih aplikasi...",
@@ -32,6 +33,7 @@ const props = withDefaults(
     allOptionLabel: "",
     buttonClass: "",
     wrapperClass: "",
+    dark: false,
   }
 );
 
@@ -61,11 +63,12 @@ const filteredItems = computed(() => {
   if (!query) return props.items;
 
   return props.items.filter((item) => {
+    const matchId = item.id ? item.id.toLowerCase().includes(query) : false;
     const matchName = item.name.toLowerCase().includes(query);
     const matchSlug = item.slug ? item.slug.toLowerCase().includes(query) : false;
     const matchSubtitle = item.subtitle ? item.subtitle.toLowerCase().includes(query) : false;
     const matchMode = item.mode ? item.mode.toLowerCase().includes(query) : false;
-    return matchName || matchSlug || matchSubtitle || matchMode;
+    return matchId || matchName || matchSlug || matchSubtitle || matchMode;
   });
 });
 
@@ -163,7 +166,10 @@ watch(searchQuery, () => {
       type="button"
       @click="openModal"
       :class="[
-        'group flex items-center justify-between gap-2.5 text-xs bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 shadow-2xs transition duration-150 cursor-pointer min-w-[160px] focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500',
+        'group flex items-center justify-between gap-2.5 text-xs rounded-lg px-2.5 py-1.5 shadow-2xs transition duration-150 cursor-pointer min-w-[160px] focus:outline-none',
+        dark
+          ? 'bg-white/10 hover:bg-white/15 border border-white/15 hover:border-white/25 text-white focus:border-gold'
+          : 'bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500',
         buttonClass,
       ]"
       title="Cari & Pilih Software (Ctrl+K)"
@@ -172,21 +178,33 @@ watch(searchQuery, () => {
         <!-- App Badge or Search Icon -->
         <div
           v-if="selectedItem"
-          class="w-5 h-5 rounded bg-slate-900 text-white flex items-center justify-center text-[10px] font-bold shrink-0"
+          class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold shrink-0"
+          :class="dark ? 'bg-white/20 text-white' : 'bg-slate-900 text-white'"
         >
           {{ selectedItem.name.charAt(0).toUpperCase() }}
         </div>
         <Search
           v-else
-          class="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-500 transition-colors shrink-0"
+          class="w-3.5 h-3.5 transition-colors shrink-0"
+          :class="
+            dark
+              ? 'text-white/40 group-hover:text-gold'
+              : 'text-slate-400 group-hover:text-amber-500'
+          "
         />
 
         <!-- Title & Mode Tag -->
         <div class="flex items-center gap-1.5 truncate">
-          <span v-if="selectedItem" class="text-[10px] text-slate-400 font-medium hidden sm:inline"
+          <span
+            v-if="selectedItem"
+            class="text-[10px] font-medium hidden sm:inline"
+            :class="dark ? 'text-white/50' : 'text-slate-400'"
             >App:</span
           >
-          <span class="font-semibold text-xs text-slate-900 truncate">
+          <span
+            class="font-semibold text-xs truncate"
+            :class="dark ? 'text-white' : 'text-slate-900'"
+          >
             {{ selectedLabel }}
           </span>
           <span
@@ -206,12 +224,22 @@ watch(searchQuery, () => {
       <!-- Right Action: Shortcut & Chevrons -->
       <div class="flex items-center gap-1 shrink-0 pl-1">
         <kbd
-          class="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.2 text-[9px] font-mono text-slate-500 bg-slate-100 rounded border border-slate-200"
+          class="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.2 text-[9px] font-mono rounded border"
+          :class="
+            dark
+              ? 'text-white/60 bg-white/10 border-white/15'
+              : 'text-slate-500 bg-slate-100 border-slate-200'
+          "
         >
-          <Command class="w-2.5 h-2.5 text-slate-400" />K
+          <Command class="w-2.5 h-2.5" :class="dark ? 'text-white/40' : 'text-slate-400'" />K
         </kbd>
         <ChevronsUpDown
-          class="w-3 h-3 text-slate-400 group-hover:text-slate-600 transition-colors"
+          class="w-3 h-3 transition-colors"
+          :class="
+            dark
+              ? 'text-white/40 group-hover:text-white/70'
+              : 'text-slate-400 group-hover:text-slate-600'
+          "
         />
       </div>
     </button>

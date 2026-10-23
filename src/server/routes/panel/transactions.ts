@@ -1,17 +1,24 @@
 import { db } from "../../db";
 import { transactions, builders, apps } from "../../db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 
 /**
  * Ledger Transaksi Global (Audit Cross-Builder)
  */
 export async function handlePanelTransactions({ query }: any) {
-  const limit = Number(query.limit) || 100;
-  const statusFilter = query.status;
+  const limit = Number(query?.limit) || 100;
+  const statusFilter = query?.status;
+  const modeFilter = query?.mode;
 
-  const whereClause = statusFilter
-    ? eq(transactions.paymentStatus, statusFilter as any)
-    : undefined;
+  const conditions = [];
+  if (statusFilter) {
+    conditions.push(eq(transactions.paymentStatus, statusFilter as any));
+  }
+  if (modeFilter) {
+    conditions.push(eq(transactions.mode, modeFilter as any));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   const allTxs = await db.query.transactions.findMany({
     where: whereClause,
@@ -42,6 +49,7 @@ export async function handlePanelTransactions({ query }: any) {
     builderId: tx.builderId,
     builderEmail: builderEmailById.get(tx.builderId) || "builder@tertaut.com",
     customerEmail: tx.customerEmail,
+    mode: tx.mode || "live",
     grossAmount: tx.grossAmount,
     platformFee: tx.platformFee,
     netAmount: tx.netAmount,

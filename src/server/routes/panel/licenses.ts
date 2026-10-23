@@ -61,6 +61,7 @@ export async function handlePanelLicenses({ query }: any) {
       appId: lic.appId,
       appName: app?.name || lic.appId,
       appSlug: app?.slug || "",
+      mode: app?.mode || "live",
       builderName: builder?.name || "Builder",
       builderEmail: builder?.email || "-",
       customerEmail: lic.customerEmail,
@@ -75,6 +76,11 @@ export async function handlePanelLicenses({ query }: any) {
       createdAt: lic.createdAt,
     };
   });
+
+  const modeFilter = query?.mode;
+  if (modeFilter) {
+    items = items.filter((l) => l.mode === modeFilter);
+  }
 
   if (search) {
     items = items.filter(

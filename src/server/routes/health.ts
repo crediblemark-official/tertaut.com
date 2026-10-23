@@ -1,6 +1,6 @@
 import { Elysia } from "elysia";
 import { queryClient } from "../db";
-import { config } from "../config";
+import packageJson from "../../../package.json";
 
 export const healthRoutes = new Elysia({ prefix: "/health" }).get(
   "/",
@@ -8,15 +8,16 @@ export const healthRoutes = new Elysia({ prefix: "/health" }).get(
     let dbStatus = "unknown";
     let tables: string[] = [];
     try {
-      const rows = await queryClient`
+      const rows = await queryClient<{ table_name: string }[]>`
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public'
       `;
       dbStatus = "connected";
-      tables = rows.map((r: any) => r.table_name);
-    } catch (err: any) {
-      dbStatus = `error: ${err?.message || err}`;
+      tables = rows.map((r) => r.table_name);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      dbStatus = `error: ${msg}`;
     }
 
     return {

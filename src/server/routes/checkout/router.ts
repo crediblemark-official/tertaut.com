@@ -9,24 +9,25 @@ import {
   handleDisburseTx,
   handleGetInvoiceData,
   handleGetPaymentChannels,
-  handleSimulateSandboxPayment,
 } from "./handlers";
 
-/** Endpoint checkout yang memang harus publik (buat sesi, preview kupon, polling status, invoice, channels, simulate). */
-const PUBLIC_CHECKOUT_PATHS = [
-  "/session",
-  "preview-coupon",
-  "/status",
-  "consult-pay",
-  "channels",
-  "simulate",
-  "/invoice",
-];
+/** Endpoint checkout yang memang harus publik (buat sesi, preview kupon, polling status, invoice, channels). */
+function isPublicCheckoutPath(path: string): boolean {
+  const normalized = path.replace(/^\/api\/v1/, "").replace(/^\/checkout/, "");
+  return (
+    normalized === "/session" ||
+    normalized === "/preview-coupon" ||
+    normalized === "/consult-pay" ||
+    normalized === "/channels" ||
+    normalized.startsWith("/status/") ||
+    normalized.startsWith("/invoice/")
+  );
+}
 
 export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
-  // Dashboard-only: /transactions, /disburse/:txId, /simulate-paid/:txId
+  // Dashboard-only: /transactions, /disburse/:txId
   .onBeforeHandle(async ({ request: { headers }, status, path }) => {
-    if (PUBLIC_CHECKOUT_PATHS.some((p) => path.includes(p))) return;
+    if (isPublicCheckoutPath(path)) return;
     const res = await authenticate(headers);
     if ("status" in res) return status(res.status, { error: res.error });
   })
@@ -148,23 +149,6 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
           description: "Daftar channel pembayaran aktif",
         },
       },
-    },
-  })
-  /**
-   * Pembayaran sandbox
-   */
-  /**
-   * Simulasi pelunasan instan untuk transaksi Sandbox Tertaut
-   */
-  .post("/simulate-payment", handleSimulateSandboxPayment, {
-    body: t.Object({
-      transactionId: t.String({ description: "ID transaksi (tx_...)" }),
-      ticket: t.String({ description: "HMAC ticket keamanan checkout" }),
-    }),
-    detail: {
-      tags: ["MoR Checkout"],
-      summary: "Simulate Sandbox Payment",
-      description: "Menyelesaikan transaksi pengujian sandbox Tertaut tanpa uang riil.",
     },
   })
   /**

@@ -5,10 +5,16 @@ import type { TransactionItem } from "../../types/transaction";
 import type { LicenseItem } from "../../types/licensing";
 import { formatRupiah } from "../../lib/utils";
 
-const props = defineProps<{
-  transactions: TransactionItem[];
-  licenses: LicenseItem[];
-}>();
+const props = withDefaults(
+  defineProps<{
+    transactions: TransactionItem[];
+    licenses: LicenseItem[];
+    loading?: boolean;
+  }>(),
+  {
+    loading: false,
+  }
+);
 
 const statsDays = ref<7 | 14 | 30>(7);
 const hoveredDay = ref<{ date: string; label: string; count: number; gross: number } | null>(null);
@@ -133,8 +139,10 @@ const hoveredPoint = computed(() => {
 
 <template>
   <!-- Analitik & Performa Penjualan (Flat, Seamless - Tanpa Card Container) -->
-  <div class="space-y-3 pt-1 border-b border-jetblack/10 pb-5">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+  <div class="space-y-4 pt-1 border-b border-jetblack/15 pb-5">
+    <div
+      class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-jetblack/15"
+    >
       <div class="flex items-center gap-2">
         <BarChart3 class="w-4 h-4 text-gold" />
         <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">
@@ -163,9 +171,9 @@ const hoveredPoint = computed(() => {
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center pt-1">
-      <!-- 4 Sub-KPIs (Left 5 cols - Flat layout) -->
-      <div class="lg:col-span-5 grid grid-cols-2 gap-3">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch pt-1">
+      <!-- 4 Sub-KPIs (Left 5 cols - Flat layout with crisp cross dividers) -->
+      <div class="lg:col-span-5 grid grid-cols-2 gap-3.5 pr-0 lg:pr-2">
         <div class="space-y-0.5">
           <div
             class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider"
@@ -173,67 +181,92 @@ const hoveredPoint = computed(() => {
             <span>Rata-Rata Order</span>
             <DollarSign class="w-3.5 h-3.5 text-jetblack" />
           </div>
-          <div class="text-lg font-black font-mono text-jetblack">
-            {{ formatRupiah(analyticsStats.aov) }}
+          <div v-if="loading" class="space-y-1.5 py-1">
+            <div class="h-6 w-24 bg-jetblack/10 rounded animate-pulse"></div>
+            <div class="h-2.5 w-24 bg-jetblack/5 rounded animate-pulse"></div>
           </div>
-          <div class="text-[10px] text-jetblack/50">Per transaksi berhasil</div>
+          <template v-else>
+            <div class="text-lg font-black font-mono text-jetblack">
+              {{ formatRupiah(analyticsStats.aov) }}
+            </div>
+            <div class="text-[10px] text-jetblack/50">Per transaksi berhasil</div>
+          </template>
         </div>
 
-        <div class="space-y-0.5 pl-3 border-l border-jetblack/10">
+        <div class="space-y-0.5 pl-3 border-l border-jetblack/15">
           <div
             class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider"
           >
             <span>Sukses Bayar</span>
             <TrendingUp class="w-3.5 h-3.5 text-forest" />
           </div>
-          <div class="text-lg font-black font-mono text-forest">
-            {{ analyticsStats.conversionRate }}%
+          <div v-if="loading" class="space-y-1.5 py-1">
+            <div class="h-6 w-16 bg-forest/15 rounded animate-pulse"></div>
+            <div class="h-2.5 w-20 bg-forest/10 rounded animate-pulse"></div>
           </div>
-          <div class="text-[10px] text-forest font-medium">
-            {{ analyticsStats.totalPaidCount }} lunas
-          </div>
+          <template v-else>
+            <div class="text-lg font-black font-mono text-forest">
+              {{ analyticsStats.conversionRate }}%
+            </div>
+            <div class="text-[10px] text-forest font-medium">
+              {{ analyticsStats.totalPaidCount }} lunas
+            </div>
+          </template>
         </div>
 
-        <div class="space-y-0.5 pt-2 border-t border-jetblack/10">
+        <div class="space-y-0.5 pt-2 border-t border-jetblack/15">
           <div
             class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider"
           >
             <span>Diskon Kupon</span>
             <TicketPercent class="w-3.5 h-3.5 text-gold" />
           </div>
-          <div class="text-lg font-black font-mono text-jetblack">
-            {{ formatRupiah(analyticsStats.totalDiscount) }}
+          <div v-if="loading" class="space-y-1.5 py-1">
+            <div class="h-6 w-20 bg-gold/15 rounded animate-pulse"></div>
+            <div class="h-2.5 w-24 bg-gold/10 rounded animate-pulse"></div>
           </div>
-          <div class="text-[10px] text-jetblack/50">Total insentif kupon</div>
+          <template v-else>
+            <div class="text-lg font-black font-mono text-jetblack">
+              {{ formatRupiah(analyticsStats.totalDiscount) }}
+            </div>
+            <div class="text-[10px] text-jetblack/50">Total insentif kupon</div>
+          </template>
         </div>
 
-        <div class="space-y-0.5 pt-2 pl-3 border-t border-l border-jetblack/10">
+        <div class="space-y-0.5 pt-2 pl-3 border-t border-l border-jetblack/15">
           <div
             class="flex items-center justify-between text-jetblack/50 text-[10px] font-bold uppercase tracking-wider"
           >
             <span>Aktivasi Seat</span>
             <Monitor class="w-3.5 h-3.5 text-jetblack" />
           </div>
-          <div class="text-lg font-black font-mono text-jetblack">
-            {{ analyticsStats.totalSeatsUsed }}
-            <span class="text-xs font-normal text-jetblack/50"
-              >/ {{ analyticsStats.totalMaxSeats }}</span
-            >
+          <div v-if="loading" class="space-y-1.5 py-1">
+            <div class="h-6 w-16 bg-jetblack/10 rounded animate-pulse"></div>
+            <div class="h-2.5 w-24 bg-jetblack/5 rounded animate-pulse"></div>
           </div>
-          <div class="text-[10px] text-jetblack/50">Device terikat HWID</div>
+          <template v-else>
+            <div class="text-lg font-black font-mono text-jetblack">
+              {{ analyticsStats.totalSeatsUsed }}
+              <span class="text-xs font-normal text-jetblack/50"
+                >/ {{ analyticsStats.totalMaxSeats }}</span
+              >
+            </div>
+            <div class="text-[10px] text-jetblack/50">Device terikat HWID</div>
+          </template>
         </div>
       </div>
 
-      <!-- Interactive Line Chart (Right 7 cols - Seamless Flat) -->
+      <!-- Interactive Line Chart (Right 7 cols - with crisp vertical separator) -->
       <div
-        class="lg:col-span-7 flex flex-col justify-between lg:pl-5 lg:border-l lg:border-jetblack/10"
+        class="lg:col-span-7 flex flex-col justify-between lg:pl-6 lg:border-l lg:border-jetblack/15"
       >
         <div
           class="flex items-center justify-between text-[11px] font-bold text-jetblack/70 mb-1 min-h-[22px]"
         >
           <span>Tren Omzet ({{ statsDays }} Hari)</span>
+          <div v-if="loading" class="h-4 w-28 bg-jetblack/10 rounded animate-pulse"></div>
           <div
-            v-if="hoveredDay"
+            v-else-if="hoveredDay"
             class="font-mono text-xs text-jetblack flex items-center gap-1.5 animate-fadeIn"
           >
             <span class="text-jetblack/60 font-medium">{{ hoveredDay.label }}:</span>
@@ -248,17 +281,15 @@ const hoveredPoint = computed(() => {
           </div>
         </div>
 
-        <!-- SVG Line / Area Chart -->
-        <div class="relative w-full pt-1 pb-1 select-none">
+        <!-- Skeleton Chart State when Loading -->
+        <div v-if="loading" class="relative w-full pt-1 pb-1 select-none animate-pulse">
           <svg viewBox="0 0 360 90" class="w-full h-22 overflow-visible" preserveAspectRatio="none">
             <defs>
-              <linearGradient id="omzetGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.35" />
-                <stop offset="100%" stop-color="#D4AF37" stop-opacity="0.0" />
+              <linearGradient id="omzetSkeletonGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#111111" stop-opacity="0.08" />
+                <stop offset="100%" stop-color="#111111" stop-opacity="0.01" />
               </linearGradient>
             </defs>
-
-            <!-- Subtle horizontal grid lines -->
             <line
               x1="14"
               y1="14"
@@ -277,76 +308,135 @@ const hoveredPoint = computed(() => {
               stroke-opacity="0.05"
               stroke-dasharray="3 3"
             />
-            <line x1="14" y1="74" x2="346" y2="74" stroke="#111111" stroke-opacity="0.12" />
-
-            <!-- Gradient Area Fill -->
-            <path :d="areaPath" fill="url(#omzetGradient)" class="transition duration-300" />
-
-            <!-- Active Hover Vertical Guideline -->
-            <line
-              v-if="hoveredPoint"
-              :x1="hoveredPoint.x"
-              :y1="14"
-              :x2="hoveredPoint.x"
-              :y2="74"
-              stroke="#111111"
-              stroke-opacity="0.3"
-              stroke-dasharray="2 2"
-            />
-
-            <!-- Crisp Line Stroke -->
+            <line x1="14" y1="74" x2="346" y2="74" stroke="#111111" stroke-opacity="0.1" />
             <path
-              :d="linePath"
-              fill="none"
-              stroke="#D4AF37"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="transition duration-300"
+              d="M 14 65 C 60 48, 110 58, 160 38 C 210 22, 270 45, 346 32 L 346 74 L 14 74 Z"
+              fill="url(#omzetSkeletonGradient)"
             />
-
-            <!-- Interactive Data Points / Dots -->
-            <g v-for="pt in lineChartPoints" :key="pt.date">
-              <!-- Large hover area -->
-              <circle
-                :cx="pt.x"
-                :cy="pt.y"
-                r="14"
-                fill="transparent"
-                class="cursor-pointer"
-                @mouseenter="hoveredDay = pt"
-                @mouseleave="hoveredDay = null"
-              />
-
-              <!-- Point dot -->
-              <circle
-                :cx="pt.x"
-                :cy="pt.y"
-                :r="hoveredDay?.date === pt.date ? 5 : pt.gross > 0 ? 3.5 : 2.5"
-                :class="[
-                  hoveredDay?.date === pt.date
-                    ? 'fill-jetblack stroke-gold stroke-[2.5]'
-                    : pt.gross > 0
-                      ? 'fill-gold stroke-white stroke-2'
-                      : 'fill-white stroke-jetblack/30 stroke-1.5',
-                ]"
-                class="transition duration-150 pointer-events-none"
-              />
-            </g>
+            <path
+              d="M 14 65 C 60 48, 110 58, 160 38 C 210 22, 270 45, 346 32"
+              fill="none"
+              stroke="#111111"
+              stroke-opacity="0.15"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-dasharray="4 4"
+            />
           </svg>
+          <div class="flex items-center justify-between px-2 pt-0.5">
+            <div
+              v-for="i in statsDays === 30 ? 10 : statsDays"
+              :key="i"
+              class="h-2 w-4 bg-jetblack/10 rounded"
+            ></div>
+          </div>
         </div>
 
-        <!-- Date Labels Under Line Chart -->
-        <div class="flex items-center justify-between px-2 pt-0.5">
-          <span
-            v-for="pt in lineChartPoints"
-            :key="pt.date"
-            class="text-[9px] font-mono leading-none transition-colors"
-            :class="hoveredDay?.date === pt.date ? 'font-bold text-jetblack' : 'text-jetblack/50'"
-          >
-            {{ pt.label.split(" ")[0] }}
-          </span>
-        </div>
+        <!-- Real SVG Line / Area Chart -->
+        <template v-else>
+          <div class="relative w-full pt-1 pb-1 select-none">
+            <svg
+              viewBox="0 0 360 90"
+              class="w-full h-22 overflow-visible"
+              preserveAspectRatio="none"
+            >
+              <defs>
+                <linearGradient id="omzetGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.35" />
+                  <stop offset="100%" stop-color="#D4AF37" stop-opacity="0.0" />
+                </linearGradient>
+              </defs>
+
+              <!-- Subtle horizontal grid lines -->
+              <line
+                x1="14"
+                y1="14"
+                x2="346"
+                y2="14"
+                stroke="#111111"
+                stroke-opacity="0.05"
+                stroke-dasharray="3 3"
+              />
+              <line
+                x1="14"
+                y1="44"
+                x2="346"
+                y2="44"
+                stroke="#111111"
+                stroke-opacity="0.05"
+                stroke-dasharray="3 3"
+              />
+              <line x1="14" y1="74" x2="346" y2="74" stroke="#111111" stroke-opacity="0.12" />
+
+              <!-- Gradient Area Fill -->
+              <path :d="areaPath" fill="url(#omzetGradient)" class="transition duration-300" />
+
+              <!-- Active Hover Vertical Guideline -->
+              <line
+                v-if="hoveredPoint"
+                :x1="hoveredPoint.x"
+                :y1="14"
+                :x2="hoveredPoint.x"
+                :y2="74"
+                stroke="#111111"
+                stroke-opacity="0.3"
+                stroke-dasharray="2 2"
+              />
+
+              <!-- Crisp Line Stroke -->
+              <path
+                :d="linePath"
+                fill="none"
+                stroke="#D4AF37"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="transition duration-300"
+              />
+
+              <!-- Interactive Data Points / Dots -->
+              <g v-for="pt in lineChartPoints" :key="pt.date">
+                <!-- Large hover area -->
+                <circle
+                  :cx="pt.x"
+                  :cy="pt.y"
+                  r="14"
+                  fill="transparent"
+                  class="cursor-pointer"
+                  @mouseenter="hoveredDay = pt"
+                  @mouseleave="hoveredDay = null"
+                />
+
+                <!-- Point dot -->
+                <circle
+                  :cx="pt.x"
+                  :cy="pt.y"
+                  :r="hoveredDay?.date === pt.date ? 5 : pt.gross > 0 ? 3.5 : 2.5"
+                  :class="[
+                    hoveredDay?.date === pt.date
+                      ? 'fill-jetblack stroke-gold stroke-[2.5]'
+                      : pt.gross > 0
+                        ? 'fill-gold stroke-white stroke-2'
+                        : 'fill-white stroke-jetblack/30 stroke-1.5',
+                  ]"
+                  class="transition duration-150 pointer-events-none"
+                />
+              </g>
+            </svg>
+          </div>
+
+          <!-- Date Labels Under Line Chart -->
+          <div class="flex items-center justify-between px-2 pt-0.5">
+            <span
+              v-for="pt in lineChartPoints"
+              :key="pt.date"
+              class="text-[9px] font-mono leading-none transition-colors"
+              :class="hoveredDay?.date === pt.date ? 'font-bold text-jetblack' : 'text-jetblack/50'"
+            >
+              {{ pt.label.split(" ")[0] }}
+            </span>
+          </div>
+        </template>
       </div>
     </div>
   </div>

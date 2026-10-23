@@ -1,7 +1,7 @@
 import { Elysia } from "elysia";
 import { handleXenditRefundWebhook } from "./refund";
 import { handleXenditInvoiceWebhook, handleXenditDisbursementWebhook } from "./xendit";
-import { handleSandboxPaymentWebhook } from "./sandbox";
+import { handleSandboxPaymentWebhook } from "../sandbox/webhook";
 
 function mountCallbacks(prefix: string) {
   return new Elysia({ prefix })

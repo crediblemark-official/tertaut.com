@@ -59,6 +59,8 @@ export interface GatewayDescriptor {
    */
   readonly sandboxPayoutAccountNumber?: string;
 
+  readonly webhookFile?: string;
+
   readonly unsupportedWhen?: (ctx: {
     rail: string;
     ewalletChannel?: string;
@@ -76,6 +78,7 @@ export const GATEWAY_REGISTRY: Readonly<Record<GatewayId, GatewayDescriptor>> = 
     finishPath: "/checkout/success",
     defaultVaBank: "BCA",
     qrChannelLabel: "XENDIT_QRIS",
+    webhookFile: "src/server/routes/webhook/xendit.ts",
     credentials: {
       xendit_secret_key: ["XENDIT_SECRET_KEY", "XENDIT_SANDBOX_SECRET_KEY"],
       xendit_webhook_token: ["XENDIT_WEBHOOK_VERIFICATION_TOKEN", "XENDIT_WEBHOOK_TOKEN"],
@@ -90,6 +93,7 @@ export const GATEWAY_REGISTRY: Readonly<Record<GatewayId, GatewayDescriptor>> = 
     defaultVaBank: "BCA",
     qrChannelLabel: "QRIS",
     sandboxPayoutAccountNumber: "1234567890",
+    webhookFile: "src/server/routes/sandbox/webhook.ts",
     credentials: {},
   },
 };

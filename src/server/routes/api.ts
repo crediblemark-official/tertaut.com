@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
 import { healthRoutes } from "./health";
 import { appRoutes } from "./apps/router";
 import { checkoutRoutes } from "./checkout/router";
@@ -10,6 +10,7 @@ import { launchRoutes } from "./launch";
 import { panelRoutes } from "./panel/router";
 import { couponRoutes } from "./coupons/router";
 import { s2sRoutes } from "./s2s/router";
+import { sandboxRoutes, legacySandboxCheckoutRoutes } from "./sandbox/router";
 import { handleGetPublicAnnouncement } from "./panel/settings";
 import { authMiddleware, authenticate } from "../middleware/auth";
 import { generateOgSvg } from "./seo/og";
@@ -28,6 +29,7 @@ const PUBLIC_PREFIXES = [
   "/api/v1/checkout/preview-coupon",
   "/api/v1/checkout/channels",
   "/api/v1/checkout/simulate-payment",
+  "/api/v1/sandbox",
   "/api/v1/checkout/invoice",
   "/api/v1/announcement",
   "/api/v1/apps/by-slug",
@@ -63,14 +65,28 @@ export const apiV1Routes = new Elysia({ prefix: "/api/v1" })
   .use(panelRoutes)
   .use(couponRoutes)
   .use(s2sRoutes)
+  .use(sandboxRoutes)
+  .use(legacySandboxCheckoutRoutes)
   .get("/announcement", handleGetPublicAnnouncement)
-  .get("/og", ({ query, set }: any) => {
-    set.headers["content-type"] = "image/svg+xml; charset=utf-8";
-    set.headers["cache-control"] = "public, max-age=86400, s-maxage=604800";
-    return generateOgSvg({
-      title: query?.title,
-      description: query?.desc || query?.description,
-      badge: query?.badge,
-      price: query?.price,
-    });
-  });
+  .get(
+    "/og",
+    ({ query, set }) => {
+      set.headers["content-type"] = "image/svg+xml; charset=utf-8";
+      set.headers["cache-control"] = "public, max-age=86400, s-maxage=604800";
+      return generateOgSvg({
+        title: query?.title,
+        description: query?.desc || query?.description,
+        badge: query?.badge,
+        price: query?.price,
+      });
+    },
+    {
+      query: t.Object({
+        title: t.Optional(t.String()),
+        desc: t.Optional(t.String()),
+        description: t.Optional(t.String()),
+        badge: t.Optional(t.String()),
+        price: t.Optional(t.String()),
+      }),
+    }
+  );

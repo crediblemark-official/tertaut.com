@@ -60,15 +60,25 @@ Respons sukses:
 {
   "success": true,
   "data": {
-    "sessionId": "tx_...",
+    "sessionId": "tx_sand_...",
+    "ticket": "poll_...",
     "paymentGateway": "xendit",
     "checkoutUrl": "https://checkout.xendit.co/web/...",
-    "expiresAt": "2026-09-21T18:30:00.000Z",
-    "isSandbox": false
+    "hostedPayUrl": "https://tertaut.com/pay/fastmail-ai?txId=tx_sand_...",
+    "expiresAt": "2026-10-23T18:30:00.000Z",
+    "isSandbox": false,
+    "scenario": "REDIRECT",
+    "paymentRail": "qris",
+    "qrDataUrl": "data:image/png;base64,..."
   },
-  "transactionId": "tx_...",
+  "transactionId": "tx_sand_...",
   "checkoutUrl": "https://checkout.xendit.co/web/...",
-  "paymentGateway": "xendit"
+  "hostedPayUrl": "https://tertaut.com/pay/fastmail-ai?txId=tx_sand_...",
+  "paymentGateway": "xendit",
+  "amount": 49000,
+  "listPrice": 49000,
+  "discountAmount": 0,
+  "grantDays": 365
 }
 ```
 
@@ -121,7 +131,14 @@ curl -X POST https://tertaut.com/api/v1/licensing/verify \
 Respons **valid**:
 
 ```json
-{ "valid": true, "status": "ACTIVE", "gracePeriodRemainingDays": 7 }
+{
+  "valid": true,
+  "status": "ACTIVE",
+  "gracePeriodRemainingDays": 7,
+  "entitlements": { "pro_tier": true },
+  "licenseVersion": 1,
+  "offlineGraceToken": "eyJhbGciOiJFZERT..."
+}
 ```
 
 Respons **tidak valid** (`valid: false` + `status`):
@@ -149,12 +166,17 @@ curl -X POST https://tertaut.com/api/v1/licensing/activate \
 ```json
 {
   "success": true,
+  "message": "Device activated successfully",
+  "activated": true,
   "data": {
     "licenseToken": "eyJhbGciOiJFZERT...",
     "status": "ACTIVE",
     "expiresAt": "2026-10-18T00:00:00.000Z",
     "seatsUsed": 1,
-    "maxSeats": 3
+    "maxSeats": 3,
+    "floating": false,
+    "entitlements": { "pro_tier": true },
+    "licenseVersion": 1
   }
 }
 ```

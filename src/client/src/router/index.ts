@@ -222,28 +222,76 @@ export const router = createRouter({
   routes,
 });
 
-router.beforeEach(async (to) => {
+interface AuthUserData {
+  role?: string | null;
+  [key: string]: unknown;
+}
+
+interface ClientSessionPayload {
+  user?: AuthUserData;
+  [key: string]: unknown;
+}
+
+let cachedSessionData: ClientSessionPayload | null = null;
+let lastSessionCheck = 0;
+const SESSION_CACHE_TTL = 30_000; // 30 detik
+
+export function clearClientSessionCache() {
+  cachedSessionData = null;
+  lastSessionCheck = 0;
+}
+
+router.beforeEach(async (to, from) => {
   applyEnvFromPath(to.path);
 
   const requiresAuth =
     !!to.meta.requiresAuth || to.path.startsWith("/dashboard") || to.path.startsWith("/panel");
 
-  // Wajib login untuk halaman beranda dashboard & panel.
-  // Di dev sekalipun; server juga menegakkan authenticate() (DEV_USER hanya safety net).
-  if (requiresAuth) {
-    const { data } = await authClient.getSession();
-    if (!data) {
-      return { path: "/login", query: { redirect: to.fullPath } };
-    }
+  if (!requiresAuth) return;
 
-    // /panel = Admin Panel yang EKSKLUSIF admin. Akun biasa (role != admin)
-    // diarahkan ke dashboard pribadinya — sebelumnya mereka bisa membuka kerangka
-    // panel dan hanya melihat error "Forbidden" dari API (bocor UI shell + UX buruk).
-    if (to.path.startsWith("/panel")) {
-      const role = (data.user as { role?: string | null } | undefined)?.role;
-      if (role !== "admin") {
-        return { path: "/dashboard" };
+  // Optimisasi Navigasi Cepat (0ms delay):
+  // Jika berpindah sub-route / tab di dalam section yang sama (mis. antar tab /panel/*
+  // atau antar tab /dashboard/*), tidak perlu memblokir transisi dengan network round-trip getSession().
+  const isInternalPanelNav = from.path.startsWith("/panel") && to.path.startsWith("/panel");
+  const isInternalDashboardNav =
+    from.path.startsWith("/dashboard") && to.path.startsWith("/dashboard");
+
+  if (isInternalPanelNav || isInternalDashboardNav) {
+    return;
+  }
+
+  const now = Date.now();
+  let sessionData = cachedSessionData;
+
+  // Hanya request getSession ke server jika belum ada cache atau cache sudah lewat TTL (30s)
+  if (!sessionData || now - lastSessionCheck > SESSION_CACHE_TTL) {
+    try {
+      const { data } = await authClient.getSession();
+      sessionData = data as ClientSessionPayload | null;
+      if (sessionData) {
+        cachedSessionData = sessionData;
+        lastSessionCheck = now;
+      } else {
+        cachedSessionData = null;
+        lastSessionCheck = 0;
       }
+    } catch {
+      cachedSessionData = null;
+      lastSessionCheck = 0;
+      sessionData = null;
+    }
+  }
+
+  if (!sessionData) {
+    return { path: "/login", query: { redirect: to.fullPath } };
+  }
+
+  // /panel = Admin Panel yang EKSKLUSIF admin. Akun biasa (role != admin)
+  // diarahkan ke dashboard pribadinya.
+  if (to.path.startsWith("/panel")) {
+    const role = sessionData.user?.role;
+    if (role !== "admin") {
+      return { path: "/dashboard" };
     }
   }
 });

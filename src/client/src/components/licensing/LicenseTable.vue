@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { RefreshCw, Search, Copy, Monitor, Plus, Activity } from "lucide-vue-next";
+import { RefreshCw, Search, Copy, Monitor, Plus, Activity, Laptop, X } from "lucide-vue-next";
 import type { LicenseItem } from "../../types/licensing";
 import StatusBadge from "../common/StatusBadge.vue";
 import TableSkeleton from "../common/TableSkeleton.vue";
+import TableContainer from "../common/TableContainer.vue";
 
 const props = defineProps<{
   licensesList: LicenseItem[];
@@ -148,124 +149,149 @@ const filteredLicenses = computed(() => {
     </div>
 
     <!-- License Table (Scrollable on mobile) -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
-      <table
-        class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15"
-      >
-        <thead class="border-b border-jetblack/20 text-xs font-semibold text-jetblack/70 bg-white">
-          <tr>
-            <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Kunci Lisensi</th>
-            <th class="py-2.5 px-3">Aplikasi</th>
-            <th class="py-2.5 px-3">Email Pemilik</th>
-            <th class="py-2.5 px-3">Platform</th>
-            <th class="py-2.5 px-3">Device Seats</th>
-            <th class="py-2.5 px-3">Status</th>
-            <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-jetblack/15">
-          <TableSkeleton v-if="loading" :columns="7" :rows="6" />
-          <tr v-else-if="filteredLicenses.length === 0">
-            <td colspan="7" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
-              <div class="space-y-1">
-                <p class="font-semibold text-xs text-jetblack/60">
-                  Tidak ada kunci lisensi ditemukan.
-                </p>
-                <p
-                  class="text-[11px] text-jetblack/40"
-                  v-if="searchQuery || platformFilter !== 'ALL' || statusFilter !== 'ALL'"
+    <TableContainer>
+      <template #head>
+        <tr>
+          <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Kunci Lisensi</th>
+          <th class="py-2.5 px-3">Aplikasi</th>
+          <th class="py-2.5 px-3">Email Pemilik</th>
+          <th class="py-2.5 px-3">Platform</th>
+          <th class="py-2.5 px-3">Kuota Seat</th>
+          <th class="py-2.5 px-3">Perangkat Terikat</th>
+          <th class="py-2.5 px-3">Status</th>
+          <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
+        </tr>
+      </template>
+
+      <TableSkeleton v-if="loading" :columns="8" :rows="6" />
+      <tr v-else-if="filteredLicenses.length === 0">
+        <td colspan="8" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
+          <div class="space-y-1">
+            <p class="font-semibold text-xs text-jetblack/60">Tidak ada kunci lisensi ditemukan.</p>
+            <p
+              class="text-[11px] text-jetblack/40"
+              v-if="searchQuery || platformFilter !== 'ALL' || statusFilter !== 'ALL'"
+            >
+              Coba sesuaikan kata kunci pencarian atau reset filter.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr v-else v-for="lic in filteredLicenses" :key="lic.id" class="hover:bg-jetblack/[0.02]">
+        <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-mono">
+          <div class="inline-flex items-center gap-1.5 font-bold text-jetblack">
+            <span>{{ lic.licenseKey }}</span>
+            <button
+              @click="emit('copy', lic.licenseKey)"
+              title="Salin Kunci"
+              class="text-jetblack/40 hover:text-gold cursor-pointer"
+            >
+              <Copy class="w-3 h-3" />
+            </button>
+          </div>
+        </td>
+        <td class="py-2.5 px-3 text-jetblack/70 font-mono text-[11px]">{{ lic.appId }}</td>
+        <td class="py-2.5 px-3 text-jetblack/80">{{ lic.customerEmail }}</td>
+        <td class="py-2.5 px-3 capitalize font-mono text-[11px] text-jetblack/70">
+          {{ lic.platform }}
+        </td>
+        <!-- Kolom 1: Kuota Seat -->
+        <td class="py-2.5 px-3">
+          <div
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold border shadow-2xs whitespace-nowrap"
+            :class="
+              lic.seatsUsed && lic.seatsUsed >= (lic.maxSeats || 3)
+                ? 'bg-crimson/10 text-crimson border-crimson/20'
+                : (lic.seatsUsed || 0) > 0
+                  ? 'bg-forest/10 text-forest border-forest/20'
+                  : 'bg-jetblack/5 text-jetblack/60 border-jetblack/10'
+            "
+          >
+            <Monitor
+              class="w-3 h-3 shrink-0"
+              :class="(lic.seatsUsed || 0) > 0 ? 'text-forest' : 'text-jetblack/40'"
+            />
+            <span>{{ lic.seatsUsed || 0 }} / {{ lic.maxSeats || 3 }} Seats</span>
+          </div>
+        </td>
+        <!-- Kolom 2: Perangkat Terikat -->
+        <td class="py-2.5 px-3">
+          <!-- Active Device Seats List -->
+          <div v-if="lic.activations && lic.activations.length > 0" class="space-y-1">
+            <div
+              v-for="act in lic.activations"
+              :key="act.id"
+              class="inline-flex items-center justify-between gap-2 px-2 py-0.5 rounded-md bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 text-[10px] text-jetblack shadow-2xs transition group"
+            >
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="w-1.5 h-1.5 rounded-full bg-forest shrink-0 animate-pulse" />
+                <Laptop class="w-3 h-3 text-jetblack/40 shrink-0" />
+                <span
+                  class="font-semibold text-jetblack truncate max-w-[140px]"
+                  :title="act.deviceName || 'Perangkat'"
                 >
-                  Coba sesuaikan kata kunci pencarian atau reset filter.
-                </p>
+                  {{ act.deviceName || "Perangkat" }}
+                </span>
+                <code class="text-[9px] text-jetblack/45 font-mono shrink-0">
+                  ({{ act.hwidHash.substring(0, 6) }}…)
+                </code>
               </div>
-            </td>
-          </tr>
-          <tr v-else v-for="lic in filteredLicenses" :key="lic.id" class="hover:bg-jetblack/[0.02]">
-            <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-mono">
-              <div class="inline-flex items-center gap-1.5 font-bold text-jetblack">
-                <span>{{ lic.licenseKey }}</span>
-                <button
-                  @click="emit('copy', lic.licenseKey)"
-                  title="Salin Kunci"
-                  class="text-jetblack/40 hover:text-gold cursor-pointer"
-                >
-                  <Copy class="w-3 h-3" />
-                </button>
-              </div>
-            </td>
-            <td class="py-2.5 px-3 text-jetblack/70 font-mono text-[11px]">{{ lic.appId }}</td>
-            <td class="py-2.5 px-3 text-jetblack/80">{{ lic.customerEmail }}</td>
-            <td class="py-2.5 px-3 capitalize font-mono text-[11px] text-jetblack/70">
-              {{ lic.platform }}
-            </td>
-            <td class="py-2.5 px-3">
-              <div
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
-                :class="
-                  lic.seatsUsed && lic.seatsUsed >= (lic.maxSeats || 3)
-                    ? 'bg-crimson/10 text-crimson'
-                    : 'bg-jetblack/5 text-jetblack'
-                "
-              >
-                <Monitor class="w-2.5 h-2.5" />
-                <span>{{ lic.seatsUsed || 0 }} / {{ lic.maxSeats || 3 }} Seats</span>
-              </div>
-              <div v-if="lic.activations && lic.activations.length > 0" class="mt-1 space-y-0.5">
-                <div
-                  v-for="act in lic.activations"
-                  :key="act.id"
-                  class="flex items-center gap-1 text-[9px] text-jetblack/70 font-mono"
-                >
-                  <span
-                    >• {{ act.deviceName || "Device" }} ({{
-                      act.hwidHash.substring(0, 6)
-                    }}...)</span
-                  >
-                  <button
-                    @click="emit('deactivateSeat', lic.licenseKey, act.hwidHash)"
-                    title="Lepas Seat Perangkat Ini"
-                    class="text-crimson hover:underline cursor-pointer"
-                  >
-                    [Lepas]
-                  </button>
-                </div>
-              </div>
-              <div v-else-if="lic.hardwareId" class="mt-1 text-[9px] text-forest font-mono">
-                Primary HWID: {{ lic.hardwareId.substring(0, 8) }}...
-              </div>
-            </td>
-            <td class="py-2.5 px-3">
-              <StatusBadge :status="lic.status" />
-            </td>
-            <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right space-x-1.5">
               <button
-                @click="emit('detail', lic)"
-                title="Detail Seats & Audit Trail"
-                class="px-2 py-0.5 rounded bg-gold/10 hover:bg-gold/20 text-[10px] font-bold text-[#7a641a] transition cursor-pointer inline-flex items-center gap-1"
+                type="button"
+                @click="emit('deactivateSeat', lic.licenseKey, act.hwidHash)"
+                title="Lepas Seat Perangkat Ini"
+                class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-red-50 hover:bg-red-100 text-[9.5px] font-bold text-red-600 transition cursor-pointer border border-red-200/60 active:scale-95 shrink-0"
               >
-                <Activity class="w-2.5 h-2.5" />
-                Detail
+                <X class="w-2.5 h-2.5" />
+                <span>Lepas</span>
               </button>
-              <button
-                v-if="lic.hardwareId || (lic.seatsUsed && lic.seatsUsed > 0)"
-                @click="emit('unbindHardware', lic)"
-                title="Reset Seluruh Device Seats"
-                class="px-2 py-0.5 rounded bg-jetblack/5 hover:bg-jetblack/10 text-[10px] font-bold text-jetblack transition cursor-pointer"
-              >
-                Reset Seats
-              </button>
-              <button
-                v-if="lic.status === 'ACTIVE'"
-                @click="emit('revoke', lic)"
-                title="Cabut Lisensi"
-                class="px-2 py-0.5 rounded bg-crimson/10 hover:bg-crimson/20 text-[10px] font-bold text-crimson transition cursor-pointer"
-              >
-                Revoke
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+            </div>
+          </div>
+
+          <!-- Fallback Primary HWID -->
+          <div
+            v-else-if="lic.hardwareId"
+            class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-50 border border-slate-200/80 text-[9.5px] font-mono text-jetblack/60 shadow-2xs"
+          >
+            <span class="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+            <span>Primary: {{ lic.hardwareId.substring(0, 8) }}…</span>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else class="text-[10px] text-jetblack/35 font-mono italic">
+            Belum ada perangkat
+          </div>
+        </td>
+        <td class="py-2.5 px-3">
+          <StatusBadge :status="lic.status" />
+        </td>
+        <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right space-x-1.5">
+          <button
+            @click="emit('detail', lic)"
+            title="Detail Seats & Audit Trail"
+            class="px-2 py-0.5 rounded bg-gold/10 hover:bg-gold/20 text-[10px] font-bold text-[#7a641a] transition cursor-pointer inline-flex items-center gap-1"
+          >
+            <Activity class="w-2.5 h-2.5" />
+            Detail
+          </button>
+          <button
+            v-if="lic.hardwareId || (lic.seatsUsed && lic.seatsUsed > 0)"
+            @click="emit('unbindHardware', lic)"
+            title="Reset Seluruh Device Seats"
+            class="px-2 py-0.5 rounded bg-jetblack/5 hover:bg-jetblack/10 text-[10px] font-bold text-jetblack transition cursor-pointer"
+          >
+            Reset Seats
+          </button>
+          <button
+            v-if="lic.status === 'ACTIVE'"
+            @click="emit('revoke', lic)"
+            title="Cabut Lisensi"
+            class="px-2 py-0.5 rounded bg-crimson/10 hover:bg-crimson/20 text-[10px] font-bold text-crimson transition cursor-pointer"
+          >
+            Revoke
+          </button>
+        </td>
+      </tr>
+    </TableContainer>
   </div>
 </template>

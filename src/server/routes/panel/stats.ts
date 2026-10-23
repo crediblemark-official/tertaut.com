@@ -6,23 +6,41 @@ import { eq, sql, count } from "drizzle-orm";
  * Macro Platform Overview Stats (Pendapatan Fee 5% & GMV Platform tertaut.com)
  */
 export async function handlePanelStats() {
-  // Agregasi di database — hindari memuat seluruh ledger PAID ke memori.
+  // Agregasi di database:
+  // - Metrik Finansial Riil (GMV, Fee 5%, Porsi Builder) HANYA menghitung transaksi mode LIVE
+  // - Transaksi mode SANDBOX dihitung terpisah sebagai metrik simulasi (tidak mencemari omset riil)
   const [totals] = await db
     .select({
-      totalGMV: sql<number>`coalesce(sum(${transactions.grossAmount}), 0)`.mapWith(Number),
-      totalFee: sql<number>`coalesce(sum(${transactions.platformFee}), 0)`.mapWith(Number),
-      totalNet: sql<number>`coalesce(sum(${transactions.netAmount}), 0)`.mapWith(Number),
-      totalTx: sql<number>`count(*)`.mapWith(Number),
+      totalGMV:
+        sql<number>`coalesce(sum(case when ${transactions.mode} = 'live' then ${transactions.grossAmount} else 0 end), 0)`.mapWith(
+          Number
+        ),
+      totalFee:
+        sql<number>`coalesce(sum(case when ${transactions.mode} = 'live' then ${transactions.platformFee} else 0 end), 0)`.mapWith(
+          Number
+        ),
+      totalNet:
+        sql<number>`coalesce(sum(case when ${transactions.mode} = 'live' then ${transactions.netAmount} else 0 end), 0)`.mapWith(
+          Number
+        ),
+      totalTx: sql<number>`count(*) filter (where ${transactions.mode} = 'live')`.mapWith(Number),
+      sandboxGMV:
+        sql<number>`coalesce(sum(case when ${transactions.mode} = 'sandbox' then ${transactions.grossAmount} else 0 end), 0)`.mapWith(
+          Number
+        ),
+      sandboxTx: sql<number>`count(*) filter (where ${transactions.mode} = 'sandbox')`.mapWith(
+        Number
+      ),
       pendingAmount:
-        sql<number>`coalesce(sum(case when ${transactions.disbursementStatus} = 'PENDING' AND ${transactions.refundStatus} IN ('NONE', 'FAILED') then ${transactions.netAmount} else 0 end), 0)`.mapWith(
+        sql<number>`coalesce(sum(case when ${transactions.mode} = 'live' AND ${transactions.disbursementStatus} = 'PENDING' AND ${transactions.refundStatus} IN ('NONE', 'FAILED') then ${transactions.netAmount} else 0 end), 0)`.mapWith(
           Number
         ),
       pendingCount:
-        sql<number>`count(*) filter (where ${transactions.disbursementStatus} = 'PENDING' AND ${transactions.refundStatus} IN ('NONE', 'FAILED'))`.mapWith(
+        sql<number>`count(*) filter (where ${transactions.mode} = 'live' AND ${transactions.disbursementStatus} = 'PENDING' AND ${transactions.refundStatus} IN ('NONE', 'FAILED'))`.mapWith(
           Number
         ),
       completedAmount:
-        sql<number>`coalesce(sum(case when ${transactions.disbursementStatus} = 'COMPLETED' then ${transactions.netAmount} else 0 end), 0)`.mapWith(
+        sql<number>`coalesce(sum(case when ${transactions.mode} = 'live' AND ${transactions.disbursementStatus} = 'COMPLETED' then ${transactions.netAmount} else 0 end), 0)`.mapWith(
           Number
         ),
     })
@@ -39,6 +57,8 @@ export async function handlePanelStats() {
   const totalPlatformFeeCollected = totals?.totalFee ?? 0;
   const totalNetBuilderEarnings = totals?.totalNet ?? 0;
   const totalPaidCount = totals?.totalTx ?? 0;
+  const sandboxGMV = totals?.sandboxGMV ?? 0;
+  const sandboxTxCount = totals?.sandboxTx ?? 0;
   const totalPendingDisbursement = totals?.pendingAmount ?? 0;
   const pendingCount = totals?.pendingCount ?? 0;
   const totalCompletedDisbursement = totals?.completedAmount ?? 0;
@@ -55,6 +75,8 @@ export async function handlePanelStats() {
     netBuilderShare: totalNetBuilderEarnings,
     totalTransactions: totalPaidCount,
     paidTransactions: totalPaidCount,
+    sandboxGMV,
+    sandboxTransactions: sandboxTxCount,
     pendingDisbursementsAmount: totalPendingDisbursement,
     pendingDisbursementsCount: pendingCount,
     totalApps,

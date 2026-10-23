@@ -224,9 +224,15 @@ export async function handleFreeTrialCheckout({
       return { trialTx: tTx, newLic: nLic };
     });
   } catch (err: any) {
-    // Backstop unik DB (uniq_transactions_trial_per_app_email): bila dua request
-    // paralel menang balapan, salah satunya gagal di sini → balas 409, bukan 500.
-    if (err?.code === "23505") {
+    const isUniqueViolation =
+      err?.code === "23505" ||
+      err?.cause?.code === "23505" ||
+      err?.message?.includes("23505") ||
+      err?.cause?.message?.includes("23505") ||
+      err?.message?.includes("unique constraint") ||
+      err?.cause?.message?.includes("unique constraint") ||
+      err?.message?.includes("uniq_transactions_trial_per_app_email");
+    if (isUniqueViolation) {
       set.status = 409;
       return {
         success: false,

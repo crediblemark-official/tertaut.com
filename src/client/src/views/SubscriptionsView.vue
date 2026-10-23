@@ -27,6 +27,11 @@ import {
   Ban,
 } from "lucide-vue-next";
 import TableSkeleton from "../components/common/TableSkeleton.vue";
+import TableContainer from "../components/common/TableContainer.vue";
+import TablePagination from "../components/common/TablePagination.vue";
+import StatsBar from "../components/common/StatsBar.vue";
+import StatItem from "../components/common/StatItem.vue";
+import SearchPicker from "../components/common/SearchPicker.vue";
 
 export interface SubscriptionItem extends LicenseItem {
   ltv: number;
@@ -56,7 +61,7 @@ const hasMore = ref(false);
 
 const searchQuery = ref("");
 const selectedStatus = ref<"ALL" | "ACTIVE" | "EXPIRED" | "REVOKED">("ALL");
-const selectedAppId = ref<string>("ALL");
+const selectedAppId = ref<string>("");
 
 const selectedSub = ref<SubscriptionItem | null>(null);
 const isDetailModalOpen = ref(false);
@@ -152,7 +157,7 @@ const filteredSubscriptions = computed<SubscriptionItem[]>(() => {
     if (selectedStatus.value !== "ALL" && sub.status !== selectedStatus.value) {
       return false;
     }
-    if (selectedAppId.value !== "ALL" && sub.appId !== selectedAppId.value) {
+    if (selectedAppId.value && selectedAppId.value !== "ALL" && sub.appId !== selectedAppId.value) {
       return false;
     }
     if (searchQuery.value.trim()) {
@@ -264,22 +269,15 @@ function formatSubDate(dateStr?: string | null): string {
         </div>
 
         <!-- Filter Per Project Dropdown -->
-        <div class="relative shrink-0">
-          <select
-            v-model="selectedAppId"
-            class="h-7 px-2.5 rounded-md bg-white/10 border border-white/15 text-xs text-white focus:outline-none focus:bg-white/15 focus:border-gold transition cursor-pointer"
-          >
-            <option value="ALL" class="bg-jetblack text-white">Semua Project</option>
-            <option
-              v-for="app in appsList"
-              :key="app.id"
-              :value="app.id"
-              class="bg-jetblack text-white"
-            >
-              {{ app.name }}
-            </option>
-          </select>
-        </div>
+        <SearchPicker
+          v-model="selectedAppId"
+          :items="appsList"
+          :dark="true"
+          all-option-label="Semua Project"
+          placeholder="Semua Project"
+          search-placeholder="Cari software SaaS..."
+          button-class="!h-7 !rounded-md !min-w-[150px] !text-xs"
+        />
 
         <!-- Status Filter Pill -->
         <div
@@ -341,208 +339,142 @@ function formatSubDate(dateStr?: string | null): string {
       </div>
     </div>
 
-    <p class="text-xs text-jetblack/60 py-2">
-      Perpanjangan dilakukan manual. Tidak ada pendebitan atau penagihan otomatis setelah trial
-      maupun masa akses berakhir.
-    </p>
-
     <!-- Product Catalog Stats KPI Bar (Flush Canvas, Creem/Polar style) -->
-    <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 py-2.5 sm:py-3 border-b border-jetblack/15 mb-0"
-    >
-      <div class="space-y-0.5">
-        <div class="text-xs font-semibold text-jetblack/60">Langganan Aktif</div>
-        <div v-if="loading" class="space-y-1.5 py-1">
-          <div class="h-7 w-16 bg-forest/15 rounded animate-pulse"></div>
-          <div class="h-3 w-32 bg-forest/10 rounded animate-pulse"></div>
-        </div>
-        <template v-else>
-          <div class="text-2xl font-bold text-forest font-mono tracking-tight">
-            {{ kpiStats.activeCount }}
-          </div>
-          <div class="text-[11px] text-jetblack/50 font-medium">
-            dari total {{ kpiStats.totalCount }} entitas langganan
-          </div>
-        </template>
-      </div>
+    <StatsBar>
+      <StatItem
+        label="Langganan Aktif"
+        :value="kpiStats.activeCount"
+        :sublabel="`dari total ${kpiStats.totalCount} entitas langganan`"
+        variant="forest"
+        :loading="loading"
+      />
 
-      <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
-        <div class="text-xs font-semibold text-jetblack/60">Nilai Akses Aktif / Bulan</div>
-        <div v-if="loading" class="space-y-1.5 py-1">
-          <div class="h-7 w-28 bg-jetblack/10 rounded animate-pulse"></div>
-          <div class="h-3 w-36 bg-jetblack/5 rounded animate-pulse"></div>
-        </div>
-        <template v-else>
-          <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
-            {{ formatRupiah(kpiStats.monthlyEquivalent) }}
-          </div>
-          <div class="text-[11px] text-jetblack/50 font-medium">
-            Nilai pembayaran dinormalisasi durasi akses; bukan tagihan otomatis
-          </div>
-        </template>
-      </div>
+      <StatItem
+        label="Nilai Akses Aktif / Bulan"
+        :value="formatRupiah(kpiStats.monthlyEquivalent)"
+        sublabel="Estimasi omzet bulanan"
+        bordered
+        :loading="loading"
+      />
 
-      <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
-        <div class="text-xs font-semibold text-jetblack/60">Rata-rata Pembayaran per Pelanggan</div>
-        <div v-if="loading" class="space-y-1.5 py-1">
-          <div class="h-7 w-28 bg-jetblack/10 rounded animate-pulse"></div>
-          <div class="h-3 w-36 bg-jetblack/5 rounded animate-pulse"></div>
-        </div>
-        <template v-else>
-          <div class="text-2xl font-bold text-jetblack font-mono tracking-tight">
-            {{ formatRupiah(kpiStats.avgLtv) }}
-          </div>
-          <div class="text-[11px] text-jetblack/50 font-medium">
-            Rata-rata akumulasi nilai per pelanggan
-          </div>
-        </template>
-      </div>
+      <StatItem
+        label="Rata-rata Pembayaran per Pelanggan"
+        :value="formatRupiah(kpiStats.avgLtv)"
+        sublabel="Rata-rata LTV pelanggan"
+        bordered
+        :loading="loading"
+      />
 
-      <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
-        <div class="text-xs font-semibold text-jetblack/60">Jatuh Tempo (7 Hari)</div>
-        <div v-if="loading" class="space-y-1.5 py-1">
-          <div class="h-7 w-16 bg-gold/15 rounded animate-pulse"></div>
-          <div class="h-3 w-36 bg-gold/10 rounded animate-pulse"></div>
-        </div>
-        <template v-else>
-          <div class="text-2xl font-bold text-gold font-mono tracking-tight">
-            {{ kpiStats.expiringSoon }}
-          </div>
-          <div class="text-[11px] text-jetblack/50 font-medium">
-            Masa aktif lisensi akan berakhir dalam 7 hari
-          </div>
-        </template>
-      </div>
-    </div>
+      <StatItem
+        label="Jatuh Tempo (7 Hari)"
+        :value="kpiStats.expiringSoon"
+        sublabel="Masa aktif lisensi akan berakhir dalam 7 hari"
+        variant="gold"
+        bordered
+        :loading="loading"
+      />
+    </StatsBar>
 
     <!-- Edge-to-Edge Table -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
-      <table
-        class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15"
+    <TableContainer>
+      <template #head>
+        <tr>
+          <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Pelanggan</th>
+          <th class="py-2.5 px-3">Produk Software</th>
+          <th class="py-2.5 px-3">Kunci Lisensi</th>
+          <th class="py-2.5 px-3">Siklus</th>
+          <th class="py-2.5 px-3">Total Pembayaran</th>
+          <th class="py-2.5 px-3">Status</th>
+          <th class="py-2.5 px-3">Jatuh Tempo</th>
+          <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
+        </tr>
+      </template>
+
+      <TableSkeleton v-if="loading" :columns="8" :rows="5" />
+      <tr v-else-if="filteredSubscriptions.length === 0">
+        <td colspan="8" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
+          <div class="space-y-1">
+            <p class="font-semibold text-xs text-jetblack/60">Tidak ada langganan ditemukan.</p>
+            <p class="text-[11px] text-jetblack/40">
+              Coba sesuaikan kata kunci pencarian atau filter status.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr
+        v-else
+        v-for="sub in filteredSubscriptions"
+        :key="sub.id"
+        class="hover:bg-slate-50/70 transition group cursor-pointer"
+        @click="openDetail(sub)"
       >
-        <thead class="border-b border-jetblack/20 text-xs font-semibold text-jetblack/70 bg-white">
-          <tr>
-            <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Pelanggan</th>
-            <th class="py-2.5 px-3">Produk Software</th>
-            <th class="py-2.5 px-3">Kunci Lisensi</th>
-            <th class="py-2.5 px-3">Siklus</th>
-            <th class="py-2.5 px-3">Total Pembayaran</th>
-            <th class="py-2.5 px-3">Status</th>
-            <th class="py-2.5 px-3">Jatuh Tempo</th>
-            <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-jetblack/15">
-          <TableSkeleton v-if="loading" :columns="8" :rows="5" />
-          <tr v-else-if="filteredSubscriptions.length === 0">
-            <td colspan="8" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
-              <div class="space-y-1">
-                <p class="font-semibold text-xs text-jetblack/60">Tidak ada langganan ditemukan.</p>
-                <p class="text-[11px] text-jetblack/40">
-                  Coba sesuaikan kata kunci pencarian atau filter status.
-                </p>
-              </div>
-            </td>
-          </tr>
-          <tr
-            v-else
-            v-for="sub in filteredSubscriptions"
-            :key="sub.id"
-            class="hover:bg-slate-50/70 transition group cursor-pointer"
-            @click="openDetail(sub)"
+        <td class="py-3 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-medium text-jetblack">
+          {{ sub.customerEmail }}
+        </td>
+        <td class="py-3 px-3">
+          <span class="font-medium text-jetblack/80">{{ sub.appName }}</span>
+        </td>
+        <td class="py-3 px-3 font-mono text-[11px] text-jetblack">
+          <span class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+            {{ sub.licenseKey.slice(0, 10) }}...
+          </span>
+        </td>
+        <td class="py-3 px-3 text-jetblack/70">
+          {{ sub.billingInterval }}
+        </td>
+        <td class="py-3 px-3 font-mono font-bold text-forest">
+          {{ formatRupiah(sub.ltv) }}
+        </td>
+        <td class="py-3 px-3">
+          <span
+            :class="[
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
+              sub.status === 'ACTIVE'
+                ? 'bg-forest/10 text-forest border border-forest/30'
+                : sub.status === 'EXPIRED'
+                  ? 'bg-gold/15 text-[#8a6d1f] border border-gold/30'
+                  : 'bg-red-50 text-red-600 border border-red-200',
+            ]"
           >
-            <td class="py-3 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-medium text-jetblack">
-              {{ sub.customerEmail }}
-            </td>
-            <td class="py-3 px-3">
-              <span class="font-medium text-jetblack/80">{{ sub.appName }}</span>
-            </td>
-            <td class="py-3 px-3 font-mono text-[11px] text-jetblack">
-              <span class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-                {{ sub.licenseKey.slice(0, 10) }}...
-              </span>
-            </td>
-            <td class="py-3 px-3 text-jetblack/70">
-              {{ sub.billingInterval }}
-            </td>
-            <td class="py-3 px-3 font-mono font-bold text-forest">
-              {{ formatRupiah(sub.ltv) }}
-            </td>
-            <td class="py-3 px-3">
-              <span
-                :class="[
-                  'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
-                  sub.status === 'ACTIVE'
-                    ? 'bg-forest/10 text-forest border border-forest/30'
-                    : sub.status === 'EXPIRED'
-                      ? 'bg-gold/15 text-[#8a6d1f] border border-gold/30'
-                      : 'bg-red-50 text-red-600 border border-red-200',
-                ]"
-              >
-                <span
-                  class="w-1.5 h-1.5 rounded-full"
-                  :class="
-                    sub.status === 'ACTIVE'
-                      ? 'bg-forest'
-                      : sub.status === 'EXPIRED'
-                        ? 'bg-gold'
-                        : 'bg-red-500'
-                  "
-                ></span>
-                {{ sub.status }}
-              </span>
-            </td>
-            <td class="py-3 px-3 text-[11px] text-jetblack/60 font-mono">
-              {{ formatSubDate(sub.expiresAt) }}
-            </td>
-            <td class="py-3 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right" @click.stop>
-              <button
-                type="button"
-                @click="openDetail(sub)"
-                class="px-2.5 py-1 rounded-md text-xs font-semibold border border-slate-300 hover:bg-jetblack hover:text-white hover:border-jetblack transition cursor-pointer"
-              >
-                Kelola
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+            <span
+              class="w-1.5 h-1.5 rounded-full"
+              :class="
+                sub.status === 'ACTIVE'
+                  ? 'bg-forest'
+                  : sub.status === 'EXPIRED'
+                    ? 'bg-gold'
+                    : 'bg-red-500'
+              "
+            ></span>
+            {{ sub.status }}
+          </span>
+        </td>
+        <td class="py-3 px-3 text-[11px] text-jetblack/60 font-mono">
+          {{ formatSubDate(sub.expiresAt) }}
+        </td>
+        <td class="py-3 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right" @click.stop>
+          <button
+            type="button"
+            @click="openDetail(sub)"
+            class="px-2.5 py-1 rounded-md text-xs font-semibold border border-slate-300 hover:bg-jetblack hover:text-white hover:border-jetblack transition cursor-pointer"
+          >
+            Kelola
+          </button>
+        </td>
+      </tr>
+    </TableContainer>
 
     <!-- Pagination Bar -->
-    <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-3 border-b border-jetblack/15 bg-white flex flex-col sm:flex-row items-center justify-between gap-3 text-xs"
-    >
-      <div class="text-jetblack/60">
-        Menampilkan
-        <span class="font-semibold text-jetblack">{{
-          total > 0 ? (page - 1) * limit + 1 : 0
-        }}</span>
-        - <span class="font-semibold text-jetblack">{{ Math.min(page * limit, total) }}</span> dari
-        <span class="font-semibold text-jetblack">{{ total }}</span> langganan
-      </div>
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          @click="prevPage"
-          :disabled="page <= 1 || loading"
-          class="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-jetblack transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-        >
-          Sebelumnya
-        </button>
-        <span class="px-2 font-mono font-medium text-jetblack">
-          Hal {{ page }} / {{ totalPages }}
-        </span>
-        <button
-          type="button"
-          @click="nextPage"
-          :disabled="page >= totalPages || loading"
-          class="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-jetblack transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-        >
-          Selanjutnya
-        </button>
-      </div>
-    </div>
+    <TablePagination
+      v-model:page="page"
+      :total-pages="totalPages"
+      :total="total"
+      :limit="limit"
+      :loading="loading"
+      item-label="langganan"
+      @prev="prevPage"
+      @next="nextPage"
+    />
 
     <!-- Subscription Detail Modal -->
     <div

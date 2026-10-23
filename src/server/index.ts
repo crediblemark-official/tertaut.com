@@ -1,7 +1,5 @@
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
-import { swagger } from "@elysiajs/swagger";
-import { staticPlugin } from "@elysiajs/static";
 import { apiV1Routes } from "./routes/api";
 import { badgeRoutes } from "./routes/badge/router";
 import { webhookRoutes, webhooksPluralRoutes } from "./routes/webhook/router";
@@ -9,50 +7,17 @@ import { checkoutRoutes } from "./routes/checkout/router";
 import { config, resolveRequestOrigin } from "./config";
 import { auth } from "./auth";
 import { LicenseTokenService } from "./services/licensing/licenseToken";
-import { existsSync, statSync } from "fs";
-import { resolve } from "path";
-import { db } from "./db";
-import { user, account } from "./db/schema";
-import { eq, and, asc, sql } from "drizzle-orm";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { startScheduledTasks } from "./tasks/scheduler";
 import { ensureDemoData } from "./db/ensureDemo";
 import { ensurePlatformSettings } from "./db/ensureSettings";
-import { randomBytes } from "crypto";
-import { hashPassword } from "better-auth/crypto";
 import { generateDynamicSitemap } from "./routes/seo/sitemap";
-import { isCrawler, resolveMetadataForPath, injectDynamicSeo } from "./services/seo/seoPrerender";
 import { logger } from "./lib/logger";
+import { configureSwagger } from "./lib/swagger";
+import { staticSpaRoutes } from "./middleware/staticSpa";
+import { runAutoMigrations } from "./bootstrap/migrations";
+import { ensurePlatformAdmin, ensureFirstUserIsAdmin } from "./bootstrap/admin";
 
-const clientDistPath = resolve(import.meta.dir, "../../dist");
-const docsDistPath = resolve(clientDistPath, "docs");
-const isProduction = process.env.NODE_ENV === "production";
-const hasBuiltClient = isProduction && existsSync(clientDistPath);
-
-/** Kirim file dari dalam folder dist (docs) dengan sanitasi path traversal */
-function serveFromDir(dir: string, pathname: string, set: any): any | { error: string } {
-  const safePath = decodeURIComponent(pathname).replace(/\.\.+[/\\]/g, "");
-  let targetFile = resolve(dir, "." + safePath);
-
-  if (targetFile.startsWith(dir) && existsSync(targetFile) && !statSync(targetFile).isDirectory()) {
-    return Bun.file(targetFile);
-  }
-
-  // Fallback halaman tanpa ekstensi (misal /docs/sdk):
-  if (!safePath.split("/").pop()?.includes(".")) {
-    targetFile = resolve(dir, "." + safePath + ".html");
-    if (
-      targetFile.startsWith(dir) &&
-      existsSync(targetFile) &&
-      !statSync(targetFile).isDirectory()
-    ) {
-      return Bun.file(targetFile);
-    }
-  }
-
-  set.status = 404;
-  return { error: "Not Found" };
-}
+export { ensurePlatformAdmin, ensureFirstUserIsAdmin };
 
 export const app = new Elysia()
   // Deteksi otomatis domain yang sedang dipakai oleh klien/browser
@@ -125,7 +90,7 @@ export const app = new Elysia()
     set.headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     set.headers["X-XSS-Protection"] = "0";
 
-    // Request ID Tracing (Item 13)
+    // Request ID Tracing
     const reqId = request?.headers?.get("x-request-id") || crypto.randomUUID();
     set.headers["X-Request-Id"] = reqId;
 
@@ -146,109 +111,7 @@ export const app = new Elysia()
   })
 
   // Interactive Swagger / OpenAPI Documentation
-  .use(
-    swagger({
-      path: "/swagger",
-      provider: "swagger-ui",
-      exclude: [
-        // Internal admin panel (hanya untuk dashboard internal, bukan API builder)
-        /^\/api\/v1\/panel/,
-        /^\/panel/,
-        // Webhook callback (server-to-server, bukan untuk builder)
-        /^\/webhook/,
-        /^\/webhooks/,
-        /^\/api\/v1\/webhook/,
-        /^\/api\/v1\/webhooks/,
-        /^\/api\/v1\/checkout\/webhook/,
-        // Duplikat root-level (path kanonik sudah di /api/v1/...)
-        /^\/checkout\//,
-        /^\/badge\//,
-        // Alias legacy duplikat
-        /^\/api\/v1\/license\//,
-        // Manajemen aplikasi via dashboard (kelola lewat UI; programatik pakai S2S)
-        /^\/api\/v1\/apps\/$/,
-        /^\/api\/v1\/apps\/[^/]+$/,
-        /^\/api\/v1\/apps\/stats/,
-        /^\/api\/v1\/apps\/check-slug/,
-        /^\/api\/v1\/apps\/me/,
-        /^\/api\/v1\/apps\/rotate-secret-api-key/,
-        /^\/api\/v1\/apps\/[^/]+\/rotate-api-key/,
-        /^\/api\/v1\/apps\/[^/]+\/mode/,
-        /^\/api\/v1\/apps\/disburse/,
-        // Operasi uang & dashboard checkout (bukan konsumen external)
-        /^\/api\/v1\/checkout\/transactions/,
-        /^\/api\/v1\/checkout\/disburse/,
-        /^\/api\/v1\/payouts/,
-        // Manajemen kupon via dashboard
-        /^\/api\/v1\/coupons/,
-        // Launch kit dashboard
-        /^\/api\/v1\/launch/,
-        // Admin lisensi dashboard (programatik: S2S /licenses/issue|revoke)
-        /^\/api\/v1\/licensing\/list/,
-        /^\/api\/v1\/licensing\/issue/,
-        /^\/api\/v1\/licensing\/revoke/,
-        /^\/api\/v1\/licensing\/unbind-hardware/,
-        /^\/api\/v1\/licensing\/renew/,
-        /^\/api\/v1\/licensing\/seats/,
-        /^\/api\/v1\/licensing\/events/,
-        /^\/api\/v1\/licensing\/webhooks/,
-        // Endpoint internal yang tidak dipakai SDK/docs (bukan API builder)
-        /^\/api\/v1\/health\//,
-        /^\/api\/v1\/apps\/by-slug\//,
-        /^\/api\/v1\/checkout\/preview-coupon/,
-        // Internal banner pengumuman frontend
-        /^\/api\/v1\/announcement/,
-      ],
-      documentation: {
-        info: {
-          title: "tertaut.com Developer API",
-          version: "0.2.0",
-          description:
-            "Spesifikasi OpenAPI resmi untuk platform **tertaut.com** — Merchant of Record (MoR) dan Lisensi Kriptografis Offline-First (Ed25519) untuk software builder di Indonesia.\n\n" +
-            "### 🛡️ Skema Autentikasi:\n" +
-            "- **`BuilderSecretKey` (`Bearer tt_secret_...`)**: Wajib untuk seluruh endpoint Server-to-Server (`/api/v1/s2s/*`). Ambil secret key Anda di halaman Dashboard > Docs. Jangan pernah mengekspos secret key ini di aplikasi klien/frontend.\n" +
-            "- **`LicenseToken` (`Bearer <token>`)**: Digunakan oleh perangkat klien setelah aktivasi lisensi (`POST /api/v1/licensing/activate`) untuk membuktikan kepemilikan lisensi secara offline.\n\n" +
-            "### 📦 Integrasi SDK Resmi:\n" +
-            "Gunakan library resmi [`@tertaut/sdk`](https://www.npmjs.com/package/@tertaut/sdk) (`npm install @tertaut/sdk`) untuk TypeScript/JavaScript, browser, Bun, Node.js, Tauri, dan Electron.",
-        },
-        tags: [
-          {
-            name: "MoR Checkout",
-            description:
-              "Alur pembayaran Merchant of Record (QRIS & Virtual Account), e-receipt resmi (PPN 11%), kupon diskon, dan status polling.",
-          },
-          {
-            name: "Universal Licensing",
-            description:
-              "Validasi lisensi multi-platform, binding hardware ID perangkat, aktivasi floating seat, dan token offline Ed25519.",
-          },
-          {
-            name: "S2S API",
-            description:
-              "Endpoint Server-to-Server terproteksi secret API key untuk otomasi backend (issuance, revoke, batch ops, transfer, webhooks).",
-          },
-        ],
-        components: {
-          securitySchemes: {
-            BuilderSecretKey: {
-              type: "http",
-              scheme: "bearer",
-              bearerFormat: "JWT",
-              description:
-                "Secret API key builder (tt_secret_...) dari halaman Dashboard Docs. Wajib untuk seluruh endpoint Server-to-Server (/api/v1/s2s/*). Jangan pernah simpan di frontend.",
-            },
-            LicenseToken: {
-              type: "http",
-              scheme: "bearer",
-              bearerFormat: "JWT",
-              description:
-                "Offline license token (JWT) hasil POST /api/v1/licensing/activate — atau sertakan licenseKey di body/query untuk verifikasi lisensi offline.",
-            },
-          },
-        },
-      },
-    })
-  )
+  .use(configureSwagger())
 
   .onError(({ code, error, set, path }) => {
     if (path.startsWith("/api/auth/")) return;
@@ -342,256 +205,10 @@ export const app = new Elysia()
     set.headers["content-type"] = "application/xml; charset=utf-8";
     set.headers["cache-control"] = "public, max-age=3600, s-maxage=86400";
     return await generateDynamicSitemap();
-  });
+  })
 
-// Production: Single Container Monolith serves built SPA assets from dist/
-if (hasBuiltClient) {
-  const serveDocsIndex = () => {
-    const indexPath = resolve(docsDistPath, "index.html");
-    if (existsSync(indexPath)) {
-      return Bun.file(indexPath);
-    }
-    return { error: "Docs belum di-build (jalankan: bun run build:docs)" };
-  };
-
-  app
-    // VitePress /docs (base: /docs/)
-    .get("/docs", ({ set }) => {
-      set.status = 301;
-      set.headers["location"] = "/docs/";
-      return {};
-    })
-    .get("/docs/", serveDocsIndex)
-    .get("/docs/*", ({ request, set }) =>
-      serveFromDir(docsDistPath, new URL(request.url).pathname.slice("/docs".length), set)
-    )
-    // SPA fallback
-    .get("*", async ({ request, set }) => {
-      const url = new URL(request.url);
-      if (url.pathname.startsWith("/api/")) {
-        set.status = 404;
-        return { error: `Endpoint API ${url.pathname} tidak ditemukan` };
-      }
-      const decodedPath = decodeURIComponent(url.pathname);
-      // Sanitize path traversal attempts
-      const safePath = decodedPath.replace(/\.\.+[/\\]/g, "");
-
-      // Sajikan robots.txt, llms.txt, & llms-full.txt dengan header text/plain
-      if (
-        url.pathname === "/robots.txt" ||
-        url.pathname === "/llms.txt" ||
-        url.pathname === "/llms-full.txt"
-      ) {
-        const fileName = url.pathname.slice(1);
-        const txtFile = resolve(clientDistPath, fileName);
-        if (existsSync(txtFile)) {
-          set.headers["content-type"] = "text/plain; charset=utf-8";
-          return Bun.file(txtFile);
-        }
-      }
-
-      // Sajikan .well-known/ai-catalog.json dengan header application/json
-      if (url.pathname === "/.well-known/ai-catalog.json") {
-        const catalogFile = resolve(clientDistPath, ".well-known/ai-catalog.json");
-        if (existsSync(catalogFile)) {
-          set.headers["content-type"] = "application/json; charset=utf-8";
-          return Bun.file(catalogFile);
-        }
-      }
-
-      const targetFile = resolve(clientDistPath, "." + safePath);
-
-      // Ensure resolved path is strictly within clientDistPath
-      if (
-        targetFile.startsWith(clientDistPath) &&
-        existsSync(targetFile) &&
-        !statSync(targetFile).isDirectory()
-      ) {
-        return Bun.file(targetFile);
-      }
-
-      const indexPath = resolve(clientDistPath, "index.html");
-      if (existsSync(indexPath)) {
-        set.headers["content-type"] = "text/html; charset=utf-8";
-        try {
-          const rawHtml = await Bun.file(indexPath).text();
-          const userAgent = request.headers.get("user-agent");
-          const meta = await resolveMetadataForPath(url.pathname);
-          return injectDynamicSeo(rawHtml, meta, { isCrawler: isCrawler(userAgent) });
-        } catch {
-          return Bun.file(indexPath);
-        }
-      }
-      set.status = 404;
-      return { error: "Not Found" };
-    });
-} else {
-  // Development: Port 8081 is strictly Backend API & Swagger
-  app.get("*", ({ request, set }) => {
-    const url = new URL(request.url);
-    if (url.pathname.startsWith("/api/")) {
-      set.status = 404;
-      return { error: `Endpoint API ${url.pathname} tidak ditemukan` };
-    }
-    if (url.pathname === "/") {
-      return {
-        service: "tertaut.com Engine Backend API",
-        port: config.port,
-        mode: "development",
-        endpoints: {
-          swagger: `http://localhost:${config.port}/swagger`,
-          docs: "http://localhost:5173/docs",
-          health: `http://localhost:${config.port}/api/v1/health`,
-        },
-        notice: "Frontend UI is running on Vite Dev Server: http://localhost:5173",
-      };
-    }
-    // Redirect accidental frontend route visits to Vite dev server
-    return Response.redirect(`http://localhost:5173${url.pathname}${url.search}`, 302);
-  });
-}
-
-/** Jalankan migrasi skema database secara otomatis pada startup jika tabel belum ada */
-async function runAutoMigrations(): Promise<void> {
-  try {
-    const migrationsFolder = resolve(import.meta.dir, "db/migrations");
-    if (existsSync(migrationsFolder)) {
-      console.log("[DB] Memeriksa dan menjalankan migrasi skema database...");
-      await migrate(db, { migrationsFolder });
-      console.log("[DB] Migrasi skema database berhasil diaplikasikan!");
-    }
-  } catch (error: any) {
-    console.error("[DB] Migrasi database gagal:", error?.message || error);
-    if (process.env.NODE_ENV === "production") {
-      throw new Error(
-        `[DB] Startup halted: Migrasi skema database gagal: ${error?.message || error}`
-      );
-    }
-  }
-
-  // Idempotent safeguard: Pastikan tabel projects & view apps harmonis di semua database/environment
-  try {
-    await db.execute(sql`
-      DO $$
-      DECLARE
-        apps_kind "char";
-        projects_kind "char";
-      BEGIN
-        SELECT relkind INTO apps_kind FROM pg_class WHERE relname = 'apps' AND relnamespace = 'public'::regnamespace;
-        SELECT relkind INTO projects_kind FROM pg_class WHERE relname = 'projects' AND relnamespace = 'public'::regnamespace;
-
-        IF apps_kind = 'r' AND projects_kind IS NULL THEN
-          ALTER TABLE public.apps RENAME TO projects;
-          projects_kind := 'r';
-          apps_kind := NULL;
-        END IF;
-
-        IF projects_kind = 'r' THEN
-          ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS "api_key" text DEFAULT '' NOT NULL;
-          ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS "app_type" text DEFAULT 'saas_web' NOT NULL;
-          ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS "brand_color" text DEFAULT '#0D9488';
-          ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS "logo_url" text;
-          ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS "app_url" text;
-          ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS "is_suspended" boolean DEFAULT false NOT NULL;
-          ALTER TABLE public.projects DROP COLUMN IF EXISTS "metering_config";
-
-          CREATE INDEX IF NOT EXISTS "idx_projects_builder_id" ON public.projects ("builder_id");
-          CREATE INDEX IF NOT EXISTS "idx_projects_mode" ON public.projects ("mode");
-        END IF;
-
-        IF projects_kind IS NOT NULL AND apps_kind IS NULL THEN
-          CREATE OR REPLACE VIEW public.apps AS SELECT * FROM public.projects;
-        END IF;
-      END $$;
-    `);
-  } catch (err: any) {
-    console.warn("[DB] Safeguard harmonisasi projects/apps:", err?.message || err);
-  }
-}
-
-/**
- * Pastikan akun admin platform (platformtertaut@gmail.com atau ADMIN_EMAIL)
- * memiliki role "admin" dan emailVerified: true.
- * Akun lain tidak boleh dipromosikan otomatis hanya karena terdaftar pertama.
- */
-export async function ensurePlatformAdmin(): Promise<void> {
-  try {
-    const adminEmail = (
-      config.admin.email ||
-      process.env.ADMIN_EMAIL ||
-      "platformtertaut@gmail.com"
-    ).toLowerCase();
-    let platformUser = await db.query.user.findFirst({
-      where: eq(user.email, adminEmail),
-    });
-
-    if (!platformUser) {
-      const adminPassword =
-        config.admin.password ||
-        (config.isTest ? "TestAdminPass123!" : `Sec_${randomBytes(16).toString("hex")}!Aa1`);
-
-      if (!config.admin.password && !config.isTest) {
-        console.warn(
-          `[Auth] PERINGATAN: ADMIN_PASSWORD tidak disetel di environment. Password awal yang di-generate: ${adminPassword}`
-        );
-      }
-
-      try {
-        await auth.api.signUpEmail({
-          body: {
-            email: adminEmail,
-            password: adminPassword,
-            name: "Platform Tertaut",
-          },
-        });
-        platformUser = await db.query.user.findFirst({
-          where: eq(user.email, adminEmail),
-        });
-      } catch (err: any) {
-        console.warn("[Auth] Gagal inisialisasi akun platform admin:", err?.message || err);
-      }
-    }
-
-    if (platformUser && (platformUser.role !== "admin" || !platformUser.emailVerified)) {
-      await db
-        .update(user)
-        .set({ role: "admin", emailVerified: true })
-        .where(eq(user.id, platformUser.id));
-      console.log(`[Auth] Akun platform (${adminEmail}) dipastikan sebagai admin.`);
-    }
-
-    if (platformUser && config.admin.password) {
-      const hashedPassword = await hashPassword(config.admin.password);
-      const existingAccount = await db.query.account.findFirst({
-        where: and(eq(account.userId, platformUser.id), eq(account.providerId, "credential")),
-      });
-
-      if (existingAccount) {
-        await db
-          .update(account)
-          .set({ password: hashedPassword, updatedAt: new Date() })
-          .where(eq(account.id, existingAccount.id));
-      } else {
-        await db.insert(account).values({
-          id: `acc_admin_${Date.now()}`,
-          accountId: platformUser.id,
-          providerId: "credential",
-          userId: platformUser.id,
-          password: hashedPassword,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-      }
-      console.log(
-        `[Auth] Password akun platform (${adminEmail}) berhasil disinkronkan dari environment.`
-      );
-    }
-  } catch (error: any) {
-    console.warn("[Auth] Gagal memeriksa status admin platform:", error?.message || error);
-  }
-}
-
-export const ensureFirstUserIsAdmin = ensurePlatformAdmin;
+  // Mount Static Assets & SPA Fallback
+  .use(staticSpaRoutes);
 
 if (!config.isTest) {
   await runAutoMigrations();
@@ -609,7 +226,7 @@ if (!config.isTest) {
     console.log(`⚡ Runtime: Bun ${Bun.version} | Single Container Architecture ready\n`);
   });
 
-  // Graceful Shutdown (Item 12)
+  // Graceful Shutdown
   const shutdown = async (signal: string) => {
     console.log(`\n🛑 Menerima sinyal ${signal}. Memulai proses graceful shutdown...`);
     scheduledTasks.stop();

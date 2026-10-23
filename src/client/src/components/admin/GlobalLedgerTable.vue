@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, computed } from "vue";
 import { Search, Download, RotateCcw, Receipt } from "lucide-vue-next";
 import type { PanelTransactionItem } from "../../types/panel";
 import TableSkeleton from "../common/TableSkeleton.vue";
+import TableContainer from "../common/TableContainer.vue";
 
 const props = defineProps<{
   transactions: PanelTransactionItem[];
@@ -11,6 +12,7 @@ const props = defineProps<{
 
 const statusFilter = defineModel<string>("statusFilter", { default: "" });
 const searchQuery = defineModel<string>("searchQuery", { default: "" });
+const modeFilter = ref<string>("");
 
 const emit = defineEmits<{
   (e: "filterChange"): void;
@@ -18,13 +20,19 @@ const emit = defineEmits<{
 }>();
 
 function handleExportCsv() {
-  const q = statusFilter.value ? `?status=${encodeURIComponent(statusFilter.value)}` : "";
+  const params = new URLSearchParams();
+  if (statusFilter.value) params.append("status", statusFilter.value);
+  if (modeFilter.value) params.append("mode", modeFilter.value);
+  const q = params.toString() ? `?${params.toString()}` : "";
   window.open(`/api/v1/panel/export/transactions${q}`, "_blank");
 }
 
 const filteredTransactions = computed(() => {
   return props.transactions.filter((tx) => {
     if (statusFilter.value && tx.paymentStatus !== statusFilter.value) {
+      return false;
+    }
+    if (modeFilter.value && (tx.mode || "live") !== modeFilter.value) {
       return false;
     }
     if (searchQuery.value.trim()) {
@@ -58,6 +66,15 @@ const filteredTransactions = computed(() => {
 
       <div class="flex items-center gap-2">
         <select
+          v-model="modeFilter"
+          class="h-9 px-3 text-xs rounded-lg border border-slate-300/80 hover:border-slate-400 bg-white font-medium text-jetblack focus:outline-none focus:ring-2 focus:ring-gold/20 focus:border-gold shadow-2xs transition"
+        >
+          <option value="">Semua Mode</option>
+          <option value="live">Mode LIVE</option>
+          <option value="sandbox">Mode SANDBOX</option>
+        </select>
+
+        <select
           v-model="statusFilter"
           @change="emit('filterChange')"
           class="h-9 px-3 text-xs rounded-lg border border-slate-300/80 hover:border-slate-400 bg-white font-medium text-jetblack focus:outline-none focus:ring-2 focus:ring-gold/20 focus:border-gold shadow-2xs transition"
@@ -81,119 +98,125 @@ const filteredTransactions = computed(() => {
     </div>
 
     <!-- Table View (Responsive Table with Horizontal Scroll on Mobile) -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
-      <table
-        class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15"
+    <TableContainer>
+      <template #head>
+        <tr>
+          <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Tanggal</th>
+          <th class="py-2.5 px-3">TX ID</th>
+          <th class="py-2.5 px-3">Aplikasi</th>
+          <th class="py-2.5 px-3">Builder</th>
+          <th class="py-2.5 px-3">Pelanggan</th>
+          <th class="py-2.5 px-3">Gross (GMV)</th>
+          <th class="py-2.5 px-3">MoR 5%</th>
+          <th class="py-2.5 px-3">Net 95%</th>
+          <th class="py-2.5 px-3">Status</th>
+          <th class="py-2.5 px-3">Disbursement</th>
+          <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
+        </tr>
+      </template>
+      <TableSkeleton v-if="loading" :columns="11" :rows="5" />
+      <tr v-else-if="filteredTransactions.length === 0">
+        <td colspan="11" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
+          Tidak ada transaksi ditemukan.
+        </td>
+      </tr>
+      <tr
+        v-else
+        v-for="tx in filteredTransactions"
+        :key="tx.id"
+        class="hover:bg-jetblack/[0.02] transition"
       >
-        <thead class="border-b border-jetblack/20 text-xs font-semibold text-jetblack/70 bg-white">
-          <tr>
-            <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Tanggal</th>
-            <th class="py-2.5 px-3">TX ID</th>
-            <th class="py-2.5 px-3">Aplikasi</th>
-            <th class="py-2.5 px-3">Builder</th>
-            <th class="py-2.5 px-3">Pelanggan</th>
-            <th class="py-2.5 px-3">Gross (GMV)</th>
-            <th class="py-2.5 px-3">MoR 5%</th>
-            <th class="py-2.5 px-3">Net 95%</th>
-            <th class="py-2.5 px-3">Status</th>
-            <th class="py-2.5 px-3">Disbursement</th>
-            <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-jetblack/15">
-          <TableSkeleton v-if="loading" :columns="11" :rows="5" />
-          <tr v-else-if="filteredTransactions.length === 0">
-            <td colspan="11" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
-              Tidak ada transaksi ditemukan.
-            </td>
-          </tr>
-          <tr
-            v-else
-            v-for="tx in filteredTransactions"
-            :key="tx.id"
-            class="hover:bg-jetblack/[0.02] transition"
+        <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 text-[11px] text-jetblack/70 font-mono">
+          {{ new Date(tx.createdAt).toLocaleDateString("id-ID") }}
+        </td>
+        <td class="py-2.5 px-3 font-mono font-bold text-[11px] text-jetblack">
+          <div class="flex items-center gap-1.5">
+            <span>{{ tx.id.slice(0, 10) }}...</span>
+            <span
+              :class="[
+                'px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase border',
+                tx.mode === 'sandbox'
+                  ? 'bg-amber-50 text-amber-800 border-amber-300'
+                  : 'bg-emerald-50 text-emerald-800 border-emerald-300',
+              ]"
+            >
+              {{ tx.mode || "live" }}
+            </span>
+          </div>
+        </td>
+        <td class="py-2.5 px-3 font-semibold text-jetblack">{{ tx.appName }}</td>
+        <td class="py-2.5 px-3 text-jetblack/70 font-mono text-[11px]">
+          {{ tx.builderEmail }}
+        </td>
+        <td class="py-2.5 px-3 text-jetblack/70 font-mono text-[11px]">
+          {{ tx.customerEmail }}
+        </td>
+        <td class="py-2.5 px-3 font-mono font-bold text-jetblack">
+          Rp {{ tx.grossAmount.toLocaleString("id-ID") }}
+        </td>
+        <td class="py-2.5 px-3 font-mono font-bold text-[#996515]">
+          Rp {{ tx.platformFee.toLocaleString("id-ID") }}
+        </td>
+        <td class="py-2.5 px-3 font-mono font-bold text-forest">
+          Rp {{ tx.netAmount.toLocaleString("id-ID") }}
+        </td>
+        <td class="py-2.5 px-3">
+          <span
+            :class="[
+              'px-2 py-0.5 rounded-full text-[10px] font-bold',
+              tx.paymentStatus === 'PAID'
+                ? 'bg-forest/10 text-forest'
+                : tx.paymentStatus === 'PENDING'
+                  ? 'bg-gold/20 text-[#996515]'
+                  : tx.paymentStatus === 'REFUNDED'
+                    ? 'bg-[#B91C1C]/15 text-[#B91C1C]'
+                    : 'bg-[#B91C1C]/10 text-[#B91C1C]',
+            ]"
           >
-            <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 text-[11px] text-jetblack/70 font-mono">
-              {{ new Date(tx.createdAt).toLocaleDateString("id-ID") }}
-            </td>
-            <td class="py-2.5 px-3 font-mono font-bold text-[11px] text-jetblack">
-              {{ tx.id.slice(0, 10) }}...
-            </td>
-            <td class="py-2.5 px-3 font-semibold text-jetblack">{{ tx.appName }}</td>
-            <td class="py-2.5 px-3 text-jetblack/70 font-mono text-[11px]">
-              {{ tx.builderEmail }}
-            </td>
-            <td class="py-2.5 px-3 text-jetblack/70 font-mono text-[11px]">
-              {{ tx.customerEmail }}
-            </td>
-            <td class="py-2.5 px-3 font-mono font-bold text-jetblack">
-              Rp {{ tx.grossAmount.toLocaleString("id-ID") }}
-            </td>
-            <td class="py-2.5 px-3 font-mono font-bold text-[#996515]">
-              Rp {{ tx.platformFee.toLocaleString("id-ID") }}
-            </td>
-            <td class="py-2.5 px-3 font-mono font-bold text-forest">
-              Rp {{ tx.netAmount.toLocaleString("id-ID") }}
-            </td>
-            <td class="py-2.5 px-3">
-              <span
-                :class="[
-                  'px-2 py-0.5 rounded-full text-[10px] font-bold',
-                  tx.paymentStatus === 'PAID'
-                    ? 'bg-forest/10 text-forest'
-                    : tx.paymentStatus === 'PENDING'
-                      ? 'bg-gold/20 text-[#996515]'
-                      : tx.paymentStatus === 'REFUNDED'
-                        ? 'bg-[#B91C1C]/15 text-[#B91C1C]'
-                        : 'bg-[#B91C1C]/10 text-[#B91C1C]',
-                ]"
-              >
-                {{ tx.paymentStatus }}
-              </span>
-            </td>
-            <td class="py-2.5 px-3">
-              <span
-                :class="[
-                  'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
-                  tx.disbursementStatus === 'COMPLETED'
-                    ? 'bg-forest/10 text-forest'
-                    : tx.disbursementStatus === 'CANCELLED'
-                      ? 'bg-[#B91C1C]/10 text-[#B91C1C]'
-                      : 'bg-jetblack/10 text-jetblack/70',
-                ]"
-              >
-                {{ tx.disbursementStatus }}
-              </span>
-            </td>
-            <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
-              <div class="inline-flex items-center gap-1.5">
-                <router-link
-                  :to="`/invoice/${tx.id}`"
-                  target="_blank"
-                  class="p-1 rounded text-jetblack/60 hover:text-jetblack hover:bg-jetblack/5 transition cursor-pointer"
-                  title="Lihat Faktur / E-Receipt"
-                >
-                  <Receipt class="w-3.5 h-3.5" />
-                </router-link>
-                <button
-                  v-if="tx.paymentStatus === 'PAID'"
-                  :disabled="['PROCESSING', 'UNKNOWN', 'COMPLETED'].includes(tx.refundStatus || '')"
-                  @click="emit('refund', tx)"
-                  class="px-2 py-0.5 rounded text-[10px] font-bold border border-red-300 bg-white text-red-600 hover:bg-red-50 transition cursor-pointer inline-flex items-center gap-1"
-                  title="Kembalikan dana ke pembeli & cabut lisensi otomatis"
-                >
-                  <RotateCcw class="w-3 h-3" />
-                  <span>{{
-                    ["PROCESSING", "UNKNOWN"].includes(tx.refundStatus || "")
-                      ? "Refund diproses"
-                      : "Refund"
-                  }}</span>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+            {{ tx.paymentStatus }}
+          </span>
+        </td>
+        <td class="py-2.5 px-3">
+          <span
+            :class="[
+              'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
+              tx.disbursementStatus === 'COMPLETED'
+                ? 'bg-forest/10 text-forest'
+                : tx.disbursementStatus === 'CANCELLED'
+                  ? 'bg-[#B91C1C]/10 text-[#B91C1C]'
+                  : 'bg-jetblack/10 text-jetblack/70',
+            ]"
+          >
+            {{ tx.disbursementStatus }}
+          </span>
+        </td>
+        <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
+          <div class="inline-flex items-center gap-1.5">
+            <router-link
+              :to="`/invoice/${tx.id}`"
+              target="_blank"
+              class="p-1 rounded text-jetblack/60 hover:text-jetblack hover:bg-jetblack/5 transition cursor-pointer"
+              title="Lihat Faktur / E-Receipt"
+            >
+              <Receipt class="w-3.5 h-3.5" />
+            </router-link>
+            <button
+              v-if="tx.paymentStatus === 'PAID'"
+              :disabled="['PROCESSING', 'UNKNOWN', 'COMPLETED'].includes(tx.refundStatus || '')"
+              @click="emit('refund', tx)"
+              class="px-2 py-0.5 rounded text-[10px] font-bold border border-red-300 bg-white text-red-600 hover:bg-red-50 transition cursor-pointer inline-flex items-center gap-1"
+              title="Kembalikan dana ke pembeli & cabut lisensi otomatis"
+            >
+              <RotateCcw class="w-3 h-3" />
+              <span>{{
+                ["PROCESSING", "UNKNOWN"].includes(tx.refundStatus || "")
+                  ? "Refund diproses"
+                  : "Refund"
+              }}</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+    </TableContainer>
   </section>
 </template>

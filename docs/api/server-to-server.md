@@ -111,7 +111,9 @@ curl -X POST https://tertaut.com/api/v1/s2s/licenses/issue \
     "customerEmail": "pembeli@example.com",
     "grantDays": 30,
     "maxSeats": 3,
-    "platform": "web"
+    "platform": "web",
+    "features": { "pro_tier": true },
+    "licenseVersion": 1
   }'
 ```
 
@@ -125,12 +127,16 @@ curl -X POST https://tertaut.com/api/v1/s2s/licenses/issue \
     "customerEmail": "pembeli@example.com",
     "status": "ACTIVE",
     "maxSeats": 3,
+    "platform": "web",
+    "features": { "pro_tier": true },
+    "licenseVersion": 1,
     "expiresAt": "2026-10-18T00:00:00.000Z"
   }
 }
 ```
 
 - `grantDays` default 30, `maxSeats` default 3, `platform` default `general`.
+- `features` (opsional): dictionary entitlements kustom untuk gating fitur di client.
 - Email lisensi otomatis ke `customerEmail`. Jika `deliveryConfig.apiAccess.enabled` di app, lisensi ikut membawa `apiKey` (`tt_cust_...`).
 - App bukan milik builder → `404`.
 

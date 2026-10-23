@@ -326,13 +326,14 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
           }),
         });
         if (vaRes.ok) {
-          const vaData = (await vaRes.json()) as any;
+          const vaData = (await vaRes.json()) as { account_number?: string };
           if (vaData.account_number) {
             directPaymentCode = vaData.account_number;
           }
         }
-      } catch (vaErr: any) {
-        console.warn("[XenditGateway] Direct VA creation note:", vaErr?.message);
+      } catch (vaErr: unknown) {
+        const msg = vaErr instanceof Error ? vaErr.message : String(vaErr);
+        console.warn("[XenditGateway] Direct VA creation note:", msg);
       }
     }
 
@@ -354,14 +355,15 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
           }),
         });
         if (qrRes.ok) {
-          const qrData = (await qrRes.json()) as any;
+          const qrData = (await qrRes.json()) as { qr_string?: string };
           if (qrData.qr_string) {
             directPaymentCode = qrData.qr_string;
             directQrDataUrl = await QRCode.toDataURL(qrData.qr_string, { width: 320, margin: 2 });
           }
         }
-      } catch (qrErr: any) {
-        console.warn("[XenditGateway] Direct QR creation note:", qrErr?.message);
+      } catch (qrErr: unknown) {
+        const msg = qrErr instanceof Error ? qrErr.message : String(qrErr);
+        console.warn("[XenditGateway] Direct QR creation note:", msg);
       }
     }
 
@@ -416,15 +418,15 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
       const isExpired = status === "EXPIRED";
       const isFailed = status === "FAILED";
 
+      const invRecord = invoice as unknown as Record<string, unknown>;
       return {
         isPaid,
         isExpired,
         isFailed,
-        paidAmount: (invoice as any).paidAmount || (invoice as any).paid_amount || invoice.amount,
-        paymentChannel:
-          (invoice as any).paymentMethod ||
-          (invoice as any).paymentChannel ||
-          (invoice as any).payment_channel,
+        paidAmount: Number(invRecord.paidAmount || invRecord.paid_amount || invoice.amount),
+        paymentChannel: (invRecord.paymentMethod ||
+          invRecord.paymentChannel ||
+          invRecord.payment_channel) as string | undefined,
         raw: invoice,
       };
     } catch {
@@ -494,10 +496,16 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
       signal: AbortSignal.timeout(15000),
     });
     if (!response.ok) throw new Error(`Xendit refund inquiry HTTP ${response.status}`);
-    const body = (await response.json()) as any;
+    interface XenditRefundItem {
+      id?: string;
+      amount?: number;
+      status?: string;
+      reference_id?: string;
+    }
+    const body = (await response.json()) as XenditRefundItem & { data?: XenditRefundItem[] };
     const result = params.id
       ? body
-      : (body.data || []).find((item: any) => item.reference_id === params.externalId);
+      : (body.data || []).find((item) => item.reference_id === params.externalId);
     return result
       ? { id: result.id, amount: result.amount, status: normalizeMoneyStatus(result.status) }
       : { status: "UNKNOWN" };

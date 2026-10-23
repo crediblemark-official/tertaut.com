@@ -287,6 +287,8 @@ export class WebhookService {
       const signature = this.sign(endpoint.secret, rawBody);
 
       let ok = false;
+      let httpStatus: number | null = null;
+      let errorMessage = "";
       try {
         const status = await sendWebhook(
           endpoint.url,
@@ -301,16 +303,39 @@ export class WebhookService {
           },
           WEBHOOK_TIMEOUT_MS
         );
+        httpStatus = status;
         ok = status >= 200 && status < 300;
-      } catch (err: any) {
-        logger.debug(
-          `[Webhook] delivery ${delivery.id} -> ${endpoint.url} gagal: ${err?.message || err}`
-        );
+        if (!ok) {
+          errorMessage = `HTTP ${status}`;
+        }
+      } catch (err: unknown) {
+        errorMessage = err instanceof Error ? err.message : String(err);
         ok = false;
       }
 
+      // Klasifikasi error permanen (terminal) vs transien:
+      // Error SSRF, URL tidak valid, dan HTTP 4xx (kecuali 408/429) tidak akan berhasil jika di-retry.
+      const isTerminal =
+        (httpStatus !== null &&
+          httpStatus >= 400 &&
+          httpStatus < 500 &&
+          httpStatus !== 408 &&
+          httpStatus !== 429) ||
+        errorMessage.includes("Alamat jaringan internal tidak diizinkan") ||
+        errorMessage.includes("alamat IP publik") ||
+        errorMessage.includes("tanpa kredensial") ||
+        errorMessage.includes("Invalid URL");
+
+      if (!ok) {
+        logger.debug(
+          `[Webhook] delivery ${delivery.id} -> ${endpoint.url} gagal: ${errorMessage}${
+            isTerminal ? " [TERMINAL]" : ""
+          }`
+        );
+      }
+
       const attempts = delivery.attempts;
-      const failed = attempts >= MAX_WEBHOOK_ATTEMPTS;
+      const failed = attempts >= MAX_WEBHOOK_ATTEMPTS || isTerminal;
       await db
         .update(webhookDeliveries)
         .set({
@@ -335,10 +360,22 @@ export class WebhookService {
         );
 
       attempted += 1;
-      if (!ok && !failed) {
-        logger.debug(
-          `[Webhook] delivery ${delivery.id} gagal (attempt ${attempts}), retry dalam ${Math.pow(2, attempts) * 30} detik.`
-        );
+      if (!ok) {
+        if (failed) {
+          logger.debug(
+            `[Webhook] delivery ${delivery.id} ditandai FAILED permanen (${
+              isTerminal
+                ? "kegagalan tidak dapat diulang"
+                : `mencapai ${MAX_WEBHOOK_ATTEMPTS} attempts`
+            }).`
+          );
+        } else {
+          logger.debug(
+            `[Webhook] delivery ${delivery.id} gagal (attempt ${attempts}), retry dalam ${
+              Math.pow(2, attempts) * 30
+            } detik.`
+          );
+        }
       }
     }
     return attempted;
