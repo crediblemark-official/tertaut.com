@@ -78,6 +78,13 @@
       "when": 1792161951435,
       "tag": "0010_xendit_only",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792700000000,
+      "tag": "0011_harmonize_projects_table",
+      "breakpoints": true
     }
   ]
 }
