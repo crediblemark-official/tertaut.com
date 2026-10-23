@@ -4,7 +4,7 @@ import { ref } from "vue";
 const faqs = [
   {
     q: "Apakah saya harus memiliki PT atau CV untuk mulai berjualan?",
-    a: "Tidak perlu. Tertaut beroperasi sebagai Merchant of Record (MoR) resmi. Anda dapat mendaftar sebagai developer individual cukup dengan KTP dan nomor rekening bank lokal. Kami menangani seluruh perizinan pembayaran dan faktur pajak penjualan.",
+    a: "Tidak perlu. Tertaut menyediakan sistem Managed Payment terpadu. Anda dapat mendaftar sebagai developer individual cukup dengan KTP dan nomor rekening bank lokal. Kami menangani seluruh perizinan pembayaran dan faktur pajak penjualan.",
   },
   {
     q: "Jenis software apa saja yang bisa saya monetisasi dengan Tertaut?",

@@ -46,9 +46,9 @@ export const SITE_SEO_DEFAULTS = {
 
 export const STATIC_PAGES_META: Record<string, SeoMetaData> = {
   home: {
-    title: "Tertaut — Merchant of Record & Monetisasi Software Indonesia",
+    title: "Tertaut — Monetisasi Software Jadi Lebih Sederhana",
     description:
-      "Jual aplikasi desktop, SaaS, dan tools AI di Indonesia tanpa ribet PT/CV, pajak PPN 11%, atau pembajakan. Terima pembayaran QRIS & Virtual Account instan, lisensi offline Ed25519.",
+      "Terima pembayaran QRIS & Virtual Account instan, terbitkan lisensi digital aman, dan cairkan pendapatan langsung ke rekening Anda tanpa setup yang rumit.",
     keywords: SITE_SEO_DEFAULTS.defaultKeywords,
     canonicalUrl: "/",
   },

@@ -86,7 +86,7 @@ onMounted(async () => {
           class="w-1.5 h-1.5 rounded-full animate-pulse"
           :class="env === 'sandbox' ? 'bg-gold' : 'bg-forest'"
         ></span>
-        <span>{{ env === "sandbox" ? "Sandbox Mode" : "MoR Live" }}</span>
+        <span>{{ env === "sandbox" ? "Sandbox Mode" : "Live Mode" }}</span>
       </div>
 
       <!-- Quick Action Buttons -->

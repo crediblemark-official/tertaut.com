@@ -6,7 +6,7 @@ import { CheckCircle2 } from "lucide-vue-next";
   <section id="cara-kerja" class="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
     <div class="text-center space-y-3 max-w-2xl mx-auto">
       <h2 class="text-xs font-bold uppercase tracking-widest text-forest font-mono">
-        Kenapa Butuh Merchant of Record?
+        Kenapa Butuh Managed Payment &amp; Licensing?
       </h2>
       <h3 class="text-2xl sm:text-3xl font-extrabold text-jetblack tracking-tight">
         Menjual Software di Indonesia Seharusnya Tidak Sesulit Ini
@@ -72,7 +72,9 @@ import { CheckCircle2 } from "lucide-vue-next";
             ✓
           </div>
           <div>
-            <h4 class="text-base font-bold text-forest">Bersama Tertaut (Merchant of Record)</h4>
+            <h4 class="text-base font-bold text-forest">
+              Bersama Tertaut (Managed Payment &amp; Licensing)
+            </h4>
             <p class="text-xs text-forest/70">Mulai berjualan hari ini, fokus hanya pada coding</p>
           </div>
         </div>
@@ -81,8 +83,8 @@ import { CheckCircle2 } from "lucide-vue-next";
           <li class="flex items-start gap-2.5">
             <CheckCircle2 class="w-4 h-4 text-forest shrink-0 mt-0.5" />
             <span
-              ><strong>Langsung Terima Pembayaran:</strong> Cukup akun individu. Kami bertindak
-              sebagai penjual resmi (MoR) Anda di hadapan pembeli dan bank.</span
+              ><strong>Langsung Terima Pembayaran:</strong> Cukup akun individu. Sistem Managed
+              Payment mengurus pemrosesan transaksi dan penerbitan faktur secara otomatis.</span
             >
           </li>
           <li class="flex items-start gap-2.5">

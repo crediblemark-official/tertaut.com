@@ -14,15 +14,15 @@ const isDrawerOpen = ref(false);
 const activeChapterId = ref("pasal-1");
 
 const chapters = [
-  { id: "pasal-1", num: "1", title: "Landasan Hukum & Identitas Pengendali Data" },
-  { id: "pasal-2", num: "2", title: "Kategori Data Pribadi yang Dikumpulkan" },
-  { id: "pasal-3", num: "3", title: "Tujuan & Dasar Pemrosesan Data Pribadi" },
-  { id: "pasal-4", num: "4", title: "Cookie, Sesi & Pelacakan Sistem" },
-  { id: "pasal-5", num: "5", title: "Pembagian Pihak Ketiga & Garansi Bebas Jual Data" },
-  { id: "pasal-6", num: "6", title: "Standar Keamanan, Kriptografi & Isolasi Data" },
-  { id: "pasal-7", num: "7", title: "Ketentuan Khusus Google Sign-In (ID & EN)" },
-  { id: "pasal-8", num: "8", title: "Hak-Hak Subjek Data Pribadi (Pengguna)" },
-  { id: "pasal-9", num: "9", title: "Masa Retensi & Prosedur Hapus Data" },
+  { id: "pasal-1", num: "01", title: "Landasan Hukum & Identitas Pengendali Data" },
+  { id: "pasal-2", num: "02", title: "Kategori Data Pribadi yang Dikumpulkan" },
+  { id: "pasal-3", num: "03", title: "Tujuan & Dasar Pemrosesan Data Pribadi" },
+  { id: "pasal-4", num: "04", title: "Cookie, Sesi & Pelacakan Sistem" },
+  { id: "pasal-5", num: "05", title: "Pembagian Pihak Ketiga & Bebas Jual Data" },
+  { id: "pasal-6", num: "06", title: "Standar Keamanan, Kriptografi & Isolasi Data" },
+  { id: "pasal-7", num: "07", title: "Ketentuan Khusus Google Sign-In (ID & EN)" },
+  { id: "pasal-8", num: "08", title: "Hak-Hak Subjek Data Pribadi (Pengguna)" },
+  { id: "pasal-9", num: "09", title: "Masa Retensi & Prosedur Hapus Data" },
   { id: "pasal-10", num: "10", title: "Pembaruan Kebijakan & Saluran Kontak DPO" },
 ];
 
@@ -110,12 +110,12 @@ onUnmounted(() => {
     <!-- Main Container: 2-Column Desktop Layout (Sidebar + Content) -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 w-full pt-8 sm:pt-10 flex-1">
       <div
-        class="lg:grid lg:grid-cols-[320px_1fr] xl:grid-cols-[340px_1fr] gap-10 xl:gap-14 items-start"
+        class="lg:grid lg:grid-cols-[330px_1fr] xl:grid-cols-[350px_1fr] gap-8 xl:gap-12 items-start"
       >
         <!-- DESKTOP STICKY SIDEBAR -->
         <aside class="hidden lg:block sticky top-24 self-start space-y-4">
           <div
-            class="p-4.5 rounded-2xl bg-slate-50/90 border border-slate-200/80 space-y-3.5 shadow-2xs"
+            class="p-4 rounded-2xl bg-slate-50/90 border border-slate-200/80 space-y-3 shadow-2xs"
           >
             <div class="flex items-center justify-between px-1">
               <h2
@@ -125,7 +125,7 @@ onUnmounted(() => {
                 <span>Daftar Isi Kebijakan</span>
               </h2>
               <span
-                class="px-2 py-0.5 rounded-full bg-slate-200/80 text-[10px] font-bold text-slate-600"
+                class="px-2 py-0.5 rounded-full bg-slate-200/80 text-[10px] font-bold text-slate-600 font-mono"
               >
                 10 Pasal
               </span>
@@ -139,24 +139,24 @@ onUnmounted(() => {
                 :key="ch.id"
                 type="button"
                 @click="scrollToChapter(ch.id)"
-                class="w-full text-left px-3 py-2 rounded-xl transition-all flex items-start gap-2.5 group cursor-pointer"
+                class="w-full text-left px-3 py-2 rounded-xl transition-all flex items-start gap-2.5 group cursor-pointer border"
                 :class="
                   activeChapterId === ch.id
-                    ? 'bg-forest/10 text-forest-dark font-bold border border-forest/20 shadow-2xs'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    ? 'bg-forest/10 text-forest font-bold border-forest/20 shadow-2xs'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 border-transparent'
                 "
               >
                 <span
-                  class="w-5 text-[11px] font-black shrink-0 transition-colors pt-0.5"
+                  class="font-mono text-[11px] font-bold tabular-nums shrink-0 pt-0.5 transition-colors"
                   :class="
                     activeChapterId === ch.id
-                      ? 'text-forest'
+                      ? 'text-forest font-black'
                       : 'text-slate-400 group-hover:text-slate-600'
                   "
                 >
                   {{ ch.num }}.
                 </span>
-                <span class="leading-snug">
+                <span class="leading-snug flex-1">
                   {{ ch.title }}
                 </span>
               </button>
@@ -203,7 +203,6 @@ onUnmounted(() => {
         </div>
 
         <!-- MAIN POLICY CONTENT ARTICLES -->
-        <!-- MAIN POLICY CONTENT ARTICLES -->
         <PrivacyArticles />
       </div>
     </div>
@@ -238,18 +237,23 @@ onUnmounted(() => {
             :key="ch.id"
             type="button"
             @click="handleMobileChapterSelect(ch.id)"
-            class="w-full text-left px-3.5 py-2.5 rounded-xl transition-all flex items-center justify-between cursor-pointer"
+            class="w-full text-left px-3.5 py-2.5 rounded-xl transition-all flex items-start justify-between gap-3 cursor-pointer border"
             :class="
               activeChapterId === ch.id
-                ? 'bg-forest/10 text-forest-dark font-bold border border-forest/20'
-                : 'text-slate-600 hover:bg-slate-50'
+                ? 'bg-forest/10 text-forest font-bold border-forest/20'
+                : 'text-slate-600 hover:bg-slate-50 border-transparent'
             "
           >
-            <div class="flex items-center gap-2.5">
-              <span class="w-5 text-[11px] font-black text-slate-400">{{ ch.num }}.</span>
-              <span>{{ ch.title }}</span>
+            <div class="flex items-start gap-2.5 flex-1">
+              <span
+                class="font-mono text-[11px] font-bold tabular-nums shrink-0 pt-0.5"
+                :class="activeChapterId === ch.id ? 'text-forest font-black' : 'text-slate-400'"
+              >
+                {{ ch.num }}.
+              </span>
+              <span class="leading-snug">{{ ch.title }}</span>
             </div>
-            <ChevronRight class="w-3.5 h-3.5 text-slate-400" />
+            <ChevronRight class="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
           </button>
         </nav>
       </div>

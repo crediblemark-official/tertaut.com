@@ -37,7 +37,7 @@ const isLoggedIn = computed(() => !!authSession.value?.data?.user);
         <router-link to="/demo/checkout" class="hover:text-jetblack transition">
           Demo Checkout
         </router-link>
-        <a href="/#solusi" class="hover:text-jetblack transition">Solusi MoR</a>
+        <a href="/#solusi" class="hover:text-jetblack transition">Solusi</a>
         <a href="/#cara-kerja" class="hover:text-jetblack transition">Cara Kerja</a>
         <a href="/#kalkulator" class="hover:text-jetblack transition">Kalkulator Biaya</a>
         <a href="/#faq" class="hover:text-jetblack transition">FAQ</a>
@@ -95,14 +95,14 @@ const isLoggedIn = computed(() => !!authSession.value?.data?.user);
       <a
         href="/#biaya"
         @click="isMobileMenuOpen = false"
-        class="block py-1.5 text-forest font-bold hover:text-forest-dark"
+        class="block py-1.5 text-forest font-bold hover:text-forest-hover"
       >
         💳 Biaya &amp; Layanan Platform
       </a>
       <router-link
         to="/demo/checkout"
         @click="isMobileMenuOpen = false"
-        class="block py-1.5 text-forest font-bold hover:text-forest-dark"
+        class="block py-1.5 text-forest font-bold hover:text-forest-hover"
       >
         ⚡ Simulasi Demo Checkout
       </router-link>

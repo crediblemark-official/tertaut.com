@@ -60,11 +60,11 @@ interface PageMeta {
 
 const STATIC_ROUTE_META: Record<string, PageMeta> = {
   "/": {
-    title: "Tertaut — Merchant of Record & Monetisasi Software Indonesia",
+    title: "Tertaut — Monetisasi Software Jadi Lebih Sederhana",
     description:
-      "Jual aplikasi desktop, SaaS, dan tools AI di Indonesia tanpa ribet PT/CV, pajak PPN 11%, atau pembajakan. Terima pembayaran QRIS & Virtual Account instan, lisensi offline Ed25519.",
+      "Terima pembayaran QRIS & Virtual Account instan, terbitkan lisensi digital aman, dan cairkan pendapatan langsung ke rekening Anda tanpa setup yang rumit.",
     canonical: "https://tertaut.com/",
-    badge: "Merchant of Record & Universal Licensing",
+    badge: "Managed Payment & Universal Licensing",
   },
   "/pricing": {
     title: "Biaya Transaksi & Skema Monetisasi — Tertaut",

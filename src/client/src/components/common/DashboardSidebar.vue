@@ -100,7 +100,7 @@ const emit = defineEmits<{ "switch-env": [target: DashboardEnv] }>();
           >
             tertaut<span class="text-gold">.com</span>
           </div>
-          <div class="text-[10px] text-jetblack/50 font-medium">Builder MoR Console</div>
+          <div class="text-[10px] text-jetblack/50 font-medium">Builder Console</div>
         </div>
       </router-link>
 
