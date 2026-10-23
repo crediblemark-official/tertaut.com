@@ -3,42 +3,54 @@ import { defineConfig } from "vitepress";
 export default defineConfig({
   title: "tertaut.com Docs",
   description:
-    "Developer documentation untuk tertaut.com Engine — Monetization & Universal Licensing",
+    "Panduan resmi tertaut.com — Solusi Monetisasi & Universal Licensing untuk Developer",
   lang: "id-ID",
   base: "/docs/",
   lastUpdated: false,
   themeConfig: {
     logo: "/docs/brand.svg",
     nav: [
-      { text: "Home", link: "/" },
-      { text: "Getting Started", link: "/guide/getting-started" },
-      { text: "SDK", link: "/api/sdk" },
-      { text: "S2S API", link: "/api/server-to-server" },
-      { text: "Swagger", link: "https://tertaut.com/swagger", target: "_blank" },
+      { text: "Beranda", link: "/" },
+      { text: "Mulai Cepat", link: "/guide/getting-started" },
+      { text: "SDK Klien", link: "/api/sdk" },
+      { text: "API Backend (S2S)", link: "/api/server-to-server" },
+      { text: "API Playground (Swagger)", link: "https://tertaut.com/swagger", target: "_blank" },
     ],
     sidebar: [
       {
-        text: "Memulai",
+        text: "Langkah Awal",
         items: [
-          { text: "Overview", link: "/" },
-          { text: "Getting Started", link: "/guide/getting-started" },
-          { text: "Environment Client", link: "/guide/environment" },
+          { text: "Pengenalan", link: "/" },
+          { text: "Panduan Mulai Cepat", link: "/guide/getting-started" },
+          { text: "Konfigurasi .env Klien", link: "/guide/environment" },
         ],
       },
       {
-        text: "Integrasi & API",
+        text: "Panduan Integrasi",
         items: [
-          { text: "SDK @tertaut/sdk", link: "/api/sdk" },
-          { text: "Server-to-Server API", link: "/api/server-to-server" },
+          { text: "SDK Frontend (@tertaut/sdk)", link: "/api/sdk" },
+          { text: "API Server-ke-Server (S2S)", link: "/api/server-to-server" },
         ],
       },
       {
-        text: "Referensi",
-        items: [{ text: "Demo Checkout", link: "/reference/demo-checkout" }],
+        text: "Contoh & Referensi",
+        items: [{ text: "Simulasi Demo Checkout", link: "/reference/demo-checkout" }],
       },
     ],
+    outline: {
+      label: "Di Halaman Ini",
+    },
+    docFooter: {
+      prev: "Halaman Sebelumnya",
+      next: "Halaman Selanjutnya",
+    },
+    darkModeSwitchLabel: "Tampilan",
+    lightModeSwitchTitle: "Ganti ke mode terang",
+    darkModeSwitchTitle: "Ganti ke mode gelap",
+    sidebarMenuLabel: "Menu Dokumentasi",
+    returnToTopLabel: "Kembali ke Atas",
     footer: {
-      message: "Headless Developer Infrastructure Engine",
+      message: "Dibuat untuk memudahkan developer membangun bisnis software.",
       copyright: `© ${new Date().getFullYear()} tertaut.com`,
     },
   },

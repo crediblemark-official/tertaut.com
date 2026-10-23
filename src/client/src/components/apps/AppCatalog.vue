@@ -144,7 +144,7 @@ async function handleCopyAppId(id: string) {
       class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 py-2.5 sm:py-3 border-b border-jetblack/15 mb-0"
     >
       <div class="space-y-0.5">
-        <div class="text-xs font-semibold text-jetblack/60">Active products</div>
+        <div class="text-xs font-semibold text-jetblack/60">Produk Aktif</div>
         <div v-if="loading" class="space-y-1.5 py-1">
           <div class="h-7 w-14 bg-jetblack/10 rounded animate-pulse"></div>
           <div class="h-3 w-28 bg-jetblack/5 rounded animate-pulse"></div>
@@ -164,7 +164,7 @@ async function handleCopyAppId(id: string) {
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
-        <div class="text-xs font-semibold text-jetblack/60">Sales</div>
+        <div class="text-xs font-semibold text-jetblack/60">Penjualan</div>
         <div v-if="loading" class="space-y-1.5 py-1">
           <div class="h-7 w-14 bg-jetblack/10 rounded animate-pulse"></div>
           <div class="h-3 w-24 bg-jetblack/5 rounded animate-pulse"></div>
@@ -178,7 +178,7 @@ async function handleCopyAppId(id: string) {
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
-        <div class="text-xs font-semibold text-jetblack/60">Active subscriptions</div>
+        <div class="text-xs font-semibold text-jetblack/60">Langganan Aktif</div>
         <div v-if="loading" class="space-y-1.5 py-1">
           <div class="h-7 w-14 bg-jetblack/10 rounded animate-pulse"></div>
           <div class="h-3 w-28 bg-jetblack/5 rounded animate-pulse"></div>
@@ -188,14 +188,13 @@ async function handleCopyAppId(id: string) {
             {{ activeSubscriptionsCount }}
           </div>
           <div class="text-[11px] text-jetblack/50 font-medium">
-            across {{ acrossProductsCount }}
-            {{ acrossProductsCount === 1 ? "product" : "products" }}
+            dari {{ acrossProductsCount }} produk software
           </div>
         </template>
       </div>
 
       <div class="space-y-0.5 sm:border-l sm:border-jetblack/10 sm:pl-5">
-        <div class="text-xs font-semibold text-jetblack/60">Customers</div>
+        <div class="text-xs font-semibold text-jetblack/60">Pelanggan Baru</div>
         <div v-if="loading" class="space-y-1.5 py-1">
           <div class="h-7 w-14 bg-jetblack/10 rounded animate-pulse"></div>
           <div class="h-3 w-24 bg-jetblack/5 rounded animate-pulse"></div>

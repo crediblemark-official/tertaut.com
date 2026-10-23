@@ -273,8 +273,8 @@ function formatSubDate(dateStr?: string | null): string {
           v-model="selectedAppId"
           :items="appsList"
           :dark="true"
-          all-option-label="Semua Project"
-          placeholder="Semua Project"
+          all-option-label="Semua Aplikasi"
+          placeholder="Semua Aplikasi"
           search-placeholder="Cari software SaaS..."
           button-class="!h-7 !rounded-md !min-w-[150px] !text-xs"
         />
@@ -314,7 +314,7 @@ function formatSubDate(dateStr?: string | null): string {
                 : 'text-white/70 hover:text-white',
             ]"
           >
-            Expired
+            Kedaluwarsa
           </button>
           <button
             @click="selectedStatus = 'REVOKED'"

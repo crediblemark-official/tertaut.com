@@ -64,18 +64,18 @@ const navItems = computed<NavItem[]>(() => {
   const e = env.value;
   return [
     { name: "Ringkasan", key: "/", path: envPath(e), icon: LayoutDashboard },
-    { name: "Project", key: "/projects", path: envPath(e, "/projects"), icon: Boxes },
-    { name: "Payments", key: "/payments", path: envPath(e, "/payments"), icon: Receipt },
+    { name: "Aplikasi", key: "/projects", path: envPath(e, "/projects"), icon: Boxes },
+    { name: "Transaksi", key: "/payments", path: envPath(e, "/payments"), icon: Receipt },
     {
-      name: "Subscription",
+      name: "Langganan",
       key: "/subscriptions",
       path: envPath(e, "/subscriptions"),
       icon: Repeat,
     },
-    { name: "Balances", key: "/balances", path: envPath(e, "/balances"), icon: Wallet },
-    { name: "Kupon", key: "/coupons", path: envPath(e, "/coupons"), icon: Ticket },
-    { name: "Lisensi", key: "/licensing", path: envPath(e, "/licensing"), icon: KeyRound },
-    { name: "Developer", key: "/developer", path: envPath(e, "/developer"), icon: Terminal },
+    { name: "Saldo & Payout", key: "/balances", path: envPath(e, "/balances"), icon: Wallet },
+    { name: "Kupon Promo", key: "/coupons", path: envPath(e, "/coupons"), icon: Ticket },
+    { name: "Kelola Lisensi", key: "/licensing", path: envPath(e, "/licensing"), icon: KeyRound },
+    { name: "Integrasi API", key: "/developer", path: envPath(e, "/developer"), icon: Terminal },
   ];
 });
 
@@ -209,7 +209,7 @@ const emit = defineEmits<{ "switch-env": [target: DashboardEnv] }>();
         class="flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-jetblack/5 text-xs font-medium text-jetblack/70 transition"
       >
         <div class="flex items-center gap-2">
-          <BookOpen class="w-3.5 h-3.5 text-gold" /><span>Developer Docs</span>
+          <BookOpen class="w-3.5 h-3.5 text-gold" /><span>Buku Dokumentasi</span>
         </div>
         <ExternalLink class="w-3 h-3 text-jetblack/40" />
       </a>
@@ -219,7 +219,7 @@ const emit = defineEmits<{ "switch-env": [target: DashboardEnv] }>();
         class="flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-jetblack/5 text-xs font-medium text-jetblack/70 transition"
       >
         <div class="flex items-center gap-2">
-          <Code2 class="w-3.5 h-3.5 text-gold" /><span>API Docs</span>
+          <Code2 class="w-3.5 h-3.5 text-gold" /><span>API Playground</span>
         </div>
         <ExternalLink class="w-3 h-3 text-jetblack/40" />
       </a>

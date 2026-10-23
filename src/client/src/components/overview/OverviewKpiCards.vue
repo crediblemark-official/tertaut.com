@@ -19,17 +19,17 @@ withDefaults(
 <template>
   <StatsBar wrapper-class="mb-1">
     <StatItem
-      label="Gross Volume (MoR)"
+      label="Total Penjualan Kotor"
       :value="formatRupiah(stats?.totalGMV || 0)"
-      sublabel="Total omzet bruto terverifikasi"
+      sublabel="Omzet bruto dari seluruh penjualan"
       :icon="DollarSign"
       :loading="loading"
     />
 
     <StatItem
-      label="Net Builder Payout (95%)"
+      label="Penghasilan Bersih (95%)"
       :value="formatRupiah(stats?.netEarnings || 0)"
-      sublabel="Hak bersih siap cair ke rekening"
+      sublabel="Siap dicairkan langsung ke rekening Anda"
       :icon="TrendingUp"
       variant="forest"
       bordered
@@ -37,9 +37,9 @@ withDefaults(
     />
 
     <StatItem
-      label="Lisensi Aktif Terbit"
+      label="Lisensi Aktif"
       :value="stats?.activeLicenses || 0"
-      sublabel="Hardware-bound & multi-seat"
+      sublabel="Digunakan aktif di perangkat pelanggan"
       :icon="KeyRound"
       icon-color="text-gold"
       bordered
@@ -47,9 +47,9 @@ withDefaults(
     />
 
     <StatItem
-      label="Total Transaksi"
+      label="Transaksi Berhasil"
       :value="stats?.totalTransactions || 0"
-      sublabel="Pembayaran QRIS & Virtual Account"
+      sublabel="Pembayaran via QRIS & Virtual Account"
       :icon="Zap"
       icon-color="text-gold"
       bordered

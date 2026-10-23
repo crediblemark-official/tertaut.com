@@ -300,7 +300,7 @@ defineExpose({
                 : 'text-white/70 hover:text-white',
             ]"
           >
-            Paid
+            Lunas
           </button>
           <button
             @click="selectedStatus = 'PENDING'"
@@ -311,7 +311,7 @@ defineExpose({
                 : 'text-white/70 hover:text-white',
             ]"
           >
-            Pending
+            Menunggu
           </button>
           <button
             @click="selectedStatus = 'FAILED'"
@@ -322,7 +322,7 @@ defineExpose({
                 : 'text-white/70 hover:text-white',
             ]"
           >
-            Failed
+            Gagal
           </button>
           <button
             @click="selectedStatus = 'EXPIRED'"
@@ -333,7 +333,7 @@ defineExpose({
                 : 'text-white/70 hover:text-white',
             ]"
           >
-            Expired
+            Kedaluwarsa
           </button>
         </div>
 
@@ -381,16 +381,16 @@ defineExpose({
     <!-- KPI Stats Summary Bar -->
     <StatsBar>
       <StatItem
-        label="Gross Volume (Bruto)"
+        label="Penjualan Bruto"
         :value="formatRupiah(kpiStats.totalGross)"
-        :sublabel="`${kpiStats.paidCount} transaksi sukses`"
+        :sublabel="`${kpiStats.paidCount} transaksi berhasil`"
         :loading="loading"
       />
 
       <StatItem
-        label="Net Builder (95%)"
+        label="Penghasilan Bersih (95%)"
         :value="formatRupiah(kpiStats.totalNet)"
-        :sublabel="`Fee MoR Tertaut 5% (${formatRupiah(kpiStats.totalFee)})`"
+        :sublabel="`Biaya platform 5% (${formatRupiah(kpiStats.totalFee)})`"
         variant="forest"
         bordered
         :loading="loading"
@@ -407,7 +407,7 @@ defineExpose({
       <StatItem
         label="Menunggu Pembayaran"
         :value="kpiStats.pendingCount"
-        sublabel="menunggu konfirmasi webhook"
+        sublabel="menunggu konfirmasi pelanggan"
         variant="gold"
         bordered
         :loading="loading"
@@ -419,13 +419,13 @@ defineExpose({
       <template #head>
         <tr>
           <th class="py-2.5 pr-2.5 pl-3.5 sm:pl-4 md:pl-6">ID Transaksi</th>
-          <th class="py-2.5 px-2.5">Email Klien / Pembeli</th>
+          <th class="py-2.5 px-2.5">Pelanggan</th>
           <th class="py-2.5 px-2.5">Aplikasi</th>
-          <th class="py-2.5 px-2.5">Gross</th>
-          <th class="py-2.5 px-2.5">Fee (5%)</th>
-          <th class="py-2.5 px-2.5">Net (95%)</th>
-          <th class="py-2.5 px-2.5">Metode</th>
-          <th class="py-2.5 px-2.5">Status Bayar</th>
+          <th class="py-2.5 px-2.5">Total Bruto</th>
+          <th class="py-2.5 px-2.5">Biaya (5%)</th>
+          <th class="py-2.5 px-2.5">Hak Bersih</th>
+          <th class="py-2.5 px-2.5">Metode Bayar</th>
+          <th class="py-2.5 px-2.5">Status</th>
           <th class="py-2.5 px-2.5">Waktu</th>
           <th class="py-2.5 pl-2.5 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
         </tr>
@@ -437,7 +437,7 @@ defineExpose({
           <div class="space-y-1">
             <Receipt class="w-7 h-7 mx-auto text-jetblack/30" />
             <p class="font-semibold text-xs text-jetblack/70">
-              Tidak ada riwayat transaksi ditemukan.
+              Belum ada riwayat transaksi ditemukan.
             </p>
             <p class="text-[11px] text-jetblack/50">
               Coba sesuaikan kata kunci pencarian atau filter status Anda.
