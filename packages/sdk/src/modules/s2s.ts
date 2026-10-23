@@ -12,6 +12,7 @@ import type {
   S2SRevokeBatchOptions,
   S2STransferOptions,
   S2SWebhookCreateOptions,
+  S2SEventsFilter,
 } from "../types";
 
 export interface S2SExecutor extends TertautExecutor {}
@@ -97,20 +98,15 @@ export class S2SModule {
     transfer: async (options: S2STransferOptions): Promise<any> =>
       this.post("/api/v1/s2s/licenses/transfer", options),
 
-    events: async (filter: {
-      licenseKey?: string;
-      appId?: string;
-      event?: string;
-      actorType?: string;
-      limit?: number;
-    }): Promise<any> => {
+    events: async (filter?: S2SEventsFilter): Promise<any> => {
       const params = new URLSearchParams();
-      if (filter.licenseKey) params.set("licenseKey", filter.licenseKey);
-      if (filter.appId) params.set("appId", filter.appId);
-      if (filter.event) params.set("event", filter.event);
-      if (filter.actorType) params.set("actorType", filter.actorType);
-      if (filter.limit) params.set("limit", String(filter.limit));
-      return this.get(`/api/v1/s2s/licenses/events?${params.toString()}`);
+      if (filter?.licenseKey) params.set("licenseKey", filter.licenseKey);
+      if (filter?.appId) params.set("appId", filter.appId);
+      if (filter?.event) params.set("event", filter.event);
+      if (filter?.actorType) params.set("actorType", filter.actorType);
+      if (filter?.limit) params.set("limit", String(filter.limit));
+      const q = params.toString() ? `?${params.toString()}` : "";
+      return this.get(`/api/v1/s2s/licenses/events${q}`);
     },
   };
 

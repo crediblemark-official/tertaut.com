@@ -55,6 +55,16 @@ export async function verifyWebhookSignature(
   }
 }
 
+let inMemoryJwksCache: { keys?: JsonWebKey[] } | null = null;
+
+export function setCachedJwks(jwks: { keys?: JsonWebKey[] } | null): void {
+  inMemoryJwksCache = jwks;
+}
+
+export function getCachedJwks(): { keys?: JsonWebKey[] } | null {
+  return inMemoryJwksCache;
+}
+
 /**
  * Verifikasi offline token Ed25519 secara lokal tanpa internet.
  */
@@ -69,19 +79,29 @@ export async function verifyEd25519OfflineToken(
   }
 ): Promise<OfflineTokenVerifyResult> {
   try {
-    const [header, body, signature] = token.split(".");
-    if (!header || !body || !signature) {
+    const parts = token.split(".");
+    if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
       return { valid: false, reason: "MALFORMED_TOKEN" };
     }
+    const [header, body, signature] = parts;
 
     let jwk = options?.publicKeyJwk;
     if (!jwk) {
-      const base = options?.baseUrl ?? "";
-      const url =
-        options?.jwksUrl ?? (base ? `${base}/.well-known/jwks.json` : "/.well-known/jwks.json");
-      const res = await fetch(url);
-      const jwks = (await res.json()) as { keys?: JsonWebKey[] };
-      jwk = jwks.keys?.[0];
+      if (inMemoryJwksCache?.keys?.[0]) {
+        jwk = inMemoryJwksCache.keys[0];
+      } else {
+        try {
+          const base = options?.baseUrl ?? "";
+          const url =
+            options?.jwksUrl ?? (base ? `${base}/.well-known/jwks.json` : "/.well-known/jwks.json");
+          const res = await fetch(url);
+          const jwks = (await res.json()) as { keys?: JsonWebKey[] };
+          inMemoryJwksCache = jwks;
+          jwk = jwks.keys?.[0];
+        } catch {
+          // offline atau server tidak dapat dijangkau
+        }
+      }
     }
     if (!jwk) return { valid: false, reason: "PUBLIC_KEY_UNAVAILABLE" };
 

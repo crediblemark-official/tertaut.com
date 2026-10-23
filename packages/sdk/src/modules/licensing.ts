@@ -2,8 +2,14 @@
  * Modul Universal Licensing: Aktivasi, Verifikasi, Heartbeat, Floating Lease, & Smart Check.
  */
 
-import { verifyEd25519OfflineToken } from "../utils/crypto";
-import { HeartbeatLeaseError, TertautError } from "../errors";
+import { verifyEd25519OfflineToken, setCachedJwks } from "../utils/crypto";
+import {
+  HeartbeatLeaseError,
+  TertautError,
+  LicenseRevokedError,
+  LicenseExpiredError,
+  SeatLimitExceededError,
+} from "../errors";
 import type {
   TertautExecutor,
   LicenseValidateOptions,
@@ -148,9 +154,37 @@ export class LicensingModule {
   public startHeartbeatSession(options: HeartbeatSessionOptions): HeartbeatSession {
     let currentLeaseKey = options.leaseKey;
     let active = true;
-    const intervalMs = (options.intervalSeconds || 60) * 1000;
+    let leaseLost = false;
+    const intervalMs =
+      typeof options.intervalSeconds === "number" && options.intervalSeconds > 0
+        ? options.intervalSeconds * 1000
+        : 60_000;
 
     let isReacquiring = false;
+
+    const tryReacquire = async (): Promise<boolean> => {
+      if (isReacquiring) return false;
+      isReacquiring = true;
+      try {
+        const reacquired = await this.activate({
+          licenseKey: options.licenseKey,
+          hwid: options.hwid,
+          deviceName: options.deviceName,
+        });
+        if (reacquired?.success && reacquired.data?.leaseKey) {
+          currentLeaseKey = reacquired.data.leaseKey;
+          leaseLost = false;
+          active = true;
+          options.onReacquired?.(currentLeaseKey);
+          return true;
+        }
+      } catch (err: any) {
+        options.onError?.(err);
+      } finally {
+        isReacquiring = false;
+      }
+      return false;
+    };
 
     /** Seat yang hilang berarti loop berhenti atau mencoba reacquire bila autoReacquire aktif. */
     const handleFailure = async (err: any) => {
@@ -159,27 +193,11 @@ export class LicensingModule {
         err instanceof HeartbeatLeaseError || (code && LEASE_LOST_CODES.has(code));
 
       if (isLeaseLost) {
+        leaseLost = true;
         options.onLeaseExpired?.(err);
 
         if (options.autoReacquire && !isReacquiring) {
-          isReacquiring = true;
-          try {
-            const reacquired = await this.activate({
-              licenseKey: options.licenseKey,
-              hwid: options.hwid,
-              deviceName: options.deviceName,
-            });
-            if (reacquired?.success && reacquired.data?.leaseKey) {
-              currentLeaseKey = reacquired.data.leaseKey;
-              active = true;
-              options.onReacquired?.(currentLeaseKey);
-              isReacquiring = false;
-              return;
-            }
-          } catch {
-            // Reacquire gagal (kursi masih penuh), akan dicoba lagi pada heartbeat berikutnya
-          }
-          isReacquiring = false;
+          await tryReacquire();
         } else if (!options.autoReacquire) {
           active = false;
         }
@@ -189,6 +207,25 @@ export class LicensingModule {
 
     const beat = async (): Promise<LicenseHeartbeatResult> => {
       if (!active) throw new Error("Heartbeat session has stopped");
+
+      // Bila lease telah lepas, jangan spam request heartbeat dengan leaseKey lama.
+      // Langsung coba aktivasi ulang (reacquire).
+      if (leaseLost) {
+        if (options.autoReacquire) {
+          const reacquired = await tryReacquire();
+          if (reacquired) {
+            return {
+              success: true,
+              leaseKey: currentLeaseKey,
+              message: "Lease reacquired successfully",
+            };
+          }
+        }
+        throw new HeartbeatLeaseError(
+          "Lease floating license tidak valid atau telah hangus.",
+          "LEASE_EXPIRED"
+        );
+      }
 
       let res: LicenseHeartbeatResult;
       try {
@@ -268,6 +305,31 @@ export class LicensingModule {
         };
       }
     } catch (err: any) {
+      // PERBAIKAN: Jika server secara otoritatif menolak (REVOKED / EXPIRED / SEAT_FULL),
+      // JANGAN fallback ke token offline lama. Token offline hanya boleh dipakai saat server
+      // tidak dapat dihubungi (network error, timeout, 5xx server downtime).
+      const isAuthoritativeError =
+        err instanceof LicenseRevokedError ||
+        err instanceof LicenseExpiredError ||
+        err instanceof SeatLimitExceededError ||
+        (err instanceof TertautError && (err.status === 401 || err.status === 403));
+
+      if (isAuthoritativeError) {
+        const emptyHelpers = createFeatureHelpers({});
+        return {
+          valid: false,
+          source: "online",
+          status: err.code || "INVALID",
+          expiresAt: null,
+          entitlements: {},
+          licenseVersion: 1,
+          reason: err.code,
+          message: err.message,
+          hasFeature: emptyHelpers.hasFeature,
+          getFeature: emptyHelpers.getFeature,
+        };
+      }
+
       if (!fallback) {
         throw err;
       }
@@ -312,7 +374,11 @@ export class LicensingModule {
   }
 
   public async getJwks(): Promise<{ keys: JsonWebKey[] }> {
-    return this.ctx.requestJson("/.well-known/jwks.json");
+    const data = await this.ctx.requestJson<{ keys: JsonWebKey[] }>("/.well-known/jwks.json");
+    if (data?.keys?.length) {
+      setCachedJwks(data);
+    }
+    return data;
   }
 
   /**

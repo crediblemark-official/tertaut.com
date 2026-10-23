@@ -15,6 +15,9 @@ export async function executeCheckout(
   executor: RequestExecutor,
   options: CheckoutOptions
 ): Promise<CheckoutResult> {
+  if (!options || typeof options !== "object") {
+    throw new Error("[Tertaut SDK] options is required for checkout.");
+  }
   if (!options.customerEmail && !options.buyerEmail) {
     throw new Error("[Tertaut SDK] customerEmail is required for checkout.");
   }
@@ -28,7 +31,7 @@ export async function executeCheckout(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      appId: executor.appId || undefined,
+      appId: options.appSlug || options.slug ? undefined : executor.appId || undefined,
       appSlug: options.appSlug,
       slug: options.slug,
       amount: options.amount,
@@ -65,6 +68,9 @@ export async function getPaymentStatus(
   transactionId: string,
   ticket?: string
 ): Promise<CheckoutStatusResult> {
+  if (!transactionId) {
+    throw new Error("[Tertaut SDK] transactionId is required to check payment status.");
+  }
   // Server mendefinisikan GET /checkout/status/:txId (path param),
   // bukan query param txId.
   const query = ticket ? `?ticket=${encodeURIComponent(ticket)}` : "";

@@ -33,6 +33,9 @@ export class Tertaut {
   public s2s: S2SModule;
 
   constructor(config: TertautConfig) {
+    if (!config || typeof config !== "object") {
+      throw new Error("[Tertaut SDK] config is required.");
+    }
     if (!config.apiKey || !/^tt_(live|test|secret)_/.test(config.apiKey)) {
       throw new Error(
         "[Tertaut SDK] apiKey wajib diisi dengan format tt_live_... / tt_test_... (publishable API key) atau tt_secret_... (server secret key)."
@@ -50,7 +53,7 @@ export class Tertaut {
 
     this.apiKey = config.apiKey;
     this.appId = config.appId || "";
-    this.baseUrl = config.baseUrl.replace(/\/$/, "");
+    this.baseUrl = config.baseUrl.replace(/\/+$/, "");
     this.environment = isSecretKey
       ? "server"
       : config.apiKey.startsWith("tt_live_")
@@ -81,6 +84,15 @@ export class Tertaut {
   private async request(path: string, init?: RequestInit): Promise<Response> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const onCallerAbort = () => controller.abort();
+    if (init?.signal) {
+      if (init.signal.aborted) {
+        clearTimeout(timer);
+        controller.abort();
+      } else {
+        init.signal.addEventListener("abort", onCallerAbort, { once: true });
+      }
+    }
     try {
       const res = await fetch(`${this.baseUrl}${path}`, {
         ...init,
@@ -89,6 +101,9 @@ export class Tertaut {
       return res;
     } finally {
       clearTimeout(timer);
+      if (init?.signal) {
+        init.signal.removeEventListener("abort", onCallerAbort);
+      }
     }
   }
 

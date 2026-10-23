@@ -342,5 +342,59 @@ describe("SDK error pipeline", () => {
       // Tanpa prefix juga diterima
       expect(await Tertaut.verifyWebhookSignature(body, valid, secret)).toBe(true);
     });
+
+    it("check() tidak membypass lisensi REVOKED via offline token fallback", async () => {
+      mockJson({ valid: false, reason: "LICENSE_REVOKED", message: "Lisensi telah dicabut" }, 403);
+      const sdk = makeSdk();
+      const res = await sdk.licensing.check({
+        licenseKey: "TT-REVOKED",
+        offlineToken: "fake.offline.token",
+        allowOfflineFallback: true,
+      });
+      expect(res.valid).toBe(false);
+      expect(res.source).toBe("online");
+      expect(res.reason).toBe("TOKEN_REVOKED");
+    });
+
+    it("checkout() mengutamakan appSlug daripada appId default", async () => {
+      let sentBody: any;
+      globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+        sentBody = JSON.parse(init!.body as string);
+        return new Response(
+          JSON.stringify({ checkoutUrl: "https://pay/slug", transactionId: "tx_slug" }),
+          { status: 200 }
+        );
+      }) as any;
+
+      const sdk = new Tertaut({
+        apiKey: "tt_live_test",
+        appId: "app_default",
+        baseUrl: "https://tertaut.com",
+      });
+      await sdk.checkout({ customerEmail: "a@b.com", appSlug: "special-addon" });
+      expect(sentBody.appSlug).toBe("special-addon");
+      expect(sentBody.appId).toBeUndefined();
+    });
+
+    it("s2s.licenses.events() aman dipanggil tanpa filter atau filter kosong", async () => {
+      let seenUrl = "";
+      globalThis.fetch = (async (url: string) => {
+        seenUrl = url;
+        return new Response(JSON.stringify({ success: true, events: [] }), { status: 200 });
+      }) as any;
+
+      const s2s = new Tertaut({ apiKey: "tt_secret_test", baseUrl: "https://tertaut.com" });
+      await s2s.s2s.licenses.events();
+      expect(seenUrl).toBe("https://tertaut.com/api/v1/s2s/licenses/events");
+    });
+
+    it("getPaymentStatus() melempar error bila transactionId kosong", async () => {
+      const sdk = makeSdk();
+      await expect(sdk.getPaymentStatus("")).rejects.toThrow("transactionId is required");
+    });
+
+    it("constructor Tertaut menolak config null/undefined", () => {
+      expect(() => new Tertaut(null as any)).toThrow("config is required");
+    });
   });
 });

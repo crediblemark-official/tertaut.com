@@ -376,3 +376,11 @@ export interface S2SWebhookCreateOptions {
   secret?: string;
   isActive?: boolean;
 }
+
+export interface S2SEventsFilter {
+  licenseKey?: string;
+  appId?: string;
+  event?: string;
+  actorType?: string;
+  limit?: number;
+}
