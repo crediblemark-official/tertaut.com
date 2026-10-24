@@ -310,7 +310,10 @@ export const config = {
       if (isTest && testEnv) return testEnv;
       const mainUrl = requireEnv("DATABASE_URL");
       if (isTest) {
-        return mainUrl.replace(/\/([^/?]+)(\?.*)?$/, "/$1_test$2");
+        return mainUrl.replace(/\/([^/?]+)(\?.*)?$/, (_match, dbName, query = "") => {
+          if (dbName.endsWith("_test")) return `/${dbName}${query}`;
+          return `/${dbName}_test${query}`;
+        });
       }
       return mainUrl;
     })(),

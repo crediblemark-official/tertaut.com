@@ -51,6 +51,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/tertaut_test
+      DATABASE_URL_TEST: postgresql://postgres:postgrespassword@localhost:5432/tertaut_test
       JWT_SECRET: super_secret_jwt_key_at_least_32_characters_tertaut_dev
       BETTER_AUTH_SECRET: super_secret_better_auth_key_at_least_32_chars
       VAULT_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
