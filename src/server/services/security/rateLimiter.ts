@@ -136,24 +136,30 @@ export class RedisRateLimiterAdapter implements RateLimiterAdapter {
 const memoryAdapter = new MemoryRateLimiterAdapter();
 let activeAdapter: RateLimiterAdapter;
 
-// Di production, wajib ada Redis; di development/testing boleh fallback ke memory
-if (process.env.NODE_ENV === "production") {
-  const hasRedisUrl = process.env.UPSTASH_REDIS_REST_URL;
-  const hasRedisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (hasRedisUrl && hasRedisToken) {
-    activeAdapter = new RedisRateLimiterAdapter();
+// Jika kredensial Upstash Redis disetel, gunakan adapter Redis terdistribusi.
+// Bila belum disetel, fallback secara graceful ke in-memory sliding window adapter (aman untuk single-container Dokploy).
+const hasRedisUrl = process.env.UPSTASH_REDIS_REST_URL;
+const hasRedisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+const requireRedis = process.env.REQUIRE_REDIS_RATE_LIMIT === "true";
+
+if (hasRedisUrl && hasRedisToken) {
+  activeAdapter = new RedisRateLimiterAdapter();
+} else if (requireRedis && process.env.NODE_ENV === "production") {
+  throw new Error(
+    "[rateLimiter] REQUIRE_REDIS_RATE_LIMIT=true tapi UPSTASH_REDIS_REST_URL atau UPSTASH_REDIS_REST_TOKEN belum disetel."
+  );
+} else {
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      "[rateLimiter] UPSTASH_REDIS_REST_URL atau UPSTASH_REDIS_REST_TOKEN tidak disetel. " +
+        "Menggunakan in-memory sliding window adapter (aman untuk single-container Dokploy)."
+    );
   } else {
-    throw new Error(
-      "[rateLimiter] Di production, UPSTASH_REDIS_REST_URL dan UPSTASH_REDIS_REST_TOKEN wajib disetel. " +
-        "Rate limiter multi-instance tidak bisa bekerja tanpa Redis."
+    console.warn(
+      "[rateLimiter] NODE_ENV !== production, menggunakan in-memory rate limiter. " +
+        "Untuk production multi-instance cluster, set UPSTASH_REDIS_REST_URL dan UPSTASH_REDIS_REST_TOKEN."
     );
   }
-} else {
-  // Development/testing: gunakan memory adapter dengan peringatan
-  console.warn(
-    "[rateLimiter] NODE_ENV !== production, menggunakan in-memory rate limiter. " +
-      "Untuk production, set UPSTASH_REDIS_REST_URL dan UPSTASH_REDIS_REST_TOKEN."
-  );
   activeAdapter = memoryAdapter;
 }
 
