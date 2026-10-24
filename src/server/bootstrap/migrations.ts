@@ -57,10 +57,39 @@ export async function runAutoMigrations(): Promise<void> {
         IF projects_kind IS NOT NULL AND apps_kind IS NULL THEN
           CREATE OR REPLACE VIEW public.apps AS SELECT * FROM public.projects;
         END IF;
+
+        -- Ensure transactions columns exist
+        IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'transactions' AND relnamespace = 'public'::regnamespace AND relkind = 'r') THEN
+          ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "customer_name" text;
+          ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "metadata" jsonb;
+          ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "mode" text DEFAULT 'live' NOT NULL;
+          ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "payment_code" text;
+          ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "qr_data_url" text;
+          ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "payment_expires_at" timestamp with time zone;
+          ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "disbursement_external_id" text;
+          ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "refund_status" text DEFAULT 'NONE' NOT NULL;
+          ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "refund_operation_id" text;
+          ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "payout_operation_id" text;
+        END IF;
+
+        -- Ensure builders columns exist
+        IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'builders' AND relnamespace = 'public'::regnamespace AND relkind = 'r') THEN
+          ALTER TABLE public.builders ADD COLUMN IF NOT EXISTS "secret_api_key" text DEFAULT '' NOT NULL;
+          ALTER TABLE public.builders ADD COLUMN IF NOT EXISTS "is_suspended" boolean DEFAULT false NOT NULL;
+        END IF;
+
+        -- Ensure licenses columns exist
+        IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'licenses' AND relnamespace = 'public'::regnamespace AND relkind = 'r') THEN
+          ALTER TABLE public.licenses ADD COLUMN IF NOT EXISTS "mode" text DEFAULT 'live' NOT NULL;
+          ALTER TABLE public.licenses ADD COLUMN IF NOT EXISTS "license_version" integer DEFAULT 1 NOT NULL;
+          ALTER TABLE public.licenses ADD COLUMN IF NOT EXISTS "features" jsonb DEFAULT '{}'::jsonb;
+          ALTER TABLE public.licenses ADD COLUMN IF NOT EXISTS "offline_jwt_grace_token" text;
+          ALTER TABLE public.licenses ADD COLUMN IF NOT EXISTS "api_key" text;
+        END IF;
       END $$;
     `);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.warn("[DB] Safeguard harmonisasi projects/apps:", msg);
+    console.warn("[DB] Safeguard harmonisasi schema:", msg);
   }
 }
