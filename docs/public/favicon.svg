@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="gold2d" x1="49" y1="30" x2="79" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F5D77F"/>
+      <stop offset="100%" stop-color="#D4AF37"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Dark Tile with subtle border -->
+  <rect width="128" height="128" rx="28" fill="#121212"/>
+  <rect x="1" y="1" width="126" height="126" rx="27" stroke="#262626" stroke-width="1.5"/>
+
+  <!-- Gold Ring (Vertical / Stem of T) -->
+  <rect x="49" y="30" width="30" height="70" rx="15" stroke="url(#gold2d)" stroke-width="11" stroke-linejoin="round"/>
+
+  <!-- Cutout for top white overlap -->
+  <path d="M 40 26 H 88" stroke="#121212" stroke-width="19" stroke-linecap="round"/>
+
+  <!-- White Ring (Horizontal / Crossbar of T) -->
+  <rect x="22" y="26" width="84" height="28" rx="14" stroke="#FFFFFF" stroke-width="11" stroke-linejoin="round"/>
+
+  <!-- Cutout for bottom gold overlap -->
+  <path d="M 49 46 V 62" stroke="#121212" stroke-width="17" stroke-linecap="round"/>
+  <path d="M 79 46 V 62" stroke="#121212" stroke-width="17" stroke-linecap="round"/>
+  <!-- Gold legs redraw on top -->
+  <path d="M 49 46 V 62" stroke="url(#gold2d)" stroke-width="11" stroke-linecap="round"/>
+  <path d="M 79 46 V 62" stroke="url(#gold2d)" stroke-width="11" stroke-linecap="round"/>
+
+  <!-- Small gold beacon dot -->
+  <circle cx="100" cy="100" r="5" fill="url(#gold2d)"/>
+</svg>

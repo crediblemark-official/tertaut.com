@@ -7,6 +7,11 @@ export default defineConfig({
   lang: "id-ID",
   base: "/docs/",
   lastUpdated: false,
+  head: [
+    ["link", { rel: "icon", type: "image/svg+xml", href: "/docs/favicon.svg?v=3" }],
+    ["link", { rel: "alternate icon", type: "image/x-icon", href: "/docs/favicon.ico?v=3" }],
+    ["link", { rel: "apple-touch-icon", href: "/docs/favicon.png?v=3" }],
+  ],
   themeConfig: {
     logo: "/docs/brand.svg",
     nav: [

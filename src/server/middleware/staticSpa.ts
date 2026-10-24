@@ -120,6 +120,32 @@ if (hasBuiltClient) {
         }
       }
 
+      // Sajikan favicon dengan Content-Type & cache-control eksplisit
+      if (url.pathname === "/favicon.ico") {
+        const file = resolve(clientDistPath, "favicon.ico");
+        if (existsSync(file)) {
+          set.headers["content-type"] = "image/x-icon";
+          set.headers["cache-control"] = "public, max-age=86400";
+          return Bun.file(file);
+        }
+      }
+      if (url.pathname === "/favicon.svg") {
+        const file = resolve(clientDistPath, "favicon.svg");
+        if (existsSync(file)) {
+          set.headers["content-type"] = "image/svg+xml";
+          set.headers["cache-control"] = "public, max-age=86400";
+          return Bun.file(file);
+        }
+      }
+      if (url.pathname === "/favicon.png") {
+        const file = resolve(clientDistPath, "favicon.png");
+        if (existsSync(file)) {
+          set.headers["content-type"] = "image/png";
+          set.headers["cache-control"] = "public, max-age=86400";
+          return Bun.file(file);
+        }
+      }
+
       // Sajikan .well-known/ai-catalog.json dengan header application/json
       if (url.pathname === "/.well-known/ai-catalog.json") {
         const catalogFile = resolve(clientDistPath, ".well-known/ai-catalog.json");

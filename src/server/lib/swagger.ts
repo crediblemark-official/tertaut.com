@@ -7,6 +7,8 @@ export const configureSwagger = () =>
   swagger({
     path: "/swagger",
     provider: "swagger-ui",
+    theme:
+      '/favicon.svg" /><link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" /><link rel="alternate icon" type="image/x-icon" href="/favicon.ico?v=3" /><link rel="stylesheet" href="data:text/css,',
     exclude: [
       // Internal admin panel (hanya untuk dashboard internal, bukan API builder)
       /^\/api\/v1\/panel/,
