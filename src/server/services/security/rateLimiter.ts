@@ -136,30 +136,27 @@ export class RedisRateLimiterAdapter implements RateLimiterAdapter {
 const memoryAdapter = new MemoryRateLimiterAdapter();
 let activeAdapter: RateLimiterAdapter;
 
-// Jika kredensial Upstash Redis disetel, gunakan adapter Redis terdistribusi.
-// Bila belum disetel, fallback secara graceful ke in-memory sliding window adapter (aman untuk single-container Dokploy).
-const hasRedisUrl = process.env.UPSTASH_REDIS_REST_URL;
-const hasRedisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-const requireRedis = process.env.REQUIRE_REDIS_RATE_LIMIT === "true";
+// Di production: gunakan Redis terdistribusi jika tersedia, atau fallback ke memory.
+// Di test/development: selalu gunakan memory adapter agar test terisolasi, deterministik, dan cepat.
+if (process.env.NODE_ENV === "production") {
+  const hasRedisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const hasRedisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const requireRedis = process.env.REQUIRE_REDIS_RATE_LIMIT === "true";
 
-if (hasRedisUrl && hasRedisToken) {
-  activeAdapter = new RedisRateLimiterAdapter();
-} else if (requireRedis && process.env.NODE_ENV === "production") {
-  throw new Error(
-    "[rateLimiter] REQUIRE_REDIS_RATE_LIMIT=true tapi UPSTASH_REDIS_REST_URL atau UPSTASH_REDIS_REST_TOKEN belum disetel."
-  );
-} else {
-  if (process.env.NODE_ENV === "production") {
+  if (hasRedisUrl && hasRedisToken) {
+    activeAdapter = new RedisRateLimiterAdapter();
+  } else if (requireRedis) {
+    throw new Error(
+      "[rateLimiter] REQUIRE_REDIS_RATE_LIMIT=true tapi UPSTASH_REDIS_REST_URL atau UPSTASH_REDIS_REST_TOKEN belum disetel."
+    );
+  } else {
     console.warn(
       "[rateLimiter] UPSTASH_REDIS_REST_URL atau UPSTASH_REDIS_REST_TOKEN tidak disetel. " +
         "Menggunakan in-memory sliding window adapter (aman untuk single-container Dokploy)."
     );
-  } else {
-    console.warn(
-      "[rateLimiter] NODE_ENV !== production, menggunakan in-memory rate limiter. " +
-        "Untuk production multi-instance cluster, set UPSTASH_REDIS_REST_URL dan UPSTASH_REDIS_REST_TOKEN."
-    );
+    activeAdapter = memoryAdapter;
   }
+} else {
   activeAdapter = memoryAdapter;
 }
 
