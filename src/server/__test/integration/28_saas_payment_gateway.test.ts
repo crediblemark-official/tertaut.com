@@ -9,10 +9,22 @@ import { resolveCurrentBuilder } from "../../routes/apps/builder";
 
 setupTestAuth();
 
+async function getTestBuilderWithSecret(): Promise<typeof builders.$inferSelect> {
+  const { resolveCurrentBuilder } = await import("../../routes/apps/builder");
+  const { generateBuilderSecretApiKey } = await import("../../routes/apps/api-key");
+  const { builder } = await resolveCurrentBuilder(new Headers({ cookie: authCookie }));
+  if (!builder) throw new Error("Builder not found for authCookie");
+  if (!builder.secretApiKey) {
+    const key = generateBuilderSecretApiKey();
+    await db.update(builders).set({ secretApiKey: key }).where(eq(builders.id, builder.id));
+    builder.secretApiKey = key;
+  }
+  return builder;
+}
+
 describe("Developer-First SaaS Payment Gateway (Multi-SaaS & Dynamic Pricing)", () => {
   it("should create SaaS Web app with branding and webhook fields", async () => {
-    const builder = await db.query.builders.findFirst();
-    if (!builder) throw new Error("Builder not found");
+    const builder = await getTestBuilderWithSecret();
 
     const testSlug = `saas-web-${Date.now()}`;
     const res = await app.handle(
@@ -49,8 +61,7 @@ describe("Developer-First SaaS Payment Gateway (Multi-SaaS & Dynamic Pricing)", 
   });
 
   it("should allow S2S dynamic checkout session with arbitrary amount and return snapToken", async () => {
-    const builder = await db.query.builders.findFirst();
-    if (!builder) throw new Error("Builder not found");
+    const builder = await getTestBuilderWithSecret();
 
     const testSlug = `dynamic-saas-${Date.now()}`;
     const [createdApp] = await db
@@ -167,8 +178,7 @@ describe("Developer-First SaaS Payment Gateway (Multi-SaaS & Dynamic Pricing)", 
   });
 
   it("should return raw qrDataUrl and transactionId for Custom Checkout mode", async () => {
-    const builder = await db.query.builders.findFirst();
-    if (!builder) throw new Error("Builder not found");
+    const builder = await getTestBuilderWithSecret();
 
     const testSlug = `custom-saas-${Date.now()}`;
     const [createdApp] = await db
@@ -217,8 +227,7 @@ describe("Developer-First SaaS Payment Gateway (Multi-SaaS & Dynamic Pricing)", 
   });
 
   it("should record webhook delivery outbox log and allow manual retry", async () => {
-    const { builder } = await resolveCurrentBuilder(new Headers({ cookie: authCookie }));
-    if (!builder) throw new Error("Builder not found");
+    const builder = await getTestBuilderWithSecret();
 
     // Register a test webhook endpoint
     const [webhookEp] = await db
