@@ -4,6 +4,7 @@ import type { AppItem, CatalogKPIStats } from "../../types/app";
 import { dashboardEnv, envPath } from "../../lib/environment";
 import { formatRupiah } from "../../lib/utils";
 import { useClipboard } from "../../composables/useClipboard";
+import { useConfirm } from "../../composables/useConfirm";
 import {
   Plus,
   ExternalLink,
@@ -61,13 +62,21 @@ const activeSubscriptionsCount = computed(() => props.stats?.activeSubscriptions
 const acrossProductsCount = computed(() => (filteredApps.value.length > 0 ? 1 : 0));
 const customersCount = computed(() => props.stats?.customers30d ?? 0);
 
-function confirmToggleMode(app: AppItem) {
+const { confirm: confirmDialog } = useConfirm();
+
+async function confirmToggleMode(app: AppItem) {
   const targetMode = app.mode === "sandbox" ? "LIVE" : "SANDBOX";
-  const desc =
-    app.mode === "sandbox"
-      ? `Ubah software "${app.name}" ke mode LIVE? Pembayaran akan dialihkan ke gateway produksi riil.`
-      : `Ubah software "${app.name}" ke mode SANDBOX? Pembayaran akan menggunakan simulator testing Tertaut.`;
-  if (confirm(desc)) {
+  const ok = await confirmDialog({
+    title: `Alihkan ke Mode ${targetMode}?`,
+    message:
+      app.mode === "sandbox"
+        ? `Ubah software "${app.name}" ke mode LIVE? Pembayaran akan dialihkan ke gateway produksi riil.`
+        : `Ubah software "${app.name}" ke mode SANDBOX? Pembayaran akan menggunakan simulator testing Tertaut.`,
+    confirmText: `Ya, Aktifkan Mode ${targetMode}`,
+    cancelText: "Batal",
+    variant: app.mode === "sandbox" ? "warning" : "info",
+  });
+  if (ok) {
     emit("toggle-mode", app);
   }
 }

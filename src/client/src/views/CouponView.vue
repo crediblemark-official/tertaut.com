@@ -5,7 +5,10 @@ import { dashboardEnv } from "../lib/environment";
 import { CheckCircle2, RefreshCw, Ticket, Plus, BarChart3 } from "lucide-vue-next";
 import type { AppItem } from "../types/app";
 import type { CouponItem } from "../types/coupon";
+import { useConfirm } from "../composables/useConfirm";
 import CouponManager from "../components/checkout/CouponManager.vue";
+
+const { confirm: confirmDialog } = useConfirm();
 
 const isCreateModalOpen = ref(false);
 const showStats = ref(false);
@@ -111,7 +114,14 @@ async function handleToggleCoupon(coupon: CouponItem) {
 }
 
 async function handleDeleteCoupon(coupon: CouponItem) {
-  if (!confirm(`Hapus kupon ${coupon.code}? Tindakan ini tidak bisa dibatalkan.`)) return;
+  const ok = await confirmDialog({
+    title: `Hapus Kupon "${coupon.code}"?`,
+    message: `Kupon diskon "${coupon.code}" akan dihapus secara permanen dan tidak bisa lagi digunakan pada sesi checkout.`,
+    confirmText: "Ya, Hapus Kupon",
+    cancelText: "Batal",
+    variant: "danger",
+  });
+  if (!ok) return;
   try {
     const res = await api.deleteCoupon(coupon.id);
     if (res.success) {

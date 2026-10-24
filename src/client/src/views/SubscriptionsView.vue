@@ -7,6 +7,7 @@ import type { TransactionItem } from "../types/transaction";
 import { dashboardEnv } from "../lib/environment";
 import { formatRupiah, formatDate } from "../lib/utils";
 import { useClipboard } from "../composables/useClipboard";
+import { useConfirm } from "../composables/useConfirm";
 import {
   Repeat,
   Users,
@@ -205,8 +206,17 @@ const linkedTransactions = computed(() => {
   });
 });
 
+const { confirm: confirmDialog } = useConfirm();
+
 async function handleRevoke(key: string) {
-  if (!confirm(`Cabut akses langganan dan lisensi ${key}?`)) return;
+  const ok = await confirmDialog({
+    title: "Cabut Akses Langganan & Lisensi?",
+    message: `Akses langganan dan lisensi "${key}" akan segera dicabut. Perangkat klien tidak akan bisa lagi menggunakan software ini.`,
+    confirmText: "Ya, Cabut Lisensi",
+    cancelText: "Batal",
+    variant: "danger",
+  });
+  if (!ok) return;
   isRevoking.value = true;
   actionFeedback.value = null;
   try {

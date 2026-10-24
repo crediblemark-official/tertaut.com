@@ -20,6 +20,7 @@ import type {
   LicenseEventItem,
   LicenseSeatItem,
 } from "../../types/licensing";
+import { useConfirm } from "../../composables/useConfirm";
 import LicenseSeatsTab from "./LicenseSeatsTab.vue";
 import LicenseAuditTab from "./LicenseAuditTab.vue";
 
@@ -41,6 +42,7 @@ const errorMsg = ref<string | null>(null);
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 const { copied: keyCopied, copy: copyKey } = useClipboard();
+const { confirm: confirmDialog } = useConfirm();
 
 async function loadSeats() {
   if (!props.license) return;
@@ -84,12 +86,15 @@ function switchTab(t: "seats" | "audit") {
 async function handleDeactivate(seat: LicenseSeatItem) {
   if (!props.license) return;
   if (seat.leaseActive) {
-    if (
-      !confirm(
-        "Perangkat ini masih memegang lease floating aktif. Lepas seat sekaligus melepas lease?"
-      )
-    )
-      return;
+    const ok = await confirmDialog({
+      title: "Lepas Seat & Floating Lease?",
+      message:
+        "Perangkat ini masih memegang lease floating aktif. Lepas seat sekaligus melepas lease perangkat ini?",
+      confirmText: "Lepas Seat",
+      cancelText: "Batal",
+      variant: "danger",
+    });
+    if (!ok) return;
   }
   emit("deactivateSeat", props.license.licenseKey, seat.hwidHash);
   await loadSeats();

@@ -4,11 +4,13 @@ import { useRoute, useRouter } from "vue-router";
 import { api, clearAppsCache } from "../lib/api";
 import type { AppItem, CatalogKPIStats } from "../types/app";
 import { dashboardEnv } from "../lib/environment";
+import { useConfirm } from "../composables/useConfirm";
 import AppCatalog from "../components/apps/AppCatalog.vue";
 import AppCreateForm from "../components/apps/AppCreateForm.vue";
 
 const route = useRoute();
 const router = useRouter();
+const { confirm: confirmDialog } = useConfirm();
 
 const appsList = ref<AppItem[]>([]);
 const catalogStats = ref<CatalogKPIStats | null>(null);
@@ -133,9 +135,13 @@ async function handleToggleMode(app: AppItem) {
 }
 
 async function handleDeleteApp(app: AppItem) {
-  const confirmed = confirm(
-    `Hapus project "${app.name}" (${app.slug})?\n\nTindakan ini permanen dan akan menghapus semua konfigurasi project ini.`
-  );
+  const confirmed = await confirmDialog({
+    title: `Hapus Project "${app.name}"?`,
+    message: `Hapus project "${app.name}" (${app.slug})?\n\nTindakan ini permanen dan akan menghapus semua konfigurasi project ini.`,
+    confirmText: "Ya, Hapus Project",
+    cancelText: "Batal",
+    variant: "danger",
+  });
   if (!confirmed) return;
 
   try {

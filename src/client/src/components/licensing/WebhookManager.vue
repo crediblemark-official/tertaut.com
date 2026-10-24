@@ -15,8 +15,11 @@ import {
 } from "lucide-vue-next";
 import { api } from "../../lib/api";
 import { useClipboard } from "../../composables/useClipboard";
+import { useConfirm } from "../../composables/useConfirm";
 import type { WebhookEndpointItem } from "../../types/licensing";
 import { WEBHOOK_EVENT_LABELS } from "../../constants";
+
+const { confirm: confirmDialog } = useConfirm();
 
 const loading = ref(true);
 const webhooks = ref<WebhookEndpointItem[]>([]);
@@ -143,7 +146,14 @@ async function testWebhook(w: WebhookEndpointItem) {
 }
 
 async function rotateSecret(w: WebhookEndpointItem) {
-  if (!confirm(`Rotasi secret untuk ${w.url}? Pastikan server penerima diperbarui segera.`)) return;
+  const ok = await confirmDialog({
+    title: "Rotasi Secret Webhook?",
+    message: `Rotasi secret untuk "${w.url}"? Pastikan server penerima webhook segera diperbarui dengan secret baru agar verifikasi HMAC signature tetap valid.`,
+    confirmText: "Ya, Rotasi Secret",
+    cancelText: "Batal",
+    variant: "warning",
+  });
+  if (!ok) return;
   try {
     const res = await api.rotateWebhookSecret(w.id);
     if (res.success && res.webhook) {
@@ -159,7 +169,14 @@ async function rotateSecret(w: WebhookEndpointItem) {
 }
 
 async function deleteWebhook(w: WebhookEndpointItem) {
-  if (!confirm(`Hapus webhook endpoint ${w.url}?`)) return;
+  const ok = await confirmDialog({
+    title: "Hapus Webhook Endpoint?",
+    message: `Hapus webhook endpoint "${w.url}"? Tertaut tidak akan lagi mengirimkan event callback ke URL ini.`,
+    confirmText: "Ya, Hapus Webhook",
+    cancelText: "Batal",
+    variant: "danger",
+  });
+  if (!ok) return;
   try {
     const res = await api.deleteWebhook(w.id);
     if (res.success) {
