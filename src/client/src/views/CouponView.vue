@@ -116,8 +116,8 @@ async function handleToggleCoupon(coupon: CouponItem) {
 async function handleDeleteCoupon(coupon: CouponItem) {
   const ok = await confirmDialog({
     title: `Hapus Kupon "${coupon.code}"?`,
-    message: `Kupon diskon "${coupon.code}" akan dihapus secara permanen dan tidak bisa lagi digunakan pada sesi checkout.`,
-    confirmText: "Ya, Hapus Kupon",
+    message: "Kupon akan dihapus permanen.",
+    confirmText: "Hapus",
     cancelText: "Batal",
     variant: "danger",
   });

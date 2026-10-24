@@ -191,9 +191,9 @@ async function handleTriggerBatchPayout() {
   const count = stats.value?.pendingDisbursementsCount || 0;
   const amount = (stats.value?.pendingDisbursementsAmount || 0).toLocaleString("id-ID");
   const confirmed = await confirmDialog({
-    title: "Konfirmasi Batch Payout",
-    message: `Eksekusi batch payout untuk ${count} transaksi tertunda senilai Rp ${amount}?`,
-    confirmText: "Ya, Eksekusi Payout",
+    title: "Eksekusi Batch Payout?",
+    message: `Proses ${count} transaksi (Rp ${amount}).`,
+    confirmText: "Eksekusi",
     variant: "warning",
   });
   if (!confirmed) {
@@ -229,9 +229,9 @@ async function handleLogout() {
 
 async function handleRefundTransaction(tx: PanelTransactionItem) {
   const confirmed = await confirmDialog({
-    title: "Konfirmasi Refund Transaksi",
-    message: `Kembalikan dana sebesar Rp ${tx.grossAmount.toLocaleString("id-ID")} untuk transaksi ${tx.id}? Lisensi terkait dicabut setelah provider mengonfirmasi refund selesai.`,
-    confirmText: "Ya, Refund Transaksi",
+    title: "Refund Transaksi?",
+    message: `Kembalikan dana Rp ${tx.grossAmount.toLocaleString("id-ID")} (${tx.id}).`,
+    confirmText: "Refund",
     variant: "danger",
   });
   if (!confirmed) return;
@@ -251,11 +251,11 @@ async function handleRefundTransaction(tx: PanelTransactionItem) {
 
 async function handleToggleSuspendBuilder(builderId: string) {
   const target = builders.value.find((b) => b.id === builderId);
-  const actionName = target?.isSuspended ? "mengaktifkan kembali" : "membekukan";
   const confirmed = await confirmDialog({
-    title: target?.isSuspended ? "Aktifkan Builder" : "Bekukan Builder",
-    message: `Apakah Anda yakin ingin ${actionName} builder ${target?.name || builderId}?`,
-    confirmText: target?.isSuspended ? "Ya, Aktifkan" : "Ya, Bekukan",
+    title: target?.isSuspended ? "Aktifkan Builder?" : "Bekukan Builder?",
+    message: `Ubah status akun ${target?.name || builderId}.`,
+    confirmText: target?.isSuspended ? "Aktifkan" : "Bekukan",
+    cancelText: "Batal",
     variant: target?.isSuspended ? "info" : "warning",
   });
   if (!confirmed) return;
@@ -275,11 +275,11 @@ async function handleToggleSuspendBuilder(builderId: string) {
 
 async function handleToggleSuspendApp(appId: string) {
   const target = apps.value.find((a) => a.id === appId);
-  const actionName = target?.isSuspended ? "mengaktifkan kembali" : "membekukan";
   const confirmed = await confirmDialog({
-    title: target?.isSuspended ? "Aktifkan Software" : "Bekukan Software",
-    message: `Apakah Anda yakin ingin ${actionName} software ${target?.name || appId}? Pembelian baru akan ${target?.isSuspended ? "diizinkan" : "ditolak"}.`,
-    confirmText: target?.isSuspended ? "Ya, Aktifkan" : "Ya, Bekukan",
+    title: target?.isSuspended ? "Aktifkan Software?" : "Bekukan Software?",
+    message: `Ubah status software ${target?.name || appId}.`,
+    confirmText: target?.isSuspended ? "Aktifkan" : "Bekukan",
+    cancelText: "Batal",
     variant: target?.isSuspended ? "info" : "warning",
   });
   if (!confirmed) return;
@@ -299,9 +299,10 @@ async function handleToggleSuspendApp(appId: string) {
 
 async function handleRevokeLicense(lic: PanelLicenseItem) {
   const confirmed = await confirmDialog({
-    title: "Cabut Lisensi Software",
-    message: `Apakah Anda yakin ingin mencabut lisensi ${lic.licenseKey} milik ${lic.customerEmail}? Token offline akan otomatis di-denylist.`,
-    confirmText: "Ya, Cabut Lisensi",
+    title: "Cabut Lisensi?",
+    message: `Cabut lisensi ${lic.licenseKey} (${lic.customerEmail}).`,
+    confirmText: "Cabut",
+    cancelText: "Batal",
     variant: "danger",
   });
   if (!confirmed) return;
@@ -321,9 +322,10 @@ async function handleRevokeLicense(lic: PanelLicenseItem) {
 
 async function handleReactivateLicense(lic: PanelLicenseItem) {
   const confirmed = await confirmDialog({
-    title: "Aktifkan Kembali Lisensi",
-    message: `Aktifkan kembali lisensi ${lic.licenseKey} untuk ${lic.customerEmail}?`,
-    confirmText: "Ya, Aktifkan",
+    title: "Aktifkan Lisensi?",
+    message: `Aktifkan kembali ${lic.licenseKey} (${lic.customerEmail}).`,
+    confirmText: "Aktifkan",
+    cancelText: "Batal",
     variant: "info",
   });
   if (!confirmed) return;
@@ -376,9 +378,10 @@ async function handleToggleCoupon(couponId: string) {
 
 async function handleDeleteCoupon(couponId: string) {
   const confirmed = await confirmDialog({
-    title: "Hapus Kupon Diskon",
-    message: "Apakah Anda yakin ingin menghapus kupon diskon ini secara permanen?",
-    confirmText: "Ya, Hapus Kupon",
+    title: "Hapus Kupon?",
+    message: "Kupon diskon akan dihapus permanen.",
+    confirmText: "Hapus",
+    cancelText: "Batal",
     variant: "danger",
   });
   if (!confirmed) return;

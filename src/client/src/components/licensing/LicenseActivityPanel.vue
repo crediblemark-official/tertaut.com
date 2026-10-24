@@ -87,10 +87,9 @@ async function handleDeactivate(seat: LicenseSeatItem) {
   if (!props.license) return;
   if (seat.leaseActive) {
     const ok = await confirmDialog({
-      title: "Lepas Seat & Floating Lease?",
-      message:
-        "Perangkat ini masih memegang lease floating aktif. Lepas seat sekaligus melepas lease perangkat ini?",
-      confirmText: "Lepas Seat",
+      title: "Lepas Seat & Lease?",
+      message: "Lease aktif pada perangkat ini akan dihentikan.",
+      confirmText: "Lepas",
       cancelText: "Batal",
       variant: "danger",
     });

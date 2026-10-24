@@ -67,12 +67,12 @@ const { confirm: confirmDialog } = useConfirm();
 async function confirmToggleMode(app: AppItem) {
   const targetMode = app.mode === "sandbox" ? "LIVE" : "SANDBOX";
   const ok = await confirmDialog({
-    title: `Alihkan ke Mode ${targetMode}?`,
+    title: `Ubah ke Mode ${targetMode}?`,
     message:
       app.mode === "sandbox"
-        ? `Ubah software "${app.name}" ke mode LIVE? Pembayaran akan dialihkan ke gateway produksi riil.`
-        : `Ubah software "${app.name}" ke mode SANDBOX? Pembayaran akan menggunakan simulator testing Tertaut.`,
-    confirmText: `Ya, Aktifkan Mode ${targetMode}`,
+        ? "Pembayaran akan menggunakan gateway produksi riil."
+        : "Pembayaran akan dialihkan ke simulator testing.",
+    confirmText: `Aktifkan ${targetMode}`,
     cancelText: "Batal",
     variant: app.mode === "sandbox" ? "warning" : "info",
   });

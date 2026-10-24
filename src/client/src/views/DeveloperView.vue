@@ -186,9 +186,8 @@ watch(env, () => {
 async function handleRotateSecret() {
   const ok = await confirmDialog({
     title: "Rotasi Secret API Key?",
-    message:
-      "Kunci lama akan langsung tidak berlaku. Anda harus memperbarui konfigurasi di server backend SaaS Anda agar permintaan checkout S2S tetap berjalan normal.",
-    confirmText: "Ya, Rotasi Kunci Sekarang",
+    message: "Kunci API lama akan langsung dinonaktifkan.",
+    confirmText: "Rotasi",
     cancelText: "Batal",
     variant: "danger",
   });
@@ -249,7 +248,7 @@ async function handleCreateWebhook() {
 async function handleDeleteWebhook(id: string) {
   const ok = await confirmDialog({
     title: "Hapus Endpoint Webhook?",
-    message: "Server Anda tidak akan lagi menerima notifikasi pembayaran dari endpoint ini.",
+    message: "Endpoint tidak akan menerima notifikasi lagi.",
     confirmText: "Hapus",
     cancelText: "Batal",
     variant: "danger",

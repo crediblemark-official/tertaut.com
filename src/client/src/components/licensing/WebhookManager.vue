@@ -148,8 +148,8 @@ async function testWebhook(w: WebhookEndpointItem) {
 async function rotateSecret(w: WebhookEndpointItem) {
   const ok = await confirmDialog({
     title: "Rotasi Secret Webhook?",
-    message: `Rotasi secret untuk "${w.url}"? Pastikan server penerima webhook segera diperbarui dengan secret baru agar verifikasi HMAC signature tetap valid.`,
-    confirmText: "Ya, Rotasi Secret",
+    message: "Secret lama akan langsung nonaktif.",
+    confirmText: "Rotasi",
     cancelText: "Batal",
     variant: "warning",
   });
@@ -170,9 +170,9 @@ async function rotateSecret(w: WebhookEndpointItem) {
 
 async function deleteWebhook(w: WebhookEndpointItem) {
   const ok = await confirmDialog({
-    title: "Hapus Webhook Endpoint?",
-    message: `Hapus webhook endpoint "${w.url}"? Tertaut tidak akan lagi mengirimkan event callback ke URL ini.`,
-    confirmText: "Ya, Hapus Webhook",
+    title: "Hapus Webhook?",
+    message: `Endpoint "${w.url}" akan dihapus.`,
+    confirmText: "Hapus",
     cancelText: "Batal",
     variant: "danger",
   });

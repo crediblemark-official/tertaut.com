@@ -77,10 +77,10 @@ onUnmounted(() => {
               <X class="w-4 h-4" />
             </button>
 
-            <div class="flex items-start gap-4">
+            <div class="flex items-start gap-3.5">
               <!-- Icon badge -->
               <div
-                class="flex items-center justify-center w-11 h-11 rounded-xl shrink-0 transition"
+                class="flex items-center justify-center w-10 h-10 rounded-xl shrink-0 transition"
                 :class="{
                   'bg-rose-500/10 text-rose-400 border border-rose-500/25 shadow-[0_0_15px_rgba(244,63,94,0.15)]':
                     options.variant === 'danger',
@@ -96,12 +96,13 @@ onUnmounted(() => {
               </div>
 
               <!-- Content -->
-              <div class="flex-1 pr-4">
-                <h3 class="text-base font-bold text-white tracking-tight">
+              <div class="flex-1 pr-4 pt-0.5">
+                <h3 class="text-sm sm:text-base font-semibold text-white tracking-tight">
                   {{ options.title }}
                 </h3>
                 <p
-                  class="mt-2 text-xs sm:text-sm text-zinc-300/80 leading-relaxed whitespace-pre-wrap font-normal"
+                  v-if="options.message"
+                  class="mt-1 text-xs text-zinc-400 leading-relaxed whitespace-pre-wrap font-normal"
                 >
                   {{ options.message }}
                 </p>

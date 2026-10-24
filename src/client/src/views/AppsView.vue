@@ -136,9 +136,9 @@ async function handleToggleMode(app: AppItem) {
 
 async function handleDeleteApp(app: AppItem) {
   const confirmed = await confirmDialog({
-    title: `Hapus Project "${app.name}"?`,
-    message: `Hapus project "${app.name}" (${app.slug})?\n\nTindakan ini permanen dan akan menghapus semua konfigurasi project ini.`,
-    confirmText: "Ya, Hapus Project",
+    title: `Hapus "${app.name}"?`,
+    message: "Semua konfigurasi project ini akan dihapus permanen.",
+    confirmText: "Hapus",
     cancelText: "Batal",
     variant: "danger",
   });

@@ -76,10 +76,10 @@ async function loadBuilderSecret() {
 async function rotateBuilderSecret() {
   if (rotatingSecret.value) return;
   const confirmed = await confirmDialog({
-    title: "Rotasi Secret API Key",
-    message:
-      "Rotasi Secret API Key akan membuat semua request server-to-server & verifikasi webhook dengan key lama gagal (401). Lanjutkan?",
-    confirmText: "Ya, Rotasi Secret Key",
+    title: "Rotasi Secret API Key?",
+    message: "Kunci API lama akan langsung dinonaktifkan.",
+    confirmText: "Rotasi",
+    cancelText: "Batal",
     variant: "danger",
   });
   if (!confirmed) return;

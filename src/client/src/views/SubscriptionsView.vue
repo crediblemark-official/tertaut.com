@@ -210,9 +210,9 @@ const { confirm: confirmDialog } = useConfirm();
 
 async function handleRevoke(key: string) {
   const ok = await confirmDialog({
-    title: "Cabut Akses Langganan & Lisensi?",
-    message: `Akses langganan dan lisensi "${key}" akan segera dicabut. Perangkat klien tidak akan bisa lagi menggunakan software ini.`,
-    confirmText: "Ya, Cabut Lisensi",
+    title: "Cabut Lisensi?",
+    message: `Akses lisensi "${key}" akan segera dihentikan.`,
+    confirmText: "Cabut",
     cancelText: "Batal",
     variant: "danger",
   });

@@ -81,9 +81,10 @@ const { confirm: confirmDialog } = useConfirm();
 
 async function revokeLicense(lic: LicenseItem) {
   const confirmed = await confirmDialog({
-    title: "Cabut Akses Lisensi",
-    message: `Apakah Anda yakin ingin mencabut lisensi ${lic.licenseKey}? Tindakan ini akan membatalkan token offline dan memutuskan seluruh seat perangkat.`,
-    confirmText: "Ya, Cabut Lisensi",
+    title: "Cabut Lisensi?",
+    message: `Lisensi ${lic.licenseKey} akan dibatalkan permanen.`,
+    confirmText: "Cabut",
+    cancelText: "Batal",
     variant: "danger",
   });
   if (!confirmed) return;
