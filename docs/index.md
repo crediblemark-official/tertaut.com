@@ -40,3 +40,4 @@ const tertaut = new Tertaut({
 - [SDK @tertaut/sdk](/api/sdk) — Referensi lengkap method dan error handling SDK frontend.
 - [API Server-ke-Server](/api/server-to-server) — Otomasi pencatatan dan penerbitan lisensi langsung dari server Anda.
 - [API Playground (Swagger)](https://tertaut.com/swagger) — Uji coba interaktif langsung ke seluruh endpoint REST API tertaut.com.
+- [Spesifikasi AI & LLM (llms.txt)](/docs/llms.txt) — Panduan format ringkas dan terstruktur khusus untuk AI agents dan Large Language Models.

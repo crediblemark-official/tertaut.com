@@ -19,6 +19,9 @@ export function serveFromDir(
   let targetFile = resolve(dir, "." + safePath);
 
   if (targetFile.startsWith(dir) && existsSync(targetFile) && !statSync(targetFile).isDirectory()) {
+    if (targetFile.endsWith(".txt")) {
+      set.headers["content-type"] = "text/plain; charset=utf-8";
+    }
     return Bun.file(targetFile);
   }
 
@@ -61,6 +64,34 @@ if (hasBuiltClient) {
       return serveDocsIndex();
     })
     .get("/docs/", serveDocsIndex)
+    .get("/docs/llms.txt", ({ set }) => {
+      const fileInDist = resolve(docsDistPath, "llms.txt");
+      if (existsSync(fileInDist)) {
+        set.headers["content-type"] = "text/plain; charset=utf-8";
+        return Bun.file(fileInDist);
+      }
+      const srcFile = resolve(import.meta.dir, "../../../docs/public/llms.txt");
+      if (existsSync(srcFile)) {
+        set.headers["content-type"] = "text/plain; charset=utf-8";
+        return Bun.file(srcFile);
+      }
+      set.status = 404;
+      return { error: "llms.txt not found" };
+    })
+    .get("/docs/llms-full.txt", ({ set }) => {
+      const fileInDist = resolve(docsDistPath, "llms-full.txt");
+      if (existsSync(fileInDist)) {
+        set.headers["content-type"] = "text/plain; charset=utf-8";
+        return Bun.file(fileInDist);
+      }
+      const srcFile = resolve(import.meta.dir, "../../../docs/public/llms-full.txt");
+      if (existsSync(srcFile)) {
+        set.headers["content-type"] = "text/plain; charset=utf-8";
+        return Bun.file(srcFile);
+      }
+      set.status = 404;
+      return { error: "llms-full.txt not found" };
+    })
     .get("/docs/*", ({ request, set }) =>
       serveFromDir(docsDistPath, new URL(request.url).pathname.slice("/docs".length), set)
     )

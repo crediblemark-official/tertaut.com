@@ -1,0 +1,22 @@
+# Tertaut Documentation
+
+> Official documentation for tertaut.com — Developer Infrastructure Engine, Merchant of Record (MoR) for software creators, and Universal Cryptographic Licensing in Indonesia.
+
+## Docs
+
+- [Pengenalan (Introduction)](https://tertaut.com/docs/): Overview of Tertaut architecture, core features, hosted checkout, universal licensing, customer API keys, and rapid 3-step integration.
+- [Panduan Mulai Cepat (Getting Started)](https://tertaut.com/docs/guide/getting-started): End-to-end tutorial covering app registration, publishable API keys, backend secret keys, SDK initialization, issuing licenses, device activation, and customer API key verification.
+- [Konfigurasi Environment (.env)](https://tertaut.com/docs/guide/environment): Client environment setup guidelines for Vite (`VITE_`), Next.js (`NEXT_PUBLIC_`), and Nuxt (`NUXT_PUBLIC_`), with security best practices for secret keys.
+- [SDK Klien Frontend (@tertaut/sdk)](https://tertaut.com/docs/api/sdk): Complete reference for client-side SDK integration, Ed25519 offline license verification, salted hardware ID (HWID) device locking, heartbeat keep-alive, and rolling lease management.
+- [API Server-to-Server (S2S)](https://tertaut.com/docs/api/server-to-server): REST API documentation for backend-to-backend automation authenticated via Bearer `tt_secret_...`. Supports direct license issuance, revocation, batch operations, device seat recovery, transfer, audit trail events, and HMAC webhook management.
+- [Simulasi Demo Checkout](https://tertaut.com/docs/reference/demo-checkout): Interactive demonstration of Merchant of Record (MoR) dynamic checkout with instant QRIS and bank Virtual Account settlement.
+
+## API & Testing
+
+- [Swagger REST API Playground](https://tertaut.com/swagger): Interactive OpenAPI 3.0 documentation for exploring and testing all 32 public, builder, licensing, and S2S REST endpoints.
+- [Checkout Demo](https://tertaut.com/demo/checkout): Live interactive checkout experience for evaluating buyer-facing payment flows.
+
+## Full LLM Specifications
+
+- [Comprehensive AI & LLM Specification (llms-full.txt)](https://tertaut.com/docs/llms-full.txt): Complete platform architecture, fee structure (flat 5% fee, 0% monthly), cryptographic Ed25519 signing specifications, and JSON payload schemas for LLMs and AI agents.
+- [Root Platform llms.txt](https://tertaut.com/llms.txt): Platform-level LLM index for tertaut.com.

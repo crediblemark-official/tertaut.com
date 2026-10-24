@@ -8,6 +8,9 @@ Allow: /terms
 Allow: /contact
 Allow: /refund
 Allow: /dashboard/docs
+Allow: /docs/
+Allow: /docs/llms.txt
+Allow: /docs/llms-full.txt
 Allow: /demo/checkout
 Allow: /pay/
 Allow: /llms.txt

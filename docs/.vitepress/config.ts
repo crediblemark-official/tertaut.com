@@ -15,6 +15,7 @@ export default defineConfig({
       { text: "SDK Klien", link: "/api/sdk" },
       { text: "API Backend (S2S)", link: "/api/server-to-server" },
       { text: "API Playground (Swagger)", link: "https://tertaut.com/swagger", target: "_blank" },
+      { text: "llms.txt", link: "/docs/llms.txt", target: "_blank" },
     ],
     sidebar: [
       {
@@ -35,6 +36,17 @@ export default defineConfig({
       {
         text: "Contoh & Referensi",
         items: [{ text: "Simulasi Demo Checkout", link: "/reference/demo-checkout" }],
+      },
+      {
+        text: "Spesifikasi AI & LLM",
+        items: [
+          { text: "llms.txt (Docs Index)", link: "/docs/llms.txt", target: "_blank" },
+          {
+            text: "llms-full.txt (Full Engine Spec)",
+            link: "/docs/llms-full.txt",
+            target: "_blank",
+          },
+        ],
       },
     ],
     outline: {
