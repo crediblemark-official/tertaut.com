@@ -301,13 +301,11 @@ export const config = {
 
   database: {
     /**
-     * Satu sumber koneksi: connection string PostgreSQL dari environment.
-     * Saat pengujian otomatis (isTest / bun test), otomatis dialihkan ke DATABASE_URL_TEST
-     * atau database '[dbname]_test' agar tidak pernah mengotori database development.
+     * Satu sumber koneksi: connection string PostgreSQL dari environment (DATABASE_URL).
+     * Saat pengujian otomatis (isTest / bun test), otomatis dialihkan ke database '[dbname]_test'
+     * jika belum menggunakan suffix _test, agar tidak pernah mengotori database utama.
      */
     url: (() => {
-      const testEnv = getEnv("DATABASE_URL_TEST");
-      if (isTest && testEnv) return testEnv;
       const mainUrl = requireEnv("DATABASE_URL");
       if (isTest) {
         return mainUrl.replace(/\/([^/?]+)(\?.*)?$/, (_match, dbName, query = "") => {
