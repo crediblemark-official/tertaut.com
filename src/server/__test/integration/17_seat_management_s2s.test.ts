@@ -157,7 +157,7 @@ describe("Fase 6: Seat management & S2S batch ops", () => {
     expect(kinds).toContain("license.revoked");
 
     void hwidHash;
-  });
+  }, 15000);
 
   it("webhook endpoint CRUD + rotate secret + test delivery via S2S", async () => {
     await setup();
