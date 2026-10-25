@@ -99,49 +99,27 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         typeof productGrantDays === "number" && productGrantDays > 0
           ? productGrantDays
           : tx.grantDays || 365;
-      const expiresAt = new Date(now.getTime() + grantDays * 24 * 60 * 60 * 1000);
-      const maxSeats = app?.deliveryConfig?.licenseKey?.maxSeats ?? 3;
-
       let licenseKey: string | null = null;
       let licId: string | null = null;
       let generatedApiKey: string | undefined = undefined;
+      let expiresAt = new Date(now.getTime() + grantDays * 24 * 60 * 60 * 1000);
 
       if (shouldIssueLicense) {
-        // Generate Universal License Key (Modul 3 Integration)
-        licenseKey = LicenseService.generateLicenseKey();
-        const features = app?.deliveryConfig?.licenseKey?.defaultFeatures || {};
-        const offlineToken = LicenseService.createOfflineGraceToken(
-          licenseKey,
-          tx.appId,
-          null,
-          tx.customerEmail,
-          maxSeats,
-          features,
-          app?.deliveryConfig?.licenseKey?.offlineGraceDays,
-          locked.mode
-        );
-
-        // P4 & P5: Generate auto-provisioned API key jika apiAccess aktif
-        if (app?.deliveryConfig?.apiAccess?.enabled) {
-          generatedApiKey = `tt_cust_${randomBytes(16).toString("hex")}`;
-        }
-
-        licId = `lic_${randomBytes(8).toString("hex")}`;
-        await trx.insert(licenses).values({
-          id: licId,
-          appId: tx.appId,
+        const provisioned = await LicenseService.provisionForPayment({
           transactionId: tx.id,
-          mode: locked.mode,
-          licenseKey,
+          appId: tx.appId,
           customerEmail: tx.customerEmail,
-          status: "ACTIVE",
-          licenseVersion: 1,
-          features,
-          maxSeats,
-          expiresAt,
-          offlineJwtGraceToken: offlineToken,
-          apiKey: generatedApiKey,
+          mode: locked.mode,
+          app,
+          grantDays,
+          now,
+          trx,
         });
+
+        licenseKey = provisioned.licenseKey;
+        licId = provisioned.licenseId;
+        expiresAt = provisioned.expiresAt;
+        generatedApiKey = provisioned.apiKey;
       }
 
       const paymentData = { ...locked, paymentChannel, paymentStatus: "PAID", paidAt: now };

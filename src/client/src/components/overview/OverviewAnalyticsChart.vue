@@ -10,9 +10,11 @@ const props = withDefaults(
     transactions: TransactionItem[];
     licenses: LicenseItem[];
     loading?: boolean;
+    days?: 7 | 14 | 30;
   }>(),
   {
     loading: false,
+    days: 7,
   }
 );
 
@@ -47,7 +49,7 @@ const analyticsStats = computed(() => {
 
 // Daily chart data for 7, 14, or 30 days
 const dailyChartData = computed(() => {
-  const days = statsDays.value;
+  const days = props.days ?? 7;
   const result: { date: string; label: string; count: number; gross: number }[] = [];
 
   const now = new Date();
@@ -139,38 +141,7 @@ const hoveredPoint = computed(() => {
 
 <template>
   <!-- Analitik & Performa Penjualan (Flat, Seamless - Tanpa Card Container) -->
-  <div class="space-y-4 pt-1 border-b border-jetblack/15 pb-5">
-    <div
-      class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-jetblack/15"
-    >
-      <div class="flex items-center gap-2">
-        <BarChart3 class="w-4 h-4 text-gold" />
-        <h2 class="text-xs font-bold uppercase tracking-wider text-jetblack">
-          Tren &amp; Performa Penjualan
-        </h2>
-        <span class="text-[11px] text-jetblack/40 hidden sm:inline"
-          >• Pantau omzet MoR &amp; transaksi harian</span
-        >
-      </div>
-
-      <div class="flex items-center gap-1">
-        <button
-          v-for="d in [7, 14, 30] as const"
-          :key="d"
-          type="button"
-          @click="statsDays = d"
-          :class="[
-            'px-2.5 py-0.5 rounded-md font-bold transition cursor-pointer text-xs',
-            statsDays === d
-              ? 'bg-jetblack text-white'
-              : 'bg-jetblack/5 text-jetblack/60 hover:bg-jetblack/10',
-          ]"
-        >
-          {{ d }} Hari
-        </button>
-      </div>
-    </div>
-
+  <div class="space-y-4 pt-3 border-b border-jetblack/15 pb-5 !mt-0">
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch pt-1">
       <!-- 4 Sub-KPIs (Left 5 cols - Flat layout with crisp cross dividers) -->
       <div class="lg:col-span-5 grid grid-cols-2 gap-3.5 pr-0 lg:pr-2">

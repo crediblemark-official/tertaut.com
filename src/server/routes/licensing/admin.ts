@@ -8,6 +8,7 @@ import {
   webhookEndpoints,
   webhookDeliveries,
   transactions,
+  revokedTokens,
 } from "../../db/schema";
 import { eq, inArray, and, sql, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
@@ -63,6 +64,8 @@ export interface RenewLicenseContext {
     licenseKey?: string;
     additionalDays?: number | string;
     days?: number | string;
+    newExpiresAt?: string | null;
+    isLifetime?: boolean;
     [key: string]: any;
   };
   request?: { headers?: Headers | any };
@@ -287,6 +290,63 @@ export async function handleRevokeLicense({
   };
 }
 
+export async function handleReactivateLicense({
+  body,
+  request,
+  set,
+}: {
+  body: { licenseKey: string };
+  request?: { headers?: Headers };
+  set: SetStatusContext;
+}) {
+  const { licenseKey } = body || {};
+  const { builder, isAdmin } = request?.headers
+    ? await resolveCurrentBuilder(request.headers)
+    : !request
+      ? { builder: null, isAdmin: true }
+      : { builder: null, isAdmin: false };
+
+  if (!isAdmin && !builder) {
+    set.status = 401;
+    return { error: "Unauthorized" };
+  }
+
+  if (!licenseKey || typeof licenseKey !== "string") {
+    set.status = 400;
+    return { error: "licenseKey wajib disertakan" };
+  }
+
+  // IDOR-2: Validasi kepemilikan lisensi oleh builder pemanggil
+  if (!isAdmin && builder) {
+    const owned = await verifyOwnedLicense(builder.id, licenseKey, isAdmin);
+    if ("error" in owned) {
+      set.status = owned.status;
+      return { error: owned.error };
+    }
+  }
+
+  const ipAddress = getClientIp(request);
+  const result = await LicenseService.reactivate({
+    licenseKey,
+    actor: {
+      type: isAdmin ? "ADMIN" : "BUILDER",
+      id: builder?.id,
+    },
+    ipAddress,
+  });
+
+  if (result.notFound) {
+    set.status = 404;
+    return { error: result.error || "License not found" };
+  }
+
+  return {
+    success: result.success,
+    message: result.message,
+    license: result.license,
+  };
+}
+
 export async function handleVerifyApiKey({
   body,
   set,
@@ -404,115 +464,309 @@ export async function handleListEvents({ query, request, set }: ListEventsContex
 }
 
 export async function handleRenewLicense({ body, set, request }: RenewLicenseContext) {
-  const { licenseKey, additionalDays, days } = body || {};
+  const { licenseKey, additionalDays, days, newExpiresAt, isLifetime } = body || {};
 
   if (!licenseKey || typeof licenseKey !== "string") {
     set.status = 400;
     return { success: false, error: "licenseKey wajib disertakan" };
   }
 
-  const lic = await db.query.licenses.findFirst({
-    where: eq(licenses.licenseKey, licenseKey.trim()),
-  });
-
-  if (!lic) {
-    set.status = 404;
-    return { success: false, error: "Lisensi tidak ditemukan" };
-  }
-
-  const app = await db.query.apps.findFirst({
-    where: eq(apps.id, lic.appId),
-  });
-
   const { builder, isAdmin } = request?.headers
     ? await resolveCurrentBuilder(request.headers)
-    : { builder: null, isAdmin: false };
+    : !request
+      ? { builder: null, isAdmin: true }
+      : { builder: null, isAdmin: false };
 
-  if (!isAdmin && (!builder || app?.builderId !== builder.id)) {
-    set.status = 404;
-    return { success: false, error: "Lisensi tidak ditemukan" };
+  if (!isAdmin && !builder) {
+    set.status = 401;
+    return { success: false, error: "Unauthorized" };
   }
 
-  let daysToAdd = Number(additionalDays || days);
-  if (!daysToAdd || daysToAdd <= 0) {
-    switch (app?.billingPeriod) {
-      case "daily":
-        daysToAdd = 1;
-        break;
-      case "weekly":
-        daysToAdd = 7;
-        break;
-      case "monthly":
-        daysToAdd = 30;
-        break;
-      case "every_3_months":
-        daysToAdd = 90;
-        break;
-      case "every_6_months":
-        daysToAdd = 180;
-        break;
-      case "yearly":
-        daysToAdd = 365;
-        break;
-      default:
-        daysToAdd = app?.deliveryConfig?.licenseKey?.expiresInDays || 30;
+  // IDOR check: verifikasi kepemilikan lisensi oleh builder pemanggil
+  if (!isAdmin && builder) {
+    const owned = await verifyOwnedLicense(builder.id, licenseKey, isAdmin);
+    if ("error" in owned) {
+      set.status = owned.status;
+      return { success: false, error: owned.error };
     }
   }
 
-  // Batas maksimum perpanjangan lisensi manual oleh builder non-admin (maksimal 365 hari per request)
-  if (!isAdmin && daysToAdd > 365) {
-    set.status = 400;
+  const ipAddress = getClientIp(request);
+  const result = await LicenseService.renew({
+    licenseKey,
+    additionalDays,
+    days,
+    newExpiresAt,
+    isLifetime,
+    actor: {
+      type: isAdmin ? "ADMIN" : "BUILDER",
+      id: builder?.id,
+    },
+    ipAddress,
+  });
+
+  if (!result.success) {
+    set.status = result.notFound ? 404 : 400;
     return {
       success: false,
-      error:
-        "Batas perpanjangan lisensi manual oleh builder dibatasi maksimum 365 hari per request.",
+      error: result.error || "Gagal memperpanjang masa aktif lisensi",
     };
   }
 
-  const currentExpiry = lic.expiresAt ? new Date(lic.expiresAt) : new Date();
-  const baseDate = currentExpiry.getTime() > Date.now() ? currentExpiry : new Date();
-  baseDate.setDate(baseDate.getDate() + daysToAdd);
+  return {
+    success: true,
+    message: result.message,
+    newExpiry: result.newExpiry,
+    extendedDays: result.extendedDays,
+    additionalDays: result.additionalDays,
+    isLifetime: result.isLifetime,
+    license: result.license,
+  };
+}
 
-  const [updated] = await db
-    .update(licenses)
-    .set({
-      status: "ACTIVE",
-      expiresAt: baseDate,
-      updatedAt: new Date(),
-    })
-    .where(eq(licenses.id, lic.id))
-    .returning();
+export async function handleListConfigs({
+  query,
+  request,
+}: {
+  query?: { mode?: "sandbox" | "live" };
+  request?: { headers?: Headers };
+}) {
+  const headers = request?.headers;
+  const { builder, isAdmin } = headers
+    ? await resolveCurrentBuilder(headers)
+    : { builder: null, isAdmin: true };
 
-  const ipAddress = getClientIp(request);
+  const conditions: any[] = [];
+  if (!isAdmin && builder) {
+    conditions.push(eq(apps.builderId, builder.id));
+  } else if (!isAdmin && !builder) {
+    return { success: true, configs: [] };
+  }
 
-  await AuditService.record(
-    "license.renewed",
-    {
-      licenseId: lic.id,
-      licenseKey: lic.licenseKey,
-      appId: lic.appId,
-      actorType: isAdmin ? "ADMIN" : "BUILDER",
-      actorId: builder?.id || null,
-      ipAddress,
-    },
-    { additionalDays: daysToAdd, newExpiry: baseDate.toISOString() }
-  );
+  if (query?.mode) {
+    conditions.push(eq(apps.mode, query.mode));
+  }
 
-  await WebhookService.emit("license.renewed", {
-    license: updated,
-    app: app || null,
-    actorType: isAdmin ? "ADMIN" : "BUILDER",
-    actorId: builder?.id || null,
-    ipAddress,
-    payload: { additionalDays: daysToAdd, newExpiry: baseDate.toISOString() },
+  const appRows = await db
+    .select()
+    .from(apps)
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+  if (appRows.length === 0) {
+    return { success: true, configs: [] };
+  }
+
+  const appIds = appRows.map((a) => a.id);
+
+  // Fetch all licenses belonging to these apps
+  const licRows = await db.query.licenses.findMany({
+    where: inArray(licenses.appId, appIds),
+    orderBy: (lic, { desc }) => [desc(lic.createdAt)],
+  });
+
+  // Batch-fetch activations
+  const licenseIds = licRows.map((l) => l.id);
+  const allActivations =
+    licenseIds.length > 0
+      ? await db.query.licenseActivations.findMany({
+          where: inArray(licenseActivations.licenseId, licenseIds),
+          orderBy: (act, { desc }) => [desc(act.lastValidatedAt)],
+        })
+      : [];
+
+  const activationsByLicense = new Map<string, any[]>();
+  for (const act of allActivations) {
+    const list = activationsByLicense.get(act.licenseId) || [];
+    list.push(act);
+    activationsByLicense.set(act.licenseId, list);
+  }
+
+  // Fetch LTV totals by app and customer
+  const emails = [...new Set(licRows.map((l) => l.customerEmail.toLowerCase()))];
+  const totals =
+    licRows.length && emails.length
+      ? await db
+          .select({
+            appId: transactions.appId,
+            email: sql<string>`lower(${transactions.customerEmail})`,
+            mode: transactions.mode,
+            ltv: sql<number>`coalesce(sum(${transactions.grossAmount}),0)::bigint`,
+          })
+          .from(transactions)
+          .where(
+            and(
+              inArray(transactions.appId, appIds),
+              inArray(sql`lower(${transactions.customerEmail})`, emails),
+              eq(transactions.paymentStatus, "PAID"),
+              sql`${transactions.paymentChannel} IS DISTINCT FROM 'FREE_TRIAL'`
+            )
+          )
+          .groupBy(transactions.appId, sql`lower(${transactions.customerEmail})`, transactions.mode)
+      : [];
+
+  const ltvMap = new Map(totals.map((r) => [`${r.mode}:${r.appId}:${r.email}`, Number(r.ltv)]));
+
+  // Map licenses to app
+  const licensesByApp = new Map<string, any[]>();
+  for (const lic of licRows) {
+    const enrichedLic = {
+      ...lic,
+      ltv: ltvMap.get(`${lic.mode}:${lic.appId}:${lic.customerEmail.toLowerCase()}`) || 0,
+      seatsUsed: (activationsByLicense.get(lic.id) || []).length,
+      activations: activationsByLicense.get(lic.id) || [],
+    };
+    const list = licensesByApp.get(lic.appId) || [];
+    list.push(enrichedLic);
+    licensesByApp.set(lic.appId, list);
+  }
+
+  const configs = appRows.map((app) => {
+    const delivery = (app.deliveryConfig as any) || {};
+    const lk = delivery.licenseKey;
+    const appLicenses = licensesByApp.get(app.id) || [];
+    const activeLicenses = appLicenses.filter((l) => l.status === "ACTIVE").length;
+    const checkoutLicenses = appLicenses.filter((l) => Boolean(l.transactionId)).length;
+    const manualLicenses = appLicenses.filter((l) => !l.transactionId).length;
+    const totalLtv = appLicenses.reduce((acc, l) => acc + (l.ltv || 0), 0);
+
+    return {
+      id: app.id,
+      appId: app.id,
+      appName: app.name,
+      mode: app.mode,
+      name: lk?.description || `${app.name} License Configuration`,
+      enabled: Boolean(lk?.enabled),
+      maxSeats: lk?.maxSeats ?? 3,
+      expiresInDays: lk?.expiresInDays ?? 365,
+      offlineGraceDays: lk?.offlineGraceDays ?? 30,
+      floating: lk?.floating || {
+        enabled: false,
+        leaseTtlSeconds: 300,
+        heartbeatIntervalSeconds: 60,
+      },
+      defaultFeatures: lk?.defaultFeatures || {},
+      totalLicenses: appLicenses.length,
+      activeLicenses,
+      checkoutLicenses,
+      manualLicenses,
+      totalLtv,
+      licenses: appLicenses,
+      createdAt: app.createdAt,
+      updatedAt: app.updatedAt,
+    };
   });
 
   return {
     success: true,
-    message: `Lisensi ${licenseKey} berhasil diperpanjang +${daysToAdd} hari.`,
-    newExpiry: baseDate.toISOString(),
-    extendedDays: daysToAdd,
-    additionalDays: daysToAdd,
-    license: updated,
+    configs,
+  };
+}
+
+export async function handleSaveConfig({
+  body,
+  request,
+  set,
+}: {
+  body: {
+    appId: string;
+    name?: string;
+    enabled?: boolean;
+    maxSeats?: number;
+    expiresInDays?: number | null;
+    offlineGraceDays?: number;
+    floating?: {
+      enabled?: boolean;
+      leaseTtlSeconds?: number;
+      heartbeatIntervalSeconds?: number;
+    };
+    defaultFeatures?: Record<string, any>;
+  };
+  request?: { headers?: Headers };
+  set?: any;
+}) {
+  const { builder, isAdmin } = request?.headers
+    ? await resolveCurrentBuilder(request.headers)
+    : !request
+      ? { builder: null, isAdmin: true }
+      : { builder: null, isAdmin: false };
+
+  if (!isAdmin && !builder) {
+    if (set) set.status = 401;
+    return { success: false, error: "Unauthorized" };
+  }
+
+  if (!isAdmin && builder) {
+    const owned = await verifyOwnedApp(builder.id, body.appId, isAdmin);
+    if ("error" in owned) {
+      if (set) set.status = owned.status;
+      return { success: false, error: owned.error };
+    }
+  }
+
+  const existingApp = await db.query.apps.findFirst({
+    where: eq(apps.id, body.appId),
+  });
+
+  if (!existingApp) {
+    if (set) set.status = 404;
+    return { success: false, error: "Aplikasi/Project tidak ditemukan" };
+  }
+
+  const existingDelivery = (existingApp.deliveryConfig as any) || {};
+  const currentLicenseKey = existingDelivery.licenseKey || {};
+
+  const updatedLicenseKey = {
+    ...currentLicenseKey,
+    enabled: body.enabled !== undefined ? body.enabled : true,
+    description:
+      body.name || currentLicenseKey.description || `${existingApp.name} License Configuration`,
+    maxSeats:
+      body.maxSeats !== undefined ? Number(body.maxSeats) : (currentLicenseKey.maxSeats ?? 3),
+    expiresInDays:
+      body.expiresInDays !== undefined
+        ? body.expiresInDays === null
+          ? undefined
+          : Number(body.expiresInDays)
+        : currentLicenseKey.expiresInDays,
+    offlineGraceDays:
+      body.offlineGraceDays !== undefined
+        ? Number(body.offlineGraceDays)
+        : (currentLicenseKey.offlineGraceDays ?? 30),
+    floating: body.floating !== undefined ? body.floating : currentLicenseKey.floating,
+    defaultFeatures:
+      body.defaultFeatures !== undefined
+        ? body.defaultFeatures
+        : currentLicenseKey.defaultFeatures || {},
+  };
+
+  const updatedDelivery = {
+    ...existingDelivery,
+    licenseKey: updatedLicenseKey,
+  };
+
+  await db
+    .update(apps)
+    .set({
+      deliveryConfig: updatedDelivery,
+      updatedAt: new Date(),
+    })
+    .where(eq(apps.id, body.appId));
+
+  return {
+    success: true,
+    message: "Pengaturan lisensi berhasil disimpan",
+    config: {
+      id: existingApp.id,
+      appId: existingApp.id,
+      appName: existingApp.name,
+      mode: existingApp.mode,
+      name: updatedLicenseKey.description,
+      enabled: updatedLicenseKey.enabled,
+      maxSeats: updatedLicenseKey.maxSeats,
+      expiresInDays: updatedLicenseKey.expiresInDays,
+      offlineGraceDays: updatedLicenseKey.offlineGraceDays,
+      floating: updatedLicenseKey.floating,
+      defaultFeatures: updatedLicenseKey.defaultFeatures,
+    },
   };
 }

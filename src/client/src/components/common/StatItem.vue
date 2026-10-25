@@ -24,7 +24,12 @@ withDefaults(
 </script>
 
 <template>
-  <div :class="['space-y-1', bordered && 'sm:border-l sm:border-jetblack/15 sm:pl-5']">
+  <div
+    :class="[
+      'space-y-1 shrink-0 sm:shrink min-w-[140px] sm:min-w-0',
+      bordered && 'border-l border-jetblack/15 pl-4 sm:pl-5',
+    ]"
+  >
     <!-- Label & Optional Lucide Icon -->
     <div class="flex items-center justify-between text-jetblack/60 text-xs font-semibold">
       <span>{{ label }}</span>

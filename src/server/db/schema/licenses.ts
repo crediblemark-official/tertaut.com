@@ -135,6 +135,7 @@ export const webhookEndpoints = pgTable(
     builderId: uuid("builder_id")
       .notNull()
       .references(() => builders.id, { onDelete: "cascade" }),
+    appId: text("app_id").references(() => projects.id, { onDelete: "cascade" }),
     url: text("url").notNull(),
     secret: text("secret").notNull(),
     events: text("events").array().notNull().default([]),
@@ -142,7 +143,10 @@ export const webhookEndpoints = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("idx_webhook_endpoints_builder").on(table.builderId)]
+  (table) => [
+    index("idx_webhook_endpoints_builder").on(table.builderId),
+    index("idx_webhook_endpoints_app").on(table.appId),
+  ]
 );
 
 /**

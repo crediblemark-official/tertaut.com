@@ -9,6 +9,8 @@ import type {
   SeatsResponse,
   EventsResponse,
   WebhookEndpointItem,
+  LicenseConfigItem,
+  SaveLicenseConfigPayload,
 } from "../types/licensing";
 import type {
   PanelStats,
@@ -483,6 +485,31 @@ export const api = {
     return parseJson(res);
   },
 
+  async getLicenseConfigs(
+    opts: { mode?: string } = {}
+  ): Promise<{ success: boolean; configs: LicenseConfigItem[] }> {
+    const params = new URLSearchParams();
+    if (opts.mode) params.append("mode", opts.mode);
+    const base = withMode("/api/v1/license/configs");
+    const sep = base.includes("?") ? "&" : "?";
+    const queryString = params.toString();
+    const url = queryString ? `${base}${sep}${queryString}` : base;
+
+    const res = await apiFetch(url);
+    return parseJson(res);
+  },
+
+  async saveLicenseConfig(
+    payload: SaveLicenseConfigPayload
+  ): Promise<{ success: boolean; message?: string; config?: any; error?: string }> {
+    const res = await apiFetch("/api/v1/license/configs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return parseJson(res);
+  },
+
   async getLicenses(options?: { appId?: string; page?: number; limit?: number } | string): Promise<{
     success: boolean;
     licenses: LicenseItem[];
@@ -526,6 +553,30 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ licenseKey }),
+    });
+    return parseJson(res);
+  },
+
+  async reactivateLicense(licenseKey: string) {
+    const res = await apiFetch("/api/v1/license/reactivate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ licenseKey }),
+    });
+    return parseJson(res);
+  },
+
+  async renewLicense(params: {
+    licenseKey: string;
+    additionalDays?: number;
+    days?: number;
+    newExpiresAt?: string | null;
+    isLifetime?: boolean;
+  }) {
+    const res = await apiFetch("/api/v1/license/renew", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
     });
     return parseJson(res);
   },
@@ -610,16 +661,18 @@ export const api = {
   },
 
   // ---------- Fase 3: Webhook lifecycle management ----------
-  async getWebhooks(): Promise<{
+  async getWebhooks(appId?: string): Promise<{
     success: boolean;
     events: string[];
     webhooks: WebhookEndpointItem[];
   }> {
-    const res = await apiFetch(withMode("/api/v1/licensing/webhooks"));
+    const qs = appId ? `?appId=${encodeURIComponent(appId)}` : "";
+    const res = await apiFetch(withMode(`/api/v1/licensing/webhooks${qs}`));
     return parseJson(res);
   },
 
   async createWebhook(data: {
+    appId?: string;
     url: string;
     events: string[];
     secret?: string;
@@ -635,7 +688,7 @@ export const api = {
 
   async updateWebhook(
     id: string,
-    data: { url?: string; events?: string[]; isActive?: boolean }
+    data: { appId?: string; url?: string; events?: string[]; isActive?: boolean }
   ): Promise<{ success: boolean; webhook: WebhookEndpointItem; error?: string }> {
     const res = await apiFetch(`/api/v1/licensing/webhooks/${id}`, {
       method: "PATCH",

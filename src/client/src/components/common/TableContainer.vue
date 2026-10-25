@@ -5,18 +5,26 @@ withDefaults(
     tableClass?: string;
     theadClass?: string;
     tbodyClass?: string;
+    negativeMargin?: boolean;
   }>(),
   {
     wrapperClass: "",
     tableClass: "",
     theadClass: "",
     tbodyClass: "",
+    negativeMargin: true,
   }
 );
 </script>
 
 <template>
-  <div :class="['-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar !mt-0', wrapperClass]">
+  <div
+    :class="[
+      'overflow-x-auto top-scrollbar !mt-0',
+      negativeMargin ? '-mx-3.5 sm:-mx-4 md:-mx-6' : '',
+      wrapperClass,
+    ]"
+  >
     <table
       :class="[
         'w-full min-w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15',

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
 import PublicHeader from "../components/common/PublicHeader.vue";
 import PublicFooter from "../components/common/PublicFooter.vue";
+import LandingCalculator from "../components/landing/LandingCalculator.vue";
 import { COMPANY_INFO, PLATFORM_PRICING } from "../constants/company";
 import { useSeo } from "../composables/useSeo";
 import { STATIC_PAGES_META, createJsonLd } from "../constants/seo";
@@ -25,26 +25,9 @@ import {
   QrCode,
   Building2,
   FileText,
-  Calculator,
   ExternalLink,
   Laptop,
 } from "lucide-vue-next";
-
-// Calculator State
-const calcProductPrice = ref(150000);
-const calcSalesCount = ref(20);
-
-const calcGrossRevenue = computed(() => calcProductPrice.value * calcSalesCount.value);
-const calcPlatformFee = computed(() => Math.round(calcGrossRevenue.value * 0.05));
-const calcNetPayout = computed(() => calcGrossRevenue.value - calcPlatformFee.value);
-
-function formatIDR(amount: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
 </script>
 
 <template>
@@ -255,97 +238,7 @@ function formatIDR(amount: number): string {
       </section>
 
       <!-- Calculator Section -->
-      <section class="py-14 md:py-20 max-w-5xl mx-auto px-4 sm:px-6 space-y-10">
-        <div class="text-center space-y-3 max-w-xl mx-auto">
-          <span class="text-xs font-bold uppercase tracking-widest text-forest font-mono">
-            Simulasi Pendapatan
-          </span>
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-jetblack tracking-tight">
-            Hitung Potensi Pencairan Bersih Anda
-          </h2>
-          <p class="text-xs text-jetblack/65">
-            Geser nilai harga produk dan target penjualan Anda untuk melihat rincian biaya platform
-            5% secara real-time.
-          </p>
-        </div>
-
-        <div
-          class="luxury-card rounded-3xl p-6 sm:p-8 border border-jetblack/12 shadow-luxury bg-white"
-        >
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            <!-- Sliders -->
-            <div class="lg:col-span-7 space-y-6">
-              <div class="space-y-2">
-                <div class="flex justify-between items-center text-xs">
-                  <label class="font-bold text-jetblack">Harga Software Anda:</label>
-                  <span class="font-mono font-bold text-jetblack text-sm">{{
-                    formatIDR(calcProductPrice)
-                  }}</span>
-                </div>
-                <input
-                  v-model.number="calcProductPrice"
-                  type="range"
-                  min="20000"
-                  max="2000000"
-                  step="10000"
-                  class="w-full accent-jetblack cursor-pointer"
-                />
-              </div>
-
-              <div class="space-y-2">
-                <div class="flex justify-between items-center text-xs">
-                  <label class="font-bold text-jetblack">Estimasi Penjualan per Bulan:</label>
-                  <span class="font-mono font-bold text-jetblack text-sm"
-                    >{{ calcSalesCount }} Transaksi</span
-                  >
-                </div>
-                <input
-                  v-model.number="calcSalesCount"
-                  type="range"
-                  min="1"
-                  max="500"
-                  step="1"
-                  class="w-full accent-jetblack cursor-pointer"
-                />
-              </div>
-            </div>
-
-            <!-- Breakdown Output -->
-            <div class="lg:col-span-5 p-6 rounded-2xl bg-jetblack text-white space-y-4 shadow-xl">
-              <div class="text-xs font-bold text-gold uppercase tracking-wider font-mono">
-                Ringkasan Payout
-              </div>
-
-              <div class="space-y-2.5 text-xs border-b border-white/10 pb-4">
-                <div class="flex justify-between text-white/70">
-                  <span>Omzet Kotor (Gross):</span>
-                  <span class="font-mono text-white font-bold">{{
-                    formatIDR(calcGrossRevenue)
-                  }}</span>
-                </div>
-                <div class="flex justify-between text-crimson">
-                  <span>Platform Fee (5%):</span>
-                  <span class="font-mono font-bold">-{{ formatIDR(calcPlatformFee) }}</span>
-                </div>
-                <div class="flex justify-between text-white/50 text-[11px]">
-                  <span>Biaya Bulanan Tertaut:</span>
-                  <span class="font-mono text-forest font-bold">Rp 0 (Gratis)</span>
-                </div>
-              </div>
-
-              <div class="space-y-1">
-                <div class="text-[11px] text-white/60">Uang Bersih yang Anda Terima (95%):</div>
-                <div class="text-2xl sm:text-3xl font-black text-forest font-mono">
-                  {{ formatIDR(calcNetPayout) }}
-                </div>
-                <div class="text-[10px] text-white/40 pt-1">
-                  Langsung dicairkan otomatis ke rekening bank lokal Anda.
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <LandingCalculator />
     </main>
 
     <PublicFooter />

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import logoUrl from "@/assets/logo.svg";
 import { dashboardEnv, envPath, SANDBOX_PREFIX, type DashboardEnv } from "../../lib/environment";
@@ -18,6 +18,7 @@ import {
   Repeat,
   Wallet,
   Terminal,
+  Search,
 } from "lucide-vue-next";
 
 interface NavItem {
@@ -78,69 +79,116 @@ const isMoreActive = computed(() =>
   ["/subscriptions", "/balances", "/coupons", "/developer"].includes(navKey.value)
 );
 const moreBadgeCount = computed(() => props.activeCouponCount);
+
+const isSearchOpen = ref(false);
+
+const SEARCHABLE_NAV_KEYS = [
+  "/projects",
+  "/payments",
+  "/licensing",
+  "/coupons",
+  "/subscriptions",
+  "/balances",
+];
+const hasSearch = computed(() => SEARCHABLE_NAV_KEYS.includes(navKey.value));
+const isSearchActive = computed(() => isSearchOpen.value && hasSearch.value);
+
+watch(
+  () => route.path,
+  () => {
+    isSearchOpen.value = false;
+  }
+);
 </script>
 
 <template>
   <!-- Mobile Top App Bar -->
   <header class="md:hidden bg-white border-b border-jetblack/10 sticky top-0 z-40 shadow-xs">
-    <div class="flex items-center justify-between px-3.5 py-2">
-      <router-link to="/" class="flex items-center gap-2 group">
-        <img :src="logoUrl" alt="tertaut.com" class="w-7 h-7 rounded-md shadow-xs shrink-0" />
-        <span class="font-extrabold text-xs tracking-tight text-jetblack font-mono"
-          >tertaut<span class="text-gold">.com</span></span
-        >
-      </router-link>
+    <!-- Single Row Header (Standard 44px) -->
+    <div class="flex items-center justify-between px-3.5 min-h-[44px] py-1.5 gap-2">
+      <!-- Search Input Container (Always in DOM for Vue Teleport, active only when search is open and route has search) -->
+      <div id="mobile-header-search" :class="isSearchActive ? 'flex-1 min-w-0' : 'hidden'"></div>
 
-      <div class="flex items-center gap-1.5">
+      <template v-if="isSearchActive">
+        <!-- Close/Cancel Search Button -->
         <button
           type="button"
-          @click="emit('switch-env', env === 'sandbox' ? 'live' : 'sandbox')"
-          class="px-2.5 py-1 min-h-[30px] rounded-lg text-[10.5px] font-bold uppercase tracking-wide border transition flex items-center gap-1 active:scale-95"
-          :class="
-            env === 'sandbox'
-              ? 'bg-gold/15 border-gold/50 text-[#8a6d1f]'
-              : 'bg-forest/10 border-forest/40 text-forest'
-          "
+          @click="isSearchOpen = false"
+          class="px-2.5 py-1 text-xs font-bold text-jetblack/70 hover:text-jetblack rounded-lg hover:bg-jetblack/5 shrink-0 transition cursor-pointer"
         >
-          <span
-            class="w-1.5 h-1.5 rounded-full"
-            :class="env === 'sandbox' ? 'bg-gold' : 'bg-forest'"
-          ></span>
-          <span>{{ env === "sandbox" ? "Sandbox" : "Live" }}</span>
+          Batal
         </button>
-        <router-link
-          v-if="isAdmin"
-          to="/panel"
-          class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-jetblack/5 hover:bg-jetblack/10 text-jetblack text-xs flex items-center justify-center transition"
-          title="Super Admin Panel"
-          ><ShieldAlert class="w-4 h-4 text-gold"
-        /></router-link>
-        <button
-          v-if="authUser"
-          type="button"
-          @click="emit('logout')"
-          class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-red-50 text-red-600 text-xs flex items-center justify-center transition active:scale-95"
-          title="Keluar dari akun"
-        >
-          <LogOut class="w-3.5 h-3.5" />
-        </button>
-        <router-link
-          v-else
-          to="/login"
-          class="px-2.5 py-1 min-h-[30px] rounded-lg bg-jetblack text-white text-[11px] font-bold flex items-center gap-1"
-          ><LogIn class="w-3.5 h-3.5 text-gold" /><span>Masuk</span></router-link
-        >
-      </div>
-    </div>
-    <div
-      class="px-3.5 py-1.5 bg-jetblack/[0.02] border-t border-jetblack/5 flex items-center justify-between text-[11px]"
-    >
-      <div class="flex items-center gap-1.5 font-medium text-jetblack/60 truncate">
-        <span class="text-gold font-bold">{{ currentPage.category }}</span>
-        <span>•</span>
-        <span class="text-jetblack font-semibold truncate">{{ currentPage.title }}</span>
-      </div>
-      <span class="text-[9.5px] font-mono text-jetblack/40 shrink-0">v2.2</span>
+      </template>
+
+      <template v-else>
+        <!-- Normal State: Left Brand Logo -->
+        <router-link to="/" class="flex items-center gap-1.5 group shrink-0">
+          <img :src="logoUrl" alt="tertaut.com" class="w-6 h-6 rounded-md shadow-xs shrink-0" />
+          <span class="font-extrabold text-xs tracking-tight text-jetblack font-mono">
+            tertaut<span class="text-gold">.com</span>
+          </span>
+        </router-link>
+
+        <!-- Normal State: Right Actions -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <!-- Search Trigger Icon Button (Only shown on pages with search) -->
+          <button
+            v-if="hasSearch"
+            type="button"
+            @click="isSearchOpen = true"
+            class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-jetblack/5 hover:bg-jetblack/10 text-jetblack/70 hover:text-jetblack text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
+            title="Buka Pencarian"
+          >
+            <Search class="w-3.5 h-3.5" />
+          </button>
+
+          <!-- Environment Switcher -->
+          <button
+            type="button"
+            @click="emit('switch-env', env === 'sandbox' ? 'live' : 'sandbox')"
+            class="px-2 py-1 min-h-[30px] rounded-lg text-[10px] font-bold uppercase tracking-wide border transition flex items-center gap-1 active:scale-95 cursor-pointer"
+            :class="
+              env === 'sandbox'
+                ? 'bg-gold/15 border-gold/50 text-[#8a6d1f]'
+                : 'bg-forest/10 border-forest/40 text-forest'
+            "
+          >
+            <span
+              class="w-1.5 h-1.5 rounded-full"
+              :class="env === 'sandbox' ? 'bg-gold' : 'bg-forest'"
+            ></span>
+            <span>{{ env === "sandbox" ? "Sandbox" : "Live" }}</span>
+          </button>
+
+          <!-- Admin Panel Button -->
+          <router-link
+            v-if="isAdmin"
+            to="/panel"
+            class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-jetblack/5 hover:bg-jetblack/10 text-jetblack text-xs flex items-center justify-center transition"
+            title="Super Admin Panel"
+          >
+            <ShieldAlert class="w-4 h-4 text-gold" />
+          </router-link>
+
+          <!-- Logout Button -->
+          <button
+            v-if="authUser"
+            type="button"
+            @click="emit('logout')"
+            class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-red-50 text-red-600 text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
+            title="Keluar dari akun"
+          >
+            <LogOut class="w-3.5 h-3.5" />
+          </button>
+          <router-link
+            v-else
+            to="/login"
+            class="px-2.5 py-1 min-h-[30px] rounded-lg bg-jetblack text-white text-[11px] font-bold flex items-center gap-1"
+          >
+            <LogIn class="w-3.5 h-3.5 text-gold" /><span>Masuk</span>
+          </router-link>
+        </div>
+      </template>
     </div>
   </header>
 

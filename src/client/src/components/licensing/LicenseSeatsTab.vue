@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { Monitor, Laptop, Wifi, Box, Globe, LogOut, Check, Copy } from "lucide-vue-next";
-import { useClipboard } from "../../composables/useClipboard";
+import { Monitor, Laptop, Wifi, Box, Globe, LogOut } from "lucide-vue-next";
 import type { SeatsResponse, LicenseSeatItem } from "../../types/licensing";
+import CopyButton from "../common/CopyButton.vue";
+import EmptyState from "../common/EmptyState.vue";
+import StatusBadge from "../common/StatusBadge.vue";
 
 defineProps<{
   seatsData: SeatsResponse | null;
@@ -12,17 +13,6 @@ defineProps<{
 const emit = defineEmits<{
   (e: "deactivate", seat: LicenseSeatItem): void;
 }>();
-
-const { copy: copyHwid } = useClipboard();
-const copiedHwidTarget = ref<string | null>(null);
-
-async function handleCopyHwid(hwid: string) {
-  copiedHwidTarget.value = hwid;
-  await copyHwid(hwid);
-  setTimeout(() => {
-    if (copiedHwidTarget.value === hwid) copiedHwidTarget.value = null;
-  }, 2000);
-}
 
 function fmt(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -67,21 +57,13 @@ function timeAgo(iso: string | null | undefined): string {
     </div>
 
     <!-- Empty State -->
-    <div
+    <EmptyState
       v-else-if="(seatsData?.seats?.length ?? 0) === 0"
-      class="text-center py-10 px-4 rounded-xl border border-dashed border-jetblack/15 bg-jetblack/[0.01]"
-    >
-      <div
-        class="w-10 h-10 rounded-full bg-jetblack/5 flex items-center justify-center mx-auto text-jetblack/40 mb-2"
-      >
-        <Monitor class="w-5 h-5" />
-      </div>
-      <p class="text-xs font-bold text-jetblack">Belum ada perangkat terikat</p>
-      <p class="text-[11px] text-jetblack/50 mt-1 max-w-sm mx-auto">
-        Perangkat akan otomatis terdaftar saat software klien melakukan aktivasi lisensi (hardware
-        bind).
-      </p>
-    </div>
+      :icon="Monitor"
+      title="Belum ada perangkat terikat"
+      description="Perangkat akan otomatis terdaftar saat software klien melakukan aktivasi lisensi (hardware bind)."
+      container-class="border-dashed py-8"
+    />
 
     <!-- Seat Cards List -->
     <div v-else class="space-y-2.5">
@@ -115,31 +97,21 @@ function timeAgo(iso: string | null | undefined): string {
                 >
                   {{ seat.hwidHash.substring(0, 14) }}…
                 </code>
-                <button
-                  type="button"
-                  @click="handleCopyHwid(seat.hwidHash)"
-                  class="text-jetblack/40 hover:text-jetblack cursor-pointer p-0.5 transition"
+                <CopyButton
+                  :text="seat.hwidHash"
                   title="Salin HWID Lengkap"
-                >
-                  <Check
-                    v-if="copiedHwidTarget === seat.hwidHash"
-                    class="w-3 h-3 text-emerald-600"
-                  />
-                  <Copy v-else class="w-3 h-3" />
-                </button>
+                  button-class="text-jetblack/40 hover:text-jetblack cursor-pointer p-0.5 transition"
+                  icon-class="w-3 h-3"
+                />
               </div>
             </div>
           </div>
 
           <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
-            <span
-              :class="[
-                'px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono tracking-wider',
-                seat.leaseActive ? 'bg-forest/10 text-forest' : 'bg-jetblack/5 text-jetblack/50',
-              ]"
-            >
-              {{ seat.leaseActive ? "LEASE AKTIF" : "IDLE" }}
-            </span>
+            <StatusBadge
+              :status="seat.leaseActive ? 'ACTIVE' : 'INACTIVE'"
+              :label="seat.leaseActive ? 'LEASE AKTIF' : 'IDLE'"
+            />
 
             <button
               type="button"

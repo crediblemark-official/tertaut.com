@@ -19,6 +19,7 @@ export const WEBHOOK_EVENTS = [
   "license.deactivated",
   "license.seat_full",
   "license.revoked",
+  "license.reactivated",
   "license.expired",
   "license.renewed",
   "license.transferred",
@@ -87,6 +88,7 @@ export class WebhookService {
 
       for (const endpoint of endpoints) {
         if (!endpoint.isActive) continue;
+        if (endpoint.appId && endpoint.appId !== app.id) continue;
         if (endpoint.events.length > 0 && !endpoint.events.includes(event)) continue;
 
         const signature = this.sign(endpoint.secret, rawBody);
@@ -170,6 +172,7 @@ export class WebhookService {
 
       for (const endpoint of endpoints) {
         if (!endpoint.isActive) continue;
+        if (endpoint.appId && endpoint.appId !== app.id) continue;
         if (endpoint.events.length > 0 && !endpoint.events.includes(event)) continue;
 
         const signature = this.sign(endpoint.secret, rawBody);
@@ -381,7 +384,13 @@ export class WebhookService {
     return attempted;
   }
 
-  static async list(builderId: string) {
+  static async list(builderId: string, appId?: string) {
+    if (appId) {
+      return db.query.webhookEndpoints.findMany({
+        where: and(eq(webhookEndpoints.builderId, builderId), eq(webhookEndpoints.appId, appId)),
+        orderBy: (e, { desc }) => [desc(e.createdAt)],
+      });
+    }
     return db.query.webhookEndpoints.findMany({
       where: eq(webhookEndpoints.builderId, builderId),
       orderBy: (e, { desc }) => [desc(e.createdAt)],
@@ -390,28 +399,75 @@ export class WebhookService {
 
   static async create(
     builderId: string,
-    input: { url: string; events?: string[]; secret?: string; isActive?: boolean }
+    input: {
+      appId?: string | null;
+      url: string;
+      events?: string[];
+      secret?: string;
+      isActive?: boolean;
+    }
   ) {
     parseWebhookUrl(input.url);
     const newSecret = input.secret || this.generateSecret();
+
+    // Pastikan 1 proyek maksimal 1 webhook endpoint
+    if (input.appId) {
+      const existing = await db.query.webhookEndpoints.findFirst({
+        where: and(
+          eq(webhookEndpoints.builderId, builderId),
+          eq(webhookEndpoints.appId, input.appId)
+        ),
+      });
+
+      if (existing) {
+        const [updated] = await db
+          .update(webhookEndpoints)
+          .set({
+            url: input.url,
+            events: Array.isArray(input.events) ? input.events : existing.events,
+            isActive: input.isActive ?? existing.isActive,
+            secret: input.secret || existing.secret,
+            updatedAt: new Date(),
+          })
+          .where(eq(webhookEndpoints.id, existing.id))
+          .returning();
+
+        await db
+          .update(apps)
+          .set({ webhookUrl: input.url, updatedAt: new Date() })
+          .where(eq(apps.id, input.appId));
+
+        return updated;
+      }
+    }
+
     const [endpoint] = await db
       .insert(webhookEndpoints)
       .values({
         id: `whk_${randomBytes(8).toString("hex")}`,
         builderId,
+        appId: input.appId || null,
         url: input.url,
         secret: newSecret,
         events: Array.isArray(input.events) ? input.events : [],
         isActive: input.isActive ?? true,
       })
       .returning();
+
+    if (input.appId) {
+      await db
+        .update(apps)
+        .set({ webhookUrl: input.url, updatedAt: new Date() })
+        .where(eq(apps.id, input.appId));
+    }
+
     return endpoint;
   }
 
   static async update(
     builderId: string,
     endpointId: string,
-    patch: { url?: string; events?: string[]; isActive?: boolean }
+    patch: { url?: string; events?: string[]; isActive?: boolean; appId?: string | null }
   ) {
     if (patch.url !== undefined) parseWebhookUrl(patch.url);
     const [updated] = await db
@@ -419,6 +475,14 @@ export class WebhookService {
       .set({ ...patch, updatedAt: new Date() })
       .where(and(eq(webhookEndpoints.id, endpointId), eq(webhookEndpoints.builderId, builderId)))
       .returning();
+
+    if (updated && updated.appId && patch.url !== undefined) {
+      await db
+        .update(apps)
+        .set({ webhookUrl: patch.url, updatedAt: new Date() })
+        .where(eq(apps.id, updated.appId));
+    }
+
     return updated || null;
   }
 
@@ -427,7 +491,17 @@ export class WebhookService {
     const deleted = await db
       .delete(webhookEndpoints)
       .where(and(eq(webhookEndpoints.id, endpointId), eq(webhookEndpoints.builderId, builderId)))
-      .returning({ id: webhookEndpoints.id });
+      .returning({ id: webhookEndpoints.id, appId: webhookEndpoints.appId });
+
+    if (deleted.length > 0 && deleted[0].appId && db.update) {
+      try {
+        await db
+          .update(apps)
+          .set({ webhookUrl: null, updatedAt: new Date() })
+          .where(eq(apps.id, deleted[0].appId));
+      } catch {}
+    }
+
     return deleted.length > 0;
   }
 

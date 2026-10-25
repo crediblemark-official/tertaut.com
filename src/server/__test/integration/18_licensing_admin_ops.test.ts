@@ -5,9 +5,12 @@ import {
   handleListLicenses,
   handleIssueLicense,
   handleRevokeLicense,
+  handleReactivateLicense,
   handleVerifyApiKey,
   handleListEvents,
   handleRenewLicense,
+  handleListConfigs,
+  handleSaveConfig,
 } from "../../routes/licensing/admin";
 import {
   handleListWebhooks,
@@ -164,6 +167,39 @@ describe("Licensing Admin Routes & Operations", () => {
     });
     expect(revokeSuccess.success).toBe(true);
     expect(revokeSuccess.license?.status).toBe("REVOKED");
+
+    // 7. Reactivate License
+    const reactivateNotFound = await handleReactivateLicense({
+      body: { licenseKey: "TT-NOT-FOUND-0000" },
+      set,
+    });
+    expect(set.status).toBe(404);
+
+    const reactivateSuccess: any = await handleReactivateLicense({
+      body: { licenseKey: issuedKey },
+      request: { headers: adminHeaders },
+      set: {},
+    });
+    expect(reactivateSuccess.success).toBe(true);
+    expect(reactivateSuccess.license?.status).toBe("ACTIVE");
+
+    // 8. Renew with custom date and lifetime
+    const renewCustomDate: any = await handleRenewLicense({
+      body: { licenseKey: issuedKey, newExpiresAt: "2027-01-01T00:00:00.000Z" },
+      request: { headers: adminHeaders },
+      set: {},
+    });
+    expect(renewCustomDate.success).toBe(true);
+    expect(new Date(renewCustomDate.license.expiresAt).getFullYear()).toBe(2027);
+
+    const renewLifetime: any = await handleRenewLicense({
+      body: { licenseKey: issuedKey, isLifetime: true },
+      request: { headers: adminHeaders },
+      set: {},
+    });
+    expect(renewLifetime.success).toBe(true);
+    expect(renewLifetime.isLifetime).toBe(true);
+    expect(renewLifetime.license.expiresAt).toBeNull();
   });
 
   it("should perform full webhook endpoint lifecycle (create, list, update, rotate, test, delete)", async () => {
@@ -284,5 +320,42 @@ describe("Licensing Admin Routes & Operations", () => {
       set: {},
     });
     expect(deleteRes.success).toBe(true);
+  });
+
+  it("should list, create, and update license configurations with nested licenses", async () => {
+    // 1. Save / Update Config
+    const saveRes = await handleSaveConfig({
+      body: {
+        appId: testApp.id,
+        name: "Test Blueprint Suite Pro",
+        maxSeats: 5,
+        expiresInDays: 180,
+        offlineGraceDays: 14,
+        floating: {
+          enabled: true,
+          leaseTtlSeconds: 300,
+          heartbeatIntervalSeconds: 60,
+        },
+      },
+      request: { headers: adminHeaders },
+    });
+
+    expect(saveRes.success).toBe(true);
+    expect(saveRes.config).toBeDefined();
+    expect(saveRes.config!.name).toBe("Test Blueprint Suite Pro");
+    expect(saveRes.config!.maxSeats).toBe(5);
+
+    // 2. List Configs
+    const listRes = await handleListConfigs({
+      request: { headers: adminHeaders },
+    });
+
+    expect(listRes.success).toBe(true);
+    expect(Array.isArray(listRes.configs)).toBe(true);
+    const targetConfig = listRes.configs.find((c: any) => c.appId === testApp.id);
+    expect(targetConfig).toBeDefined();
+    expect(targetConfig!.name).toBe("Test Blueprint Suite Pro");
+    expect(targetConfig!.maxSeats).toBe(5);
+    expect(Array.isArray(targetConfig!.licenses)).toBe(true);
   });
 });

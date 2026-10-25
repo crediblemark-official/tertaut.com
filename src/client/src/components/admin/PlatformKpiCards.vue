@@ -11,7 +11,7 @@ defineProps<{
 </script>
 
 <template>
-  <StatsBar>
+  <StatsBar borderless>
     <!-- 1. Total Platform GMV -->
     <StatItem
       label="Total Platform GMV"

@@ -19,13 +19,15 @@ function formatIDR(amount: number): string {
 </script>
 
 <template>
-  <section id="kalkulator" class="py-16 md:py-24 bg-[#FAFAFA] border-y border-jetblack/10">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 space-y-12">
-      <div class="text-center space-y-3 max-w-2xl mx-auto">
+  <section id="kalkulator" class="py-10 sm:py-16 md:py-24 bg-[#FAFAFA] border-y border-jetblack/10">
+    <div class="max-w-5xl mx-auto px-3.5 sm:px-6 space-y-8 sm:space-y-12">
+      <div class="text-center space-y-2.5 sm:space-y-3 max-w-2xl mx-auto">
         <h2 class="text-xs font-bold uppercase tracking-widest text-forest font-mono">
           Transparansi Finansial
         </h2>
-        <h3 class="text-2xl sm:text-3xl font-extrabold text-jetblack tracking-tight">
+        <h3
+          class="text-xl sm:text-2xl md:text-3xl font-extrabold text-jetblack tracking-tight leading-snug"
+        >
           Kalkulator Pendapatan Bersih Anda
         </h3>
         <p class="text-xs sm:text-sm text-jetblack/65">
@@ -35,16 +37,16 @@ function formatIDR(amount: number): string {
       </div>
 
       <div
-        class="luxury-card rounded-2xl p-6 sm:p-10 border border-jetblack/12 shadow-luxury bg-white"
+        class="luxury-card -mx-3.5 sm:mx-0 rounded-none sm:rounded-2xl p-5 sm:p-8 md:p-10 border-y sm:border border-jetblack/10 sm:border-jetblack/12 shadow-none sm:shadow-luxury bg-white"
       >
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
           <!-- Inputs -->
-          <div class="lg:col-span-7 space-y-6">
+          <div class="lg:col-span-7 space-y-5 sm:space-y-6">
             <!-- Slider 1: Product Price -->
             <div class="space-y-2">
               <div class="flex justify-between items-center text-xs font-bold text-jetblack">
-                <span>Harga Produk Anda:</span>
-                <span class="font-mono text-sm text-forest font-black">{{
+                <span>Harga Produk:</span>
+                <span class="font-mono text-sm sm:text-base text-forest font-black">{{
                   formatIDR(calcProductPrice)
                 }}</span>
               </div>
@@ -54,7 +56,8 @@ function formatIDR(amount: number): string {
                 min="25000"
                 max="1000000"
                 step="25000"
-                class="w-full accent-forest cursor-pointer"
+                class="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-forest"
+                aria-label="Harga Produk"
               />
               <div class="flex justify-between text-[10px] text-jetblack/40 font-mono">
                 <span>Rp 25.000</span>
@@ -66,8 +69,8 @@ function formatIDR(amount: number): string {
             <!-- Slider 2: Estimated Sales -->
             <div class="space-y-2">
               <div class="flex justify-between items-center text-xs font-bold text-jetblack">
-                <span>Estimasi Penjualan per Bulan:</span>
-                <span class="font-mono text-sm text-forest font-black"
+                <span>Estimasi Penjualan Bulanan:</span>
+                <span class="font-mono text-sm sm:text-base text-forest font-black"
                   >{{ calcSalesCount }} Pembeli</span
                 >
               </div>
@@ -77,7 +80,8 @@ function formatIDR(amount: number): string {
                 min="5"
                 max="200"
                 step="5"
-                class="w-full accent-forest cursor-pointer"
+                class="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-forest"
+                aria-label="Estimasi Penjualan Bulanan"
               />
               <div class="flex justify-between text-[10px] text-jetblack/40 font-mono">
                 <span>5 lisensi</span>
@@ -87,9 +91,9 @@ function formatIDR(amount: number): string {
             </div>
 
             <div
-              class="p-4 rounded-xl bg-forest/5 border border-forest/20 text-xs text-forest space-y-1"
+              class="p-3.5 sm:p-4 rounded-xl bg-forest/5 border border-forest/20 text-xs text-forest space-y-1"
             >
-              <div class="font-bold flex items-center gap-1.5">
+              <div class="font-bold flex items-center gap-1.5 text-xs sm:text-[13px]">
                 <CheckCircle2 class="w-4 h-4 shrink-0" />
                 <span>Termasuk Seluruh Urusan Pajak &amp; Perizinan</span>
               </div>
@@ -101,12 +105,14 @@ function formatIDR(amount: number): string {
           </div>
 
           <!-- Breakdown Output -->
-          <div class="lg:col-span-5 p-6 rounded-2xl bg-jetblack text-white space-y-5 shadow-xl">
+          <div
+            class="lg:col-span-5 p-5 sm:p-6 rounded-2xl bg-jetblack text-white space-y-4 sm:space-y-5 shadow-xl"
+          >
             <div class="text-xs font-bold text-gold uppercase tracking-wider font-mono">
               Ringkasan Pencairan
             </div>
 
-            <div class="space-y-3 text-xs border-b border-white/10 pb-4">
+            <div class="space-y-2.5 sm:space-y-3 text-xs border-b border-white/10 pb-3.5 sm:pb-4">
               <div class="flex justify-between text-white/70">
                 <span>Omzet Kotor (Gross):</span>
                 <span class="font-mono text-white font-bold">{{
@@ -118,27 +124,29 @@ function formatIDR(amount: number): string {
                 <span class="font-mono font-bold">-{{ formatIDR(calcPlatformFee) }}</span>
               </div>
               <div class="flex justify-between text-white/50 text-[11px]">
-                <span>Biaya Bulanan Tertaut:</span>
+                <span>Biaya Bulanan:</span>
                 <span class="font-mono text-forest font-bold">Rp 0 (Gratis)</span>
               </div>
             </div>
 
             <div class="space-y-1">
-              <div class="text-[11px] text-white/60">Uang Bersih yang Anda Terima (95%):</div>
-              <div class="text-2xl sm:text-3xl font-black text-forest font-mono">
+              <div class="text-[11px] text-white/60">Uang Bersih Diterima (95%):</div>
+              <div
+                class="text-2xl sm:text-3xl font-black text-forest font-mono tracking-tight break-all"
+              >
                 {{ formatIDR(calcNetPayout) }}
               </div>
-              <div class="text-[10px] text-white/40 pt-1">
+              <div class="text-[10px] text-white/40 pt-0.5">
                 Langsung dicairkan ke rekening bank lokal Anda.
               </div>
             </div>
 
             <router-link
               to="/login"
-              class="w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-white text-jetblack text-xs font-bold hover:bg-[#F2F2F2] transition active:scale-95 shadow-md"
+              class="w-full inline-flex items-center justify-center gap-2 min-h-[46px] py-3 rounded-xl bg-white text-jetblack text-xs sm:text-sm font-bold hover:bg-[#F2F2F2] transition active:scale-95 shadow-md cursor-pointer"
             >
               <span>Mulai Jual Sekarang</span>
-              <ArrowRight class="w-3.5 h-3.5 text-forest" />
+              <ArrowRight class="w-4 h-4 text-forest shrink-0" />
             </router-link>
           </div>
         </div>

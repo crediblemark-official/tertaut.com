@@ -60,33 +60,37 @@ const socialLinks = [
 
 <template>
   <footer class="mt-auto border-t border-jetblack/10 bg-white text-jetblack">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7 sm:py-8 space-y-5">
+    <div class="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-4 sm:space-y-5">
       <!-- Row 1: Nav Links & Social Icons -->
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <!-- Links with vertical dividers -->
+        <!-- Links with clean responsive dividers -->
         <nav
-          class="flex flex-wrap items-center gap-x-2.5 sm:gap-x-3.5 gap-y-2 text-xs sm:text-[13px] font-medium text-jetblack/75"
+          class="flex flex-wrap items-center justify-center md:justify-start gap-x-3 sm:gap-x-3.5 gap-y-1.5 sm:gap-y-2 text-xs sm:text-[13px] font-medium text-jetblack/75 text-center md:text-left"
           aria-label="Footer Navigation"
         >
           <template v-for="(link, idx) in footerLinks" :key="link.label">
-            <span v-if="idx > 0" class="text-jetblack/20 select-none">|</span>
+            <span v-if="idx > 0" class="text-jetblack/20 select-none hidden sm:inline">|</span>
             <router-link
               v-if="link.href.startsWith('/') && !link.href.includes('#')"
               :to="link.href"
-              class="hover:text-forest transition-colors font-medium"
+              class="hover:text-forest transition-colors font-medium py-1"
             >
               {{ link.label }}
             </router-link>
-            <a v-else :href="link.href" class="hover:text-forest transition-colors font-medium">
+            <a
+              v-else
+              :href="link.href"
+              class="hover:text-forest transition-colors font-medium py-1"
+            >
               {{ link.label }}
             </a>
           </template>
 
           <template v-if="isAdmin">
-            <span class="text-jetblack/20 select-none">|</span>
+            <span class="text-jetblack/20 select-none hidden sm:inline">|</span>
             <router-link
               to="/panel"
-              class="text-forest font-bold hover:underline transition-colors"
+              class="text-forest font-bold hover:underline transition-colors py-1"
             >
               Admin Panel
             </router-link>
@@ -94,7 +98,9 @@ const socialLinks = [
         </nav>
 
         <!-- Social Media Circle Buttons (Tertaut Theme) -->
-        <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        <div
+          class="flex flex-wrap items-center justify-center md:justify-end gap-2 sm:gap-2.5 shrink-0"
+        >
           <a
             v-for="item in socialLinks"
             :key="item.name"
@@ -181,9 +187,9 @@ const socialLinks = [
 
       <!-- Row 2: Brand/Entity & Copyright (Tertaut Identity) -->
       <div
-        class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs"
+        class="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-center sm:text-left"
       >
-        <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
           <router-link to="/" class="flex items-center gap-1.5 group">
             <img
               :src="logoUrl"
@@ -199,7 +205,7 @@ const socialLinks = [
             {{ COMPANY_INFO.legalName }}
           </span>
         </div>
-        <div class="text-jetblack/50 font-mono text-2xs sm:text-xs">
+        <div class="text-jetblack/50 font-mono text-2xs sm:text-xs text-center sm:text-right">
           Copyright &copy; {{ currentYear }} {{ COMPANY_INFO.brandName }}. All Rights Reserved.
         </div>
       </div>

@@ -31,7 +31,7 @@ const isAdmin = computed(() => {
 
 <template>
   <div
-    class="min-h-screen bg-white text-jetblack flex flex-col selection:bg-gold/20 selection:text-jetblack"
+    class="min-h-screen bg-white text-jetblack flex flex-col selection:bg-gold/20 selection:text-jetblack overflow-x-hidden w-full"
   >
     <!-- Public Reusable Header -->
     <PublicHeader />

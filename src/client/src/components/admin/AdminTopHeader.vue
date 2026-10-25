@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { RefreshCw, ChevronRight, Globe, Code2, LayoutDashboard } from "lucide-vue-next";
+import { ref, watch, computed } from "vue";
+import { RefreshCw, Globe, Code2, LayoutDashboard, Search } from "lucide-vue-next";
 
 interface AdminNavItem {
   key: string;
@@ -9,7 +10,7 @@ interface AdminNavItem {
   category: string;
 }
 
-defineProps<{
+const props = defineProps<{
   currentNavItem: AdminNavItem;
   refreshing: boolean;
 }>();
@@ -17,6 +18,27 @@ defineProps<{
 const emit = defineEmits<{
   refresh: [];
 }>();
+
+const isSearchOpen = ref(false);
+
+const SEARCHABLE_ADMIN_TABS = [
+  "apps",
+  "builders",
+  "licenses",
+  "ledger",
+  "coupons",
+  "users",
+  "audit",
+];
+const hasSearch = computed(() => SEARCHABLE_ADMIN_TABS.includes(props.currentNavItem.key));
+const isSearchActive = computed(() => isSearchOpen.value && hasSearch.value);
+
+watch(
+  () => props.currentNavItem.key,
+  () => {
+    isSearchOpen.value = false;
+  }
+);
 </script>
 
 <template>
@@ -24,14 +46,8 @@ const emit = defineEmits<{
   <header
     class="hidden md:flex items-center justify-between px-6 min-h-[44px] py-1.5 sm:py-0 border-b border-jetblack bg-jetblack text-white shrink-0 z-20"
   >
-    <!-- Left: Breadcrumb / Category / Title -->
-    <div class="flex items-center gap-3">
-      <div class="flex items-center gap-1.5 text-xs text-white/50 font-medium">
-        <span class="hover:text-white transition cursor-default">Super Admin</span>
-        <ChevronRight class="w-3 h-3 text-white/30" />
-        <span class="text-gold font-semibold">{{ currentNavItem.category }}</span>
-        <ChevronRight class="w-3 h-3 text-white/30" />
-      </div>
+    <!-- Left: Page Title -->
+    <div class="flex items-center gap-2 shrink-0">
       <h2 class="text-sm font-bold text-white tracking-tight flex items-center gap-2">
         <span>{{ currentNavItem.name }}</span>
         <span
@@ -41,8 +57,14 @@ const emit = defineEmits<{
       </h2>
     </div>
 
+    <!-- Center: Page-Level Search & Filters (Teleport Target for Super Admin Panel) -->
+    <div
+      id="admin-header-search"
+      class="flex-1 max-w-xl mx-4 flex items-center justify-start gap-2.5"
+    ></div>
+
     <!-- Right: Status, Refresh & External Links -->
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 shrink-0">
       <!-- Mode Pill -->
       <div
         class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold bg-forest/30 border-forest/50 text-emerald-300"
@@ -86,49 +108,66 @@ const emit = defineEmits<{
   <header
     class="md:hidden bg-jetblack text-white border-b border-jetblack sticky top-0 z-40 shadow-xs min-h-[44px]"
   >
-    <div class="flex items-center justify-between px-3.5 py-1.5">
-      <router-link to="/panel" class="flex items-center gap-2">
-        <div
-          class="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center font-bold text-white text-xs relative shadow-xs"
-        >
-          T
-          <span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-gold"></span>
-        </div>
-        <span class="font-extrabold text-xs tracking-tight text-white font-mono">
-          tertaut<span class="text-gold">.admin</span>
-        </span>
-      </router-link>
+    <div class="flex items-center justify-between px-3.5 py-1.5 min-h-[44px] gap-2">
+      <!-- Search Input Container for Admin Mobile -->
+      <div
+        id="admin-mobile-header-search"
+        :class="isSearchActive ? 'flex-1 min-w-0' : 'hidden'"
+      ></div>
 
-      <div class="flex items-center gap-2">
-        <router-link
-          to="/dashboard"
-          class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[10.5px] font-bold text-white flex items-center gap-1 transition"
+      <template v-if="isSearchActive">
+        <button
+          type="button"
+          @click="isSearchOpen = false"
+          class="px-2.5 py-1 text-xs font-bold text-white/70 hover:text-white rounded-lg hover:bg-white/10 shrink-0 transition cursor-pointer"
         >
-          <LayoutDashboard class="w-3.5 h-3.5 text-gold" />
-          <span>Builder</span>
+          Batal
+        </button>
+      </template>
+
+      <template v-else>
+        <router-link to="/panel" class="flex items-center gap-2 shrink-0">
+          <div
+            class="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center font-bold text-white text-xs relative shadow-xs"
+          >
+            T
+            <span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-gold"></span>
+          </div>
+          <span class="font-extrabold text-xs tracking-tight text-white font-mono">
+            tertaut<span class="text-gold">.admin</span>
+          </span>
         </router-link>
 
-        <button
-          @click="emit('refresh')"
-          :disabled="refreshing"
-          class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-white/10 text-white text-xs flex items-center justify-center cursor-pointer transition active:scale-95"
-          title="Segarkan data admin"
-        >
-          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': refreshing }" />
-        </button>
-      </div>
-    </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <!-- Search Trigger Icon Button (Only shown if current tab has search) -->
+          <button
+            v-if="hasSearch"
+            type="button"
+            @click="isSearchOpen = true"
+            class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
+            title="Buka Pencarian"
+          >
+            <Search class="w-3.5 h-3.5 text-gold" />
+          </button>
 
-    <!-- Context Sub-bar -->
-    <div
-      class="px-3.5 py-1.5 bg-jetblack/[0.02] border-t border-jetblack/5 flex items-center justify-between text-[11px]"
-    >
-      <div class="flex items-center gap-1.5 font-medium text-jetblack/60 truncate">
-        <span class="text-gold font-bold">{{ currentNavItem.category }}</span>
-        <span>•</span>
-        <span class="text-jetblack font-semibold truncate">{{ currentNavItem.name }}</span>
-      </div>
-      <span class="text-[9.5px] font-mono text-jetblack/40 shrink-0">Super Admin</span>
+          <router-link
+            to="/dashboard"
+            class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[10.5px] font-bold text-white flex items-center gap-1 transition"
+          >
+            <LayoutDashboard class="w-3.5 h-3.5 text-gold" />
+            <span>Builder</span>
+          </router-link>
+
+          <button
+            @click="emit('refresh')"
+            :disabled="refreshing"
+            class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-white/10 text-white text-xs flex items-center justify-center cursor-pointer transition active:scale-95"
+            title="Segarkan data admin"
+          >
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': refreshing }" />
+          </button>
+        </div>
+      </template>
     </div>
   </header>
 </template>

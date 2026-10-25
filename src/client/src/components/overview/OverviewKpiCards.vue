@@ -17,7 +17,7 @@ withDefaults(
 </script>
 
 <template>
-  <StatsBar wrapper-class="mb-1">
+  <StatsBar borderless>
     <StatItem
       label="Total Penjualan Kotor"
       :value="formatRupiah(stats?.totalGMV || 0)"

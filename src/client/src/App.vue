@@ -8,16 +8,19 @@ import DashboardSidebar from "./components/common/DashboardSidebar.vue";
 import DashboardTopHeader from "./components/common/DashboardTopHeader.vue";
 import MobileNav from "./components/common/MobileNav.vue";
 import ConfirmModal from "./components/common/ConfirmModal.vue";
+import { useConfirm } from "./composables/useConfirm";
 
 const route = useRoute();
 const router = useRouter();
 const env = dashboardEnv;
+const { handleCancel: cancelConfirm } = useConfirm();
 
 const isPageNavigating = ref(false);
 let navigationTimeout: ReturnType<typeof setTimeout> | null = null;
 
 router.beforeEach((to, from) => {
   if (to.path !== from.path) {
+    cancelConfirm();
     if (navigationTimeout) clearTimeout(navigationTimeout);
     isPageNavigating.value = true;
   }
@@ -208,7 +211,8 @@ onUnmounted(() => {
         <router-view />
       </main>
     </div>
-
-    <ConfirmModal />
   </div>
+
+  <!-- Global Confirm Modal (aktif di semua rute termasuk /panel) -->
+  <ConfirmModal />
 </template>

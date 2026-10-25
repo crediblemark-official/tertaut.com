@@ -13,6 +13,7 @@ const EVENT_LABELS: Record<string, string> = {
   "license.deactivated": "Seat perangkat dilepas",
   "license.seat_full": "Seat penuh (aktivasi ditolak)",
   "license.revoked": "Lisensi dicabut",
+  "license.reactivated": "Lisensi diaktifkan kembali",
   "license.expired": "Lisensi kadaluarsa",
   "license.renewed": "Lisensi diperpanjang",
   "license.transferred": "Lisensi dipindahkan",
@@ -111,7 +112,7 @@ function formatPayload(payload: any): string | null {
           :class="[
             ev.event === 'license.issued'
               ? 'bg-gold ring-2 ring-gold/20'
-              : ev.event === 'license.activated'
+              : ev.event === 'license.activated' || ev.event === 'license.reactivated'
                 ? 'bg-forest ring-2 ring-forest/20'
                 : ev.event === 'license.revoked' || ev.event === 'license.deactivated'
                   ? 'bg-crimson ring-2 ring-crimson/20'

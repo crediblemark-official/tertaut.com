@@ -531,14 +531,14 @@ onMounted(() => {
 
       <!-- Main Workspace Container -->
       <main
-        class="flex-1 min-w-0 px-3.5 py-4 sm:px-4 sm:py-5 md:px-6 md:py-6 overflow-y-auto w-full"
+        class="flex-1 min-w-0 px-3.5 sm:px-4 md:px-6 pt-0 pb-28 md:pb-12 overflow-y-auto w-full"
       >
-        <div class="space-y-6 animate-fadeIn pb-28 md:pb-12">
+        <div class="space-y-4 animate-fadeIn pb-28 md:pb-12">
           <!-- Toast Alert -->
           <div
             v-if="alertMessage"
             :class="[
-              'p-3.5 rounded-lg text-xs font-semibold flex items-center justify-between shadow-xs transition',
+              'p-3.5 rounded-lg text-xs font-semibold flex items-center justify-between shadow-xs transition mt-3',
               alertMessage.type === 'success' ? 'bg-forest text-white' : 'bg-[#B91C1C] text-white',
             ]"
           >
@@ -559,24 +559,29 @@ onMounted(() => {
           </div>
 
           <!-- TAB 1: OVERVIEW / RINGKASAN PLATFORM -->
-          <div v-if="activeTab === 'overview'" class="space-y-6">
-            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
-              <div class="flex items-center gap-2.5">
-                <h1 class="text-base font-extrabold text-jetblack">Ringkasan Ekosistem Platform</h1>
+          <div v-if="activeTab === 'overview'" class="space-y-4">
+            <!-- Macro Platform KPI Cards Component -->
+            <PlatformKpiCards :stats="stats" :loading="loading" />
+
+            <!-- Unified Dark Toolbar (Standard Tertaut Dark Bar) -->
+            <div
+              class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar shadow-xs mb-0 !mt-0 relative"
+            >
+              <div class="flex items-center gap-2 shrink-0">
+                <ShieldAlert class="w-3.5 h-3.5 text-gold shrink-0" />
+                <span class="text-xs font-bold text-white uppercase tracking-wider">
+                  Ringkasan Ekosistem
+                </span>
                 <span
-                  class="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gold/15 text-[#8a6d1f] text-[11px] font-bold border border-gold/30"
+                  class="px-2 py-0.5 rounded-full bg-gold/20 text-gold text-[10px] font-bold border border-gold/30"
                 >
-                  <ShieldAlert class="w-3 h-3 text-gold" />
                   MoR Core
                 </span>
               </div>
-              <span class="text-xs text-jetblack/50 font-mono"
-                >Multi-Gateway MoR • 5% Platform Fee Cut</span
-              >
+              <div class="flex items-center gap-2 text-xs text-white/60 font-mono shrink-0">
+                Multi-Gateway MoR • 5% Platform Fee Cut
+              </div>
             </div>
-
-            <!-- Macro Platform KPI Cards Component -->
-            <PlatformKpiCards :stats="stats" :loading="loading" />
 
             <!-- Quick Action Banner for Batch Payout Component -->
             <BatchPayoutBanner
@@ -596,13 +601,7 @@ onMounted(() => {
           </div>
 
           <!-- TAB 2: BUILDERS DIRECTORY -->
-          <div v-else-if="activeTab === 'builders'" class="space-y-4">
-            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
-              <h1 class="text-base font-extrabold text-jetblack">Direktori Builder Terdaftar</h1>
-              <span class="text-xs text-jetblack/50 font-mono"
-                >{{ builders.length }} Builder Aktif</span
-              >
-            </div>
+          <div v-else-if="activeTab === 'builders'">
             <BuilderDirectoryTable
               :builders="builders"
               :loading="loading"
@@ -611,15 +610,7 @@ onMounted(() => {
           </div>
 
           <!-- TAB 3: APPS DIRECTORY -->
-          <div v-else-if="activeTab === 'apps'" class="space-y-4">
-            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
-              <h1 class="text-base font-extrabold text-jetblack">
-                Direktori Seluruh Software &amp; Aplikasi
-              </h1>
-              <span class="text-xs text-jetblack/50 font-mono"
-                >{{ apps.length }} Software Tercatat</span
-              >
-            </div>
+          <div v-else-if="activeTab === 'apps'">
             <AppsDirectoryTable
               :apps="apps"
               :loading="loading"
@@ -628,15 +619,7 @@ onMounted(() => {
           </div>
 
           <!-- TAB 4: GLOBAL LICENSES -->
-          <div v-else-if="activeTab === 'licenses'" class="space-y-4">
-            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
-              <h1 class="text-base font-extrabold text-jetblack">
-                Manajemen Lisensi Global &amp; Anti-Piracy
-              </h1>
-              <span class="text-xs text-jetblack/50 font-mono"
-                >{{ licenses.length }} Lisensi Terdaftar</span
-              >
-            </div>
+          <div v-else-if="activeTab === 'licenses'">
             <GlobalLicensesTable
               :licenses="licenses"
               :loading="loading"
@@ -646,13 +629,7 @@ onMounted(() => {
           </div>
 
           <!-- TAB 5: GLOBAL LEDGER -->
-          <div v-else-if="activeTab === 'ledger'" class="space-y-4">
-            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
-              <h1 class="text-base font-extrabold text-jetblack">Ledger Transaksi Global</h1>
-              <span class="text-xs text-jetblack/50 font-mono"
-                >{{ transactions.length }} Transaksi Tercatat</span
-              >
-            </div>
+          <div v-else-if="activeTab === 'ledger'">
             <GlobalLedgerTable
               :transactions="transactions"
               :loading="loading"
@@ -664,15 +641,7 @@ onMounted(() => {
           </div>
 
           <!-- TAB 6: GLOBAL COUPONS -->
-          <div v-else-if="activeTab === 'coupons'" class="space-y-4">
-            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
-              <h1 class="text-base font-extrabold text-jetblack">
-                Kupon Diskon Global &amp; Promosi Platform
-              </h1>
-              <span class="text-xs text-jetblack/50 font-mono"
-                >{{ coupons.length }} Kupon Aktif</span
-              >
-            </div>
+          <div v-else-if="activeTab === 'coupons'">
             <GlobalCouponsTable
               :coupons="coupons"
               :loading="loading"
@@ -683,28 +652,12 @@ onMounted(() => {
           </div>
 
           <!-- TAB 7: AUDIT LOGS -->
-          <div v-else-if="activeTab === 'audit'" class="space-y-4">
-            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
-              <h1 class="text-base font-extrabold text-jetblack">
-                Audit Trail &amp; Log Keamanan Sistem
-              </h1>
-              <span class="text-xs text-jetblack/50 font-mono"
-                >{{ auditLogs.length }} Aktivitas Terekam</span
-              >
-            </div>
+          <div v-else-if="activeTab === 'audit'">
             <AuditLogsTable :logs="auditLogs" :loading="loading" @refresh="loadAllData" />
           </div>
 
           <!-- TAB 8: USERS DIRECTORY -->
-          <div v-else-if="activeTab === 'users'" class="space-y-4">
-            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
-              <h1 class="text-base font-extrabold text-jetblack">
-                Manajemen Pengguna &amp; Hak Akses
-              </h1>
-              <span class="text-xs text-jetblack/50 font-mono"
-                >{{ users.length }} Pengguna Terdaftar</span
-              >
-            </div>
+          <div v-else-if="activeTab === 'users'">
             <UsersDirectoryTable
               :users="users"
               :loading="loading"
@@ -715,26 +668,12 @@ onMounted(() => {
           </div>
 
           <!-- TAB 9: SYSTEM TELEMETRY -->
-          <div v-else-if="activeTab === 'system'" class="space-y-4">
-            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
-              <h1 class="text-base font-extrabold text-jetblack">
-                System Health &amp; Telemetri Engine
-              </h1>
-              <span class="text-xs text-emerald-600 font-bold flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                All Systems Operational
-              </span>
-            </div>
+          <div v-else-if="activeTab === 'system'" class="pt-4 space-y-4">
             <SystemTelemetryCard :stats="stats" />
           </div>
 
           <!-- TAB 10: PLATFORM SETTINGS & MODERATION -->
-          <div v-else-if="activeTab === 'settings'" class="space-y-4">
-            <div class="flex items-center justify-between gap-3 pb-1 border-b border-jetblack/10">
-              <h1 class="text-base font-extrabold text-jetblack">
-                Pengaturan Platform &amp; Moderasi
-              </h1>
-            </div>
+          <div v-else-if="activeTab === 'settings'">
             <PlatformSettingsCard @alert="showAlert($event.type, $event.text)" />
           </div>
         </div>

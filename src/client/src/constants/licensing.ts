@@ -1,28 +1,20 @@
 /**
- * Label Indonesia resmi untuk seluruh event lifecycle webhook lisensi
+ * Label Indonesia resmi untuk seluruh event lifecycle webhook & audit lisensi
  */
 export const WEBHOOK_EVENT_LABELS: Record<string, string> = {
-  "license.issued": "License Diterbitkan",
-  "license.activated": "License Diaktifkan",
-  "license.deactivated": "License Di-deactivate",
+  "license.issued": "Lisensi Diterbitkan",
+  "license.activated": "Perangkat Diaktifkan",
+  "license.deactivated": "Seat Perangkat Dilepas",
   "license.seat_full": "Seat Penuh",
-  "license.revoked": "License Dicabut (Revoke)",
-  "license.expired": "License Kadaluarsa",
-  "license.renewed": "License Diperpanjang",
-  "license.transferred": "License Dipindah",
+  "license.revoked": "Lisensi Dicabut (Revoke)",
+  "license.reactivated": "Lisensi Diaktifkan Kembali",
+  "license.expired": "Lisensi Kadaluarsa",
+  "license.renewed": "Lisensi Diperpanjang",
+  "license.transferred": "Lisensi Dipindahkan",
   "license.unbound": "Hardware Unbound",
 };
 
 /**
- * Label aktivitas audit lisensi
+ * Alias untuk label aktivitas audit lisensi (DRY)
  */
-export const LICENSE_ACTIVITY_LABELS: Record<string, string> = {
-  "license.issued": "Lisensi diterbitkan",
-  "license.activated": "Perangkat diaktifkan",
-  "license.deactivated": "Seat perangkat dilepas",
-  "license.seat_full": "Seat penuh (aktivasi ditolak)",
-  "license.revoked": "Lisensi dicabut",
-  "license.expired": "Lisensi kadaluarsa",
-  "license.renewed": "Lisensi diperpanjang",
-  "license.transferred": "Lisensi dipindahkan",
-};
+export const LICENSE_ACTIVITY_LABELS: Record<string, string> = WEBHOOK_EVENT_LABELS;

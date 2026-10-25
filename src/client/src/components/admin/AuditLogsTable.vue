@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import {
-  Search,
   Shield,
   Activity,
   UserCheck,
@@ -10,9 +9,15 @@ import {
   Laptop,
   ChevronDown,
   ChevronRight,
+  RefreshCw,
 } from "lucide-vue-next";
 import type { PanelAuditLogItem } from "../../types/panel";
+import TableContainer from "../common/TableContainer.vue";
 import TableSkeleton from "../common/TableSkeleton.vue";
+import SearchInput from "../common/SearchInput.vue";
+import EmptyState from "../common/EmptyState.vue";
+import StatsBar from "../common/StatsBar.vue";
+import StatItem from "../common/StatItem.vue";
 
 const props = defineProps<{
   logs: PanelAuditLogItem[];
@@ -26,6 +31,11 @@ const emit = defineEmits<{
 const searchQuery = ref("");
 const actorFilter = ref("");
 const expandedRowId = ref<string | null>(null);
+const isMounted = ref(false);
+
+onMounted(() => {
+  isMounted.value = true;
+});
 
 function toggleRow(id: string) {
   expandedRowId.value = expandedRowId.value === id ? null : id;
@@ -53,182 +63,261 @@ const filteredLogs = computed(() => {
 <template>
   <section class="space-y-4">
     <!-- Macro Summary Counter -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div class="p-3 rounded-xl border border-jetblack/15 bg-white space-y-1">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-jetblack/50"
-          >Total Log Terekam</span
-        >
-        <div v-if="loading" class="h-6 w-10 bg-jetblack/10 rounded animate-pulse mt-0.5"></div>
-        <div v-else class="text-lg font-black text-jetblack">{{ logs.length }}</div>
-      </div>
-      <div class="p-3 rounded-xl border border-gold/25 bg-gold/5 space-y-1">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-[#8a6d1f]"
-          >Aksi Admin</span
-        >
-        <div v-if="loading" class="h-6 w-10 bg-gold/25 rounded animate-pulse mt-0.5"></div>
-        <div v-else class="text-lg font-black text-[#8a6d1f]">
-          {{ logs.filter((l) => l.actorType === "ADMIN").length }}
-        </div>
-      </div>
-      <div class="p-3 rounded-xl border border-forest/20 bg-forest/5 space-y-1">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-forest">Aksi Builder</span>
-        <div v-if="loading" class="h-6 w-10 bg-forest/20 rounded animate-pulse mt-0.5"></div>
-        <div v-else class="text-lg font-black text-forest">
-          {{ logs.filter((l) => l.actorType === "BUILDER").length }}
-        </div>
-      </div>
-      <div class="p-3 rounded-xl border border-blue-200 bg-blue-50/50 space-y-1">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700"
-          >Client &amp; S2S</span
-        >
-        <div v-if="loading" class="h-6 w-10 bg-blue-200 rounded animate-pulse mt-0.5"></div>
-        <div v-else class="text-lg font-black text-blue-700">
-          {{ logs.filter((l) => ["S2S", "CLIENT"].includes(l.actorType)).length }}
-        </div>
-      </div>
-    </div>
+    <StatsBar borderless>
+      <StatItem
+        label="Total Log Terekam"
+        :value="logs.length"
+        sublabel="Aktivitas audit sistem"
+        :loading="loading"
+      />
+      <StatItem
+        label="Aksi Admin"
+        :value="logs.filter((l) => l.actorType === 'ADMIN').length"
+        sublabel="Operasi super administrator"
+        variant="gold"
+        bordered
+        :loading="loading"
+      />
+      <StatItem
+        label="Aksi Builder"
+        :value="logs.filter((l) => l.actorType === 'BUILDER').length"
+        sublabel="Aktivitas developer software"
+        variant="forest"
+        bordered
+        :loading="loading"
+      />
+      <StatItem
+        label="Client & S2S"
+        :value="logs.filter((l) => ['S2S', 'CLIENT'].includes(l.actorType)).length"
+        sublabel="Validasi & API otomatis"
+        bordered
+        :loading="loading"
+      />
+    </StatsBar>
 
-    <!-- Filter & Search Bar -->
+    <!-- Global Search Input Teleported to Top Header (#admin-header-search) -->
+    <Teleport v-if="isMounted" to="#admin-header-search">
+      <SearchInput
+        v-model="searchQuery"
+        dark
+        placeholder="Cari event, license key, IP address..."
+        wrapper-class="w-full max-w-md"
+        input-class="h-8 text-xs"
+      />
+    </Teleport>
+
+    <!-- Mobile Search Input Teleported to Admin Mobile Header (#admin-mobile-header-search) -->
+    <Teleport v-if="isMounted" to="#admin-mobile-header-search">
+      <SearchInput
+        v-model="searchQuery"
+        dark
+        placeholder="Cari event, license key, IP address..."
+        wrapper-class="w-full"
+        input-class="h-8 text-xs"
+      />
+    </Teleport>
+
+    <!-- Unified Table Toolbar (Standard Tertaut Dark Bar) -->
     <div
-      class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-jetblack/10"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar shadow-xs mb-0 !mt-0"
     >
-      <div class="relative flex-1 max-w-sm">
-        <Search class="w-3.5 h-3.5 text-jetblack/40 absolute left-3 top-1/2 -translate-y-1/2" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Cari event, license key, IP address..."
-          class="w-full h-9 pl-8 pr-3 text-xs rounded-lg bg-white border border-slate-300/80 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-gold/20 focus:border-gold shadow-2xs transition"
-        />
+      <div class="flex items-center gap-2 shrink-0">
+        <Shield class="w-3.5 h-3.5 text-gold" />
+        <span class="text-xs font-bold text-white uppercase tracking-wider">
+          Audit Trail & Security Logs
+        </span>
+        <span
+          class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
+        >
+          {{ filteredLogs.length }} events
+        </span>
       </div>
 
-      <div class="flex items-center gap-2">
-        <select
-          v-model="actorFilter"
-          class="h-9 px-3 text-xs rounded-lg border border-slate-300/80 hover:border-slate-400 bg-white font-medium text-jetblack focus:outline-none focus:ring-2 focus:ring-gold/20 focus:border-gold shadow-2xs transition"
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Actor Filter Pills -->
+        <div
+          class="flex items-center h-7 rounded-md bg-white/10 p-0.5 text-[10px] font-medium shrink-0"
         >
-          <option value="">Semua Aktor</option>
-          <option value="ADMIN">ADMIN</option>
-          <option value="BUILDER">BUILDER</option>
-          <option value="S2S">S2S</option>
-          <option value="CLIENT">CLIENT</option>
-          <option value="SYSTEM">SYSTEM</option>
-        </select>
+          <button
+            type="button"
+            @click="actorFilter = ''"
+            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            :class="
+              actorFilter === ''
+                ? 'bg-white font-bold text-jetblack'
+                : 'text-white/70 hover:text-white'
+            "
+          >
+            Semua Aktor
+          </button>
+          <button
+            type="button"
+            @click="actorFilter = 'ADMIN'"
+            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            :class="
+              actorFilter === 'ADMIN'
+                ? 'bg-gold font-bold text-jetblack'
+                : 'text-white/70 hover:text-white'
+            "
+          >
+            Admin
+          </button>
+          <button
+            type="button"
+            @click="actorFilter = 'BUILDER'"
+            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            :class="
+              actorFilter === 'BUILDER'
+                ? 'bg-forest font-bold text-white'
+                : 'text-white/70 hover:text-white'
+            "
+          >
+            Builder
+          </button>
+          <button
+            type="button"
+            @click="actorFilter = 'S2S'"
+            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            :class="
+              actorFilter === 'S2S'
+                ? 'bg-white font-bold text-jetblack'
+                : 'text-white/70 hover:text-white'
+            "
+          >
+            S2S
+          </button>
+          <button
+            type="button"
+            @click="actorFilter = 'CLIENT'"
+            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            :class="
+              actorFilter === 'CLIENT'
+                ? 'bg-white font-bold text-jetblack'
+                : 'text-white/70 hover:text-white'
+            "
+          >
+            Client
+          </button>
+        </div>
+
+        <!-- Refresh Button -->
+        <button
+          type="button"
+          @click="emit('refresh')"
+          class="p-1.5 rounded-md bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition shrink-0 cursor-pointer"
+          title="Segarkan data log audit"
+        >
+          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': loading }" />
+        </button>
       </div>
     </div>
 
     <!-- Table View -->
-    <div class="-mx-3.5 sm:-mx-4 md:-mx-6 overflow-x-auto top-scrollbar">
-      <table
-        class="w-full min-w-full text-left text-xs whitespace-nowrap border-b border-jetblack/15"
-      >
-        <thead class="border-b border-jetblack/20 text-xs font-semibold text-jetblack/70 bg-white">
-          <tr>
-            <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 w-8"></th>
-            <th class="py-2.5 px-3">Waktu</th>
-            <th class="py-2.5 px-3">Aktor</th>
-            <th class="py-2.5 px-3">Event</th>
-            <th class="py-2.5 px-3">Target License / App</th>
-            <th class="py-2.5 px-3">IP Address</th>
-            <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Detail Payload</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-jetblack/15">
-          <TableSkeleton v-if="loading" :columns="7" :rows="5" />
-          <tr v-else-if="filteredLogs.length === 0">
-            <td colspan="7" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
-              Tidak ada log aktivitas ditemukan.
-            </td>
-          </tr>
-          <template v-else v-for="log in filteredLogs" :key="log.id">
-            <tr
-              @click="toggleRow(log.id)"
-              class="hover:bg-jetblack/[0.02] transition cursor-pointer"
+    <TableContainer>
+      <template #head>
+        <tr>
+          <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 w-8"></th>
+          <th class="py-2.5 px-3">Waktu</th>
+          <th class="py-2.5 px-3">Aktor</th>
+          <th class="py-2.5 px-3">Event</th>
+          <th class="py-2.5 px-3">Target License / App</th>
+          <th class="py-2.5 px-3">IP Address</th>
+          <th class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Detail Payload</th>
+        </tr>
+      </template>
+
+      <TableSkeleton v-if="loading" :columns="7" :rows="5" />
+      <tr v-else-if="filteredLogs.length === 0">
+        <td colspan="7" class="py-8 px-3.5 sm:px-4 md:px-6">
+          <EmptyState
+            :icon="Activity"
+            title="Tidak ada log aktivitas ditemukan"
+            description="Coba sesuaikan kata kunci pencarian atau filter aktor Anda."
+            container-class="border-0 bg-transparent py-4"
+          />
+        </td>
+      </tr>
+      <template v-else v-for="log in filteredLogs" :key="log.id">
+        <tr @click="toggleRow(log.id)" class="hover:bg-jetblack/[0.02] transition cursor-pointer">
+          <td class="py-2.5 pr-2 pl-3.5 sm:pl-4 md:pl-6 text-jetblack/40">
+            <ChevronDown v-if="expandedRowId === log.id" class="w-3.5 h-3.5" />
+            <ChevronRight v-else class="w-3.5 h-3.5" />
+          </td>
+          <td class="py-2.5 px-3 text-[11px] text-jetblack/70 font-mono">
+            {{ new Date(log.createdAt).toLocaleString("id-ID") }}
+          </td>
+          <td class="py-2.5 px-3">
+            <span
+              v-if="log.actorType === 'ADMIN'"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-[#8a6d1f] border border-gold/30"
             >
-              <td class="py-2.5 pr-2 pl-3.5 sm:pl-4 md:pl-6 text-jetblack/40">
-                <ChevronDown v-if="expandedRowId === log.id" class="w-3.5 h-3.5" />
-                <ChevronRight v-else class="w-3.5 h-3.5" />
-              </td>
-              <td class="py-2.5 px-3 text-[11px] text-jetblack/70 font-mono">
-                {{ new Date(log.createdAt).toLocaleString("id-ID") }}
-              </td>
-              <td class="py-2.5 px-3">
-                <span
-                  v-if="log.actorType === 'ADMIN'"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-[#8a6d1f] border border-gold/30"
-                >
-                  <Shield class="w-3 h-3 text-gold" />
-                  ADMIN
-                </span>
-                <span
-                  v-else-if="log.actorType === 'BUILDER'"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-forest/10 text-forest border border-forest/20"
-                >
-                  <UserCheck class="w-3 h-3" />
-                  BUILDER
-                </span>
-                <span
-                  v-else-if="log.actorType === 'S2S'"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200"
-                >
-                  <Terminal class="w-3 h-3" />
-                  S2S API
-                </span>
-                <span
-                  v-else-if="log.actorType === 'CLIENT'"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200"
-                >
-                  <Laptop class="w-3 h-3" />
-                  CLIENT
-                </span>
-                <span
-                  v-else
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200"
-                >
-                  <Server class="w-3 h-3" />
-                  SYSTEM
-                </span>
-              </td>
-              <td class="py-2.5 px-3 font-mono font-bold text-jetblack text-xs">
-                {{ log.event }}
-              </td>
-              <td class="py-2.5 px-3">
-                <div
-                  v-if="log.licenseKey"
-                  class="font-mono font-semibold text-jetblack text-[11px]"
-                >
-                  {{ log.licenseKey }}
-                </div>
-                <div v-else-if="log.appId" class="text-jetblack/60 font-mono text-[10.5px]">
-                  app: {{ log.appId }}
-                </div>
-                <span v-else class="text-jetblack/30">-</span>
-              </td>
-              <td class="py-2.5 px-3 text-[11px] font-mono text-jetblack/60">
-                {{ log.ipAddress || "-" }}
-              </td>
-              <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
-                <span class="text-[10.5px] text-gold font-bold underline">
-                  {{ expandedRowId === log.id ? "Tutup" : "Lihat JSON" }}
-                </span>
-              </td>
-            </tr>
-            <!-- Expanded Payload Row -->
-            <tr v-if="expandedRowId === log.id" class="bg-jetblack/[0.03]">
-              <td colspan="7" class="py-3 px-6">
-                <div
-                  class="p-3 rounded-lg bg-jetblack text-white font-mono text-[11px] overflow-x-auto space-y-1"
-                >
-                  <div class="text-gold font-bold text-[10px] uppercase">Payload Event Data:</div>
-                  <pre class="text-white/80 whitespace-pre-wrap">{{
-                    JSON.stringify(log.payload, null, 2)
-                  }}</pre>
-                </div>
-              </td>
-            </tr>
-          </template>
-        </tbody>
-      </table>
-    </div>
+              <Shield class="w-3 h-3 text-gold" />
+              ADMIN
+            </span>
+            <span
+              v-else-if="log.actorType === 'BUILDER'"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-forest/10 text-forest border border-forest/20"
+            >
+              <UserCheck class="w-3 h-3" />
+              BUILDER
+            </span>
+            <span
+              v-else-if="log.actorType === 'S2S'"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200"
+            >
+              <Terminal class="w-3 h-3" />
+              S2S API
+            </span>
+            <span
+              v-else-if="log.actorType === 'CLIENT'"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200"
+            >
+              <Laptop class="w-3 h-3" />
+              CLIENT
+            </span>
+            <span
+              v-else
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200"
+            >
+              <Server class="w-3 h-3" />
+              SYSTEM
+            </span>
+          </td>
+          <td class="py-2.5 px-3 font-mono font-bold text-jetblack text-xs">
+            {{ log.event }}
+          </td>
+          <td class="py-2.5 px-3">
+            <div v-if="log.licenseKey" class="font-mono font-semibold text-jetblack text-[11px]">
+              {{ log.licenseKey }}
+            </div>
+            <div v-else-if="log.appId" class="text-jetblack/60 font-mono text-[10.5px]">
+              app: {{ log.appId }}
+            </div>
+            <span v-else class="text-jetblack/30">-</span>
+          </td>
+          <td class="py-2.5 px-3 text-[11px] font-mono text-jetblack/60">
+            {{ log.ipAddress || "-" }}
+          </td>
+          <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
+            <span class="text-[10.5px] text-gold font-bold underline">
+              {{ expandedRowId === log.id ? "Tutup" : "Lihat JSON" }}
+            </span>
+          </td>
+        </tr>
+        <!-- Expanded Payload Row -->
+        <tr v-if="expandedRowId === log.id" class="bg-jetblack/[0.03]">
+          <td colspan="7" class="py-3 px-6">
+            <div
+              class="p-3 rounded-lg bg-jetblack text-white font-mono text-[11px] overflow-x-auto space-y-1"
+            >
+              <div class="text-gold font-bold text-[10px] uppercase">Payload Event Data:</div>
+              <pre class="text-white/80 whitespace-pre-wrap">{{
+                JSON.stringify(log.payload, null, 2)
+              }}</pre>
+            </div>
+          </td>
+        </tr>
+      </template>
+    </TableContainer>
   </section>
 </template>

@@ -7,8 +7,21 @@ import PayOrderSummary from "../components/pay/PayOrderSummary.vue";
 import PayPaymentForm from "../components/pay/PayPaymentForm.vue";
 import { useSeo } from "../composables/useSeo";
 
+const props = withDefaults(
+  defineProps<{
+    isDemo?: boolean;
+  }>(),
+  {
+    isDemo: false,
+  }
+);
+
 const route = useRoute();
 const router = useRouter();
+
+const isDemoMode = computed(
+  () => props.isDemo || route.name === "demo-checkout" || route.path.startsWith("/demo")
+);
 
 // Can be /pay/:slug or /pay?app_id=...&amount=...
 const slug = computed(
@@ -16,7 +29,7 @@ const slug = computed(
     (route.params.slug as string) ||
     (route.query.app_slug as string) ||
     (route.query.slug as string) ||
-    ""
+    (isDemoMode.value ? "fastmail-ai" : "")
 );
 const queryAppId = computed(() => (route.query.app_id as string) || "");
 const queryAmount = computed(() => (route.query.amount ? Number(route.query.amount) : null));
@@ -180,11 +193,34 @@ function resetCheckoutOrder() {
   router.replace({ query });
 }
 
+/** Fallback produk resmi FastMail AI untuk demo audit mandiri */
+const DEFAULT_DEMO_PRODUCT = {
+  id: "app_fastmail_ai",
+  name: "FastMail AI Summarizer",
+  slug: "fastmail-ai",
+  mode: "sandbox" as const,
+  checkoutMode: "custom" as const,
+  activePaymentGateway: "xendit" as const,
+  targetPrice: 49000,
+  description:
+    "Ekstensi Chrome & web app untuk merangkum email penting secara otomatis menggunakan Gemini AI.",
+  headline: "FastMail AI Summarizer",
+  subheadline: "Lisensi universal software dengan aktivasi Ed25519 terikat hardware.",
+  mediaUrl:
+    "https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80",
+  valueProps: [
+    "Aktivasi lisensi resmi terikat hardware (HWID)",
+    "Masa berlaku 365 hari dengan offline grace token 30 hari",
+    "Pembaruan versi otomatis & dukungan teknis langsung",
+  ],
+  redirectUrl: null,
+};
+
 async function loadCheckoutData() {
   loading.value = true;
   errorMessage.value = "";
   try {
-    let identifier = slug.value || queryAppId.value;
+    let identifier = slug.value || queryAppId.value || (isDemoMode.value ? "fastmail-ai" : "");
     const externalIdParam = (route.query.externalId as string) || "";
     currentTicket = (route.query.ticket as string) || currentTicket || "";
 
@@ -199,8 +235,12 @@ async function loadCheckoutData() {
     }
 
     if (!identifier && !externalIdParam) {
-      notFound.value = true;
-      return;
+      if (isDemoMode.value) {
+        identifier = "fastmail-ai";
+      } else {
+        notFound.value = true;
+        return;
+      }
     }
 
     let loadedApp: any = null;
@@ -224,8 +264,12 @@ async function loadCheckoutData() {
     }
 
     if (!loadedApp) {
-      notFound.value = true;
-      return;
+      if (isDemoMode.value) {
+        loadedApp = { ...DEFAULT_DEMO_PRODUCT, slug: identifier || "fastmail-ai" };
+      } else {
+        notFound.value = true;
+        return;
+      }
     }
 
     setProductData(loadedApp);
@@ -362,6 +406,7 @@ async function handlePay(payload?: {
     const data = await api.createCheckoutSession({
       appId: product.value.id,
       paymentGateway: product.value.activePaymentGateway || "xendit",
+      demoMode: isDemoMode.value,
       customerEmail: emailInput.value,
       amount: product.value.targetPrice,
       preferredPaymentChannel: rail,
@@ -626,7 +671,9 @@ onUnmounted(() => {
         <Lock class="w-5 h-5" />
       </div>
       <div>
-        <h1 class="text-base font-bold text-white">Produk Pembayaran Tidak Ditemukan</h1>
+        <h1 class="text-base font-bold text-white">
+          {{ isDemoMode ? "Produk Demo Tidak Ditemukan" : "Produk Pembayaran Tidak Ditemukan" }}
+        </h1>
         <p class="text-xs text-white/50 mt-1 leading-relaxed">
           Tautan checkout tidak valid, kedaluwarsa, atau produk belum diluncurkan.
         </p>
@@ -655,7 +702,7 @@ onUnmounted(() => {
 
         <div class="flex items-center gap-3 text-xs">
           <div
-            v-if="product.mode === 'sandbox'"
+            v-if="product.mode === 'sandbox' || isDemoMode"
             class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-[11px] font-mono"
           >
             <FlaskConical class="w-3 h-3" />
@@ -709,7 +756,7 @@ onUnmounted(() => {
               :product="product"
               :checkout-mode="product?.checkoutMode || 'custom'"
               :active-gateway="product?.activePaymentGateway || 'xendit'"
-              :demo-mode="false"
+              :demo-mode="isDemoMode"
               :email-input="emailInput"
               :selected-payment-rail="selectedPaymentRail"
               :selected-bank="selectedBank"

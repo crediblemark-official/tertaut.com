@@ -17,6 +17,7 @@ export interface LicenseItem {
   isTrial?: boolean;
   id: string;
   appId: string;
+  transactionId?: string | null;
   licenseKey: string;
   customerEmail: string;
   hardwareId: string | null;
@@ -87,10 +88,52 @@ export interface EventsResponse {
 export interface WebhookEndpointItem {
   id: string;
   builderId: string;
+  appId?: string | null;
   url: string;
   secret: string;
   events: string[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LicenseConfigItem {
+  id: string;
+  appId: string;
+  appName: string;
+  mode: "sandbox" | "live";
+  name: string;
+  enabled: boolean;
+  maxSeats: number;
+  expiresInDays?: number | null;
+  offlineGraceDays?: number;
+  floating?: {
+    enabled?: boolean;
+    leaseTtlSeconds?: number;
+    heartbeatIntervalSeconds?: number;
+  };
+  defaultFeatures?: Record<string, any>;
+  totalLicenses: number;
+  activeLicenses: number;
+  checkoutLicenses: number;
+  manualLicenses: number;
+  totalLtv: number;
+  licenses: LicenseItem[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SaveLicenseConfigPayload {
+  appId: string;
+  name?: string;
+  enabled?: boolean;
+  maxSeats?: number;
+  expiresInDays?: number | null;
+  offlineGraceDays?: number;
+  floating?: {
+    enabled?: boolean;
+    leaseTtlSeconds?: number;
+    heartbeatIntervalSeconds?: number;
+  };
+  defaultFeatures?: Record<string, any>;
 }

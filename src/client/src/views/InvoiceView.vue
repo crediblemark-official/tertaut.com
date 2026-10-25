@@ -3,20 +3,10 @@ import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api } from "../lib/api";
 import logoUrl from "@/assets/logo.svg";
-import {
-  Printer,
-  ArrowLeft,
-  CheckCircle2,
-  AlertCircle,
-  Copy,
-  Check,
-  ShieldCheck,
-  Building2,
-  Calendar,
-  Receipt,
-  Download,
-} from "lucide-vue-next";
-import { useClipboard } from "../composables/useClipboard";
+import { Printer, ArrowLeft, ShieldCheck, Calendar, AlertCircle } from "lucide-vue-next";
+import TableContainer from "../components/common/TableContainer.vue";
+import StatusBadge from "../components/common/StatusBadge.vue";
+import CopyButton from "../components/common/CopyButton.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -32,8 +22,6 @@ const ticket = computed(() => (route.query.ticket as string) || "");
 const loading = ref(true);
 const error = ref<string | null>(null);
 const invoice = ref<any>(null);
-
-const { copy, copied } = useClipboard();
 
 async function loadInvoice() {
   if (!txId.value) {
@@ -75,7 +63,8 @@ function formatDate(isoString?: string | null) {
 }
 
 function formatIdr(amount?: number) {
-  return (amount || 0).toLocaleString("id-ID");
+  if (typeof amount !== "number" || isNaN(amount)) return "0";
+  return amount.toLocaleString("id-ID");
 }
 
 onMounted(() => {
@@ -125,12 +114,20 @@ onMounted(() => {
       <AlertCircle class="w-10 h-10 text-red-400 mx-auto" />
       <h2 class="text-sm font-bold text-white">Gagal Membuka Faktur</h2>
       <p class="text-xs text-slate-400">{{ error }}</p>
-      <button
-        @click="router.push('/')"
-        class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold transition"
-      >
-        Ke Beranda
-      </button>
+      <div class="flex items-center justify-center gap-3 pt-2">
+        <button
+          @click="router.push('/login?redirect=' + encodeURIComponent($route.fullPath))"
+          class="px-4 py-2 rounded-lg bg-white text-black text-xs font-bold hover:bg-slate-200 transition cursor-pointer"
+        >
+          Login
+        </button>
+        <button
+          @click="router.push('/')"
+          class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold transition cursor-pointer"
+        >
+          Ke Beranda
+        </button>
+      </div>
     </div>
 
     <!-- Invoice Sheet (Print Optimized A4 Container) -->
@@ -139,11 +136,11 @@ onMounted(() => {
       id="printable-invoice"
       class="w-full max-w-3xl bg-white text-[#111215] rounded-2xl shadow-2xl p-8 sm:p-12 space-y-8 relative overflow-hidden border border-slate-200"
     >
-      <!-- Background MoR Watermark Stamp -->
+      <!-- Background Watermark Stamp -->
       <div
         class="absolute right-8 top-12 opacity-5 pointer-events-none select-none text-[120px] font-black tracking-tighter leading-none"
       >
-        PAID
+        {{ invoice.payment?.status === "PAID" ? "PAID" : invoice.payment?.status || "INVOICE" }}
       </div>
 
       <!-- Header Section -->
@@ -158,11 +155,9 @@ onMounted(() => {
             >
           </div>
           <p class="text-[11px] text-slate-500 font-medium">
-            Merchant of Record untuk Software &amp; AI Tools
+            Platform Pembayaran &amp; Lisensi Digital
           </p>
-          <p class="text-[10px] text-slate-400">
-            PT Tertaut Digital Infrastruktur • support@tertaut.com
-          </p>
+          <p class="text-[10px] text-slate-400">PT RETAS LINTAS BATAS • support@tertaut.com</p>
         </div>
 
         <div class="sm:text-right space-y-1">
@@ -172,30 +167,11 @@ onMounted(() => {
           <div class="font-mono font-black text-lg text-black">{{ invoice.invoiceNumber }}</div>
           <div class="text-[11px] text-slate-500 flex items-center sm:justify-end gap-1.5">
             <Calendar class="w-3.5 h-3.5 text-slate-400" />
-            <span>{{ formatDate(invoice.payment.paidAt || invoice.payment.createdAt) }}</span>
+            <span>{{ formatDate(invoice.payment?.paidAt || invoice.payment?.createdAt) }}</span>
           </div>
           <!-- Paid Badge -->
           <div class="pt-1 flex sm:justify-end">
-            <span
-              v-if="invoice.payment.status === 'PAID'"
-              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs border border-emerald-200"
-            >
-              <CheckCircle2 class="w-3.5 h-3.5" />
-              LUNAS (PAID)
-            </span>
-            <span
-              v-else-if="invoice.payment.status === 'REFUNDED'"
-              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-700 font-bold text-xs border border-red-200"
-            >
-              <AlertCircle class="w-3.5 h-3.5" />
-              DI-REFUND (REVOKED)
-            </span>
-            <span
-              v-else
-              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 font-bold text-xs border border-amber-200"
-            >
-              {{ invoice.payment.status }}
-            </span>
+            <StatusBadge :status="invoice.payment?.status" />
           </div>
         </div>
       </div>
@@ -206,20 +182,20 @@ onMounted(() => {
           <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"
             >Ditagihkan Kepada (Pembeli)</span
           >
-          <div v-if="invoice.buyer.name" class="font-bold text-black text-sm">
+          <div v-if="invoice.buyer?.name" class="font-bold text-black text-sm">
             {{ invoice.buyer.name }}
           </div>
           <div
             :class="
-              invoice.buyer.name
+              invoice.buyer?.name
                 ? 'text-[11px] font-medium text-slate-600'
                 : 'font-bold text-black text-sm'
             "
           >
-            {{ invoice.buyer.email }}
+            {{ invoice.buyer?.email }}
           </div>
           <div class="text-[11px] text-slate-500">
-            Kanal Pembayaran: {{ invoice.payment.channel }}
+            Kanal Pembayaran: {{ invoice.payment?.channel || invoice.payment?.provider || "-" }}
           </div>
           <div class="text-[10px] font-mono text-slate-400">
             TX Ref: {{ invoice.transactionId }}
@@ -230,8 +206,10 @@ onMounted(() => {
           <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"
             >Pembangun / Kreator Software</span
           >
-          <div class="font-bold text-black text-sm">{{ invoice.seller.name }}</div>
-          <div class="text-[11px] text-slate-500">{{ invoice.seller.email }}</div>
+          <div class="font-bold text-black text-sm">{{ invoice.seller?.name }}</div>
+          <div v-if="invoice.seller?.email" class="text-[11px] text-slate-500">
+            {{ invoice.seller.email }}
+          </div>
           <div class="text-[10px] text-slate-400 flex items-center sm:justify-end gap-1">
             <ShieldCheck class="w-3 h-3 text-emerald-600" />
             <span>Terverifikasi via tertaut.com Engine</span>
@@ -244,34 +222,42 @@ onMounted(() => {
         <div class="text-xs font-bold text-slate-900 uppercase tracking-wider">
           Rincian Pembelian
         </div>
-        <table class="w-full text-xs">
-          <thead>
-            <tr class="border-b border-slate-300 text-slate-500 font-semibold text-left">
+        <TableContainer
+          :negative-margin="false"
+          wrapper-class="border-0"
+          table-class="border-b-0 w-full text-xs"
+          thead-class="border-b border-slate-300 text-slate-500 font-semibold text-left bg-transparent"
+          tbody-class="divide-y divide-slate-100"
+        >
+          <template #head>
+            <tr>
               <th class="py-2 pr-4">Deskripsi Produk</th>
               <th class="py-2 px-3 text-center">Durasi</th>
               <th class="py-2 pl-4 text-right">Jumlah</th>
             </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            <tr>
-              <td class="py-4 pr-4">
-                <div class="font-bold text-black text-sm">{{ invoice.item.name }}</div>
-                <div class="text-[11px] text-slate-500 mt-0.5">{{ invoice.item.description }}</div>
-              </td>
-              <td class="py-4 px-3 text-center font-mono text-slate-600">
-                {{ invoice.item.grantDays }} Hari
-              </td>
-              <td class="py-4 pl-4 text-right font-mono font-bold text-black text-sm">
-                Rp
-                {{
-                  formatIdr(
-                    invoice.financials.grossAmount + (invoice.financials.discountAmount || 0)
-                  )
-                }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+          </template>
+          <tr>
+            <td class="py-4 pr-4">
+              <div class="font-bold text-black text-sm">{{ invoice.item?.name }}</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">{{ invoice.item?.description }}</div>
+            </td>
+            <td class="py-4 px-3 text-center font-mono text-slate-600">
+              {{
+                !invoice.item?.grantDays || invoice.item.grantDays >= 36500
+                  ? "Permanen (Lifetime)"
+                  : `${invoice.item.grantDays} Hari`
+              }}
+            </td>
+            <td class="py-4 pl-4 text-right font-mono font-bold text-black text-sm">
+              Rp
+              {{
+                formatIdr(
+                  (invoice.financials?.grossAmount || 0) + (invoice.financials?.discountAmount || 0)
+                )
+              }}
+            </td>
+          </tr>
+        </TableContainer>
       </div>
 
       <!-- Financial Calculation Summary -->
@@ -289,14 +275,12 @@ onMounted(() => {
               class="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider"
             >
               <span>Kunci Lisensi Anda</span>
-              <button
-                @click="copy(invoice.licenseKey)"
-                class="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 transition cursor-pointer"
-              >
-                <Check v-if="copied" class="w-3 h-3" />
-                <Copy v-else class="w-3 h-3" />
-                <span>{{ copied ? "Tersalin!" : "Salin" }}</span>
-              </button>
+              <CopyButton
+                :text="invoice.licenseKey"
+                :show-label="true"
+                button-class="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 transition cursor-pointer"
+                icon-class="w-3 h-3"
+              />
             </div>
             <div
               class="font-mono text-xs font-bold text-black bg-white px-2 py-1 rounded border border-slate-200 select-all break-all"
@@ -326,31 +310,44 @@ onMounted(() => {
               </div>
             </div>
           </div>
+
+          <!-- Fulfillment note card if no license key and no metadata -->
+          <div
+            v-else-if="!invoice.licenseKey"
+            class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1 text-xs"
+          >
+            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Status Pemenuhan
+            </div>
+            <p class="text-[11px] text-slate-600">
+              Transaksi tercatat &amp; terverifikasi sah dalam sistem tertaut.com.
+            </p>
+          </div>
         </div>
 
         <!-- Calculations -->
         <div class="w-full sm:w-64 space-y-2 text-xs text-slate-600 ml-auto">
           <div class="flex justify-between">
             <span>Dasar Pengenaan Pajak (DPP)</span>
-            <span class="font-mono">Rp {{ formatIdr(invoice.financials.dpp) }}</span>
+            <span class="font-mono">Rp {{ formatIdr(invoice.financials?.dpp) }}</span>
           </div>
           <div class="flex justify-between">
             <span>PPN 11% (Termasuk)</span>
-            <span class="font-mono">Rp {{ formatIdr(invoice.financials.ppn11) }}</span>
+            <span class="font-mono">Rp {{ formatIdr(invoice.financials?.ppn11) }}</span>
           </div>
           <div
-            v-if="invoice.financials.discountAmount > 0"
+            v-if="invoice.financials?.discountAmount > 0"
             class="flex justify-between text-emerald-700"
           >
-            <span>Diskon Kupon ({{ invoice.financials.couponCode }})</span>
-            <span class="font-mono">-Rp {{ formatIdr(invoice.financials.discountAmount) }}</span>
+            <span>Diskon Kupon ({{ invoice.financials?.couponCode }})</span>
+            <span class="font-mono">-Rp {{ formatIdr(invoice.financials?.discountAmount) }}</span>
           </div>
           <div
             class="flex justify-between pt-2 border-t border-slate-300 font-bold text-black text-base"
           >
             <span>Total Pembayaran</span>
             <span class="font-mono text-black"
-              >Rp {{ formatIdr(invoice.financials.grossAmount) }}</span
+              >Rp {{ formatIdr(invoice.financials?.grossAmount) }}</span
             >
           </div>
         </div>
@@ -363,11 +360,11 @@ onMounted(() => {
         <p class="font-bold text-slate-700">
           Faktur ini adalah bukti transaksi resmi yang sah dan diterbitkan secara elektronik oleh
           platform tertaut.com di bawah naungan <strong>PT RETAS LINTAS BATAS</strong> sebagai
-          Merchant of Record resmi.
+          penyedia infrastruktur pembayaran &amp; lisensi resmi.
         </p>
         <p>
           Alamat: Jl. Raya Batang-Batang, Kab. Sumenep, Jawa Timur • WhatsApp Dukungan: +62
-          851-8313-1249 • Email: retaslintasbatas@gmail.com
+          851-8313-1249 • Email: support@tertaut.com
         </p>
       </div>
     </div>
@@ -376,13 +373,17 @@ onMounted(() => {
 
 <style>
 @media print {
-  body {
+  body,
+  .min-h-screen {
     background: white !important;
     color: black !important;
+    padding: 0 !important;
   }
+
   .no-print {
     display: none !important;
   }
+
   #printable-invoice {
     border: none !important;
     box-shadow: none !important;

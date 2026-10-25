@@ -437,9 +437,15 @@ export async function handleGetInvoiceData({
     invoice: {
       invoiceNumber,
       transactionId: tx.id,
+      platform: {
+        name: "tertaut.com (PT RETAS LINTAS BATAS)",
+        legalEntity: "Penyedia infrastruktur pembayaran & lisensi resmi untuk perangkat lunak",
+        website: "https://tertaut.com",
+        supportEmail: "support@tertaut.com",
+      },
       merchantOfRecord: {
-        name: "tertaut.com (PT Tertaut Digital)",
-        legalEntity: "Merchant of Record resmi untuk lisensi perangkat lunak",
+        name: "tertaut.com (PT RETAS LINTAS BATAS)",
+        legalEntity: "Penyedia infrastruktur pembayaran & lisensi resmi untuk perangkat lunak",
         website: "https://tertaut.com",
         supportEmail: "support@tertaut.com",
       },
@@ -467,7 +473,9 @@ export async function handleGetInvoiceData({
         currency: "IDR",
       },
       payment: {
-        channel: tx.paymentChannel || "XENDIT",
+        channel:
+          tx.paymentChannel || (tx.paymentProvider ? tx.paymentProvider.toUpperCase() : "XENDIT"),
+        provider: tx.paymentProvider ? tx.paymentProvider.toUpperCase() : "XENDIT",
         status: tx.paymentStatus,
         disbursementStatus: tx.disbursementStatus,
         paidAt: tx.paidAt ? tx.paidAt.toISOString() : null,

@@ -5,7 +5,7 @@ import type { DashboardStats } from "../types/app";
 import type { TransactionItem } from "../types/transaction";
 import type { LicenseItem } from "../types/licensing";
 import { dashboardEnv, envPath } from "../lib/environment";
-import { Plus, RefreshCw, LayoutDashboard } from "lucide-vue-next";
+import { Plus, RefreshCw, BarChart3 } from "lucide-vue-next";
 import OverviewKpiCards from "../components/overview/OverviewKpiCards.vue";
 import OverviewAnalyticsChart from "../components/overview/OverviewAnalyticsChart.vue";
 
@@ -13,6 +13,7 @@ const stats = ref<DashboardStats | null>(null);
 const allTransactions = ref<TransactionItem[]>([]);
 const allLicenses = ref<LicenseItem[]>([]);
 const loading = ref(true);
+const statsDays = ref<7 | 14 | 30>(7);
 
 async function loadData() {
   loading.value = true;
@@ -44,9 +45,12 @@ watch(dashboardEnv, () => {
 
 <template>
   <div class="space-y-4 animate-fadeIn pb-12">
+    <!-- Overview Stats KPI (At the top, flush docked) -->
+    <OverviewKpiCards :stats="stats" :loading="loading" />
+
     <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
     <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-0 relative overflow-hidden"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar shadow-xs mb-0 !mt-0 relative"
     >
       <!-- Subtle Gold Loading Bar along bottom border -->
       <div
@@ -56,8 +60,11 @@ watch(dashboardEnv, () => {
         <div class="h-full bg-gold animate-pulse w-full"></div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <LayoutDashboard class="w-3.5 h-3.5 text-gold shrink-0" />
+      <div class="flex items-center gap-2 shrink-0">
+        <BarChart3 class="w-3.5 h-3.5 text-gold shrink-0" />
+        <span class="text-xs font-bold text-white uppercase tracking-wider">
+          Tren &amp; Performa Penjualan
+        </span>
         <span
           class="px-2 py-0.5 rounded-md font-bold text-[10px]"
           :class="dashboardEnv === 'sandbox' ? 'bg-gold text-jetblack' : 'bg-forest text-white'"
@@ -66,7 +73,27 @@ watch(dashboardEnv, () => {
         </span>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Date Range Filter Pills in Dark Toolbar -->
+        <div class="flex items-center gap-1">
+          <button
+            v-for="d in [7, 14, 30] as const"
+            :key="d"
+            type="button"
+            @click="statsDays = d"
+            :class="[
+              'px-2.5 py-0.5 rounded-md font-bold transition cursor-pointer text-xs',
+              statsDays === d
+                ? 'bg-gold text-jetblack shadow-xs'
+                : 'bg-white/10 text-white/80 hover:bg-white/20',
+            ]"
+          >
+            {{ d }} Hari
+          </button>
+        </div>
+
+        <div class="h-4 w-px bg-white/20 hidden sm:block"></div>
+
         <button
           @click="loadData"
           :disabled="loading"
@@ -87,14 +114,12 @@ watch(dashboardEnv, () => {
       </div>
     </div>
 
-    <!-- Overview Stats KPI -->
-    <OverviewKpiCards :stats="stats" :loading="loading" />
-
-    <!-- Analitik & Performa Penjualan -->
+    <!-- Analitik & Performa Penjualan (Directly below toolbar) -->
     <OverviewAnalyticsChart
       :transactions="allTransactions"
       :licenses="allLicenses"
       :loading="loading"
+      :days="statsDays"
     />
   </div>
 </template>

@@ -116,7 +116,8 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/demo/checkout/:slug?",
     name: "demo-checkout",
-    component: () => import("../views/DemoCheckoutView.vue"),
+    component: () => import("../views/PayView.vue"),
+    props: { isDemo: true },
     meta: { public: true },
   },
   {

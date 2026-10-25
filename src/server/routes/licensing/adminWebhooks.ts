@@ -17,7 +17,7 @@ export async function resolveWebhookActor(headers: any) {
   return { builder, isAdmin };
 }
 
-export async function handleListWebhooks({ request, set }: any) {
+export async function handleListWebhooks({ request, query, set }: any) {
   const headers = request?.headers;
   const actor = headers ? await resolveWebhookActor(headers) : { error: "no-headers" };
   if ("error" in actor) {
@@ -29,10 +29,19 @@ export async function handleListWebhooks({ request, set }: any) {
     return { success: false, error: "Autentikasi diperlukan" };
   }
 
+  let appId = query?.appId;
+  if (!appId && request?.url) {
+    try {
+      const u = new URL(request.url);
+      appId = u.searchParams.get("appId") || undefined;
+    } catch {}
+  }
+
   let webhooks;
   let buildersList: Record<string, any>[] = [];
   if (actor.isAdmin) {
     webhooks = await db.query.webhookEndpoints.findMany({
+      where: appId ? eq(webhookEndpoints.appId, appId) : undefined,
       orderBy: (e, { desc }) => [desc(e.createdAt)],
     });
     const ids = [...new Set(webhooks.map((w) => w.builderId))];
@@ -48,7 +57,7 @@ export async function handleListWebhooks({ request, set }: any) {
       builderName: byId.get(w.builderId)?.name || null,
     }));
   } else {
-    webhooks = await WebhookService.list(actor.builder!.id);
+    webhooks = await WebhookService.list(actor.builder!.id, appId);
   }
 
   return { success: true, events: WEBHOOK_EVENTS, webhooks };
@@ -85,6 +94,7 @@ export async function handleCreateWebhook({ body, request, set }: any) {
   }
 
   const endpoint = await WebhookService.create(targetBuilderId, {
+    appId: body.appId || null,
     url: body.url,
     events: body.events || [],
     secret: body.secret,
@@ -133,6 +143,7 @@ export async function handleUpdateWebhook({ params, body, request, set }: any) {
     url: body.url,
     events: body.events,
     isActive: body.isActive,
+    appId: body.appId,
   });
   return { success: true, webhook: updated };
 }

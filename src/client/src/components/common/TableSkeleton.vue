@@ -19,7 +19,7 @@ withDefaults(
     <td
       v-for="c in columns"
       :key="c"
-      class="py-3 px-3 first:pl-3.5 first:sm:pl-4 first:md:pl-6 last:pr-3.5 last:sm:pr-4 last:md:pr-6"
+      class="py-2.5 px-3 first:pl-3.5 first:sm:pl-4 first:md:pl-6 last:pr-3.5 last:sm:pr-4 last:md:pr-6"
     >
       <div
         class="h-3.5 bg-jetblack/8 rounded"

@@ -56,7 +56,7 @@ onMounted(async () => {
     class="hidden md:flex items-center justify-between px-6 py-3 border-b border-jetblack/10 bg-white/90 backdrop-blur-md shrink-0 z-20"
   >
     <!-- Left: Page Title -->
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 shrink-0">
       <h2 class="text-sm font-bold text-jetblack tracking-tight flex items-center gap-2">
         <span>{{ currentPage.title }}</span>
         <span
@@ -66,8 +66,14 @@ onMounted(async () => {
       </h2>
     </div>
 
+    <!-- Center: Page-Level Search & Filters (Teleport Target) -->
+    <div
+      id="dashboard-header-search"
+      class="flex-1 max-w-2xl mx-4 flex items-center justify-start gap-2.5"
+    ></div>
+
     <!-- Right: Actions & Profile -->
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 shrink-0">
       <!-- Environment Status Pill -->
       <div
         class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold"

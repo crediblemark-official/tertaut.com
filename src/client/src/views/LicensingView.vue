@@ -1,24 +1,52 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from "vue";
-import { api } from "../lib/api";
-import type { AppItem } from "../types/app";
-import type { LicenseItem, LicensePlatform } from "../types/licensing";
-import { dashboardEnv, envPath } from "../lib/environment";
-import { CheckCircle2, KeyRound, Webhook } from "lucide-vue-next";
-import { useClipboard } from "../composables/useClipboard";
-import { useConfirm } from "../composables/useConfirm";
-import LicenseTable from "../components/licensing/LicenseTable.vue";
+import { ref, onMounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import type {
+  LicenseConfigItem,
+  LicenseItem,
+  LicensePlatform,
+  SaveLicenseConfigPayload,
+} from "../types/licensing";
+import { dashboardEnv } from "../lib/environment";
+import { CheckCircle2 } from "lucide-vue-next";
+import { useLicensing } from "../composables/useLicensing";
 
+import LicenseConfigTable from "../components/licensing/LicenseConfigTable.vue";
+import EditLicenseConfigModal from "../components/licensing/EditLicenseConfigModal.vue";
 import IssueLicenseModal from "../components/licensing/IssueLicenseModal.vue";
 import LicenseActivityPanel from "../components/licensing/LicenseActivityPanel.vue";
+import ChangeExpiryModal from "../components/licensing/ChangeExpiryModal.vue";
 
-const env = dashboardEnv;
-const appsList = ref<AppItem[]>([]);
-const licensesList = ref<LicenseItem[]>([]);
-const loadingLicenses = ref(true);
-const actionFeedback = ref<string | null>(null);
-let feedbackTimer: ReturnType<typeof setTimeout> | null = null;
-const { copy: writeClipboard } = useClipboard();
+const route = useRoute();
+const router = useRouter();
+
+const selectedAppId = ref<string>("");
+
+const {
+  appsList,
+  configsList,
+  licensesList,
+  loadingData,
+  actionFeedback,
+  loadData,
+  saveConfig,
+  issueLicense,
+  revokeLicense,
+  reactivateLicense,
+  renewExpiry,
+  unbindHardware,
+  deactivateSeat,
+} = useLicensing();
+
+function handleSelectApp(appId: string) {
+  selectedAppId.value = appId === "ALL" ? "" : appId;
+  router.replace({
+    query: {
+      ...route.query,
+      app_id: selectedAppId.value || undefined,
+    },
+  });
+}
 
 // Activity Panel State
 const activeLicense = ref<LicenseItem | null>(null);
@@ -26,34 +54,40 @@ const activeLicense = ref<LicenseItem | null>(null);
 // Issue Modal State
 const isIssueModalOpen = ref(false);
 const isIssuing = ref(false);
+const issuePrefillAppId = ref("");
 
-function setFeedback(msg: string, timeoutMs = 4000) {
-  if (feedbackTimer) clearTimeout(feedbackTimer);
-  actionFeedback.value = msg;
-  feedbackTimer = setTimeout(() => {
-    actionFeedback.value = null;
-    feedbackTimer = null;
-  }, timeoutMs);
+// Edit / Create Config Modal State
+const isConfigModalOpen = ref(false);
+const editingConfig = ref<LicenseConfigItem | null>(null);
+const isSavingConfig = ref(false);
+
+// Change Expiry Modal State
+const changeExpiryLicense = ref<LicenseItem | null>(null);
+const isChangingExpiry = ref(false);
+
+function openCreateConfig() {
+  editingConfig.value = null;
+  isConfigModalOpen.value = true;
 }
 
-onUnmounted(() => {
-  if (feedbackTimer) {
-    clearTimeout(feedbackTimer);
-    feedbackTimer = null;
-  }
-});
+function openEditConfig(config: LicenseConfigItem) {
+  editingConfig.value = config;
+  isConfigModalOpen.value = true;
+}
 
-async function loadData() {
-  loadingLicenses.value = true;
+async function handleSaveConfig(payload: SaveLicenseConfigPayload) {
+  isSavingConfig.value = true;
   try {
-    const [appsRes, licRes] = await Promise.all([api.getApps(), api.getLicenses()]);
-    appsList.value = appsRes.apps || [];
-    licensesList.value = licRes.licenses || [];
-  } catch (err) {
-    console.error("Failed to load licenses data:", err);
+    const success = await saveConfig(payload);
+    if (success) isConfigModalOpen.value = false;
   } finally {
-    loadingLicenses.value = false;
+    isSavingConfig.value = false;
   }
+}
+
+function openIssueManual(config: LicenseConfigItem) {
+  issuePrefillAppId.value = config.appId;
+  isIssueModalOpen.value = true;
 }
 
 async function handleIssueLicense(payload: {
@@ -65,67 +99,29 @@ async function handleIssueLicense(payload: {
 }) {
   isIssuing.value = true;
   try {
-    const res = await api.issueLicense(payload);
-    if (res.success && res.license) {
-      isIssueModalOpen.value = false;
-      setFeedback(`Lisensi baru ${res.license.licenseKey || ""} berhasil diterbitkan!`, 5000);
-      await loadData();
-      notifyLicensesChanged();
-    }
+    const success = await issueLicense(payload);
+    if (success) isIssueModalOpen.value = false;
   } finally {
     isIssuing.value = false;
   }
 }
 
-const { confirm: confirmDialog } = useConfirm();
-
-async function revokeLicense(lic: LicenseItem) {
-  const confirmed = await confirmDialog({
-    title: "Cabut Lisensi?",
-    message: `Lisensi ${lic.licenseKey} akan dibatalkan permanen.`,
-    confirmText: "Cabut",
-    cancelText: "Batal",
-    variant: "danger",
-  });
-  if (!confirmed) return;
-  try {
-    const res = await api.revokeLicense(lic.licenseKey);
-    if (res.success) {
-      setFeedback(`Lisensi ${lic.licenseKey} berhasil dicabut.`, 4000);
-      await loadData();
-      notifyLicensesChanged();
-    }
-  } catch (e) {
-    console.error(e);
-  }
+function openChangeExpiry(lic: LicenseItem) {
+  changeExpiryLicense.value = lic;
 }
 
-async function unbindHardware(lic: LicenseItem) {
+async function handleSaveExpiry(payload: {
+  licenseKey: string;
+  additionalDays?: number;
+  newExpiresAt?: string | null;
+  isLifetime?: boolean;
+}) {
+  isChangingExpiry.value = true;
   try {
-    const res = await api.unbindHardware(lic.licenseKey);
-    if (res.success) {
-      setFeedback(
-        `Hardware binding untuk ${lic.licenseKey} berhasil di-reset. Pengguna dapat aktivasi di device baru.`,
-        4000
-      );
-      await loadData();
-    }
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-async function handleDeactivateSeat(licenseKey: string, hwid: string) {
-  try {
-    const res = await api.deactivateLicense({ licenseKey, hwid });
-    if (res.success) {
-      setFeedback("Device seat berhasil dilepas!", 4000);
-      await loadData();
-    } else {
-      setFeedback(`Gagal: ${res.error || "Seat tidak bisa dilepas"}`, 4000);
-    }
-  } catch (e: any) {
-    setFeedback(`Error: ${e?.message || "Terjadi kesalahan"}`, 4000);
+    const success = await renewExpiry(payload);
+    if (success) changeExpiryLicense.value = null;
+  } finally {
+    isChangingExpiry.value = false;
   }
 }
 
@@ -137,25 +133,20 @@ function closeDetail() {
   activeLicense.value = null;
 }
 
-/** Beri tahu sidebar (App.vue) bahwa daftar lisensi berubah agar badge ter-update. */
-function notifyLicensesChanged() {
-  window.dispatchEvent(new Event("tertaut:licenses-changed"));
-}
-
-async function copyToClipboard(text: string) {
-  const ok = await writeClipboard(text);
-  if (!ok) {
-    setFeedback("Gagal menyalin ke clipboard. Salin manual dari tabel.", 3000);
-    return;
-  }
-  setFeedback(`Kunci lisensi ${text} disalin ke clipboard!`, 3000);
-}
-
 onMounted(() => {
+  if (route.query.app_id) {
+    selectedAppId.value = String(route.query.app_id);
+  }
   loadData();
 });
 
-// Muat ulang saat environment Live/Sandbox berganti
+watch(
+  () => route.query,
+  (q) => {
+    if (q.app_id) selectedAppId.value = String(q.app_id);
+  }
+);
+
 watch(dashboardEnv, () => {
   loadData();
 });
@@ -163,67 +154,72 @@ watch(dashboardEnv, () => {
 
 <template>
   <div class="animate-fadeIn pb-12">
-    <!-- License Table -->
-    <LicenseTable
-      :licenses-list="licensesList"
-      :loading="loadingLicenses"
-      @refresh="loadData"
-      @issue="isIssueModalOpen = true"
-      @copy="copyToClipboard"
-      @unbind-hardware="unbindHardware"
-      @deactivate-seat="handleDeactivateSeat"
-      @revoke="revokeLicense"
-      @detail="openDetail"
-    >
-      <template #tabs>
-        <div class="flex items-center gap-2.5">
-          <div class="flex items-center gap-2">
-            <KeyRound class="w-3.5 h-3.5 text-gold" />
-            <h2 class="text-xs font-bold uppercase tracking-wider text-white">Daftar Lisensi</h2>
-            <span
-              class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
-            >
-              {{ licensesList.length }} keys
-            </span>
-          </div>
-
-          <router-link
-            :to="envPath(env, '/developer')"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition"
-            title="Kelola Webhook Endpoints & Outbox Logs di Developer Portal"
-          >
-            <Webhook class="w-3 h-3 text-gold" />
-            <span class="hidden sm:inline">Kelola Webhook di Developer Portal</span>
-            <span class="sm:hidden">Webhooks</span>
-          </router-link>
-        </div>
-      </template>
-    </LicenseTable>
-
     <!-- Alert Feedback -->
     <div
       v-if="actionFeedback"
-      class="mt-3 p-3 rounded-xl bg-forest/10 border border-forest/30 text-forest text-xs font-bold flex items-center gap-2 animate-fadeIn"
+      class="mb-3 p-3 rounded-xl bg-forest/10 border border-forest/30 text-forest text-xs font-bold flex items-center gap-2 animate-fadeIn"
     >
       <CheckCircle2 class="w-4 h-4" />
       <span>{{ actionFeedback }}</span>
     </div>
+
+    <!-- MASTER-DETAIL TABLE PENGATURAN LISENSI -->
+    <LicenseConfigTable
+      :configs="configsList"
+      :licenses="licensesList"
+      :apps-list="appsList"
+      :selected-app-id="selectedAppId"
+      :loading="loadingData"
+      @select-app="handleSelectApp"
+      @refresh="loadData"
+      @create-config="openCreateConfig"
+      @edit-config="openEditConfig"
+      @issue-manual="openIssueManual"
+      @change-expiry="openChangeExpiry"
+      @revoke="revokeLicense"
+      @reactivate="reactivateLicense"
+      @unbind-hardware="unbindHardware"
+      @detail="openDetail"
+    />
+
+    <!-- Create / Edit License Config Modal -->
+    <EditLicenseConfigModal
+      :show="isConfigModalOpen"
+      :config="editingConfig"
+      :apps-list="appsList"
+      :loading="isSavingConfig"
+      @close="isConfigModalOpen = false"
+      @save="handleSaveConfig"
+    />
 
     <!-- Issue License Modal Component -->
     <IssueLicenseModal
       :show="isIssueModalOpen"
       :apps-list="appsList"
       :is-issuing="isIssuing"
-      :default-app-id="appsList.length > 0 ? appsList[0].id : ''"
+      :default-app-id="
+        issuePrefillAppId || selectedAppId || (appsList.length > 0 ? appsList[0].id : '')
+      "
       @close="isIssueModalOpen = false"
       @issue="handleIssueLicense"
+    />
+
+    <!-- Change Expiry Modal Component -->
+    <ChangeExpiryModal
+      :show="!!changeExpiryLicense"
+      :license="changeExpiryLicense"
+      :loading="isChangingExpiry"
+      @close="changeExpiryLicense = null"
+      @save="handleSaveExpiry"
     />
 
     <!-- Activity & Audit Panel -->
     <LicenseActivityPanel
       :license="activeLicense"
       @close="closeDetail"
-      @deactivate-seat="handleDeactivateSeat"
+      @deactivate-seat="deactivateSeat"
+      @reactivate="reactivateLicense"
+      @change-expiry="openChangeExpiry"
     />
   </div>
 </template>

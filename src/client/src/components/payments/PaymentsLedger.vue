@@ -15,6 +15,9 @@ import {
   ExternalLink,
   RefreshCw,
   Plus,
+  Wallet,
+  ArrowUpRight,
+  TicketPercent,
 } from "lucide-vue-next";
 import TableSkeleton from "../common/TableSkeleton.vue";
 import TableContainer from "../common/TableContainer.vue";
@@ -22,6 +25,9 @@ import TablePagination from "../common/TablePagination.vue";
 import StatsBar from "../common/StatsBar.vue";
 import StatItem from "../common/StatItem.vue";
 import SearchPicker from "../common/SearchPicker.vue";
+import SearchInput from "../common/SearchInput.vue";
+import StatusBadge from "../common/StatusBadge.vue";
+import EmptyState from "../common/EmptyState.vue";
 import PaymentDetailModal from "./PaymentDetailModal.vue";
 
 const props = withDefaults(
@@ -110,7 +116,12 @@ function nextPage() {
   }
 }
 
-onMounted(loadData);
+const isMounted = ref(false);
+
+onMounted(() => {
+  isMounted.value = true;
+  loadData();
+});
 watch(env, () => {
   page.value = 1;
   loadData();
@@ -209,12 +220,68 @@ defineExpose({
 
 <template>
   <div class="space-y-3">
+    <!-- Global Search Input Teleported to Top Header (#dashboard-header-search) -->
+    <Teleport v-if="isMounted" to="#dashboard-header-search">
+      <SearchInput
+        v-model="searchQuery"
+        placeholder="Cari ID transaksi, email, kupon..."
+        wrapper-class="w-full max-w-md"
+        input-class="h-8 rounded-lg bg-jetblack/5 hover:bg-jetblack/8 border-jetblack/10 hover:border-jetblack/20 focus:bg-white"
+      />
+    </Teleport>
+
+    <!-- Mobile Search Input Teleported to Mobile Header (#mobile-header-search) -->
+    <Teleport v-if="isMounted" to="#mobile-header-search">
+      <SearchInput
+        v-model="searchQuery"
+        placeholder="Cari ID transaksi, email, kupon..."
+        wrapper-class="w-full"
+        input-class="h-8 rounded-lg bg-jetblack/5 border-jetblack/10 focus:bg-white"
+      />
+    </Teleport>
+
+    <!-- KPI Stats Summary Bar -->
+    <StatsBar borderless>
+      <StatItem
+        label="Penjualan Bruto"
+        :value="formatRupiah(kpiStats.totalGross)"
+        :sublabel="`${kpiStats.paidCount} transaksi berhasil`"
+        :loading="loading"
+      />
+
+      <StatItem
+        label="Penghasilan Bersih (95%)"
+        :value="formatRupiah(kpiStats.totalNet)"
+        :sublabel="`Biaya platform 5% (${formatRupiah(kpiStats.totalFee)})`"
+        variant="forest"
+        bordered
+        :loading="loading"
+      />
+
+      <StatItem
+        label="Transaksi Berhasil"
+        :value="kpiStats.paidCount"
+        :sublabel="`dari total ${kpiStats.totalCount} pesanan`"
+        bordered
+        :loading="loading"
+      />
+
+      <StatItem
+        label="Menunggu Pembayaran"
+        :value="kpiStats.pendingCount"
+        sublabel="menunggu konfirmasi pelanggan"
+        variant="gold"
+        bordered
+        :loading="loading"
+      />
+    </StatsBar>
+
     <!-- Header & Action Toolbar (Edge-to-Edge Full Width Standard) -->
     <div
       v-if="!hideHeaderToolbar"
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar shadow-xs mb-0 !mt-0"
     >
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 shrink-0">
         <Receipt class="w-3.5 h-3.5 text-gold shrink-0" />
         <span
           class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
@@ -229,7 +296,7 @@ defineExpose({
         </span>
       </div>
 
-      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar w-full sm:w-auto">
+      <div class="flex items-center gap-2 shrink-0">
         <!-- Shortcut to Balances (saldo dikelola secara agregat di /balances) -->
         <router-link
           :to="envPath(env, '/balances')"
@@ -251,19 +318,6 @@ defineExpose({
           <Plus class="w-3.5 h-3.5" />
           <span>Buat Checkout</span>
         </button>
-
-        <!-- Search Input -->
-        <div class="relative w-full sm:w-56">
-          <Search
-            class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"
-          />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Cari ID, email, kupon..."
-            class="w-full pl-8 pr-2.5 py-1 rounded-lg bg-white/10 border border-white/15 text-xs text-white placeholder:text-white/40 focus:outline-none focus:bg-white/15 focus:border-gold transition"
-          />
-        </div>
 
         <!-- Filter Per Project Dropdown -->
         <SearchPicker
@@ -378,42 +432,6 @@ defineExpose({
       </button>
     </div>
 
-    <!-- KPI Stats Summary Bar -->
-    <StatsBar>
-      <StatItem
-        label="Penjualan Bruto"
-        :value="formatRupiah(kpiStats.totalGross)"
-        :sublabel="`${kpiStats.paidCount} transaksi berhasil`"
-        :loading="loading"
-      />
-
-      <StatItem
-        label="Penghasilan Bersih (95%)"
-        :value="formatRupiah(kpiStats.totalNet)"
-        :sublabel="`Biaya platform 5% (${formatRupiah(kpiStats.totalFee)})`"
-        variant="forest"
-        bordered
-        :loading="loading"
-      />
-
-      <StatItem
-        label="Transaksi Berhasil"
-        :value="kpiStats.paidCount"
-        :sublabel="`dari total ${kpiStats.totalCount} pesanan`"
-        bordered
-        :loading="loading"
-      />
-
-      <StatItem
-        label="Menunggu Pembayaran"
-        :value="kpiStats.pendingCount"
-        sublabel="menunggu konfirmasi pelanggan"
-        variant="gold"
-        bordered
-        :loading="loading"
-      />
-    </StatsBar>
-
     <!-- Edge-to-Edge Responsive Table -->
     <TableContainer tbody-class="bg-white">
       <template #head>
@@ -433,16 +451,13 @@ defineExpose({
 
       <TableSkeleton v-if="loading" :columns="10" :rows="6" />
       <tr v-else-if="filteredTransactions.length === 0">
-        <td colspan="10" class="py-10 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
-          <div class="space-y-1">
-            <Receipt class="w-7 h-7 mx-auto text-jetblack/30" />
-            <p class="font-semibold text-xs text-jetblack/70">
-              Belum ada riwayat transaksi ditemukan.
-            </p>
-            <p class="text-[11px] text-jetblack/50">
-              Coba sesuaikan kata kunci pencarian atau filter status Anda.
-            </p>
-          </div>
+        <td colspan="10" class="py-10 px-3.5 sm:px-4 md:px-6">
+          <EmptyState
+            :icon="Receipt"
+            title="Belum ada riwayat transaksi ditemukan"
+            description="Coba sesuaikan kata kunci pencarian atau filter status Anda."
+            container-class="border-0 bg-transparent py-4"
+          />
         </td>
       </tr>
       <tr
@@ -452,7 +467,7 @@ defineExpose({
         class="hover:bg-slate-50/70 transition group cursor-pointer"
         @click="openDetail(tx)"
       >
-        <td class="py-3 pr-2.5 pl-3.5 sm:pl-4 md:pl-6 font-mono font-bold text-jetblack">
+        <td class="py-2.5 pr-2.5 pl-3.5 sm:pl-4 md:pl-6 font-mono font-bold text-jetblack">
           <div class="flex items-center gap-1.5">
             <span>{{ tx.id }}</span>
             <span
@@ -463,7 +478,7 @@ defineExpose({
             </span>
           </div>
         </td>
-        <td class="py-3 px-2.5">
+        <td class="py-2.5 px-2.5">
           <div class="flex items-center gap-1.5">
             <div>
               <div class="font-medium text-jetblack leading-tight">
@@ -493,19 +508,19 @@ defineExpose({
             </span>
           </div>
         </td>
-        <td class="py-3 px-2.5">
+        <td class="py-2.5 px-2.5">
           <span class="font-medium text-jetblack/80">{{ getAppName(tx.appId) }}</span>
         </td>
-        <td class="py-3 px-2.5 font-mono font-bold text-jetblack">
+        <td class="py-2.5 px-2.5 font-mono font-bold text-jetblack">
           {{ formatRupiah(tx.grossAmount) }}
         </td>
-        <td class="py-3 px-2.5 font-mono text-red-600 text-[11px]">
+        <td class="py-2.5 px-2.5 font-mono text-red-600 text-[11px]">
           -{{ formatRupiah(tx.platformFee) }}
         </td>
-        <td class="py-3 px-2.5 font-mono font-bold text-forest">
+        <td class="py-2.5 px-2.5 font-mono font-bold text-forest">
           {{ formatRupiah(tx.netAmount) }}
         </td>
-        <td class="py-3 px-2.5">
+        <td class="py-2.5 px-2.5">
           <span
             class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-medium bg-slate-100 text-slate-700"
           >
@@ -513,35 +528,14 @@ defineExpose({
             <span>{{ tx.paymentChannel || "QRIS / VA" }}</span>
           </span>
         </td>
-        <td class="py-3 px-2.5">
-          <span
-            :class="[
-              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
-              tx.paymentStatus === 'PAID'
-                ? 'bg-forest/10 text-forest border border-forest/30'
-                : tx.paymentStatus === 'PENDING'
-                  ? 'bg-gold/15 text-[#8a6d1f] border border-gold/30'
-                  : 'bg-red-50 text-red-600 border border-red-200',
-            ]"
-          >
-            <span
-              class="w-1.5 h-1.5 rounded-full"
-              :class="
-                tx.paymentStatus === 'PAID'
-                  ? 'bg-forest'
-                  : tx.paymentStatus === 'PENDING'
-                    ? 'bg-gold'
-                    : 'bg-red-500'
-              "
-            ></span>
-            {{ tx.paymentStatus }}
-          </span>
+        <td class="py-2.5 px-2.5">
+          <StatusBadge :status="tx.paymentStatus" />
         </td>
 
-        <td class="py-3 px-2.5 text-[11px] text-jetblack/60 font-mono">
+        <td class="py-2.5 px-2.5 text-[11px] text-jetblack/60 font-mono">
           {{ formatDate(tx.paidAt || tx.createdAt) }}
         </td>
-        <td class="py-3 pl-2.5 pr-3.5 sm:pr-4 md:pr-6 text-right" @click.stop>
+        <td class="py-2.5 pl-2.5 pr-3.5 sm:pr-4 md:pr-6 text-right" @click.stop>
           <div class="flex items-center justify-end gap-1.5">
             <!-- Direct Link to Customer Checkout Invoice for pending tx -->
             <a

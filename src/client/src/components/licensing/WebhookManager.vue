@@ -14,10 +14,11 @@ import {
   KeyRound,
 } from "lucide-vue-next";
 import { api } from "../../lib/api";
-import { useClipboard } from "../../composables/useClipboard";
 import { useConfirm } from "../../composables/useConfirm";
 import type { WebhookEndpointItem } from "../../types/licensing";
 import { WEBHOOK_EVENT_LABELS } from "../../constants";
+import CopyButton from "../common/CopyButton.vue";
+import EmptyState from "../common/EmptyState.vue";
 
 const { confirm: confirmDialog } = useConfirm();
 
@@ -26,8 +27,6 @@ const webhooks = ref<WebhookEndpointItem[]>([]);
 const availableEvents = ref<string[]>(Object.keys(WEBHOOK_EVENT_LABELS));
 const feedback = ref<string | null>(null);
 let feedbackTimer: ReturnType<typeof setTimeout> | null = null;
-
-const { copy: writeClipboard } = useClipboard();
 
 const importing = ref(false);
 const importUrl = ref("");
@@ -190,24 +189,6 @@ async function deleteWebhook(w: WebhookEndpointItem) {
   }
 }
 
-async function copySecret(w: WebhookEndpointItem) {
-  const ok = await writeClipboard(w.secret);
-  if (!ok) {
-    setFeedback("Gagal menyalin secret ke clipboard.", 3000);
-    return;
-  }
-  setFeedback("Secret disalin ke clipboard!", 3000);
-}
-
-async function copyUrl(w: WebhookEndpointItem) {
-  const ok = await writeClipboard(w.url);
-  if (!ok) {
-    setFeedback("Gagal menyalin URL.", 3000);
-    return;
-  }
-  setFeedback("URL disalin ke clipboard!", 3000);
-}
-
 onMounted(loadWebhooks);
 </script>
 
@@ -336,15 +317,13 @@ onMounted(loadWebhooks);
     </div>
 
     <!-- Endpoint list -->
-    <div
+    <EmptyState
       v-if="webhooks.length === 0 && !loading"
-      class="rounded-xl border border-dashed border-jetblack/20 p-6 text-center"
-    >
-      <p class="text-xs font-semibold text-jetblack/50">Belum ada webhook endpoint.</p>
-      <p class="text-[11px] text-jetblack/35 mt-1">
-        Daftarkan endpoint di atas untuk mulai menerima event lifecycle lisensi.
-      </p>
-    </div>
+      :icon="Webhook"
+      title="Belum ada webhook endpoint"
+      description="Daftarkan endpoint di atas untuk mulai menerima event lifecycle lisensi."
+      container-class="border-dashed py-8"
+    />
 
     <div
       v-for="w in webhooks"
@@ -363,13 +342,12 @@ onMounted(loadWebhooks);
           <span class="font-mono text-[11px] truncate text-jetblack">{{ w.url }}</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <button
-            @click="copyUrl(w)"
+          <CopyButton
+            :text="w.url"
             title="Salin URL"
-            class="p-1.5 rounded-md bg-jetblack/5 hover:bg-jetblack/10 cursor-pointer"
-          >
-            <Copy class="w-3 h-3" />
-          </button>
+            button-class="p-1.5 rounded-md bg-jetblack/5 hover:bg-jetblack/10 cursor-pointer text-jetblack/70"
+            icon-class="w-3 h-3"
+          />
           <button
             @click="toggleActive(w)"
             :class="[
@@ -462,13 +440,12 @@ onMounted(loadWebhooks);
               >
                 {{ w.secret }}
               </code>
-              <button
-                @click="copySecret(w)"
+              <CopyButton
+                :text="w.secret"
                 title="Salin Secret"
-                class="p-1.5 rounded-md bg-gold/10 hover:bg-gold/20 cursor-pointer"
-              >
-                <Copy class="w-3 h-3 text-[#7a641a]" />
-              </button>
+                button-class="p-1.5 rounded-md bg-gold/10 hover:bg-gold/20 cursor-pointer text-[#7a641a]"
+                icon-class="w-3 h-3"
+              />
               <button
                 @click="revealSecretId = null"
                 title="Sembunyikan"

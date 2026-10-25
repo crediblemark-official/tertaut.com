@@ -51,6 +51,42 @@ export interface RevokeLicenseResult {
   notFound?: boolean;
 }
 
+export interface ReactivateLicenseParams {
+  licenseKey: string;
+  actor?: AuditActor;
+  ipAddress?: string | null;
+}
+
+export interface ReactivateLicenseResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  notFound?: boolean;
+  license?: typeof licenses.$inferSelect;
+}
+
+export interface RenewLicenseParams {
+  licenseKey: string;
+  additionalDays?: number | string;
+  days?: number | string;
+  newExpiresAt?: string | null;
+  isLifetime?: boolean;
+  actor?: AuditActor;
+  ipAddress?: string | null;
+}
+
+export interface RenewLicenseResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  notFound?: boolean;
+  isLifetime?: boolean;
+  newExpiry?: string | null;
+  extendedDays?: number;
+  additionalDays?: number;
+  license?: typeof licenses.$inferSelect;
+}
+
 export class LicenseService {
   /**
    * Menghasilkan format kunci lisensi: TT-XXXX-XXXX-XXXX atau TAUT-XXXX-XXXX-XXXX
@@ -189,6 +225,106 @@ export class LicenseService {
       .where(eq(licenses.id, lic.id));
 
     return token;
+  }
+
+  /**
+   * Terbitkan atau kaitkan lisensi untuk transaksi pembayaran yang berhasil secara idempotent.
+   */
+  static async provisionForPayment({
+    transactionId,
+    appId,
+    customerEmail,
+    mode,
+    app,
+    grantDays = 365,
+    now = new Date(),
+    trx = db,
+  }: {
+    transactionId: string;
+    appId: string;
+    customerEmail: string;
+    mode: "sandbox" | "live";
+    app: any;
+    grantDays?: number;
+    now?: Date;
+    trx?: any;
+  }): Promise<{
+    licenseKey: string;
+    licenseId: string;
+    expiresAt: Date;
+    apiKey?: string;
+  }> {
+    const expiresAt = new Date(now.getTime() + grantDays * 24 * 60 * 60 * 1000);
+    const assignedKey = (app?.deliveryConfig?.licenseKey as any)?.assignedLicenseKey;
+
+    if (assignedKey) {
+      const existing = await trx.query.licenses.findFirst({
+        where: eq(licenses.licenseKey, assignedKey),
+      });
+      if (existing) {
+        await trx
+          .update(licenses)
+          .set({
+            transactionId,
+            customerEmail,
+            updatedAt: now,
+          })
+          .where(eq(licenses.id, existing.id));
+
+        return {
+          licenseKey: existing.licenseKey,
+          licenseId: existing.id,
+          expiresAt: existing.expiresAt || expiresAt,
+          apiKey: existing.apiKey || undefined,
+        };
+      }
+    }
+
+    // Generate Universal License Key
+    const licenseKey = LicenseService.generateLicenseKey();
+    const maxSeats = app?.deliveryConfig?.licenseKey?.maxSeats ?? 3;
+    const features = app?.deliveryConfig?.licenseKey?.defaultFeatures || {};
+    const offlineGraceDays = app?.deliveryConfig?.licenseKey?.offlineGraceDays;
+
+    const offlineToken = LicenseService.createOfflineGraceToken(
+      licenseKey,
+      appId,
+      null,
+      customerEmail,
+      maxSeats,
+      features,
+      offlineGraceDays,
+      mode
+    );
+
+    let generatedApiKey: string | undefined = undefined;
+    if (app?.deliveryConfig?.apiAccess?.enabled) {
+      generatedApiKey = `tt_cust_${randomBytes(16).toString("hex")}`;
+    }
+
+    const licenseId = `lic_${randomBytes(8).toString("hex")}`;
+    await trx.insert(licenses).values({
+      id: licenseId,
+      appId,
+      transactionId,
+      mode,
+      licenseKey,
+      customerEmail,
+      status: "ACTIVE",
+      licenseVersion: 1,
+      features,
+      maxSeats,
+      expiresAt,
+      offlineJwtGraceToken: offlineToken,
+      apiKey: generatedApiKey,
+    });
+
+    return {
+      licenseKey,
+      licenseId,
+      expiresAt,
+      apiKey: generatedApiKey,
+    };
   }
 
   /**
@@ -392,6 +528,274 @@ export class LicenseService {
         license: updated,
       };
     });
+  }
+
+  static async reactivate(params: ReactivateLicenseParams): Promise<ReactivateLicenseResult> {
+    const key = params.licenseKey?.trim();
+    if (!key) {
+      return { success: false, notFound: true, error: "licenseKey wajib disertakan" };
+    }
+
+    const lic = await db.query.licenses.findFirst({
+      where: eq(licenses.licenseKey, key),
+    });
+
+    if (!lic) {
+      return { success: false, notFound: true, error: "Lisensi tidak ditemukan" };
+    }
+
+    const app = await db.query.apps.findFirst({ where: eq(apps.id, lic.appId) });
+    const actor = params.actor || { type: "SYSTEM" as const };
+
+    return db.transaction(async (trx) => {
+      const [updated] = await trx
+        .update(licenses)
+        .set({ status: "ACTIVE", updatedAt: new Date() })
+        .where(eq(licenses.id, lic.id))
+        .returning();
+
+      // Hapus dari revokedTokens denylist jika ada
+      await trx.delete(revokedTokens).where(eq(revokedTokens.licenseId, lic.id));
+
+      // Audit trail
+      await AuditService.record(
+        "license.reactivated",
+        {
+          licenseId: lic.id,
+          licenseKey: lic.licenseKey,
+          appId: lic.appId,
+          actorType: actor.type,
+          actorId: actor.id,
+          ipAddress: params.ipAddress,
+        },
+        { reactivatedBy: actor.type === "ADMIN" ? "Super Admin" : "Builder" },
+        trx
+      );
+
+      // Webhook
+      await WebhookService.emit(
+        "license.reactivated",
+        {
+          license: updated,
+          app: app || null,
+          actorType: actor.type,
+          actorId: actor.id,
+          ipAddress: params.ipAddress,
+        },
+        trx
+      );
+
+      return {
+        success: true,
+        message: `Lisensi ${lic.licenseKey} berhasil diaktifkan kembali (ACTIVE).`,
+        license: updated,
+      };
+    });
+  }
+
+  static async renew(params: RenewLicenseParams): Promise<RenewLicenseResult> {
+    const key = params.licenseKey?.trim();
+    if (!key) {
+      return { success: false, error: "licenseKey wajib disertakan" };
+    }
+
+    const lic = await db.query.licenses.findFirst({
+      where: eq(licenses.licenseKey, key),
+    });
+
+    if (!lic) {
+      return { success: false, notFound: true, error: "Lisensi tidak ditemukan" };
+    }
+
+    const app = await db.query.apps.findFirst({
+      where: eq(apps.id, lic.appId),
+    });
+
+    const actor = params.actor || { type: "SYSTEM" as const };
+    const { additionalDays, days, newExpiresAt, isLifetime } = params;
+
+    // Kasus 1: Mengatur lisensi menjadi Permanen (Lifetime / Tanpa Expire)
+    if (isLifetime || newExpiresAt === null) {
+      const [updated] = await db
+        .update(licenses)
+        .set({
+          status: "ACTIVE",
+          expiresAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(licenses.id, lic.id))
+        .returning();
+
+      await db.delete(revokedTokens).where(eq(revokedTokens.licenseId, lic.id));
+
+      await AuditService.record(
+        "license.renewed",
+        {
+          licenseId: lic.id,
+          licenseKey: lic.licenseKey,
+          appId: lic.appId,
+          actorType: actor.type,
+          actorId: actor.id,
+          ipAddress: params.ipAddress,
+        },
+        { isLifetime: true, newExpiry: null },
+        db
+      );
+
+      await WebhookService.emit("license.renewed", {
+        license: updated,
+        app: app || null,
+        actorType: actor.type,
+        actorId: actor.id,
+        ipAddress: params.ipAddress,
+        payload: { isLifetime: true, newExpiry: null },
+      });
+
+      return {
+        success: true,
+        message: `Masa aktif lisensi ${key} berhasil diubah menjadi Permanen (Lifetime).`,
+        newExpiry: null,
+        isLifetime: true,
+        license: updated,
+      };
+    }
+
+    // Kasus 2: Menentukan tanggal kedaluwarsa spesifik (Custom Expiry Date)
+    if (typeof newExpiresAt === "string" && newExpiresAt.trim()) {
+      const targetDate = new Date(newExpiresAt.trim());
+      if (isNaN(targetDate.getTime())) {
+        return { success: false, error: "Format tanggal kedaluwarsa baru tidak valid." };
+      }
+
+      const newStatus = targetDate > new Date() ? "ACTIVE" : lic.status;
+
+      const [updated] = await db
+        .update(licenses)
+        .set({
+          status: newStatus,
+          expiresAt: targetDate,
+          updatedAt: new Date(),
+        })
+        .where(eq(licenses.id, lic.id))
+        .returning();
+
+      if (newStatus === "ACTIVE") {
+        await db.delete(revokedTokens).where(eq(revokedTokens.licenseId, lic.id));
+      }
+
+      await AuditService.record(
+        "license.renewed",
+        {
+          licenseId: lic.id,
+          licenseKey: lic.licenseKey,
+          appId: lic.appId,
+          actorType: actor.type,
+          actorId: actor.id,
+          ipAddress: params.ipAddress,
+        },
+        { newExpiry: targetDate.toISOString() },
+        db
+      );
+
+      await WebhookService.emit("license.renewed", {
+        license: updated,
+        app: app || null,
+        actorType: actor.type,
+        actorId: actor.id,
+        ipAddress: params.ipAddress,
+        payload: { newExpiry: targetDate.toISOString() },
+      });
+
+      return {
+        success: true,
+        message: `Masa aktif lisensi ${key} berhasil diubah hingga ${targetDate.toLocaleDateString("id-ID")}.`,
+        newExpiry: targetDate.toISOString(),
+        license: updated,
+      };
+    }
+
+    // Kasus 3: Perpanjangan penambahan hari (days / additionalDays)
+    let daysToAdd = Number(additionalDays || days);
+    if (!daysToAdd || daysToAdd <= 0) {
+      switch (app?.billingPeriod) {
+        case "daily":
+          daysToAdd = 1;
+          break;
+        case "weekly":
+          daysToAdd = 7;
+          break;
+        case "monthly":
+          daysToAdd = 30;
+          break;
+        case "every_3_months":
+          daysToAdd = 90;
+          break;
+        case "every_6_months":
+          daysToAdd = 180;
+          break;
+        case "yearly":
+          daysToAdd = 365;
+          break;
+        default:
+          daysToAdd = app?.deliveryConfig?.licenseKey?.expiresInDays || 30;
+      }
+    }
+
+    // Batas maksimum perpanjangan lisensi manual oleh builder non-admin (maksimal 365 hari per request)
+    if (actor.type !== "ADMIN" && daysToAdd > 365) {
+      return {
+        success: false,
+        error:
+          "Batas perpanjangan lisensi manual oleh builder dibatasi maksimum 365 hari per request.",
+      };
+    }
+
+    const currentExpiry = lic.expiresAt ? new Date(lic.expiresAt) : new Date();
+    const baseDate = currentExpiry.getTime() > Date.now() ? currentExpiry : new Date();
+    baseDate.setDate(baseDate.getDate() + daysToAdd);
+
+    const [updated] = await db
+      .update(licenses)
+      .set({
+        status: "ACTIVE",
+        expiresAt: baseDate,
+        updatedAt: new Date(),
+      })
+      .where(eq(licenses.id, lic.id))
+      .returning();
+
+    await db.delete(revokedTokens).where(eq(revokedTokens.licenseId, lic.id));
+
+    await AuditService.record(
+      "license.renewed",
+      {
+        licenseId: lic.id,
+        licenseKey: lic.licenseKey,
+        appId: lic.appId,
+        actorType: actor.type,
+        actorId: actor.id,
+        ipAddress: params.ipAddress,
+      },
+      { additionalDays: daysToAdd, newExpiry: baseDate.toISOString() }
+    );
+
+    await WebhookService.emit("license.renewed", {
+      license: updated,
+      app: app || null,
+      actorType: actor.type,
+      actorId: actor.id,
+      ipAddress: params.ipAddress,
+      payload: { additionalDays: daysToAdd, newExpiry: baseDate.toISOString() },
+    });
+
+    return {
+      success: true,
+      message: `Lisensi ${key} berhasil diperpanjang +${daysToAdd} hari.`,
+      newExpiry: baseDate.toISOString(),
+      extendedDays: daysToAdd,
+      additionalDays: daysToAdd,
+      license: updated,
+    };
   }
 
   /**

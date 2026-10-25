@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { ChevronDown } from "lucide-vue-next";
 
 const faqs = [
   {
@@ -8,7 +9,7 @@ const faqs = [
   },
   {
     q: "Jenis software apa saja yang bisa saya monetisasi dengan Tertaut?",
-    a: "Hampir semua jenis produk perangkat lunak: aplikasi desktop (Windows, macOS, Linux via Tauri, Electron, Flutter, C#), web SaaS, extension browser, AI wrapper apps, skrip otomasi, plugin, hingga akses API.",
+    a: "Hampir semua jenis produk perangkat lunak: aplikasi desktop (Windows, macOS, Linux via Tauri, Electron, Flutter, C#), web SaaS, extension browser, skrip otomasi, plugin, hingga akses API.",
   },
   {
     q: "Bagaimana cara kerja lisensi jika pengguna tidak memiliki internet konstan?",
@@ -36,12 +37,17 @@ function toggleFaq(index: number) {
 </script>
 
 <template>
-  <section id="faq" class="py-16 md:py-24 max-w-4xl mx-auto px-4 sm:px-6 space-y-12">
-    <div class="text-center space-y-3">
+  <section
+    id="faq"
+    class="py-10 sm:py-16 md:py-24 max-w-4xl mx-auto px-3.5 sm:px-6 space-y-8 sm:space-y-12"
+  >
+    <div class="text-center space-y-2.5 sm:space-y-3">
       <h2 class="text-xs font-bold uppercase tracking-widest text-forest font-mono">
         Pertanyaan Umum
       </h2>
-      <h3 class="text-2xl sm:text-3xl font-extrabold text-jetblack tracking-tight">
+      <h3
+        class="text-xl sm:text-2xl md:text-3xl font-extrabold text-jetblack tracking-tight leading-snug"
+      >
         Semua yang Perlu Anda Ketahui
       </h3>
       <p class="text-xs sm:text-sm text-jetblack/65">
@@ -49,7 +55,7 @@ function toggleFaq(index: number) {
       </p>
     </div>
 
-    <div class="space-y-3">
+    <div class="space-y-2.5 sm:space-y-3">
       <div
         v-for="(faq, idx) in faqs"
         :key="idx"
@@ -57,23 +63,23 @@ function toggleFaq(index: number) {
       >
         <button
           @click="toggleFaq(idx)"
-          class="w-full px-5 py-4 text-left flex items-center justify-between gap-4 cursor-pointer hover:bg-jetblack/5 transition"
+          class="w-full px-4 sm:px-5 py-3.5 sm:py-4 text-left flex items-center justify-between gap-3 sm:gap-4 cursor-pointer hover:bg-jetblack/5 active:bg-jetblack/10 transition"
         >
-          <span class="text-sm font-bold text-jetblack">{{ faq.q }}</span>
+          <span class="text-xs sm:text-sm font-bold text-jetblack leading-snug">{{ faq.q }}</span>
           <span
             :class="[
-              'w-6 h-6 rounded-full flex items-center justify-center border text-xs font-bold transition transform shrink-0',
+              'w-6 h-6 rounded-full flex items-center justify-center border text-xs font-bold transition-all duration-200 shrink-0',
               openFaqIndex === idx
-                ? 'rotate-180 bg-jetblack text-white border-jetblack'
+                ? 'bg-jetblack text-white border-jetblack rotate-180'
                 : 'bg-white text-jetblack/60 border-jetblack/20',
             ]"
           >
-            ↓
+            <ChevronDown class="w-3.5 h-3.5" />
           </span>
         </button>
         <div
           v-if="openFaqIndex === idx"
-          class="px-5 pb-5 text-xs text-jetblack/70 leading-relaxed border-t border-jetblack/5 pt-3 animate-fadeIn"
+          class="px-4 sm:px-5 pb-4 sm:pb-5 text-xs sm:text-[13px] text-slate-600 leading-relaxed border-t border-jetblack/5 pt-3 animate-fadeIn"
         >
           {{ faq.a }}
         </div>

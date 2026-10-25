@@ -6,7 +6,6 @@ import type { LicenseItem } from "../types/licensing";
 import type { TransactionItem } from "../types/transaction";
 import { dashboardEnv } from "../lib/environment";
 import { formatRupiah, formatDate } from "../lib/utils";
-import { useClipboard } from "../composables/useClipboard";
 import { useConfirm } from "../composables/useConfirm";
 import {
   Repeat,
@@ -18,9 +17,6 @@ import {
   RefreshCw,
   Sparkles,
   ChevronRight,
-  X,
-  Copy,
-  Check,
   Calendar,
   CreditCard,
   KeyRound,
@@ -33,6 +29,11 @@ import TablePagination from "../components/common/TablePagination.vue";
 import StatsBar from "../components/common/StatsBar.vue";
 import StatItem from "../components/common/StatItem.vue";
 import SearchPicker from "../components/common/SearchPicker.vue";
+import SearchInput from "../components/common/SearchInput.vue";
+import StatusBadge from "../components/common/StatusBadge.vue";
+import CopyButton from "../components/common/CopyButton.vue";
+import EmptyState from "../components/common/EmptyState.vue";
+import BaseModal from "../components/common/BaseModal.vue";
 
 export interface SubscriptionItem extends LicenseItem {
   ltv: number;
@@ -67,8 +68,6 @@ const selectedAppId = ref<string>("");
 const selectedSub = ref<SubscriptionItem | null>(null);
 const isDetailModalOpen = ref(false);
 const isRevoking = ref(false);
-
-const { copied, copy } = useClipboard();
 
 async function loadData() {
   loading.value = true;
@@ -106,7 +105,12 @@ function nextPage() {
   }
 }
 
-onMounted(loadData);
+const isMounted = ref(false);
+
+onMounted(() => {
+  isMounted.value = true;
+  loadData();
+});
 watch(env, () => {
   page.value = 1;
   loadData();
@@ -245,11 +249,67 @@ function formatSubDate(dateStr?: string | null): string {
 
 <template>
   <div class="animate-fadeIn pb-12">
+    <!-- Global Search Input Teleported to Top Header (#dashboard-header-search) -->
+    <Teleport v-if="isMounted" to="#dashboard-header-search">
+      <SearchInput
+        v-model="searchQuery"
+        placeholder="Cari email, kunci, software SaaS..."
+        wrapper-class="w-full max-w-md"
+        input-class="h-8 rounded-lg bg-jetblack/5 hover:bg-jetblack/8 border-jetblack/10 hover:border-jetblack/20 focus:bg-white"
+      />
+    </Teleport>
+
+    <!-- Mobile Search Input Teleported to Mobile Header (#mobile-header-search) -->
+    <Teleport v-if="isMounted" to="#mobile-header-search">
+      <SearchInput
+        v-model="searchQuery"
+        placeholder="Cari email, kunci, software SaaS..."
+        wrapper-class="w-full"
+        input-class="h-8 rounded-lg bg-jetblack/5 border-jetblack/10 focus:bg-white"
+      />
+    </Teleport>
+
+    <!-- Stats KPI Bar -->
+    <StatsBar borderless>
+      <StatItem
+        label="Langganan Aktif"
+        :value="kpiStats.activeCount"
+        :sublabel="`dari total ${kpiStats.totalCount} entitas langganan`"
+        variant="forest"
+        :loading="loading"
+      />
+
+      <StatItem
+        label="Nilai Akses Aktif / Bulan"
+        :value="formatRupiah(kpiStats.monthlyEquivalent)"
+        sublabel="Estimasi omzet bulanan"
+        bordered
+        :loading="loading"
+      />
+
+      <StatItem
+        label="Rata-rata Pembayaran per Pelanggan"
+        :value="formatRupiah(kpiStats.avgLtv)"
+        sublabel="Rata-rata LTV pelanggan"
+        bordered
+        :loading="loading"
+      />
+
+      <StatItem
+        label="Jatuh Tempo (7 Hari)"
+        :value="kpiStats.expiringSoon"
+        sublabel="Masa aktif lisensi akan berakhir dalam 7 hari"
+        variant="gold"
+        bordered
+        :loading="loading"
+      />
+    </StatsBar>
+
     <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
     <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs mb-0"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar shadow-xs mb-0 !mt-0"
     >
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 shrink-0">
         <Repeat class="w-3.5 h-3.5 text-gold shrink-0" />
         <span
           class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
@@ -264,20 +324,7 @@ function formatSubDate(dateStr?: string | null): string {
         </span>
       </div>
 
-      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar w-full sm:w-auto">
-        <!-- Search Input -->
-        <div class="relative w-full sm:w-56">
-          <Search
-            class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"
-          />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Cari email, kunci, app..."
-            class="w-full pl-8 pr-2.5 py-1 rounded-lg bg-white/10 border border-white/15 text-xs text-white placeholder:text-white/40 focus:outline-none focus:bg-white/15 focus:border-gold transition"
-          />
-        </div>
-
+      <div class="flex items-center gap-2 shrink-0">
         <!-- Filter Per Project Dropdown -->
         <SearchPicker
           v-model="selectedAppId"
@@ -349,42 +396,6 @@ function formatSubDate(dateStr?: string | null): string {
       </div>
     </div>
 
-    <!-- Product Catalog Stats KPI Bar (Flush Canvas, Creem/Polar style) -->
-    <StatsBar>
-      <StatItem
-        label="Langganan Aktif"
-        :value="kpiStats.activeCount"
-        :sublabel="`dari total ${kpiStats.totalCount} entitas langganan`"
-        variant="forest"
-        :loading="loading"
-      />
-
-      <StatItem
-        label="Nilai Akses Aktif / Bulan"
-        :value="formatRupiah(kpiStats.monthlyEquivalent)"
-        sublabel="Estimasi omzet bulanan"
-        bordered
-        :loading="loading"
-      />
-
-      <StatItem
-        label="Rata-rata Pembayaran per Pelanggan"
-        :value="formatRupiah(kpiStats.avgLtv)"
-        sublabel="Rata-rata LTV pelanggan"
-        bordered
-        :loading="loading"
-      />
-
-      <StatItem
-        label="Jatuh Tempo (7 Hari)"
-        :value="kpiStats.expiringSoon"
-        sublabel="Masa aktif lisensi akan berakhir dalam 7 hari"
-        variant="gold"
-        bordered
-        :loading="loading"
-      />
-    </StatsBar>
-
     <!-- Edge-to-Edge Table -->
     <TableContainer>
       <template #head>
@@ -402,13 +413,13 @@ function formatSubDate(dateStr?: string | null): string {
 
       <TableSkeleton v-if="loading" :columns="8" :rows="5" />
       <tr v-else-if="filteredSubscriptions.length === 0">
-        <td colspan="8" class="py-8 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
-          <div class="space-y-1">
-            <p class="font-semibold text-xs text-jetblack/60">Tidak ada langganan ditemukan.</p>
-            <p class="text-[11px] text-jetblack/40">
-              Coba sesuaikan kata kunci pencarian atau filter status.
-            </p>
-          </div>
+        <td colspan="8" class="py-8 px-3.5 sm:px-4 md:px-6">
+          <EmptyState
+            :icon="Repeat"
+            title="Tidak ada langganan ditemukan"
+            description="Coba sesuaikan kata kunci pencarian atau filter status."
+            container-class="border-0 bg-transparent py-4"
+          />
         </td>
       </tr>
       <tr
@@ -418,51 +429,37 @@ function formatSubDate(dateStr?: string | null): string {
         class="hover:bg-slate-50/70 transition group cursor-pointer"
         @click="openDetail(sub)"
       >
-        <td class="py-3 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-medium text-jetblack">
+        <td class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-medium text-jetblack">
           {{ sub.customerEmail }}
         </td>
-        <td class="py-3 px-3">
+        <td class="py-2.5 px-3">
           <span class="font-medium text-jetblack/80">{{ sub.appName }}</span>
         </td>
-        <td class="py-3 px-3 font-mono text-[11px] text-jetblack">
-          <span class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
-            {{ sub.licenseKey.slice(0, 10) }}...
-          </span>
+        <td class="py-2.5 px-3 font-mono text-[11px] text-jetblack">
+          <div class="flex items-center gap-1">
+            <span class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200">
+              {{ sub.licenseKey.slice(0, 10) }}...
+            </span>
+            <CopyButton
+              :text="sub.licenseKey"
+              :title="`Salin License Key: ${sub.licenseKey}`"
+              icon-class="w-2.5 h-2.5"
+            />
+          </div>
         </td>
-        <td class="py-3 px-3 text-jetblack/70">
+        <td class="py-2.5 px-3 text-jetblack/70">
           {{ sub.billingInterval }}
         </td>
-        <td class="py-3 px-3 font-mono font-bold text-forest">
+        <td class="py-2.5 px-3 font-mono font-bold text-forest">
           {{ formatRupiah(sub.ltv) }}
         </td>
-        <td class="py-3 px-3">
-          <span
-            :class="[
-              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
-              sub.status === 'ACTIVE'
-                ? 'bg-forest/10 text-forest border border-forest/30'
-                : sub.status === 'EXPIRED'
-                  ? 'bg-gold/15 text-[#8a6d1f] border border-gold/30'
-                  : 'bg-red-50 text-red-600 border border-red-200',
-            ]"
-          >
-            <span
-              class="w-1.5 h-1.5 rounded-full"
-              :class="
-                sub.status === 'ACTIVE'
-                  ? 'bg-forest'
-                  : sub.status === 'EXPIRED'
-                    ? 'bg-gold'
-                    : 'bg-red-500'
-              "
-            ></span>
-            {{ sub.status }}
-          </span>
+        <td class="py-2.5 px-3">
+          <StatusBadge :status="sub.status" />
         </td>
-        <td class="py-3 px-3 text-[11px] text-jetblack/60 font-mono">
+        <td class="py-2.5 px-3 text-[11px] text-jetblack/60 font-mono">
           {{ formatSubDate(sub.expiresAt) }}
         </td>
-        <td class="py-3 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right" @click.stop>
+        <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right" @click.stop>
           <button
             type="button"
             @click="openDetail(sub)"
@@ -487,145 +484,109 @@ function formatSubDate(dateStr?: string | null): string {
     />
 
     <!-- Subscription Detail Modal -->
-    <div
-      v-if="isDetailModalOpen && selectedSub"
-      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
-      @click.self="closeDetail"
+    <BaseModal
+      :show="isDetailModalOpen && !!selectedSub"
+      title="Rincian Langganan & Total Pembayaran"
+      max-width="max-w-lg"
+      @close="closeDetail"
     >
-      <div
-        class="bg-white border border-jetblack/15 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-scaleIn flex flex-col max-h-[90vh]"
-      >
-        <!-- Header -->
-        <div
-          class="px-5 py-3.5 border-b border-jetblack/10 flex items-center justify-between bg-white shrink-0"
-        >
-          <div class="flex items-center gap-2">
-            <div class="w-2 h-2 rounded-full bg-gold"></div>
-            <h3 class="text-xs font-bold uppercase tracking-wider text-jetblack">
-              Rincian Langganan &amp; Total Pembayaran
-            </h3>
-          </div>
-          <button
-            type="button"
-            @click="closeDetail"
-            class="text-jetblack/40 hover:text-jetblack p-1 rounded-md hover:bg-jetblack/5 transition cursor-pointer"
-          >
-            <X class="w-4 h-4" />
-          </button>
-        </div>
+      <template #title-icon>
+        <div class="w-2 h-2 rounded-full bg-gold"></div>
+      </template>
 
-        <!-- Body -->
-        <div class="px-5 py-4 overflow-y-auto space-y-4 text-xs">
-          <!-- Top LTV Card -->
-          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-[11px] text-jetblack/60 font-semibold"
-                >Total Nilai Seumur Hidup (Lifetime Value)</span
-              >
-              <span
-                :class="
-                  selectedSub.status === 'ACTIVE'
-                    ? 'bg-forest/10 text-forest border-forest/20'
-                    : 'bg-red-500/10 text-red-600 border-red-500/20'
-                "
-                class="text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase"
-              >
-                {{ selectedSub.status }}
-              </span>
-            </div>
-            <div class="text-2xl font-mono font-bold text-forest">
-              {{ formatRupiah(selectedSub.ltv) }}
-            </div>
-            <p class="text-[10px] text-jetblack/50">
-              Total akumulasi pendapatan yang telah dibayarkan oleh pelanggan ini untuk produk
-              {{ selectedSub.appName }}.
-            </p>
-          </div>
-
-          <!-- Subscription Metadata -->
-          <div class="space-y-2.5">
-            <div class="flex justify-between py-1 border-b border-slate-100">
-              <span class="text-jetblack/60">Pelanggan</span>
-              <span class="font-semibold text-jetblack">{{ selectedSub.customerEmail }}</span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-100">
-              <span class="text-jetblack/60">Produk</span>
-              <span class="font-semibold text-jetblack">{{ selectedSub.appName }}</span>
-            </div>
-            <div class="flex justify-between items-center py-1 border-b border-slate-100">
-              <span class="text-jetblack/60">Kunci Lisensi</span>
-              <div class="flex items-center gap-1.5 font-mono font-bold text-jetblack">
-                <span>{{ selectedSub.licenseKey }}</span>
-                <button
-                  type="button"
-                  @click="copy(selectedSub.licenseKey)"
-                  class="text-gold hover:text-gold-hover p-0.5 cursor-pointer"
-                  title="Salin Kunci"
-                >
-                  <Check v-if="copied" class="w-3.5 h-3.5 text-forest" />
-                  <Copy v-else class="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-100">
-              <span class="text-jetblack/60">Max Device Seats</span>
-              <span class="font-semibold text-jetblack">{{ selectedSub.maxSeats }} Seats</span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-100">
-              <span class="text-jetblack/60">Masa Berlaku</span>
-              <span class="font-semibold text-jetblack">{{
-                formatSubDate(selectedSub.expiresAt)
-              }}</span>
-            </div>
-          </div>
-
-          <!-- Linked Transactions List -->
-          <div class="space-y-2">
-            <div class="text-[11px] uppercase font-bold text-jetblack/70 tracking-wider">
-              50 Pembayaran Terbaru Pelanggan Ini
-            </div>
-            <div
-              v-if="linkedTransactions.length === 0"
-              class="p-3 text-center text-slate-400 bg-slate-50 rounded-lg text-xs"
+      <!-- Body -->
+      <div v-if="selectedSub" class="p-5 space-y-4 text-xs">
+        <!-- Top LTV Card -->
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] text-jetblack/60 font-semibold"
+              >Total Nilai Seumur Hidup (Lifetime Value)</span
             >
-              Belum ada transaksi tercatat.
+            <StatusBadge :status="selectedSub.status" />
+          </div>
+          <div class="text-2xl font-mono font-bold text-forest">
+            {{ formatRupiah(selectedSub.ltv) }}
+          </div>
+          <p class="text-[10px] text-jetblack/50">
+            Total akumulasi pendapatan yang telah dibayarkan oleh pelanggan ini untuk produk
+            {{ selectedSub.appName }}.
+          </p>
+        </div>
+
+        <!-- Subscription Metadata -->
+        <div class="space-y-2.5">
+          <div class="flex justify-between py-1 border-b border-slate-100">
+            <span class="text-jetblack/60">Pelanggan</span>
+            <span class="font-semibold text-jetblack">{{ selectedSub.customerEmail }}</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-slate-100">
+            <span class="text-jetblack/60">Produk</span>
+            <span class="font-semibold text-jetblack">{{ selectedSub.appName }}</span>
+          </div>
+          <div class="flex justify-between items-center py-1 border-b border-slate-100">
+            <span class="text-jetblack/60">Kunci Lisensi</span>
+            <div class="flex items-center gap-1.5 font-mono font-bold text-jetblack">
+              <span>{{ selectedSub.licenseKey }}</span>
+              <CopyButton :text="selectedSub.licenseKey" title="Salin Kunci" />
             </div>
-            <div v-else class="space-y-1.5 max-h-40 overflow-y-auto">
-              <div
-                v-for="tx in linkedTransactions"
-                :key="tx.id"
-                class="p-2 rounded-lg bg-slate-50 border border-slate-200/70 flex items-center justify-between text-xs"
-              >
-                <div>
-                  <div class="font-mono font-bold text-jetblack">{{ tx.id }}</div>
-                  <div class="text-[10px] text-jetblack/50">
-                    {{ formatDate(tx.paidAt || tx.createdAt, { includeTime: true }) }} •
-                    {{ tx.paymentChannel || "QRIS" }}
-                  </div>
+          </div>
+          <div class="flex justify-between py-1 border-b border-slate-100">
+            <span class="text-jetblack/60">Max Device Seats</span>
+            <span class="font-semibold text-jetblack">{{ selectedSub.maxSeats }} Seats</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-slate-100">
+            <span class="text-jetblack/60">Masa Berlaku</span>
+            <span class="font-semibold text-jetblack">{{
+              formatSubDate(selectedSub.expiresAt)
+            }}</span>
+          </div>
+        </div>
+
+        <!-- Linked Transactions List -->
+        <div class="space-y-2">
+          <div class="text-[11px] uppercase font-bold text-jetblack/70 tracking-wider">
+            50 Pembayaran Terbaru Pelanggan Ini
+          </div>
+          <div
+            v-if="linkedTransactions.length === 0"
+            class="p-3 text-center text-slate-400 bg-slate-50 rounded-lg text-xs"
+          >
+            Belum ada transaksi tercatat.
+          </div>
+          <div v-else class="space-y-1.5 max-h-40 overflow-y-auto">
+            <div
+              v-for="tx in linkedTransactions"
+              :key="tx.id"
+              class="p-2 rounded-lg bg-slate-50 border border-slate-200/70 flex items-center justify-between text-xs"
+            >
+              <div>
+                <div class="font-mono font-bold text-jetblack">{{ tx.id }}</div>
+                <div class="text-[10px] text-jetblack/50">
+                  {{ formatDate(tx.paidAt || tx.createdAt, { includeTime: true }) }} •
+                  {{ tx.paymentChannel || "QRIS" }}
                 </div>
-                <div class="text-right">
-                  <div class="font-mono font-bold text-forest">
-                    {{ formatRupiah(tx.grossAmount) }}
-                  </div>
-                  <div class="text-[10px] uppercase font-bold text-slate-500">
-                    {{ tx.paymentStatus }}
-                  </div>
+              </div>
+              <div class="text-right">
+                <div class="font-mono font-bold text-forest">
+                  {{ formatRupiah(tx.grossAmount) }}
+                </div>
+                <div class="mt-0.5">
+                  <StatusBadge :status="tx.paymentStatus" />
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Footer -->
-        <div
-          class="px-5 py-3 border-t border-jetblack/10 bg-slate-50/70 shrink-0 flex items-center justify-between"
-        >
+      <template #footer>
+        <div class="flex items-center justify-between">
           <button
-            v-if="selectedSub.status === 'ACTIVE'"
+            v-if="selectedSub && selectedSub.status === 'ACTIVE'"
             type="button"
             @click="handleRevoke(selectedSub.licenseKey)"
             :disabled="isRevoking"
-            class="px-3 h-8 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-xs font-bold text-red-600 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+            class="px-3 h-8 rounded-lg border border-crimson/20 bg-crimson/5 hover:bg-crimson hover:text-white text-xs font-bold text-crimson transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
           >
             <Ban class="w-3.5 h-3.5" />
             <span>{{ isRevoking ? "Mencabut..." : "Cabut Lisensi" }}</span>
@@ -640,7 +601,7 @@ function formatSubDate(dateStr?: string | null): string {
             Tutup
           </button>
         </div>
-      </div>
-    </div>
+      </template>
+    </BaseModal>
   </div>
 </template>

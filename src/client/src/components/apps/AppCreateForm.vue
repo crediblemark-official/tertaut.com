@@ -858,7 +858,7 @@ async function handleSubmitProduct() {
           />
 
           <!-- 4. PENGIRIMAN DIGITAL (DELIVERY CONFIG) -->
-          <AppDeliverySection v-model="deliveryConfigState" />
+          <AppDeliverySection v-model="deliveryConfigState" :app-id="initialApp?.id" />
 
           <!-- 5. ALUR CHECKOUT & RETENSI -->
           <div class="space-y-4">

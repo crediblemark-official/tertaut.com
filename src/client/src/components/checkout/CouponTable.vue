@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { Ticket, Plus, Power, Trash2, Search, TicketPercent, Clock } from "lucide-vue-next";
+import { ref, computed, onMounted } from "vue";
+import { Ticket, Plus, Power, Trash2, TicketPercent, Clock } from "lucide-vue-next";
 import type { AppItem } from "../../types/app";
 import type { CouponItem } from "../../types/coupon";
 import SearchPicker from "../common/SearchPicker.vue";
 import TableSkeleton from "../common/TableSkeleton.vue";
 import TableContainer from "../common/TableContainer.vue";
+import SearchInput from "../common/SearchInput.vue";
+import StatusBadge from "../common/StatusBadge.vue";
+import EmptyState from "../common/EmptyState.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -26,6 +29,11 @@ const emit = defineEmits<{
 
 const searchQuery = defineModel<string>("searchQuery", { default: "" });
 const filterAppId = defineModel<string>("filterAppId", { default: "" });
+const isMounted = ref(false);
+
+onMounted(() => {
+  isMounted.value = true;
+});
 
 const filteredCoupons = computed(() => {
   return props.couponsList.filter((c) => {
@@ -58,31 +66,28 @@ function isExpiringSoon(c: CouponItem): boolean {
 
 <template>
   <div class="space-y-3">
-    <!-- Search & Filter Toolbar -->
-    <div
-      class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-jetblack/10"
-    >
-      <div class="relative flex-1 max-w-sm">
-        <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-jetblack/40" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Cari kode kupon..."
-          class="w-full h-8 pl-8 pr-3 rounded-lg bg-white border border-slate-300/80 hover:border-slate-400 text-xs text-jetblack placeholder:text-jetblack/40 focus:outline-none focus:ring-2 focus:ring-gold/20 focus:border-gold shadow-2xs transition"
-        />
-      </div>
-      <SearchPicker
-        v-model="filterAppId"
-        :items="appsList"
-        all-option-label="Semua Aplikasi"
-        placeholder="Semua Aplikasi"
-        search-placeholder="Cari software..."
-        button-class="!h-8 !rounded-lg !min-w-[160px] bg-white border-slate-300/80 hover:border-slate-400 shadow-2xs text-xs"
+    <!-- Global Search Input Teleported to Top Header (#dashboard-header-search) -->
+    <Teleport v-if="isMounted" to="#dashboard-header-search">
+      <SearchInput
+        v-model="searchQuery"
+        placeholder="Cari kode kupon..."
+        wrapper-class="w-full max-w-md"
+        input-class="h-8 rounded-lg bg-jetblack/5 hover:bg-jetblack/8 border-jetblack/10 hover:border-jetblack/20 focus:bg-white"
       />
-    </div>
+    </Teleport>
+
+    <!-- Mobile Search Input Teleported to Mobile Header (#mobile-header-search) -->
+    <Teleport v-if="isMounted" to="#mobile-header-search">
+      <SearchInput
+        v-model="searchQuery"
+        placeholder="Cari kode kupon..."
+        wrapper-class="w-full"
+        input-class="h-8 rounded-lg bg-jetblack/5 border-jetblack/10 focus:bg-white"
+      />
+    </Teleport>
 
     <!-- Coupons Table (Scrollable on mobile, edge-to-edge full width) -->
-    <TableContainer>
+    <TableContainer class="!mt-0">
       <template #head>
         <tr>
           <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Kode</th>
@@ -97,24 +102,24 @@ function isExpiringSoon(c: CouponItem): boolean {
 
       <TableSkeleton v-if="loading" :columns="7" :rows="4" />
       <tr v-else-if="filteredCoupons.length === 0">
-        <td colspan="7" class="py-12 px-3.5 sm:px-4 md:px-6 text-center text-jetblack/40">
-          <div class="space-y-1.5 max-w-xs mx-auto">
-            <Ticket class="w-6 h-6 mx-auto opacity-30 text-jetblack" />
-            <p class="font-semibold text-xs text-jetblack/70">Belum ada kupon ditemukan.</p>
-            <p class="text-[11px] text-jetblack/45">
-              Terbitkan kupon diskon pertama untuk meningkatkan penjualan aplikasi Anda.
-            </p>
-            <div class="pt-2">
+        <td colspan="7" class="py-12 px-3.5 sm:px-4 md:px-6">
+          <EmptyState
+            :icon="Ticket"
+            title="Belum ada kupon ditemukan"
+            description="Terbitkan kupon diskon pertama untuk meningkatkan penjualan aplikasi Anda."
+            container-class="border-0 bg-transparent py-4"
+          >
+            <template #action>
               <button
                 type="button"
                 @click="emit('open-create')"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-jetblack text-white text-xs font-bold hover:bg-jetblack/90 transition cursor-pointer shadow-2xs"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gold text-xs font-bold transition cursor-pointer shadow-2xs mt-2"
               >
                 <Plus class="w-3.5 h-3.5" />
                 <span>Buat Kupon Sekarang</span>
               </button>
-            </div>
-          </div>
+            </template>
+          </EmptyState>
         </td>
       </tr>
       <tr
@@ -150,12 +155,7 @@ function isExpiringSoon(c: CouponItem): boolean {
           <span v-else class="text-jetblack/40">Tanpa batas</span>
         </td>
         <td class="py-2.5 px-3">
-          <span
-            class="px-2 py-0.5 rounded-full text-[10px] font-bold"
-            :class="c.isActive ? 'bg-forest/10 text-forest' : 'bg-jetblack/5 text-jetblack/50'"
-          >
-            {{ c.isActive ? "AKTIF" : "NONAKTIF" }}
-          </span>
+          <StatusBadge :status="c.isActive ? 'AKTIF' : 'NONAKTIF'" />
         </td>
         <td class="py-2.5 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
           <div class="flex items-center justify-end gap-1">

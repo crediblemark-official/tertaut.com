@@ -11,9 +11,12 @@ import {
   handleListLicenses,
   handleIssueLicense,
   handleRevokeLicense,
+  handleReactivateLicense,
   handleRenewLicense,
   handleVerifyApiKey,
   handleListEvents,
+  handleListConfigs,
+  handleSaveConfig,
 } from "./admin";
 import {
   handleListWebhooks,
@@ -225,6 +228,89 @@ export function createLicensingRouter(prefix: string) {
       })
 
       /**
+       * Daftar Pengaturan Lisensi Master (Blueprint Configurations)
+       */
+      .get("/configs", handleListConfigs, {
+        requireAuth: true,
+        query: t.Object({
+          mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
+        }),
+        detail: {
+          tags: ["Universal Licensing"],
+          summary: "List License Blueprint Configurations",
+          description: "Mengembalikan daftar pengaturan lisensi beserta ringkasan lisensi terbit.",
+        },
+      })
+
+      /**
+       * Simpan / Perbarui Pengaturan Lisensi
+       */
+      .post("/configs", handleSaveConfig, {
+        requireAuth: true,
+        body: t.Object({
+          appId: t.String(),
+          name: t.Optional(t.String()),
+          enabled: t.Optional(t.Boolean()),
+          maxSeats: t.Optional(t.Number()),
+          expiresInDays: t.Optional(t.Union([t.Number(), t.Null()])),
+          offlineGraceDays: t.Optional(t.Number()),
+          floating: t.Optional(
+            t.Object({
+              enabled: t.Optional(t.Boolean()),
+              leaseTtlSeconds: t.Optional(t.Number()),
+              heartbeatIntervalSeconds: t.Optional(t.Number()),
+            })
+          ),
+          defaultFeatures: t.Optional(t.Any()),
+        }),
+        detail: {
+          tags: ["Universal Licensing"],
+          summary: "Create or Update License Configuration",
+        },
+      })
+
+      /**
+       * Perbarui Pengaturan Lisensi berdasarkan AppId
+       */
+      .put(
+        "/configs/:appId",
+        async (ctx: any) => {
+          return handleSaveConfig({
+            ...ctx,
+            body: {
+              ...(ctx.body || {}),
+              appId: ctx.params.appId,
+            },
+          });
+        },
+        {
+          requireAuth: true,
+          params: t.Object({
+            appId: t.String(),
+          }),
+          body: t.Object({
+            name: t.Optional(t.String()),
+            enabled: t.Optional(t.Boolean()),
+            maxSeats: t.Optional(t.Number()),
+            expiresInDays: t.Optional(t.Union([t.Number(), t.Null()])),
+            offlineGraceDays: t.Optional(t.Number()),
+            floating: t.Optional(
+              t.Object({
+                enabled: t.Optional(t.Boolean()),
+                leaseTtlSeconds: t.Optional(t.Number()),
+                heartbeatIntervalSeconds: t.Optional(t.Number()),
+              })
+            ),
+            defaultFeatures: t.Optional(t.Any()),
+          }),
+          detail: {
+            tags: ["Universal Licensing"],
+            summary: "Update License Configuration by App ID",
+          },
+        }
+      )
+
+      /**
        * Daftar seluruh kunci lisensi yang diterbitkan beserta informasi seats
        */
       .get("/list", handleListLicenses, {
@@ -279,6 +365,20 @@ export function createLicensingRouter(prefix: string) {
         detail: {
           tags: ["Universal Licensing"],
           summary: "Revoke License Key",
+        },
+      })
+
+      /**
+       * Aktifkan Kembali Kunci Lisensi (Reactivate Revoked License)
+       */
+      .post("/reactivate", handleReactivateLicense, {
+        requireAuth: true,
+        body: t.Object({
+          licenseKey: t.String(),
+        }),
+        detail: {
+          tags: ["Universal Licensing"],
+          summary: "Reactivate Revoked License Key",
         },
       })
 
@@ -434,7 +534,7 @@ export function createLicensingRouter(prefix: string) {
       })
 
       /**
-       * Perpanjang Masa Aktif Lisensi (Renewal Subscription / License Extension)
+       * Perpanjang / Ubah Masa Aktif Lisensi (Renewal Subscription / Custom Expiry / Lifetime)
        */
       .post("/renew", handleRenewLicense, {
         requireAuth: true,
@@ -442,6 +542,8 @@ export function createLicensingRouter(prefix: string) {
           licenseKey: t.String(),
           additionalDays: t.Optional(t.Number()),
           days: t.Optional(t.Number()),
+          newExpiresAt: t.Optional(t.Nullable(t.String())),
+          isLifetime: t.Optional(t.Boolean()),
         }),
         detail: {
           tags: ["Universal Licensing"],

@@ -6,6 +6,7 @@ export interface DeliveryConfig {
     description?: string;
     expiresInDays?: number;
     maxSeats?: number;
+    assignedLicenseKey?: string;
     /** Cadangan offline token (hari). Default 30, kisaran 1–90. */
     offlineGraceDays?: number;
     /** Floating license: seat rolling via lease + heartbeat. */
