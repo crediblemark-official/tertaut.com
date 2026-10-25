@@ -92,6 +92,13 @@
       "when": 1792813600000,
       "tag": "0012_transactions_customer_name_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792820000000,
+      "tag": "0013_webhook_endpoints_app_id",
+      "breakpoints": true
     }
   ]
 }

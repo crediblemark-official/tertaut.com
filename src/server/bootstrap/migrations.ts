@@ -86,6 +86,12 @@ export async function runAutoMigrations(): Promise<void> {
           ALTER TABLE public.licenses ADD COLUMN IF NOT EXISTS "offline_jwt_grace_token" text;
           ALTER TABLE public.licenses ADD COLUMN IF NOT EXISTS "api_key" text;
         END IF;
+
+        -- Ensure webhook_endpoints columns exist
+        IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'webhook_endpoints' AND relnamespace = 'public'::regnamespace AND relkind = 'r') THEN
+          ALTER TABLE public.webhook_endpoints ADD COLUMN IF NOT EXISTS "app_id" text;
+          CREATE INDEX IF NOT EXISTS "idx_webhook_endpoints_app" ON public.webhook_endpoints ("app_id");
+        END IF;
       END $$;
     `);
   } catch (err: unknown) {
