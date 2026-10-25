@@ -71,7 +71,7 @@ export const configureSwagger = () =>
     documentation: {
       info: {
         title: "tertaut.com Developer API",
-        version: "2.2.3",
+        version: "2.3.0",
         description:
           "Spesifikasi OpenAPI resmi untuk platform **tertaut.com** — Merchant of Record (MoR) dan Lisensi Kriptografis Offline-First (Ed25519) untuk software builder di Indonesia.\n\n" +
           "### 🛡️ Skema Autentikasi:\n" +

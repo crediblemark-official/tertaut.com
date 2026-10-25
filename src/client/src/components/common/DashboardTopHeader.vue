@@ -61,7 +61,7 @@ onMounted(async () => {
         <span>{{ currentPage.title }}</span>
         <span
           class="px-2 py-0.5 rounded-full bg-jetblack/5 text-jetblack/60 text-[10px] font-mono font-normal"
-          >v2.2</span
+          >v2.3</span
         >
       </h2>
     </div>

@@ -1,6 +1,6 @@
 # tertaut.com — Headless Developer Infrastructure Engine
 
-> **Versi 2.2.3** • Single Container Architecture Blueprint
+> **Versi 2.3.0** • Single Container Architecture Blueprint
 > **Status**: Semua fase F0–F6 **SELESAI** (387/387 test passing, 42 files, build client & server bersih)
 > **Peran Sistem**: Headless Developer Infrastructure Engine (Monetization, Universal Licensing, Fake Door Validation & Launch Kit)
 > **Model Bisnis**: Merchant of Record (MoR) dengan Platform Fee 5% per transaksi via Xendit Infrastructure

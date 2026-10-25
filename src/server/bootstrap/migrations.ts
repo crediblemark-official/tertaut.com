@@ -92,6 +92,13 @@ export async function runAutoMigrations(): Promise<void> {
           ALTER TABLE public.webhook_endpoints ADD COLUMN IF NOT EXISTS "app_id" text;
           CREATE INDEX IF NOT EXISTS "idx_webhook_endpoints_app" ON public.webhook_endpoints ("app_id");
         END IF;
+
+        -- Clear stale pre-release announcement banner now that platform is released
+        IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'platform_settings' AND relnamespace = 'public'::regnamespace AND relkind = 'r') THEN
+          UPDATE public.platform_settings
+          SET value = ''
+          WHERE key = 'announcement_banner' AND (value ILIKE '%rilis segera%' OR value ILIKE '%coba sandboxnya%');
+        END IF;
       END $$;
     `);
   } catch (err: unknown) {

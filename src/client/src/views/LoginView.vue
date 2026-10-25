@@ -144,7 +144,7 @@ async function submit() {
         <span class="w-1 h-1 rounded-full bg-white/20"></span>
         <div class="inline-flex items-center gap-1.5 text-emerald-400 font-mono text-[11px]">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>v2.2 Live</span>
+          <span>v2.3 Live</span>
         </div>
       </div>
     </div>

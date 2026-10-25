@@ -52,7 +52,7 @@ watch(
         <span>{{ currentNavItem.name }}</span>
         <span
           class="px-2 py-0.5 rounded-full bg-white/10 text-white text-[10px] font-mono font-normal"
-          >v2.2</span
+          >v2.3</span
         >
       </h2>
     </div>

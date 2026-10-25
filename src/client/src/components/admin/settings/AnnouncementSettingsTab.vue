@@ -20,7 +20,7 @@ const PRESETS = [
   {
     label: "Update Fitur Baru",
     type: "info" as const,
-    text: "Pembaruan v2.2: Dukungan QRIS Realtime Xendit dan lisensi multi-device kini aktif otomatis untuk seluruh software Anda!",
+    text: "Pembaruan v2.3: Dukungan QRIS Realtime Xendit dan lisensi multi-device kini aktif otomatis untuk seluruh software Anda!",
   },
   {
     label: "Libur Operasional Bank",

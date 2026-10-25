@@ -1,6 +1,6 @@
 {
   "name": "tertaut",
-  "version": "2.2.3",
+  "version": "2.3.0",
   "private": true,
   "type": "module",
   "description": "Headless Developer Infrastructure Engine (Monetization, Universal Licensing, Validation & Launch Kit)",
