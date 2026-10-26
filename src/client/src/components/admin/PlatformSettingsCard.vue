@@ -106,8 +106,17 @@ async function loadSettings() {
 async function handleSave() {
   saving.value = true;
   try {
-    const res = await api.updatePlatformSettings(form.value);
+    const { xendit_configured: _, ...payload } = form.value;
+    const res = await api.updatePlatformSettings(payload as Record<string, string>);
     if (res.success) {
+      if (res.settings) {
+        form.value = {
+          ...form.value,
+          ...res.settings,
+          sandbox_mode: res.settings.sandbox_mode !== "false" ? "true" : "false",
+          xendit_configured: res.settings.xendit_configured || "false",
+        };
+      }
       emit("alert", { type: "success", text: "Pengaturan platform berhasil disimpan!" });
     } else {
       emit("alert", { type: "error", text: res.error || "Gagal menyimpan pengaturan." });

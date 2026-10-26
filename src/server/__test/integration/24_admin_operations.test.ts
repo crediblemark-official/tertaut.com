@@ -294,7 +294,28 @@ describe("Super Admin Operations & MoR Business Engine", () => {
     expect(annJson.announcement.message).toContain("Pemeliharaan terjadwal");
     expect(annJson.announcement.type).toBe("warning");
 
-    // 3. Reset settings
+    // 3. Update dengan xendit_configured (read-only metadata) tidak boleh error 400
+    const updateWithReadonlyRes = await app.handle(
+      new Request(`http://localhost:8081/api/v1/panel/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: authCookie,
+        },
+        body: JSON.stringify({
+          settings: {
+            platform_fee_percent: "6",
+            xendit_configured: "true",
+          },
+        }),
+      })
+    );
+    expect(updateWithReadonlyRes.status).toBe(200);
+    const updateWithReadonlyJson = await updateWithReadonlyRes.json();
+    expect(updateWithReadonlyJson.success).toBe(true);
+    expect(updateWithReadonlyJson.settings.platform_fee_percent).toBe("6");
+
+    // 4. Reset settings
     await app.handle(
       new Request(`http://localhost:8081/api/v1/panel/settings`, {
         method: "PUT",

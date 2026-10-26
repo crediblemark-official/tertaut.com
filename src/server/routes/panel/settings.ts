@@ -81,14 +81,37 @@ export async function handleGetPlatformSettings() {
 }
 
 /**
+ * Daftar key read-only / metadata yang dihasilkan runtime (misal status konfigurasi)
+ * dan bukan kolom pengaturan yang bisa disimpan ke platform_settings.
+ */
+const READONLY_SETTINGS_KEYS = new Set(["xendit_configured"]);
+
+/**
  * Perbarui pengaturan platform (Super Admin)
  */
 export async function handleUpdatePlatformSettings({ body, set }: any) {
-  const updates: Record<string, string> = body?.settings || body || {};
+  const rawUpdates: Record<string, string> = body?.settings || body || {};
 
-  if (typeof updates !== "object" || Object.keys(updates).length === 0) {
+  if (
+    typeof rawUpdates !== "object" ||
+    rawUpdates === null ||
+    Object.keys(rawUpdates).length === 0
+  ) {
     set.status = 400;
     return { success: false, error: "Data pengaturan tidak valid." };
+  }
+
+  // Pisahkan key read-only / metadata yang dikembalikan dari handleGetPlatformSettings
+  const updates: Record<string, string> = {};
+  for (const [key, value] of Object.entries(rawUpdates)) {
+    if (!READONLY_SETTINGS_KEYS.has(key)) {
+      updates[key] = value;
+    }
+  }
+
+  // Jika semua key yang dikirim adalah read-only (tidak ada perubahan aktual)
+  if (Object.keys(updates).length === 0) {
+    return handleGetPlatformSettings();
   }
 
   const unknownKeys = Object.keys(updates).filter((key) => !Object.hasOwn(DEFAULT_SETTINGS, key));

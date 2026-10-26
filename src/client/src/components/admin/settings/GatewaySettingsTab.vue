@@ -97,7 +97,7 @@ async function handleSyncChannels() {
 
 <template>
   <div class="space-y-6 animate-fadeIn">
-    <!-- SECTION 1: GATEWAY UTAMA PLATFORM -->
+    <!-- SECTION 1: INTEGRASI & RAIL XENDIT -->
     <section class="space-y-3">
       <div
         class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-jetblack/15"
@@ -107,56 +107,55 @@ async function handleSyncChannels() {
             class="text-xs font-bold uppercase tracking-wider text-jetblack flex items-center gap-2"
           >
             <CreditCard class="w-4 h-4 text-gold" />
-            <span>Gateway Pembayaran Platform</span>
+            <span>Integrasi &amp; Rail Xendit</span>
           </h2>
           <p class="text-[11px] text-jetblack/60 mt-0.5">
-            Xendit menangani pemrosesan transaksi, checkout otomatis, invoice, dan pencairan
-            platform Tertaut.
+            Xendit adalah payment rail tunggal platform Tertaut (MoR terpusat). Kredensial API
+            dikelola aman di .env server.
           </p>
         </div>
         <span
           class="text-[10px] font-bold text-forest bg-forest/10 px-2.5 py-0.5 rounded-full border border-forest/20 shrink-0 self-start sm:self-auto font-mono"
         >
-          Aktif: {{ form.active_payment_gateway.toUpperCase() }}
+          Rail: {{ (form.active_payment_gateway || "xendit").toUpperCase() }}
         </span>
       </div>
 
-      <!-- Pilihan Gateway Row -->
-      <div class="py-3 border-b border-jetblack/10">
-        <label
-          class="flex items-start sm:items-center justify-between gap-3 cursor-pointer select-none"
-        >
-          <div class="flex items-start sm:items-center gap-3">
-            <input
-              type="radio"
-              name="active_payment_gateway"
-              value="xendit"
-              v-model="form.active_payment_gateway"
-              class="text-forest focus:ring-forest w-4 h-4 mt-0.5 sm:mt-0"
-            />
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-jetblack">Xendit Indonesia</span>
-                <span
-                  class="text-[9.5px] font-mono px-1.5 py-0.2 rounded bg-forest/15 text-forest font-bold uppercase"
-                >
-                  Default Platform
-                </span>
-              </div>
-              <p class="text-[11px] text-jetblack/60 mt-0.5">
-                Mendukung QRIS Realtime, Mandiri, BCA, BRI, BNI, Permata, BSI, dan Gerai Retail.
-              </p>
-            </div>
+      <!-- Rail Provider Status Card -->
+      <div
+        class="p-3.5 rounded-xl border border-jetblack/10 bg-jetblack/[0.02] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="w-9 h-9 rounded-lg bg-forest/15 text-forest flex items-center justify-center shrink-0 border border-forest/30"
+          >
+            <CreditCard class="w-4 h-4" />
           </div>
-          <span class="text-xs font-semibold text-forest flex items-center gap-1 shrink-0">
-            <CheckCircle2 class="w-4 h-4" />
-            <span class="hidden sm:inline">Terpilih</span>
-          </span>
-        </label>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-jetblack">Xendit Indonesia</span>
+              <span
+                class="text-[9.5px] font-mono px-2 py-0.5 rounded-full bg-forest/15 text-forest font-bold uppercase tracking-wider"
+              >
+                Default MoR Rail
+              </span>
+            </div>
+            <p class="text-[11px] text-jetblack/60 mt-0.5">
+              Payment Rail resmi: QRIS Realtime, Mandiri, BCA, BRI, BNI, Permata, BSI, dan Gerai
+              Retail.
+            </p>
+          </div>
+        </div>
+        <span
+          class="text-xs font-semibold text-forest flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-md bg-white border border-forest/20 shadow-2xs self-start sm:self-auto"
+        >
+          <CheckCircle2 class="w-3.5 h-3.5 text-forest" />
+          <span>Rail Aktif</span>
+        </span>
       </div>
 
-      <!-- Detail Konfigurasi Gateway Xendit -->
-      <div v-if="form.active_payment_gateway === 'xendit'" class="space-y-4">
+      <!-- Detail Konfigurasi & Diagnostik Xendit -->
+      <div class="space-y-4">
         <!-- Webhook URL & Demo URL Rows -->
         <div class="divide-y divide-jetblack/10 border-b border-jetblack/10 text-xs">
           <!-- Webhook URL Row -->
@@ -479,7 +478,8 @@ async function handleSyncChannels() {
     <!-- SECTION 4: SAVE ACTION BOTTOM BAR -->
     <div class="pt-6 flex items-center justify-between border-t border-jetblack/15">
       <div class="text-xs text-jetblack/60 hidden sm:block">
-        Pastikan perubahan gateway telah sesuai sebelum menerapkan ke seluruh checkout publik.
+        Pastikan mode operasional (Sandbox/Live &amp; Tampilan Checkout) telah sesuai sebelum
+        diterapkan ke checkout publik.
       </div>
       <button
         type="button"
@@ -492,7 +492,7 @@ async function handleSyncChannels() {
           class="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin"
         ></span>
         <Save v-else class="w-3.5 h-3.5 stroke-[2.5]" />
-        <span>Simpan Pengaturan Gateway</span>
+        <span>Simpan Mode Gateway</span>
       </button>
     </div>
   </div>
