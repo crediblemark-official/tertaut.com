@@ -20,11 +20,11 @@ defineProps<{
       :loading="loading || !stats"
     >
       <template #sublabel>
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between gap-2">
           <span>{{ stats?.paidTransactions || 0 }} transaksi LIVE</span>
           <span
             v-if="stats?.sandboxTransactions"
-            class="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200"
+            class="text-[10.5px] font-mono font-bold text-[#8a6d1f]"
             :title="`Volume simulasi sandbox: Rp ${(stats.sandboxGMV || 0).toLocaleString('id-ID')}`"
           >
             {{ stats.sandboxTransactions }} sandbox

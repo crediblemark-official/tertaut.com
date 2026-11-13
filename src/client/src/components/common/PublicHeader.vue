@@ -3,7 +3,16 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { authClient } from "../../lib/auth";
 import logoUrl from "@/assets/logo.svg";
-import { ArrowRight, Menu, X, ShoppingBag, PhoneCall, FileText } from "lucide-vue-next";
+import {
+  ArrowRight,
+  Menu,
+  X,
+  ShoppingBag,
+  PhoneCall,
+  FileText,
+  CreditCard,
+  Zap,
+} from "lucide-vue-next";
 
 const isMobileMenuOpen = ref(false);
 const authSession = authClient.useSession();
@@ -97,16 +106,18 @@ const isLoggedIn = computed(() => !!authSession.value?.data?.user);
       <a
         href="/#biaya"
         @click="isMobileMenuOpen = false"
-        class="block py-2.5 px-3 rounded-lg text-forest font-bold bg-forest/5 hover:bg-forest/10 transition active:scale-98"
+        class="flex items-center gap-2 py-2.5 px-3 rounded-lg text-forest font-bold bg-forest/5 hover:bg-forest/10 transition active:scale-98"
       >
-        💳 Biaya &amp; Layanan Platform
+        <CreditCard class="w-4 h-4 shrink-0" />
+        <span>Biaya &amp; Layanan Platform</span>
       </a>
       <router-link
         to="/demo/checkout"
         @click="isMobileMenuOpen = false"
-        class="block py-2.5 px-3 rounded-lg text-forest font-bold hover:bg-forest/5 transition active:scale-98"
+        class="flex items-center gap-2 py-2.5 px-3 rounded-lg text-forest font-bold hover:bg-forest/5 transition active:scale-98"
       >
-        ⚡ Simulasi Demo Checkout
+        <Zap class="w-4 h-4 shrink-0" />
+        <span>Simulasi Demo Checkout</span>
       </router-link>
       <a
         href="/#solusi"
@@ -153,9 +164,10 @@ const isLoggedIn = computed(() => !!authSession.value?.data?.user);
       <router-link
         to="/contact"
         @click="isMobileMenuOpen = false"
-        class="block py-2.5 px-3 rounded-lg text-gold font-bold hover:bg-gold/10 transition active:scale-98"
+        class="flex items-center gap-2 py-2.5 px-3 rounded-lg text-gold font-bold hover:bg-gold/10 transition active:scale-98"
       >
-        📞 Kontak &amp; Alamat Resmi
+        <PhoneCall class="w-4 h-4 shrink-0" />
+        <span>Kontak &amp; Alamat Resmi</span>
       </router-link>
 
       <div class="pt-3 pb-2 border-t border-jetblack/10 space-y-2">

@@ -156,7 +156,7 @@ export function generateOgSvg(opts: OgCardOptions): string {
     <g transform="translate(265, 0)">
       <rect width="230" height="36" rx="8" fill="#0F172A" fill-opacity="0.9" stroke="#334155" stroke-width="1"/>
       <circle cx="18" cy="18" r="4" fill="#38BDF8"/>
-      <text x="32" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#CBD5E1">QRIS &amp; PPN 11% Otomatis</text>
+      <text x="32" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#CBD5E1">QRIS &amp; E-Receipt Otomatis</text>
     </g>
 
     <!-- Feature 3: MoR Fee -->

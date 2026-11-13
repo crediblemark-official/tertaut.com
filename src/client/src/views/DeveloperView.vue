@@ -37,6 +37,7 @@ import {
   Layers,
   BookOpen,
   Pencil,
+  X,
 } from "lucide-vue-next";
 
 const env = dashboardEnv;
@@ -562,9 +563,10 @@ function formatTimestamp(dt: string | Date | null | undefined) {
       <button
         type="button"
         @click="feedback = null"
-        class="text-white/80 hover:text-white font-bold ml-2 cursor-pointer"
+        aria-label="Tutup notifikasi"
+        class="p-1 text-white/80 hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer"
       >
-        ×
+        <X class="w-3.5 h-3.5" />
       </button>
     </div>
 
@@ -779,8 +781,9 @@ function formatTimestamp(dt: string | Date | null | undefined) {
                   />
                 </div>
               </div>
-              <p class="text-[10px] text-crimson font-medium">
-                ⚠️ Jangan pernah letakkan kunci ini di kodingan frontend browser.
+              <p class="text-[10px] text-crimson font-medium flex items-center gap-1">
+                <AlertTriangle class="w-3 h-3 shrink-0" />
+                <span>Jangan pernah letakkan kunci ini di kodingan frontend browser.</span>
               </p>
             </div>
           </div>
@@ -869,27 +872,6 @@ function formatTimestamp(dt: string | Date | null | undefined) {
       </div>
     </div>
 
-    <!-- Section: Panduan Integrasi Docs Callout (Compact & Rapi) -->
-    <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-3 bg-jetblack/[0.02] border-b border-jetblack/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-    >
-      <div class="flex items-center gap-2">
-        <BookOpen class="w-4 h-4 text-gold shrink-0" />
-        <span class="text-jetblack/70">
-          Butuh panduan integrasi lengkap untuk <strong>@tertaut/sdk</strong>, cURL S2S, Node.js,
-          Python, atau PHP?
-        </span>
-      </div>
-      <a
-        href="/docs/api/sdk"
-        target="_blank"
-        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-jetblack hover:bg-jetblack-hover text-white text-xs font-bold transition shadow-2xs shrink-0 self-start sm:self-auto"
-      >
-        <span>Buka Dokumentasi SDK</span>
-        <ExternalLink class="w-3 h-3 text-gold" />
-      </a>
-    </div>
-
     <!-- Section: Webhook & Outbox Tabs (Flush Canvas, Unified Tab Bar) -->
     <div
       class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 border-b border-jetblack/15 bg-jetblack/[0.02] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
@@ -902,8 +884,8 @@ function formatTimestamp(dt: string | Date | null | undefined) {
           class="relative py-3 px-3 sm:px-4 text-xs font-bold transition flex items-center gap-2 cursor-pointer border-b-2 shrink-0"
           :class="
             activeWebhookTab === 'endpoint'
-              ? 'border-gold text-jetblack bg-white/70 shadow-2xs rounded-t-lg'
-              : 'border-transparent text-jetblack/50 hover:text-jetblack hover:bg-white/30'
+              ? 'border-gold text-jetblack bg-white'
+              : 'border-transparent text-jetblack/50 hover:text-jetblack hover:bg-white/40'
           "
         >
           <Webhook
@@ -927,8 +909,8 @@ function formatTimestamp(dt: string | Date | null | undefined) {
           class="relative py-3 px-3 sm:px-4 text-xs font-bold transition flex items-center gap-2 cursor-pointer border-b-2 shrink-0"
           :class="
             activeWebhookTab === 'logs'
-              ? 'border-gold text-jetblack bg-white/70 shadow-2xs rounded-t-lg'
-              : 'border-transparent text-jetblack/50 hover:text-jetblack hover:bg-white/30'
+              ? 'border-gold text-jetblack bg-white'
+              : 'border-transparent text-jetblack/50 hover:text-jetblack hover:bg-white/40'
           "
         >
           <Radio
@@ -937,7 +919,7 @@ function formatTimestamp(dt: string | Date | null | undefined) {
               activeWebhookTab === 'logs' ? 'text-emerald-600 animate-pulse' : 'text-jetblack/40'
             "
           />
-          <span>Riwayat Pengiriman (Outbox)</span>
+          <span>Outbox Logs</span>
           <span
             class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-jetblack/10 text-jetblack"
           >
@@ -946,146 +928,109 @@ function formatTimestamp(dt: string | Date | null | undefined) {
         </button>
       </div>
 
-      <!-- Sisi Kanan: Quick Context Action -->
-      <div class="py-2 flex items-center gap-2 shrink-0">
-        <template v-if="activeWebhookTab === 'endpoint'">
-          <button
-            v-if="currentAppEndpoint"
-            type="button"
-            @click="openWebhookModal(true)"
-            class="h-8 px-3 rounded-lg border border-jetblack/20 text-xs font-bold text-jetblack hover:bg-jetblack/5 inline-flex items-center gap-1.5 transition cursor-pointer"
-          >
-            <Pencil class="w-3.5 h-3.5 text-jetblack/60" />
-            <span>Edit Webhook</span>
-          </button>
-          <button
-            v-else
-            type="button"
-            @click="openWebhookModal(false)"
-            class="btn-gold h-8 px-3 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer shadow-xs active:scale-95"
-          >
-            <Plus class="w-3.5 h-3.5 stroke-[3]" />
-            <span>Atur Webhook untuk Proyek Ini</span>
-          </button>
-        </template>
-        <template v-else>
-          <div class="flex items-center gap-1 bg-white border border-jetblack/15 rounded-lg p-0.5">
-            <button
-              type="button"
-              @click="deliveriesScope = 'current'"
-              class="px-2 py-1 text-[11px] font-bold rounded cursor-pointer transition"
-              :class="
-                deliveriesScope === 'current'
-                  ? 'bg-jetblack text-white'
-                  : 'text-jetblack/60 hover:text-jetblack'
-              "
-            >
-              Proyek Ini ({{ currentAppDeliveriesCount }})
-            </button>
-            <button
-              type="button"
-              @click="deliveriesScope = 'all'"
-              class="px-2 py-1 text-[11px] font-bold rounded cursor-pointer transition"
-              :class="
-                deliveriesScope === 'all'
-                  ? 'bg-jetblack text-white'
-                  : 'text-jetblack/60 hover:text-jetblack'
-              "
-            >
-              Semua ({{ deliveries.length }})
-            </button>
-          </div>
+      <!-- Sisi Kanan: Scope Filter untuk Outbox Logs -->
+      <div v-if="activeWebhookTab === 'logs'" class="py-2 flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-1 bg-white border border-jetblack/15 rounded-lg p-0.5">
           <button
             type="button"
-            @click="loadDeliveries"
-            :disabled="loadingDeliveries"
-            class="px-3 h-8 rounded-lg border border-jetblack/20 text-xs font-bold text-jetblack hover:bg-jetblack/5 inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition"
+            @click="deliveriesScope = 'current'"
+            class="px-2 py-1 text-[11px] font-bold rounded cursor-pointer transition"
+            :class="
+              deliveriesScope === 'current'
+                ? 'bg-jetblack text-white'
+                : 'text-jetblack/60 hover:text-jetblack'
+            "
           >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': loadingDeliveries }" />
-            <span class="hidden sm:inline">Muat Ulang</span>
+            Proyek Ini ({{ currentAppDeliveriesCount }})
           </button>
-        </template>
+          <button
+            type="button"
+            @click="deliveriesScope = 'all'"
+            class="px-2 py-1 text-[11px] font-bold rounded cursor-pointer transition"
+            :class="
+              deliveriesScope === 'all'
+                ? 'bg-jetblack text-white'
+                : 'text-jetblack/60 hover:text-jetblack'
+            "
+          >
+            Semua ({{ deliveries.length }})
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Tab 1: Webhook Endpoint (1 URL per Proyek) -->
+    <!-- Tab 1: Webhook Endpoint (Docked Hairline Layout, 1 URL per Proyek) -->
     <div
       v-if="activeWebhookTab === 'endpoint'"
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-6 border-b border-jetblack/15"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 bg-white border-b border-jetblack/15"
     >
-      <div v-if="loadingEndpoints" class="space-y-4">
+      <div v-if="loadingEndpoints" class="px-3.5 sm:px-4 md:px-6 py-5">
         <TableSkeleton :columns="4" :rows="2" />
       </div>
 
       <!-- Jika Proyek Memiliki Endpoint -->
-      <div
-        v-else-if="currentAppEndpoint"
-        class="bg-white rounded-xl border border-jetblack/15 shadow-2xs overflow-hidden"
-      >
-        <!-- Card Header: Identitas Proyek & Aksi Utama -->
+      <div v-else-if="currentAppEndpoint" class="divide-y divide-jetblack/10">
+        <!-- Row Header: Identitas Proyek & Aksi -->
         <div
-          class="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-jetblack/[0.02] border-b border-jetblack/15"
+          class="flex flex-col md:flex-row md:items-center justify-between gap-3 px-3.5 sm:px-4 md:px-6 py-4 bg-jetblack/[0.02]"
         >
-          <div class="flex items-center gap-3">
-            <div
-              class="w-9 h-9 rounded-xl bg-forest/10 flex items-center justify-center text-forest shrink-0"
-            >
-              <Webhook class="w-4 h-4 text-gold" />
-            </div>
-            <div>
+          <div class="flex items-center gap-3 min-w-0">
+            <Webhook class="w-4 h-4 text-gold shrink-0" />
+            <div class="min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-xs font-bold text-jetblack">{{ currentApp?.name }}</span>
-                <span class="font-mono text-[10px] text-jetblack/40">({{ currentAppId }})</span>
+                <span class="font-mono tracking-wider text-[10px] text-jetblack/45"
+                  >({{ currentAppId }})</span
+                >
                 <StatusBadge
                   :status="currentAppEndpoint.isActive ? 'ACTIVE' : 'INACTIVE'"
                   :label="currentAppEndpoint.isActive ? 'Aktif' : 'Nonaktif'"
                 />
               </div>
-              <p class="text-[11px] text-jetblack/60 mt-0.5">
-                Setiap proyek SaaS hanya menggunakan 1 URL endpoint webhook penerima event.
+              <p class="text-[11px] text-jetblack/55 mt-0.5 truncate">
+                1 URL endpoint webhook per proyek SaaS
               </p>
             </div>
           </div>
 
-          <!-- Tombol Aksi Cepat pada Endpoint -->
           <div class="flex items-center gap-2 flex-wrap self-start md:self-auto">
             <button
               type="button"
               @click="handleToggleEndpointActive"
-              class="px-2.5 h-8 rounded-lg text-[11px] font-bold border transition cursor-pointer"
+              class="px-3 h-8 rounded-lg text-[11px] font-bold border hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 cursor-pointer"
               :class="
                 currentAppEndpoint.isActive
                   ? 'border-amber-600/30 text-amber-700 bg-amber-50/50 hover:bg-amber-50'
                   : 'border-forest/30 text-forest bg-forest/5 hover:bg-forest/10'
               "
             >
-              {{ currentAppEndpoint.isActive ? "Jeda Sementara" : "Aktifkan Kembali" }}
+              {{ currentAppEndpoint.isActive ? "Jeda" : "Aktifkan" }}
             </button>
 
             <button
               type="button"
               @click="handleTestCurrentEndpoint"
-              class="px-3 h-8 rounded-lg text-xs font-bold text-forest bg-forest/10 hover:bg-forest/20 transition inline-flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
-              title="Kirim payload uji coba (ping) ke URL ini"
+              class="px-3 h-8 rounded-lg text-xs font-bold text-forest bg-forest/10 hover:bg-forest/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 inline-flex items-center gap-1.5 cursor-pointer"
+              title="Kirim payload uji coba (ping)"
             >
               <Send class="w-3 h-3" />
-              <span>Test Ping</span>
+              <span>Ping</span>
             </button>
 
             <button
               type="button"
               @click="openWebhookModal(true)"
-              class="px-3 h-8 rounded-lg text-xs font-bold text-jetblack bg-jetblack/5 hover:bg-jetblack/10 transition inline-flex items-center gap-1.5 cursor-pointer"
+              class="px-3 h-8 rounded-lg text-xs font-bold text-jetblack bg-jetblack/5 hover:bg-jetblack/10 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 inline-flex items-center gap-1.5 cursor-pointer"
             >
               <Pencil class="w-3 h-3 text-jetblack/60" />
-              <span>Ubah URL</span>
+              <span>Ubah</span>
             </button>
 
             <button
               type="button"
               @click="handleDeleteCurrentEndpoint"
-              class="px-2.5 h-8 rounded-lg text-xs font-bold text-crimson hover:bg-rose-50 transition inline-flex items-center gap-1 cursor-pointer"
-              title="Hapus webhook untuk proyek ini"
+              class="px-2.5 h-8 rounded-lg text-xs font-bold text-crimson hover:bg-rose-50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 inline-flex items-center gap-1 cursor-pointer"
+              title="Hapus webhook"
             >
               <Trash2 class="w-3.5 h-3.5" />
               <span>Hapus</span>
@@ -1093,9 +1038,8 @@ function formatTimestamp(dt: string | Date | null | undefined) {
           </div>
         </div>
 
-        <!-- Card Body: URL Endpoint, Secret HMAC & Events -->
-        <div class="p-4 sm:p-5 space-y-4">
-          <!-- 1. URL Endpoint -->
+        <!-- Body: URL Endpoint, Secret HMAC & Events -->
+        <div class="px-3.5 sm:px-4 md:px-6 py-5 space-y-4">
           <div>
             <label class="text-[11px] font-bold text-jetblack/70 mb-1.5 flex items-center gap-1.5">
               <Globe class="w-3.5 h-3.5 text-gold" />
@@ -1106,19 +1050,18 @@ function formatTimestamp(dt: string | Date | null | undefined) {
             >
               <span class="truncate select-all">{{ currentAppEndpoint.url }}</span>
               <div class="flex items-center gap-2 shrink-0 ml-3">
-                <CopyButton :text="currentAppEndpoint.url" title="Salin URL Endpoint" />
+                <CopyButton :text="currentAppEndpoint.url" title="Salin" />
               </div>
             </div>
           </div>
 
-          <!-- 2. Webhook Secret (HMAC Signing Secret) -->
           <div>
             <div class="flex items-center justify-between mb-1.5">
               <label class="text-[11px] font-bold text-jetblack/70 flex items-center gap-1.5">
                 <KeyRound class="w-3.5 h-3.5 text-forest" />
                 <span>Webhook Signing Secret (HMAC-SHA256)</span>
               </label>
-              <span class="text-[10px] text-jetblack/50">Header: X-Tertaut-Signature</span>
+              <span class="text-[10px] font-mono text-jetblack/50">X-Tertaut-Signature</span>
             </div>
             <div
               class="flex items-center justify-between p-2.5 sm:p-3 rounded-lg bg-jetblack/[0.03] border border-jetblack/15 font-mono text-xs"
@@ -1131,18 +1074,18 @@ function formatTimestamp(dt: string | Date | null | undefined) {
                   type="button"
                   @click="revealWebhookSecret = !revealWebhookSecret"
                   class="text-jetblack/50 hover:text-jetblack p-1 cursor-pointer transition"
-                  :title="revealWebhookSecret ? 'Sembunyikan' : 'Tampilkan Secret'"
+                  :title="revealWebhookSecret ? 'Sembunyikan' : 'Tampilkan'"
                 >
                   <EyeOff v-if="revealWebhookSecret" class="w-3.5 h-3.5" />
                   <Eye v-else class="w-3.5 h-3.5" />
                 </button>
-                <CopyButton :text="currentAppEndpoint.secret" title="Salin Webhook Secret" />
+                <CopyButton :text="currentAppEndpoint.secret" title="Salin" />
                 <button
                   type="button"
                   @click="handleRotateCurrentEndpointSecret"
                   :disabled="rotatingWebhookSecret"
                   class="px-2 py-1 rounded text-[11px] font-bold text-jetblack/70 hover:text-jetblack bg-jetblack/5 hover:bg-jetblack/10 transition inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                  title="Rotasi kunci rahasia webhook"
+                  title="Rotasi secret"
                 >
                   <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': rotatingWebhookSecret }" />
                   <span>Rotasi</span>
@@ -1151,18 +1094,17 @@ function formatTimestamp(dt: string | Date | null | undefined) {
             </div>
           </div>
 
-          <!-- 3. Event Langganan -->
           <div>
-            <label class="text-[11px] font-bold text-jetblack/70 mb-1.5 block">
-              Event Notifikasi yang Dilanggan
-            </label>
+            <label class="text-[11px] font-bold text-jetblack/70 mb-1.5 block"
+              >Event Notifikasi</label
+            >
             <div class="flex flex-wrap gap-1.5">
               <template v-if="!currentAppEndpoint.events || currentAppEndpoint.events.length === 0">
                 <span
                   class="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold bg-forest/10 text-forest border border-forest/20 inline-flex items-center gap-1"
                 >
                   <Sparkles class="w-3 h-3 text-gold" />
-                  <span>Semua Event (Wildcard: Transaksi Pembayaran &amp; Siklus Lisensi)</span>
+                  <span>Semua Event (Wildcard)</span>
                 </span>
               </template>
               <template v-else>
@@ -1178,14 +1120,14 @@ function formatTimestamp(dt: string | Date | null | undefined) {
           </div>
         </div>
 
-        <!-- Card Footer: Info Panduan Keamanan Verifikasi HMAC -->
+        <!-- Footer Info -->
         <div
-          class="px-4 py-3 bg-jetblack/[0.02] border-t border-jetblack/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-jetblack/60"
+          class="px-3.5 sm:px-4 md:px-6 py-3 bg-jetblack/[0.02] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-jetblack/60"
         >
           <div class="flex items-center gap-2">
             <Lock class="w-3.5 h-3.5 text-forest shrink-0" />
             <span>
-              Verifikasi signature pada server backend Anda menggunakan header:
+              Verifikasi header:
               <code
                 class="font-mono text-[10px] font-bold text-jetblack bg-jetblack/5 px-1 py-0.5 rounded"
                 >X-Tertaut-Signature: hmac-sha256=&lt;hash&gt;</code
@@ -1197,40 +1139,36 @@ function formatTimestamp(dt: string | Date | null | undefined) {
             @click="activeWebhookTab = 'logs'"
             class="text-forest hover:underline font-bold text-xs inline-flex items-center gap-1 cursor-pointer self-start sm:self-auto shrink-0"
           >
-            <span>Buka Outbox Logs</span>
+            <span>Log Pengiriman</span>
             <ExternalLink class="w-3 h-3" />
           </button>
         </div>
       </div>
 
-      <!-- Jika Proyek Belum Memiliki Endpoint Webhook -->
-      <div
-        v-else
-        class="bg-white rounded-xl border border-dashed border-jetblack/25 p-8 text-center space-y-3.5"
-      >
+      <!-- Jika Belum Ada Endpoint Webhook (Docked Empty State, bukan floating box) -->
+      <div v-else class="px-3.5 sm:px-4 md:px-6 py-10 text-center space-y-3">
         <div
-          class="w-12 h-12 rounded-2xl bg-gold/15 text-gold flex items-center justify-center mx-auto shadow-2xs"
+          class="w-10 h-10 rounded-lg bg-gold/15 text-gold flex items-center justify-center mx-auto"
         >
-          <Webhook class="w-6 h-6" />
+          <Webhook class="w-5 h-5" />
         </div>
         <div class="max-w-md mx-auto space-y-1">
           <h3 class="text-sm font-bold text-jetblack">
-            Belum Ada Webhook untuk {{ currentApp?.name || "Proyek Ini" }}
+            Belum Ada Webhook ({{ currentApp?.name || "Proyek" }})
           </h3>
           <p class="text-xs text-jetblack/60 leading-relaxed">
-            Setiap proyek SaaS hanya membutuhkan 1 URL webhook endpoint. Daftarkan URL backend Anda
-            untuk menerima notifikasi HTTP POST otomatis saat pembayaran berhasil atau lisensi
-            diaktifkan.
+            Daftarkan URL backend untuk menerima notifikasi HTTP POST saat pembayaran atau lisensi
+            aktif.
           </p>
         </div>
-        <div class="pt-2">
+        <div class="pt-1">
           <button
             type="button"
             @click="openWebhookModal(false)"
-            class="btn-gold h-9 px-4 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 transition"
+            class="btn-gold h-9 px-4 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.98] transition-all duration-150"
           >
-            <Plus class="w-4 h-4 stroke-[3]" />
-            <span>Atur Webhook untuk {{ currentApp?.name || "Proyek Ini" }}</span>
+            <Plus class="w-4 h-4 stroke-[2.5]" />
+            <span>Atur</span>
           </button>
         </div>
       </div>
@@ -1261,10 +1199,11 @@ function formatTimestamp(dt: string | Date | null | undefined) {
             type="button"
             @click="loadDeliveries"
             :disabled="loadingDeliveries"
+            title="Muat Ulang Log"
             class="px-3 h-8 rounded-lg border border-jetblack/20 text-xs font-bold text-jetblack hover:bg-jetblack/5 inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition"
           >
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': loadingDeliveries }" />
-            <span>Muat Ulang Log</span>
+            <span>Segarkan</span>
           </button>
         </div>
       </div>
@@ -1486,9 +1425,10 @@ function formatTimestamp(dt: string | Date | null | undefined) {
             type="button"
             :disabled="isSubmittingWebhook"
             @click="handleSaveWebhook"
-            class="btn-gold px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50"
+            title="Simpan Webhook"
+            class="btn-gold px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150"
           >
-            {{ isSubmittingWebhook ? "Menyimpan..." : "Simpan Webhook" }}
+            {{ isSubmittingWebhook ? "Menyimpan..." : "Simpan" }}
           </button>
         </div>
       </template>

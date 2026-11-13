@@ -495,46 +495,45 @@ function formatSubDate(dateStr?: string | null): string {
       </template>
 
       <!-- Body -->
-      <div v-if="selectedSub" class="p-5 space-y-4 text-xs">
-        <!-- Top LTV Card -->
-        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+      <div v-if="selectedSub" class="text-xs divide-y divide-jetblack/10">
+        <!-- Top LTV Strip -->
+        <div class="px-5 py-3.5 bg-jetblack/[0.02] space-y-1.5">
           <div class="flex items-center justify-between">
-            <span class="text-[11px] text-jetblack/60 font-semibold"
-              >Total Nilai Seumur Hidup (Lifetime Value)</span
-            >
+            <span class="text-[11px] text-jetblack/60 font-semibold">Lifetime Value (LTV)</span>
             <StatusBadge :status="selectedSub.status" />
           </div>
-          <div class="text-2xl font-mono font-bold text-forest">
+          <div class="text-2xl font-mono tracking-wider font-bold text-forest">
             {{ formatRupiah(selectedSub.ltv) }}
           </div>
-          <p class="text-[10px] text-jetblack/50">
-            Total akumulasi pendapatan yang telah dibayarkan oleh pelanggan ini untuk produk
-            {{ selectedSub.appName }}.
+          <p class="text-[10.5px] text-jetblack/55">
+            Akumulasi pembayaran untuk {{ selectedSub.appName }}.
           </p>
         </div>
 
-        <!-- Subscription Metadata -->
-        <div class="space-y-2.5">
-          <div class="flex justify-between py-1 border-b border-slate-100">
+        <!-- Subscription Metadata (Hairline Rows) -->
+        <div class="px-5 divide-y divide-jetblack/10">
+          <div class="flex justify-between py-2">
             <span class="text-jetblack/60">Pelanggan</span>
             <span class="font-semibold text-jetblack">{{ selectedSub.customerEmail }}</span>
           </div>
-          <div class="flex justify-between py-1 border-b border-slate-100">
+          <div class="flex justify-between py-2">
             <span class="text-jetblack/60">Produk</span>
             <span class="font-semibold text-jetblack">{{ selectedSub.appName }}</span>
           </div>
-          <div class="flex justify-between items-center py-1 border-b border-slate-100">
+          <div class="flex justify-between items-center py-2">
             <span class="text-jetblack/60">Kunci Lisensi</span>
             <div class="flex items-center gap-1.5 font-mono font-bold text-jetblack">
               <span>{{ selectedSub.licenseKey }}</span>
               <CopyButton :text="selectedSub.licenseKey" title="Salin Kunci" />
             </div>
           </div>
-          <div class="flex justify-between py-1 border-b border-slate-100">
+          <div class="flex justify-between py-2">
             <span class="text-jetblack/60">Max Device Seats</span>
-            <span class="font-semibold text-jetblack">{{ selectedSub.maxSeats }} Seats</span>
+            <span class="font-mono font-semibold text-jetblack"
+              >{{ selectedSub.maxSeats }} Seats</span
+            >
           </div>
-          <div class="flex justify-between py-1 border-b border-slate-100">
+          <div class="flex justify-between py-2">
             <span class="text-jetblack/60">Masa Berlaku</span>
             <span class="font-semibold text-jetblack">{{
               formatSubDate(selectedSub.expiresAt)
@@ -543,21 +542,24 @@ function formatSubDate(dateStr?: string | null): string {
         </div>
 
         <!-- Linked Transactions List -->
-        <div class="space-y-2">
-          <div class="text-[11px] uppercase font-bold text-jetblack/70 tracking-wider">
-            50 Pembayaran Terbaru Pelanggan Ini
+        <div class="px-5 py-3.5 space-y-2">
+          <div class="text-[10.5px] uppercase font-bold text-jetblack/60 tracking-wider">
+            50 Pembayaran Terbaru
           </div>
           <div
             v-if="linkedTransactions.length === 0"
-            class="p-3 text-center text-slate-400 bg-slate-50 rounded-lg text-xs"
+            class="py-3 text-center text-jetblack/45 border-y border-jetblack/10 text-xs"
           >
             Belum ada transaksi tercatat.
           </div>
-          <div v-else class="space-y-1.5 max-h-40 overflow-y-auto">
+          <div
+            v-else
+            class="divide-y divide-jetblack/10 border-y border-jetblack/10 max-h-40 overflow-y-auto"
+          >
             <div
               v-for="tx in linkedTransactions"
               :key="tx.id"
-              class="p-2 rounded-lg bg-slate-50 border border-slate-200/70 flex items-center justify-between text-xs"
+              class="py-2 flex items-center justify-between text-xs"
             >
               <div>
                 <div class="font-mono font-bold text-jetblack">{{ tx.id }}</div>
@@ -586,10 +588,11 @@ function formatSubDate(dateStr?: string | null): string {
             type="button"
             @click="handleRevoke(selectedSub.licenseKey)"
             :disabled="isRevoking"
+            title="Cabut Lisensi"
             class="px-3 h-8 rounded-lg border border-crimson/20 bg-crimson/5 hover:bg-crimson hover:text-white text-xs font-bold text-crimson transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
           >
             <Ban class="w-3.5 h-3.5" />
-            <span>{{ isRevoking ? "Mencabut..." : "Cabut Lisensi" }}</span>
+            <span>{{ isRevoking ? "Mencabut..." : "Cabut" }}</span>
           </button>
           <div v-else></div>
 

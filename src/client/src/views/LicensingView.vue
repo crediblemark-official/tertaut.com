@@ -157,9 +157,9 @@ watch(dashboardEnv, () => {
     <!-- Alert Feedback -->
     <div
       v-if="actionFeedback"
-      class="mb-3 p-3 rounded-xl bg-forest/10 border border-forest/30 text-forest text-xs font-bold flex items-center gap-2 animate-fadeIn"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-2.5 bg-emerald-50/70 border-b border-forest/20 text-forest text-xs font-bold flex items-center gap-2 animate-fadeIn"
     >
-      <CheckCircle2 class="w-4 h-4" />
+      <CheckCircle2 class="w-4 h-4 shrink-0" />
       <span>{{ actionFeedback }}</span>
     </div>
 

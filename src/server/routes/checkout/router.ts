@@ -78,7 +78,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
       tags: ["MoR Checkout"],
       summary: "Create Dynamic Checkout Session",
       description:
-        "Membuat sesi pembayaran dinamis (QRIS / Virtual Account) sebagai Merchant of Record resmi. Menghitung DPP & PPN 11%, memotong 5% flat platform fee, dan mengembalikan checkout URL beserta data transaksi.",
+        "Membuat sesi pembayaran dinamis (QRIS / Virtual Account) melalui infrastruktur Managed Payment Tertaut. Memotong 5% flat platform fee dan mengembalikan checkout URL beserta data transaksi.",
       responses: {
         200: {
           description: "Sesi checkout berhasil dibuat",
@@ -212,7 +212,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
       tags: ["MoR Checkout"],
       summary: "Get Official Invoice / E-Receipt",
       description:
-        "Mengambil data invoice resmi Merchant of Record dengan rincian DPP (Dasar Pengenaan Pajak), PPN 11%, item software, dan nomor lisensi yang siap dicetak. Memerlukan HMAC ticket pembeli atau sesi admin.",
+        "Mengambil data E-Receipt / invoice resmi transaksi dengan rincian nominal pembayaran, item software, dan nomor lisensi yang siap dicetak. Memerlukan HMAC ticket pembeli atau sesi admin.",
       responses: {
         200: {
           description: "Data invoice resmi lengkap",

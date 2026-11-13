@@ -8,6 +8,7 @@ import { dashboardEnv, envPath } from "../lib/environment";
 import { Plus, RefreshCw, BarChart3 } from "lucide-vue-next";
 import OverviewKpiCards from "../components/overview/OverviewKpiCards.vue";
 import OverviewAnalyticsChart from "../components/overview/OverviewAnalyticsChart.vue";
+import ManagedPaymentBanner from "../components/overview/ManagedPaymentBanner.vue";
 
 const stats = ref<DashboardStats | null>(null);
 const allTransactions = ref<TransactionItem[]>([]);
@@ -47,6 +48,9 @@ watch(dashboardEnv, () => {
   <div class="space-y-4 animate-fadeIn pb-12">
     <!-- Overview Stats KPI (At the top, flush docked) -->
     <OverviewKpiCards :stats="stats" :loading="loading" />
+
+    <!-- Managed Payment Operational Clarity Banner -->
+    <ManagedPaymentBanner class="!mt-0" :is-sandbox="dashboardEnv === 'sandbox'" />
 
     <!-- Unified Header & Toolbar (Edge-to-Edge Full Width & Standardized Height) -->
     <div
@@ -106,10 +110,11 @@ watch(dashboardEnv, () => {
 
         <router-link
           :to="envPath(dashboardEnv, '/apps')"
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg btn-gold text-xs font-bold transition shadow-2xs active:scale-95 cursor-pointer shrink-0"
+          title="Tambah Software"
+          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg btn-gold text-xs font-bold shadow-2xs hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-gold transition-all duration-150 cursor-pointer shrink-0"
         >
           <Plus class="w-3.5 h-3.5 stroke-[3]" />
-          <span>Tambah Software</span>
+          <span>Tambah</span>
         </router-link>
       </div>
     </div>

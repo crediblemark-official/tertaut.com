@@ -305,10 +305,11 @@ const expiredLicensesCount = computed(
         <button
           type="button"
           @click="emit('create-config')"
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg btn-gold text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95 shrink-0"
+          title="Buat Pengaturan Baru"
+          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg btn-gold text-xs font-bold shadow-2xs hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-gold transition-all duration-150 cursor-pointer shrink-0"
         >
           <Plus class="w-3.5 h-3.5 stroke-[3]" />
-          <span>Buat Pengaturan Baru</span>
+          <span>Tambah</span>
         </button>
       </div>
     </div>
@@ -464,34 +465,34 @@ const expiredLicensesCount = computed(
         </tr>
 
         <!-- ======================================================== -->
-        <!-- EXPANDED ACCORDION: DAFTAR LISENSI PELANGGAN (NESTED ROW) -->
+        <!-- EXPANDED ACCORDION: DAFTAR LISENSI PELANGGAN (DOCKED)   -->
         <!-- ======================================================== -->
-        <tr v-if="isExpanded(config.appId)" class="bg-[#FAFAFA]">
+        <tr v-if="isExpanded(config.appId)" class="bg-jetblack/[0.02]">
           <td colspan="9" class="p-0 border-b border-jetblack/15">
-            <div class="px-4 py-3 sm:px-6 sm:py-4 bg-slate-50/80 border-y border-jetblack/10">
+            <div class="divide-y divide-jetblack/10 border-t border-jetblack/10">
               <!-- Sub-header & Quick Type Filter -->
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+              <div
+                class="px-3.5 sm:px-4 md:px-6 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-jetblack/[0.02]"
+              >
                 <div class="flex items-center gap-2">
-                  <div class="w-2 h-2 rounded-full bg-gold"></div>
+                  <div class="w-1.5 h-3.5 bg-gold"></div>
                   <h4 class="text-xs font-bold uppercase tracking-wider text-jetblack">
-                    Daftar Lisensi Terbit: {{ config.name }}
+                    Lisensi: {{ config.name }}
                   </h4>
-                  <span
-                    class="text-[10px] px-2 py-0.5 rounded-full bg-white border border-slate-200 font-mono font-bold text-jetblack"
-                  >
-                    {{ getFilteredLicenses(config).length }} dari {{ config.totalLicenses }}
+                  <span class="text-[10.5px] font-mono font-bold text-jetblack/60">
+                    {{ getFilteredLicenses(config).length }}/{{ config.totalLicenses }}
                   </span>
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2">
                   <!-- Sub-filter Pills -->
                   <div
-                    class="flex items-center gap-1 p-0.5 bg-white rounded-md border border-slate-200 shadow-2xs"
+                    class="flex items-center divide-x divide-jetblack/10 border border-jetblack/15 bg-white rounded-md overflow-hidden"
                   >
                     <button
                       type="button"
                       @click="setLicenseFilter(config.appId, 'ALL')"
-                      class="px-2 py-0.5 rounded text-[10.5px] font-bold transition cursor-pointer"
+                      class="px-2.5 py-1 text-[10.5px] font-bold transition cursor-pointer"
                       :class="
                         getLicenseFilter(config.appId) === 'ALL'
                           ? 'bg-jetblack text-white'
@@ -504,7 +505,7 @@ const expiredLicensesCount = computed(
                     <button
                       type="button"
                       @click="setLicenseFilter(config.appId, 'CHECKOUT')"
-                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-bold transition cursor-pointer"
+                      class="inline-flex items-center gap-1 px-2.5 py-1 text-[10.5px] font-bold transition cursor-pointer"
                       :class="
                         getLicenseFilter(config.appId) === 'CHECKOUT'
                           ? 'bg-forest text-white'
@@ -512,13 +513,13 @@ const expiredLicensesCount = computed(
                       "
                     >
                       <ShoppingCart class="w-3 h-3" />
-                      <span>Pembayaran Tertaut ({{ config.checkoutLicenses }})</span>
+                      <span>Checkout ({{ config.checkoutLicenses }})</span>
                     </button>
 
                     <button
                       type="button"
                       @click="setLicenseFilter(config.appId, 'MANUAL')"
-                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-bold transition cursor-pointer"
+                      class="inline-flex items-center gap-1 px-2.5 py-1 text-[10.5px] font-bold transition cursor-pointer"
                       :class="
                         getLicenseFilter(config.appId) === 'MANUAL'
                           ? 'bg-jetblack/80 text-white'
@@ -534,11 +535,11 @@ const expiredLicensesCount = computed(
                   <button
                     type="button"
                     @click="emit('issue-manual', config)"
-                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-jetblack text-white hover:bg-jetblack/90 font-bold text-[11px] transition shadow-2xs cursor-pointer shrink-0"
+                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-jetblack text-white hover:bg-jetblack/90 font-bold text-[11px] hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 cursor-pointer shrink-0"
                     title="Terbitkan kunci manual untuk skema ini"
                   >
                     <Plus class="w-3 h-3 text-gold" />
-                    <span>Terbitkan Kunci</span>
+                    <span>Terbitkan</span>
                   </button>
                 </div>
               </div>
@@ -547,22 +548,22 @@ const expiredLicensesCount = computed(
               <EmptyState
                 v-if="getFilteredLicenses(config).length === 0"
                 :icon="KeyRound"
-                title="Belum Ada Lisensi Pelanggan Terbit"
-                description="Lisensi otomatis terbit saat pembeli melakukan pembayaran di checkout Tertaut, atau Anda dapat menerbitkan kunci manual."
-                action-text="Terbitkan Manual"
+                title="Belum Ada Lisensi Terbit"
+                description="Lisensi otomatis terbit saat checkout berhasil atau diterbitkan manual."
+                action-text="Terbitkan"
                 :action-icon="Plus"
-                container-class="my-2 bg-white"
+                container-class="border-0 bg-white py-6"
                 @action="emit('issue-manual', config)"
               />
 
-              <!-- Nested Sub-Table of Licenses -->
+              <!-- Flush Sub-Table of Licenses -->
               <TableContainer
                 v-else
                 :negative-margin="false"
-                wrapper-class="rounded-lg border border-slate-200 bg-white shadow-2xs"
+                wrapper-class="bg-white"
                 table-class="border-b-0 text-xs whitespace-nowrap"
-                thead-class="bg-slate-100/80 border-b border-slate-200 text-[10.5px] text-jetblack/70 uppercase tracking-wider font-bold"
-                tbody-class="divide-y divide-slate-100"
+                thead-class="bg-jetblack/[0.03] border-b border-jetblack/10 text-[10.5px] text-jetblack/70 uppercase tracking-wider font-bold"
+                tbody-class="divide-y divide-jetblack/10"
               >
                 <template #head>
                   <tr>

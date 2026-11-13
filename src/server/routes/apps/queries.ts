@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { apps, transactions, licenses, platformSettings } from "../../db/schema";
+import { apps, builders, transactions, licenses, platformSettings } from "../../db/schema";
 import { eq, desc, count, sql, and, inArray } from "drizzle-orm";
 import { config as appConfig } from "../../config";
 import { resolveCurrentBuilder, seedSandboxBuilderIfNeeded } from "./builder";
@@ -46,6 +46,50 @@ export async function handleGetBuilderMyself({ request: { headers }, set }: Requ
 }
 
 /**
+ * Perbarui nama tampilan profil builder saat ini
+ */
+export async function handleUpdateBuilderMyself({
+  body,
+  request: { headers },
+  set,
+}: {
+  body: { name: string };
+  request: { headers: Headers };
+  set: { status?: number | string };
+}) {
+  const { builder, isAdmin } = await resolveCurrentBuilder(headers);
+  if (!builder && !isAdmin) {
+    set.status = 401;
+    return { error: "Sesi tidak ditemukan." };
+  }
+  if (!builder) {
+    set.status = 404;
+    return { error: "Profil builder tidak ditemukan." };
+  }
+
+  const cleanName = (body?.name || "").trim();
+  if (!cleanName || cleanName.length > 100) {
+    set.status = 400;
+    return { error: "Nama builder wajib diisi (maksimal 100 karakter)." };
+  }
+
+  const [updated] = await db
+    .update(builders)
+    .set({ name: cleanName, updatedAt: new Date() })
+    .where(eq(builders.id, builder.id))
+    .returning();
+
+  return {
+    success: true,
+    builder: {
+      id: updated.id,
+      email: updated.email,
+      name: updated.name,
+    },
+  };
+}
+
+/**
  * Ambil daftar aplikasi (scoped ke builder pemilik kecuali admin)
  */
 export async function handleListApps({ query, request: { headers } }: ModeQueryContext) {
@@ -56,11 +100,15 @@ export async function handleListApps({ query, request: { headers } }: ModeQueryC
     await seedSandboxBuilderIfNeeded();
   }
 
+  if (!isAdmin && !builder) {
+    return { success: true, apps: [] };
+  }
+
   const conditions: any[] = [];
   if (query?.mode === "sandbox" || query?.mode === "live") {
     conditions.push(eq(apps.mode, query.mode));
   }
-  if (builder) {
+  if (!isAdmin && builder) {
     conditions.push(eq(apps.builderId, builder.id));
   }
 
@@ -85,12 +133,15 @@ export async function handleStatsOverview({ query, request: { headers } }: ModeQ
   };
 
   const { builder, isAdmin } = await resolveCurrentBuilder(headers);
+  if (!isAdmin && !builder) {
+    return emptyStats;
+  }
 
   const appConditions: any[] = [];
   if (query?.mode === "sandbox" || query?.mode === "live") {
     appConditions.push(eq(apps.mode, query.mode));
   }
-  if (builder) {
+  if (!isAdmin && builder) {
     appConditions.push(eq(apps.builderId, builder.id));
   }
 
@@ -160,12 +211,15 @@ export async function handleStatsCatalog({ query, request: { headers } }: ModeQu
   };
 
   const { builder, isAdmin } = await resolveCurrentBuilder(headers);
+  if (!isAdmin && !builder) {
+    return emptyStats;
+  }
 
   const appConditions: any[] = [];
   if (query?.mode === "sandbox" || query?.mode === "live") {
     appConditions.push(eq(apps.mode, query.mode));
   }
-  if (builder) {
+  if (!isAdmin && builder) {
     appConditions.push(eq(apps.builderId, builder.id));
   }
 

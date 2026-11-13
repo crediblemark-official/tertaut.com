@@ -59,7 +59,7 @@ const filteredTransactions = computed(() => {
 </script>
 
 <template>
-  <section class="space-y-4">
+  <section>
     <!-- Macro Summary Counter -->
     <StatsBar borderless>
       <StatItem
@@ -101,7 +101,6 @@ const filteredTransactions = computed(() => {
     <Teleport v-if="isMounted" to="#admin-header-search">
       <SearchInput
         v-model="searchQuery"
-        dark
         placeholder="Cari transaksi, app, pembeli, builder..."
         wrapper-class="w-full max-w-md"
         input-class="h-8 text-xs"
@@ -112,7 +111,6 @@ const filteredTransactions = computed(() => {
     <Teleport v-if="isMounted" to="#admin-mobile-header-search">
       <SearchInput
         v-model="searchQuery"
-        dark
         placeholder="Cari transaksi, app, pembeli, builder..."
         wrapper-class="w-full"
         input-class="h-8 text-xs"
@@ -121,7 +119,7 @@ const filteredTransactions = computed(() => {
 
     <!-- Unified Table Toolbar (Standard Tertaut Dark Bar) -->
     <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar shadow-xs mb-0 !mt-0"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar mb-0 !mt-0"
     >
       <div class="flex items-center gap-2 shrink-0">
         <Receipt class="w-3.5 h-3.5 text-gold" />
@@ -129,7 +127,7 @@ const filteredTransactions = computed(() => {
           Ledger Transaksi Platform
         </span>
         <span
-          class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
+          class="text-[10px] px-1.5 py-0.5 rounded-xs bg-white/10 text-white/85 font-mono font-bold"
         >
           {{ filteredTransactions.length }} transaksi
         </span>
@@ -138,12 +136,12 @@ const filteredTransactions = computed(() => {
       <div class="flex items-center gap-2 shrink-0">
         <!-- Mode Filter Pills -->
         <div
-          class="flex items-center h-7 rounded-md bg-white/10 p-0.5 text-[10px] font-medium shrink-0"
+          class="flex items-center h-7 rounded-xs bg-white/10 p-0.5 text-[10px] font-medium shrink-0"
         >
           <button
             type="button"
             @click="modeFilter = ''"
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               modeFilter === ''
                 ? 'bg-white font-bold text-jetblack'
@@ -155,7 +153,7 @@ const filteredTransactions = computed(() => {
           <button
             type="button"
             @click="modeFilter = 'live'"
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               modeFilter === 'live'
                 ? 'bg-forest font-bold text-white'
@@ -167,7 +165,7 @@ const filteredTransactions = computed(() => {
           <button
             type="button"
             @click="modeFilter = 'sandbox'"
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               modeFilter === 'sandbox'
                 ? 'bg-gold font-bold text-jetblack'
@@ -180,7 +178,7 @@ const filteredTransactions = computed(() => {
 
         <!-- Status Filter Pills -->
         <div
-          class="flex items-center h-7 rounded-md bg-white/10 p-0.5 text-[10px] font-medium shrink-0"
+          class="flex items-center h-7 rounded-xs bg-white/10 p-0.5 text-[10px] font-medium shrink-0"
         >
           <button
             type="button"
@@ -188,7 +186,7 @@ const filteredTransactions = computed(() => {
               statusFilter = '';
               emit('filterChange');
             "
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               statusFilter === ''
                 ? 'bg-white font-bold text-jetblack'
@@ -203,7 +201,7 @@ const filteredTransactions = computed(() => {
               statusFilter = 'PAID';
               emit('filterChange');
             "
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               statusFilter === 'PAID'
                 ? 'bg-white font-bold text-forest'
@@ -218,7 +216,7 @@ const filteredTransactions = computed(() => {
               statusFilter = 'PENDING';
               emit('filterChange');
             "
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               statusFilter === 'PENDING'
                 ? 'bg-white font-bold text-gold'
@@ -233,7 +231,7 @@ const filteredTransactions = computed(() => {
               statusFilter = 'FAILED';
               emit('filterChange');
             "
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               statusFilter === 'FAILED'
                 ? 'bg-white font-bold text-crimson'
@@ -248,10 +246,10 @@ const filteredTransactions = computed(() => {
               statusFilter = 'REFUNDED';
               emit('filterChange');
             "
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               statusFilter === 'REFUNDED'
-                ? 'bg-white font-bold text-purple-400'
+                ? 'bg-white font-bold text-purple-600'
                 : 'text-white/70 hover:text-white'
             "
           >
@@ -263,17 +261,17 @@ const filteredTransactions = computed(() => {
         <button
           @click="handleExportCsv"
           type="button"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition cursor-pointer shrink-0"
+          class="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-xs bg-white/10 hover:bg-white/20 text-[11px] font-bold text-white transition cursor-pointer shrink-0"
           title="Unduh seluruh data ledger transaksi ke format CSV"
         >
           <Download class="w-3.5 h-3.5" />
-          <span>Ekspor CSV</span>
+          <span>Ekspor</span>
         </button>
       </div>
     </div>
 
     <!-- Table View (Responsive Table with Horizontal Scroll on Mobile) -->
-    <TableContainer>
+    <TableContainer class="!mt-0">
       <template #head>
         <tr>
           <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Tanggal</th>
@@ -314,10 +312,8 @@ const filteredTransactions = computed(() => {
             <span>{{ tx.id.slice(0, 10) }}...</span>
             <span
               :class="[
-                'px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase border',
-                tx.mode === 'sandbox'
-                  ? 'bg-amber-50 text-amber-800 border-amber-300'
-                  : 'bg-emerald-50 text-emerald-800 border-emerald-300',
+                'text-[9.5px] font-bold uppercase',
+                tx.mode === 'sandbox' ? 'text-[#8a6d1f]' : 'text-forest',
               ]"
             >
               {{ tx.mode || "live" }}

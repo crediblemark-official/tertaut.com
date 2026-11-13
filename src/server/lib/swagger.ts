@@ -84,7 +84,7 @@ export const configureSwagger = () =>
         {
           name: "MoR Checkout",
           description:
-            "Alur pembayaran Merchant of Record (QRIS & Virtual Account), e-receipt resmi (PPN 11%), kupon diskon, dan status polling.",
+            "Alur Managed Payment (QRIS & Virtual Account), e-receipt resmi, kupon diskon, dan status polling.",
         },
         {
           name: "Universal Licensing",

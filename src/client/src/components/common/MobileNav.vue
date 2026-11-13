@@ -19,6 +19,8 @@ import {
   Wallet,
   Terminal,
   Search,
+  User,
+  RefreshCw,
 } from "lucide-vue-next";
 
 interface NavItem {
@@ -31,9 +33,11 @@ interface NavItem {
 const props = defineProps<{
   activeCouponCount: number;
   activeLicenseCount: number;
+  hasPayoutAccount?: boolean | null;
   currentPage: { title: string; category: string };
   authUser: { name?: string; email?: string } | null | undefined;
   isMobileMoreOpen: boolean;
+  switchingToEnv?: DashboardEnv | null;
 }>();
 
 const emit = defineEmits<{
@@ -69,14 +73,14 @@ const mobileNavItems = computed<NavItem[]>(() => {
   const e = env.value;
   return [
     { name: "Ringkasan", key: "/", path: envPath(e), icon: LayoutDashboard },
-    { name: "Project", key: "/projects", path: envPath(e, "/projects"), icon: Boxes },
-    { name: "Payments", key: "/payments", path: envPath(e, "/payments"), icon: Receipt },
+    { name: "Aplikasi", key: "/projects", path: envPath(e, "/projects"), icon: Boxes },
+    { name: "Transaksi", key: "/payments", path: envPath(e, "/payments"), icon: Receipt },
     { name: "Lisensi", key: "/licensing", path: envPath(e, "/licensing"), icon: KeyRound },
   ];
 });
 
 const isMoreActive = computed(() =>
-  ["/subscriptions", "/balances", "/coupons", "/developer"].includes(navKey.value)
+  ["/subscriptions", "/balances", "/coupons", "/developer", "/profile"].includes(navKey.value)
 );
 const moreBadgeCount = computed(() => props.activeCouponCount);
 
@@ -145,19 +149,24 @@ watch(
           <!-- Environment Switcher -->
           <button
             type="button"
+            :disabled="Boolean(switchingToEnv)"
             @click="emit('switch-env', env === 'sandbox' ? 'live' : 'sandbox')"
-            class="px-2 py-1 min-h-[30px] rounded-lg text-[10px] font-bold uppercase tracking-wide border transition flex items-center gap-1 active:scale-95 cursor-pointer"
+            class="px-2 py-1 min-h-[30px] rounded-lg text-[10px] font-bold uppercase tracking-wide border transition-all duration-300 flex items-center gap-1 active:scale-95 disabled:opacity-60 cursor-pointer"
             :class="
               env === 'sandbox'
                 ? 'bg-gold/15 border-gold/50 text-[#8a6d1f]'
                 : 'bg-forest/10 border-forest/40 text-forest'
             "
           >
+            <RefreshCw v-if="switchingToEnv" class="w-3 h-3 animate-spin" />
             <span
+              v-else
               class="w-1.5 h-1.5 rounded-full"
               :class="env === 'sandbox' ? 'bg-gold' : 'bg-forest'"
             ></span>
-            <span>{{ env === "sandbox" ? "Sandbox" : "Live" }}</span>
+            <span>{{
+              switchingToEnv ? "Beralih..." : env === "sandbox" ? "Sandbox" : "Live"
+            }}</span>
           </button>
 
           <!-- Admin Panel Button -->
@@ -168,6 +177,26 @@ watch(
             title="Super Admin Panel"
           >
             <ShieldAlert class="w-4 h-4 text-gold" />
+          </router-link>
+
+          <!-- Profile Shortcut -->
+          <router-link
+            v-if="authUser"
+            :to="envPath(env, '/profile')"
+            class="relative w-7 h-7 rounded-full flex items-center justify-center font-bold text-[11px] transition shrink-0 ring-1"
+            :class="
+              navKey === '/profile'
+                ? 'bg-gold text-jetblack ring-gold'
+                : 'bg-jetblack text-white ring-gold/40'
+            "
+            title="Profil Builder & Rekening Pencairan"
+          >
+            {{ (authUser.name || authUser.email || "B").charAt(0).toUpperCase() }}
+            <span
+              v-if="hasPayoutAccount === false"
+              class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 ring-1 ring-white"
+              title="Rekening pencairan belum diatur"
+            ></span>
           </router-link>
 
           <!-- Logout Button -->
@@ -244,7 +273,17 @@ watch(
           >{{ moreBadgeCount }}</span
         >
         <span class="truncate max-w-[55px] leading-tight text-[9.5px]">{{
-          isMoreActive ? (navKey === "/coupons" ? "Kupon" : "Docs") : "Lainnya"
+          isMoreActive
+            ? navKey === "/coupons"
+              ? "Kupon"
+              : navKey === "/balances"
+                ? "Saldo"
+                : navKey === "/subscriptions"
+                  ? "Langganan"
+                  : navKey === "/profile"
+                    ? "Profil"
+                    : "Docs"
+            : "Lainnya"
         }}</span>
         <span
           v-if="isMoreActive || isMobileMoreOpen"
@@ -254,146 +293,177 @@ watch(
     </div>
   </nav>
 
-  <!-- Mobile More Sheet -->
+  <!-- Mobile More Sheet (Full-Edge Hairline Grid) -->
   <div v-if="isMobileMoreOpen" class="md:hidden fixed inset-0 z-50 flex flex-col justify-end">
     <div
       class="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
       @click="emit('close-more')"
     ></div>
     <div
-      class="relative bg-white rounded-t-2xl p-4 border-t border-jetblack/10 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-10 space-y-3 pb-[calc(env(safe-area-inset-bottom,0px)+76px)] animate-fadeIn"
+      class="relative bg-white rounded-t-xl border-t border-jetblack/15 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-10 pb-[calc(env(safe-area-inset-bottom,0px)+72px)] animate-fadeIn"
     >
-      <div class="flex items-center justify-between pb-2 border-b border-jetblack/10">
-        <div class="flex items-center gap-2">
-          <span class="w-1.5 h-4 bg-gold rounded-full"></span>
-          <h3 class="text-xs font-bold text-jetblack uppercase tracking-wider">Menu Tambahan</h3>
+      <div class="pt-2.5 pb-2 px-4 border-b border-jetblack/10">
+        <div class="w-10 h-1 rounded-full bg-jetblack/15 mx-auto mb-2"></div>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-1.5 h-3.5 bg-gold"></span>
+            <h3 class="text-xs font-bold text-jetblack uppercase tracking-wider">Menu Lainnya</h3>
+          </div>
+          <button
+            type="button"
+            @click="emit('close-more')"
+            aria-label="Tutup menu"
+            class="p-1 rounded-md text-jetblack/55 hover:text-jetblack hover:bg-jetblack/5 cursor-pointer"
+          >
+            <X class="w-4 h-4" />
+          </button>
         </div>
-        <button
-          @click="emit('close-more')"
-          class="p-1 rounded-md text-jetblack/50 hover:bg-jetblack/5 cursor-pointer"
-        >
-          <X class="w-4 h-4" />
-        </button>
       </div>
-      <div class="grid grid-cols-2 gap-2">
-        <router-link
-          :to="envPath(env, '/payments')"
-          @click="emit('close-more')"
-          class="flex items-center gap-2.5 p-3 rounded-xl border transition text-left cursor-pointer active:scale-95"
-          :class="
-            navKey === '/payments'
-              ? 'bg-gold/10 border-gold/40 text-jetblack font-bold'
-              : 'bg-jetblack/[0.02] border-jetblack/10 text-jetblack/80 hover:bg-jetblack/5'
-          "
-        >
-          <div
-            class="w-8 h-8 rounded-lg bg-gold/20 flex items-center justify-center text-jetblack shrink-0"
-          >
-            <Receipt class="w-4 h-4" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="text-xs font-bold leading-tight">Payments</div>
-            <div class="text-[10px] text-jetblack/50 truncate">Transaksi &amp; Pembayaran</div>
-          </div>
-        </router-link>
-        <router-link
-          :to="envPath(env, '/subscriptions')"
-          @click="emit('close-more')"
-          class="flex items-center gap-2.5 p-3 rounded-xl border transition text-left cursor-pointer active:scale-95"
-          :class="
-            navKey === '/subscriptions'
-              ? 'bg-gold/10 border-gold/40 text-jetblack font-bold'
-              : 'bg-jetblack/[0.02] border-jetblack/10 text-jetblack/80 hover:bg-jetblack/5'
-          "
-        >
-          <div
-            class="w-8 h-8 rounded-lg bg-gold/20 flex items-center justify-center text-jetblack shrink-0"
-          >
-            <Repeat class="w-4 h-4" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="text-xs font-bold leading-tight">Subscriptions</div>
-            <div class="text-[10px] text-jetblack/50 truncate">MRR &amp; Lifetime Value</div>
-          </div>
-        </router-link>
-        <router-link
-          :to="envPath(env, '/balances')"
-          @click="emit('close-more')"
-          class="flex items-center gap-2.5 p-3 rounded-xl border transition text-left cursor-pointer active:scale-95"
-          :class="
-            navKey === '/balances'
-              ? 'bg-forest/10 border-forest/40 text-jetblack font-bold'
-              : 'bg-jetblack/[0.02] border-jetblack/10 text-jetblack/80 hover:bg-jetblack/5'
-          "
-        >
-          <div
-            class="w-8 h-8 rounded-lg bg-forest/15 flex items-center justify-center text-forest shrink-0"
-          >
-            <Wallet class="w-4 h-4" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="text-xs font-bold leading-tight">Balances</div>
-            <div class="text-[10px] text-jetblack/50 truncate">Saldo &amp; Payouts</div>
-          </div>
-        </router-link>
-        <router-link
-          :to="envPath(env, '/coupons')"
-          @click="emit('close-more')"
-          class="flex items-center gap-2.5 p-3 rounded-xl border transition text-left cursor-pointer active:scale-95"
-          :class="
-            navKey === '/coupons'
-              ? 'bg-gold/10 border-gold/40 text-jetblack font-bold'
-              : 'bg-jetblack/[0.02] border-jetblack/10 text-jetblack/80 hover:bg-jetblack/5'
-          "
-        >
-          <div
-            class="w-8 h-8 rounded-lg bg-gold/20 flex items-center justify-center text-jetblack shrink-0"
-          >
-            <Ticket class="w-4 h-4" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="text-xs font-bold leading-tight">Kupon Diskon</div>
-            <div class="text-[10px] text-jetblack/50 truncate">{{ activeCouponCount }} Aktif</div>
-          </div>
-        </router-link>
 
-        <router-link
-          :to="envPath(env, '/developer')"
-          @click="emit('close-more')"
-          class="flex items-center gap-2.5 p-3 rounded-xl border transition text-left cursor-pointer active:scale-95"
-          :class="
-            navKey === '/developer'
-              ? 'bg-jetblack text-white font-bold'
-              : 'bg-jetblack/[0.02] border-jetblack/10 text-jetblack/80 hover:bg-jetblack/5'
-          "
+      <div>
+        <div
+          class="flex items-center justify-between px-4 py-2 bg-jetblack/[0.02] border-b border-jetblack/10"
         >
-          <div
-            class="w-8 h-8 rounded-lg bg-gold/20 flex items-center justify-center text-jetblack shrink-0"
+          <span class="text-[10px] font-bold text-jetblack/50 uppercase tracking-wider">
+            Managed Payment
+          </span>
+          <span
+            class="text-[9px] font-mono font-bold uppercase"
+            :class="env === 'sandbox' ? 'text-[#8a6d1f]' : 'text-forest'"
           >
-            <Terminal class="w-4 h-4 text-gold" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="text-xs font-bold leading-tight">Developer</div>
-            <div class="text-[10px] text-jetblack/50 truncate">Kredensial S2S &amp; API</div>
-          </div>
-        </router-link>
+            {{ env === "sandbox" ? "Simulasi" : "Aktif" }}
+          </span>
+        </div>
 
-        <router-link
-          v-if="isAdmin"
-          to="/panel"
-          @click="emit('close-more')"
-          class="flex items-center gap-2.5 p-3 rounded-xl border border-jetblack/10 bg-jetblack/[0.02] text-jetblack/80 hover:bg-jetblack/5 transition text-left cursor-pointer active:scale-95"
+        <div
+          class="grid grid-cols-2 divide-x divide-y divide-jetblack/10 border-b border-jetblack/10"
         >
-          <div
-            class="w-8 h-8 rounded-lg bg-jetblack/10 flex items-center justify-center text-jetblack shrink-0"
+          <router-link
+            :to="envPath(env, '/payments')"
+            @click="emit('close-more')"
+            class="flex items-center gap-2.5 px-4 py-3 transition text-left cursor-pointer active:bg-jetblack/[0.04]"
+            :class="
+              navKey === '/payments'
+                ? 'bg-gold/10 text-jetblack font-bold'
+                : 'bg-white text-jetblack/80'
+            "
           >
-            <ShieldAlert class="w-4 h-4" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="text-xs font-bold leading-tight">Admin Panel</div>
-            <div class="text-[10px] text-jetblack/50 truncate">Super Admin Ledger</div>
-          </div>
-        </router-link>
+            <Receipt class="w-4 h-4 text-gold shrink-0" />
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold leading-tight">Transaksi</div>
+              <div class="text-[10px] text-jetblack/50 truncate">Riwayat Bayar</div>
+            </div>
+          </router-link>
+
+          <router-link
+            :to="envPath(env, '/subscriptions')"
+            @click="emit('close-more')"
+            class="flex items-center gap-2.5 px-4 py-3 transition text-left cursor-pointer active:bg-jetblack/[0.04]"
+            :class="
+              navKey === '/subscriptions'
+                ? 'bg-gold/10 text-jetblack font-bold'
+                : 'bg-white text-jetblack/80'
+            "
+          >
+            <Repeat class="w-4 h-4 text-gold shrink-0" />
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold leading-tight">Langganan</div>
+              <div class="text-[10px] text-jetblack/50 truncate">MRR &amp; Siklus</div>
+            </div>
+          </router-link>
+
+          <router-link
+            :to="envPath(env, '/balances')"
+            @click="emit('close-more')"
+            class="flex items-center gap-2.5 px-4 py-3 transition text-left cursor-pointer active:bg-jetblack/[0.04]"
+            :class="
+              navKey === '/balances'
+                ? 'bg-forest/10 text-jetblack font-bold'
+                : 'bg-white text-jetblack/80'
+            "
+          >
+            <Wallet class="w-4 h-4 text-forest shrink-0" />
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold leading-tight">Saldo &amp; Payout</div>
+              <div class="text-[10px] text-jetblack/50 truncate">Riwayat &amp; Tarik Dana</div>
+            </div>
+          </router-link>
+
+          <router-link
+            :to="envPath(env, '/coupons')"
+            @click="emit('close-more')"
+            class="flex items-center gap-2.5 px-4 py-3 transition text-left cursor-pointer active:bg-jetblack/[0.04]"
+            :class="
+              navKey === '/coupons'
+                ? 'bg-gold/10 text-jetblack font-bold'
+                : 'bg-white text-jetblack/80'
+            "
+          >
+            <Ticket class="w-4 h-4 text-gold shrink-0" />
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold leading-tight">Kupon Promo</div>
+              <div class="text-[10px] font-mono text-jetblack/50 truncate">
+                {{ activeCouponCount }} aktif
+              </div>
+            </div>
+          </router-link>
+        </div>
+
+        <div
+          class="px-4 py-2 bg-jetblack/[0.02] border-b border-jetblack/10 text-[10px] font-bold text-jetblack/50 uppercase tracking-wider"
+        >
+          Developer &amp; Sistem
+        </div>
+        <div
+          class="grid grid-cols-2 divide-x divide-y divide-jetblack/10 border-b border-jetblack/10"
+        >
+          <router-link
+            :to="envPath(env, '/developer')"
+            @click="emit('close-more')"
+            class="flex items-center gap-2.5 px-4 py-3 transition text-left cursor-pointer active:bg-jetblack/[0.04]"
+            :class="
+              navKey === '/developer'
+                ? 'bg-jetblack text-white font-bold'
+                : 'bg-white text-jetblack/80'
+            "
+          >
+            <Terminal class="w-4 h-4 text-gold shrink-0" />
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold leading-tight">Integrasi API</div>
+              <div class="text-[10px] opacity-60 truncate">Key &amp; Webhook</div>
+            </div>
+          </router-link>
+
+          <router-link
+            :to="envPath(env, '/profile')"
+            @click="emit('close-more')"
+            class="flex items-center gap-2.5 px-4 py-3 transition text-left cursor-pointer active:bg-jetblack/[0.04]"
+            :class="
+              navKey === '/profile'
+                ? 'bg-jetblack text-white font-bold'
+                : 'bg-white text-jetblack/80'
+            "
+          >
+            <User class="w-4 h-4 text-gold shrink-0" />
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold leading-tight">Profil Akun</div>
+              <div class="text-[10px] opacity-60 truncate">Identitas &amp; Rekening</div>
+            </div>
+          </router-link>
+
+          <router-link
+            v-if="isAdmin"
+            to="/panel"
+            @click="emit('close-more')"
+            class="flex items-center gap-2.5 px-4 py-3 bg-white text-jetblack/80 hover:bg-jetblack/[0.03] transition text-left cursor-pointer active:bg-jetblack/[0.04]"
+          >
+            <ShieldAlert class="w-4 h-4 text-gold shrink-0" />
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold leading-tight">Admin Panel</div>
+              <div class="text-[10px] text-jetblack/50 truncate">Ledger Platform</div>
+            </div>
+          </router-link>
+        </div>
       </div>
     </div>
   </div>

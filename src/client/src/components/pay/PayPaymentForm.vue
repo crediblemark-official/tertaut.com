@@ -321,11 +321,9 @@ function copyToClipboard(text: string, isLicense = false) {
               @click="handleSimulatePayment"
               class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <Sparkles class="w-4 h-4" />
+              <Zap class="w-4 h-4" />
               <span>{{
-                isSimulatingPaid
-                  ? "Memproses Simulasi..."
-                  : "⚡ Simulasi Bayar Lunas (1-Klik Sandbox)"
+                isSimulatingPaid ? "Memproses Simulasi..." : "Simulasi Bayar Lunas (Sandbox)"
               }}</span>
             </button>
             <p v-if="simulateError" class="text-[11px] text-red-600 font-medium text-center">
@@ -408,11 +406,9 @@ function copyToClipboard(text: string, isLicense = false) {
               @click="handleSimulatePayment"
               class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <Sparkles class="w-4 h-4" />
+              <Zap class="w-4 h-4" />
               <span>{{
-                isSimulatingPaid
-                  ? "Memproses Simulasi..."
-                  : "⚡ Simulasi Bayar Lunas (1-Klik Sandbox)"
+                isSimulatingPaid ? "Memproses Simulasi..." : "Simulasi Bayar Lunas (Sandbox)"
               }}</span>
             </button>
             <p v-if="simulateError" class="text-[11px] text-red-600 font-medium text-center">
@@ -496,11 +492,9 @@ function copyToClipboard(text: string, isLicense = false) {
               @click="handleSimulatePayment"
               class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <Sparkles class="w-4 h-4" />
+              <Zap class="w-4 h-4" />
               <span>{{
-                isSimulatingPaid
-                  ? "Memproses Simulasi..."
-                  : "⚡ Simulasi Bayar Lunas (1-Klik Sandbox)"
+                isSimulatingPaid ? "Memproses Simulasi..." : "Simulasi Bayar Lunas (Sandbox)"
               }}</span>
             </button>
             <p v-if="simulateError" class="text-[11px] text-red-600 font-medium text-center">
@@ -552,11 +546,9 @@ function copyToClipboard(text: string, isLicense = false) {
               @click="handleSimulatePayment"
               class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <Sparkles class="w-4 h-4" />
+              <Zap class="w-4 h-4" />
               <span>{{
-                isSimulatingPaid
-                  ? "Memproses Simulasi..."
-                  : "⚡ Simulasi Bayar Lunas (1-Klik Sandbox)"
+                isSimulatingPaid ? "Memproses Simulasi..." : "Simulasi Bayar Lunas (Sandbox)"
               }}</span>
             </button>
             <p v-if="simulateError" class="text-[11px] text-red-600 font-medium text-center">
@@ -621,11 +613,9 @@ function copyToClipboard(text: string, isLicense = false) {
               @click="handleSimulatePayment"
               class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <Sparkles class="w-4 h-4" />
+              <Zap class="w-4 h-4" />
               <span>{{
-                isSimulatingPaid
-                  ? "Memproses Simulasi..."
-                  : "⚡ Simulasi Bayar Lunas (1-Klik Sandbox)"
+                isSimulatingPaid ? "Memproses Simulasi..." : "Simulasi Bayar Lunas (Sandbox)"
               }}</span>
             </button>
             <p v-if="simulateError" class="text-[11px] text-red-600 font-medium text-center">

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
-import { RefreshCw, Globe, Code2, LayoutDashboard, Search } from "lucide-vue-next";
+import logoUrl from "@/assets/logo.svg";
+import { RefreshCw, Globe, Code2, LayoutDashboard, Search, LogOut } from "lucide-vue-next";
 
 interface AdminNavItem {
   key: string;
@@ -13,10 +14,14 @@ interface AdminNavItem {
 const props = defineProps<{
   currentNavItem: AdminNavItem;
   refreshing: boolean;
+  adminName: string;
+  adminEmail: string;
+  adminInitial: string;
 }>();
 
 const emit = defineEmits<{
   refresh: [];
+  logout: [];
 }>();
 
 const isSearchOpen = ref(false);
@@ -42,16 +47,16 @@ watch(
 </script>
 
 <template>
-  <!-- Admin Desktop Top Header -->
+  <!-- Admin Desktop Top Header (Aligned with DashboardTopHeader) -->
   <header
-    class="hidden md:flex items-center justify-between px-6 min-h-[44px] py-1.5 sm:py-0 border-b border-jetblack bg-jetblack text-white shrink-0 z-20"
+    class="hidden md:flex items-center justify-between px-6 py-3 border-b border-jetblack/10 bg-white/90 backdrop-blur-md shrink-0 z-20"
   >
     <!-- Left: Page Title -->
-    <div class="flex items-center gap-2 shrink-0">
-      <h2 class="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+    <div class="flex items-center gap-3 shrink-0">
+      <h2 class="text-sm font-bold text-jetblack tracking-tight flex items-center gap-2">
         <span>{{ currentNavItem.name }}</span>
         <span
-          class="px-2 py-0.5 rounded-full bg-white/10 text-white text-[10px] font-mono font-normal"
+          class="px-2 py-0.5 rounded-full bg-jetblack/5 text-jetblack/60 text-[10px] font-mono font-normal"
           >v2.3</span
         >
       </h2>
@@ -60,34 +65,25 @@ watch(
     <!-- Center: Page-Level Search & Filters (Teleport Target for Super Admin Panel) -->
     <div
       id="admin-header-search"
-      class="flex-1 max-w-xl mx-4 flex items-center justify-start gap-2.5"
+      class="flex-1 max-w-2xl mx-4 flex items-center justify-start gap-2.5"
     ></div>
 
     <!-- Right: Status, Refresh & External Links -->
     <div class="flex items-center gap-3 shrink-0">
       <!-- Mode Pill -->
       <div
-        class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-semibold bg-forest/30 border-forest/50 text-emerald-300"
+        class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold bg-forest/10 border-forest/20 text-forest"
       >
-        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-forest animate-pulse"></span>
         <span>Super Admin Rail</span>
       </div>
 
-      <!-- Refresh Button -->
-      <button
-        @click="emit('refresh')"
-        :disabled="refreshing"
-        class="h-8 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold transition flex items-center gap-1.5 text-xs disabled:opacity-50 cursor-pointer shadow-xs"
-      >
-        <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': refreshing }" />
-        <span>Segarkan</span>
-      </button>
-
-      <div class="flex items-center gap-1 border-l border-white/15 pl-2">
+      <!-- Quick Links -->
+      <div class="flex items-center gap-1 border-l border-r border-jetblack/10 px-2">
         <router-link
           to="/"
           target="_blank"
-          class="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition"
+          class="p-1.5 rounded-md hover:bg-jetblack/5 text-jetblack/60 hover:text-jetblack transition"
           title="Kunjungi Beranda Publik"
         >
           <Globe class="w-4 h-4" />
@@ -95,19 +91,54 @@ watch(
         <a
           href="/swagger"
           target="_blank"
-          class="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition"
+          class="p-1.5 rounded-md hover:bg-jetblack/5 text-jetblack/60 hover:text-jetblack transition"
           title="Buka Swagger API Docs"
         >
           <Code2 class="w-4 h-4" />
         </a>
       </div>
+
+      <!-- Refresh Button -->
+      <button
+        type="button"
+        @click="emit('refresh')"
+        :disabled="refreshing"
+        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-jetblack/15 bg-white hover:bg-jetblack/[0.03] text-xs font-bold text-jetblack/80 transition shadow-2xs disabled:opacity-50 cursor-pointer"
+      >
+        <RefreshCw class="w-3.5 h-3.5 text-gold" :class="{ 'animate-spin': refreshing }" />
+        <span>Segarkan</span>
+      </button>
+
+      <!-- Admin Profile & Logout -->
+      <div class="flex items-center gap-2 pl-2 border-l border-jetblack/10">
+        <div class="flex items-center gap-2">
+          <div
+            class="w-7 h-7 rounded-full bg-jetblack text-white flex items-center justify-center font-bold text-xs shadow-sm ring-2 ring-gold/40 shrink-0"
+          >
+            {{ adminInitial }}
+          </div>
+          <div class="hidden xl:block text-left pr-0.5 max-w-[170px]">
+            <div class="text-xs font-bold leading-none text-jetblack truncate">{{ adminName }}</div>
+            <div class="text-[10px] font-medium mt-0.5 text-jetblack/50 truncate">
+              {{ adminEmail }}
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          @click="emit('logout')"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-jetblack/15 bg-white hover:border-red-500/30 hover:bg-red-50 hover:text-red-600 text-xs font-bold text-jetblack/70 transition shadow-xs cursor-pointer"
+          title="Keluar dari sesi admin"
+          aria-label="Keluar dari sesi admin"
+        >
+          <LogOut class="w-3.5 h-3.5 text-red-500" /><span>Keluar</span>
+        </button>
+      </div>
     </div>
   </header>
 
-  <!-- Mobile Top Compact Bar -->
-  <header
-    class="md:hidden bg-jetblack text-white border-b border-jetblack sticky top-0 z-40 shadow-xs min-h-[44px]"
-  >
+  <!-- Mobile Top Compact Bar (Aligned with MobileNav) -->
+  <header class="md:hidden bg-white border-b border-jetblack/10 sticky top-0 z-40 shadow-xs">
     <div class="flex items-center justify-between px-3.5 py-1.5 min-h-[44px] gap-2">
       <!-- Search Input Container for Admin Mobile -->
       <div
@@ -119,21 +150,16 @@ watch(
         <button
           type="button"
           @click="isSearchOpen = false"
-          class="px-2.5 py-1 text-xs font-bold text-white/70 hover:text-white rounded-lg hover:bg-white/10 shrink-0 transition cursor-pointer"
+          class="px-2.5 py-1 text-xs font-bold text-jetblack/70 hover:text-jetblack rounded-lg hover:bg-jetblack/5 shrink-0 transition cursor-pointer"
         >
           Batal
         </button>
       </template>
 
       <template v-else>
-        <router-link to="/panel" class="flex items-center gap-2 shrink-0">
-          <div
-            class="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center font-bold text-white text-xs relative shadow-xs"
-          >
-            T
-            <span class="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-gold"></span>
-          </div>
-          <span class="font-extrabold text-xs tracking-tight text-white font-mono">
+        <router-link to="/panel" class="flex items-center gap-1.5 shrink-0">
+          <img :src="logoUrl" alt="tertaut.com" class="w-6 h-6 rounded-md shadow-xs shrink-0" />
+          <span class="font-extrabold text-xs tracking-tight text-jetblack font-mono">
             tertaut<span class="text-gold">.admin</span>
           </span>
         </router-link>
@@ -144,27 +170,38 @@ watch(
             v-if="hasSearch"
             type="button"
             @click="isSearchOpen = true"
-            class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
+            class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-jetblack/5 hover:bg-jetblack/10 text-jetblack/70 hover:text-jetblack text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
             title="Buka Pencarian"
           >
-            <Search class="w-3.5 h-3.5 text-gold" />
+            <Search class="w-3.5 h-3.5" />
           </button>
 
           <router-link
             to="/dashboard"
-            class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[10.5px] font-bold text-white flex items-center gap-1 transition"
+            class="px-2 py-1 min-h-[30px] rounded-lg border border-jetblack/15 bg-white hover:bg-jetblack/5 text-[10.5px] font-bold text-jetblack flex items-center gap-1 transition"
           >
             <LayoutDashboard class="w-3.5 h-3.5 text-gold" />
             <span>Builder</span>
           </router-link>
 
           <button
+            type="button"
             @click="emit('refresh')"
             :disabled="refreshing"
-            class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-white/10 text-white text-xs flex items-center justify-center cursor-pointer transition active:scale-95"
+            class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg bg-jetblack/5 hover:bg-jetblack/10 text-jetblack/70 text-xs flex items-center justify-center cursor-pointer transition active:scale-95"
             title="Segarkan data admin"
           >
             <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': refreshing }" />
+          </button>
+
+          <button
+            type="button"
+            @click="emit('logout')"
+            class="p-1.5 min-w-[32px] min-h-[32px] rounded-lg border border-jetblack/15 bg-white hover:bg-red-50 text-red-500 text-xs flex items-center justify-center cursor-pointer transition active:scale-95"
+            title="Keluar dari sesi admin"
+            aria-label="Keluar dari sesi admin"
+          >
+            <LogOut class="w-3.5 h-3.5" />
           </button>
         </div>
       </template>

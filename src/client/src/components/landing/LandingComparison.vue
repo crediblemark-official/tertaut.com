@@ -60,9 +60,9 @@ import { CheckCircle2, XCircle, X, Check } from "lucide-vue-next";
             <li class="flex items-start gap-2.5">
               <XCircle class="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
               <span
-                ><strong class="text-slate-900 font-semibold">Pusing Pajak &amp; PPN 11%:</strong>
-                Harus menerbitkan faktur pajak manual, melapor SPT masa, dan menyewa konsultan
-                pajak.</span
+                ><strong class="text-slate-900 font-semibold">Administrasi Merchant Rumit:</strong>
+                Harus mengurus registrasi legalitas merchant per kanal bank, rekap invoice manual,
+                dan integrasi webhook terpisah.</span
               >
             </li>
             <li class="flex items-start gap-2.5">
@@ -89,7 +89,8 @@ import { CheckCircle2, XCircle, X, Check } from "lucide-vue-next";
         <div
           class="pt-3 border-t border-red-100 text-[11px] text-red-600/80 font-medium flex items-center gap-1.5"
         >
-          <span>✕ Menghabiskan berminggu-minggu waktu coding &amp; birokrasi</span>
+          <X class="w-3.5 h-3.5 shrink-0" />
+          <span>Menghabiskan berminggu-minggu waktu coding &amp; birokrasi</span>
         </div>
       </div>
 
@@ -127,14 +128,16 @@ import { CheckCircle2, XCircle, X, Check } from "lucide-vue-next";
               <span
                 ><strong class="text-slate-950 font-semibold">Langsung Terima Pembayaran:</strong>
                 Cukup akun individu. Sistem Managed Payment mengurus pemrosesan transaksi dan
-                penerbitan faktur secara otomatis.</span
+                penerbitan E-Receipt secara otomatis.</span
               >
             </li>
             <li class="flex items-start gap-2.5">
               <CheckCircle2 class="w-4 h-4 text-forest shrink-0 mt-0.5" />
               <span
-                ><strong class="text-slate-950 font-semibold">Invoice &amp; Pajak Otomatis:</strong>
-                E-receipt resmi dengan kalkulasi DPP &amp; PPN 11% terbit otomatis detik pembayaran
+                ><strong class="text-slate-950 font-semibold"
+                  >E-Receipt &amp; Rekap Otomatis:</strong
+                >
+                E-receipt resmi &amp; rincian settlement terbit otomatis detik pembayaran
                 berhasil.</span
               >
             </li>
@@ -152,8 +155,8 @@ import { CheckCircle2, XCircle, X, Check } from "lucide-vue-next";
               <CheckCircle2 class="w-4 h-4 text-forest shrink-0 mt-0.5" />
               <span
                 ><strong class="text-slate-950 font-semibold">Hosted Checkout &amp; Kupon:</strong>
-                Halaman pembayaran instan, kupon diskon, dan faktur pajak PPN 11% otomatis tanpa
-                perlu bikin frontend billing sendiri.</span
+                Halaman pembayaran instan, kupon diskon, dan E-Receipt otomatis tanpa perlu bikin
+                frontend billing sendiri.</span
               >
             </li>
           </ul>
@@ -162,7 +165,8 @@ import { CheckCircle2, XCircle, X, Check } from "lucide-vue-next";
         <div
           class="pt-3 border-t border-forest/15 text-[11px] text-forest font-medium flex items-center gap-1.5"
         >
-          <span>✓ Mulai monetisasi software hari ini juga</span>
+          <Check class="w-3.5 h-3.5 shrink-0" />
+          <span>Mulai monetisasi software hari ini juga</span>
         </div>
       </div>
     </div>

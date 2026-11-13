@@ -71,7 +71,7 @@ const inactiveCount = computed(() => props.coupons.filter((c) => !c.isActive).le
 </script>
 
 <template>
-  <section class="space-y-4">
+  <section>
     <!-- Macro Summary Counter -->
     <StatsBar borderless>
       <StatItem
@@ -110,7 +110,6 @@ const inactiveCount = computed(() => props.coupons.filter((c) => !c.isActive).le
     <Teleport v-if="isMounted" to="#admin-header-search">
       <SearchInput
         v-model="searchQuery"
-        dark
         placeholder="Cari kode kupon, target software..."
         wrapper-class="w-full max-w-md"
         input-class="h-8 text-xs"
@@ -121,7 +120,6 @@ const inactiveCount = computed(() => props.coupons.filter((c) => !c.isActive).le
     <Teleport v-if="isMounted" to="#admin-mobile-header-search">
       <SearchInput
         v-model="searchQuery"
-        dark
         placeholder="Cari kode kupon, target software..."
         wrapper-class="w-full"
         input-class="h-8 text-xs"
@@ -130,7 +128,7 @@ const inactiveCount = computed(() => props.coupons.filter((c) => !c.isActive).le
 
     <!-- Unified Table Toolbar (Standard Tertaut Dark Bar) -->
     <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar shadow-xs mb-0 !mt-0"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar mb-0 !mt-0"
     >
       <div class="flex items-center gap-2 shrink-0">
         <Ticket class="w-3.5 h-3.5 text-gold" />
@@ -138,7 +136,7 @@ const inactiveCount = computed(() => props.coupons.filter((c) => !c.isActive).le
           Kupon Global Platform
         </span>
         <span
-          class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
+          class="text-[10px] px-1.5 py-0.5 rounded-xs bg-white/10 text-white/85 font-mono font-bold"
         >
           {{ filteredCoupons.length }} kupon
         </span>
@@ -148,16 +146,16 @@ const inactiveCount = computed(() => props.coupons.filter((c) => !c.isActive).le
         <button
           type="button"
           @click="showCreateModal = true"
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg btn-gold text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95 shrink-0"
+          class="inline-flex items-center gap-1.5 px-3 h-7 rounded-xs btn-gold text-[11px] font-bold transition cursor-pointer active:scale-95 shrink-0"
         >
           <Plus class="w-3.5 h-3.5 stroke-[3]" />
-          <span>Buat Kupon Global</span>
+          <span>Tambah</span>
         </button>
       </div>
     </div>
 
     <!-- Table View -->
-    <TableContainer>
+    <TableContainer class="!mt-0">
       <template #head>
         <tr>
           <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Kode Kupon</th>
@@ -192,7 +190,7 @@ const inactiveCount = computed(() => props.coupons.filter((c) => !c.isActive).le
           <div class="flex items-center gap-1.5">
             <Ticket class="w-3.5 h-3.5 text-gold shrink-0" />
             <span
-              class="font-mono font-bold text-jetblack bg-gold/15 text-[#8a6d1f] px-2 py-0.5 rounded border border-gold/30"
+              class="font-mono font-bold text-[#8a6d1f] bg-gold/10 px-2 py-0.5 rounded-xs border border-gold/30"
             >
               {{ c.code }}
             </span>
@@ -201,17 +199,17 @@ const inactiveCount = computed(() => props.coupons.filter((c) => !c.isActive).le
         <td class="py-2.5 px-3">
           <span
             v-if="c.isGlobal"
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200"
+            class="inline-flex items-center gap-1.5 text-[11px] font-bold text-forest"
           >
-            <Globe class="w-3 h-3" />
-            Global (Semua Software)
+            <Globe class="w-3.5 h-3.5 text-forest shrink-0" />
+            <span>Global (Semua Software)</span>
           </span>
           <span
             v-else
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-jetblack/5 text-jetblack/80"
+            class="inline-flex items-center gap-1.5 text-[11px] font-medium text-jetblack/80"
           >
-            <AppWindow class="w-3 h-3 text-jetblack/50" />
-            {{ c.appName }}
+            <AppWindow class="w-3.5 h-3.5 text-jetblack/45 shrink-0" />
+            <span>{{ c.appName }}</span>
           </span>
         </td>
         <td class="py-2.5 px-3 font-bold text-forest text-xs">
@@ -219,10 +217,10 @@ const inactiveCount = computed(() => props.coupons.filter((c) => !c.isActive).le
           <span class="text-[10px] font-semibold uppercase tracking-wider ml-1">OFF</span>
         </td>
         <td class="py-2.5 px-3">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5 text-xs">
             <span class="font-mono font-bold text-jetblack">{{ c.redemptionCount }}</span>
-            <span class="text-jetblack/40 font-mono">
-              / {{ c.maxRedemptions === 0 ? "∞" : c.maxRedemptions }}
+            <span class="text-jetblack/45 font-mono">
+              / {{ c.maxRedemptions === 0 ? "Tanpa Batas" : c.maxRedemptions }}
             </span>
           </div>
         </td>
@@ -284,7 +282,7 @@ const inactiveCount = computed(() => props.coupons.filter((c) => !c.isActive).le
               v-model="newCode"
               type="text"
               placeholder="Misal: PROMO2026, HEMAT25"
-              class="w-full h-9 px-3 uppercase rounded-lg border border-slate-300 font-mono font-bold focus:border-gold focus:outline-none"
+              class="w-full h-9 px-3 uppercase rounded-md border border-jetblack/20 font-mono font-bold focus:border-gold focus:outline-none"
             />
             <p class="text-[10.5px] text-jetblack/50 mt-1">
               Berlaku untuk seluruh software yang ada di tertaut.com
@@ -299,7 +297,7 @@ const inactiveCount = computed(() => props.coupons.filter((c) => !c.isActive).le
                 type="number"
                 min="1"
                 max="100"
-                class="w-full h-9 px-3 rounded-lg border border-slate-300 font-bold focus:border-gold focus:outline-none"
+                class="w-full h-9 px-3 rounded-md border border-jetblack/20 font-bold focus:border-gold focus:outline-none"
               />
             </div>
             <div>
@@ -309,7 +307,7 @@ const inactiveCount = computed(() => props.coupons.filter((c) => !c.isActive).le
                 type="number"
                 min="0"
                 placeholder="0 = Tanpa batas"
-                class="w-full h-9 px-3 rounded-lg border border-slate-300 focus:border-gold focus:outline-none"
+                class="w-full h-9 px-3 rounded-md border border-jetblack/20 focus:border-gold focus:outline-none"
               />
             </div>
           </div>
@@ -319,7 +317,7 @@ const inactiveCount = computed(() => props.coupons.filter((c) => !c.isActive).le
             <input
               v-model="newExpiresAt"
               type="date"
-              class="w-full h-9 px-3 rounded-lg border border-slate-300 focus:border-gold focus:outline-none"
+              class="w-full h-9 px-3 rounded-md border border-jetblack/20 focus:border-gold focus:outline-none"
             />
           </div>
         </div>
@@ -328,16 +326,18 @@ const inactiveCount = computed(() => props.coupons.filter((c) => !c.isActive).le
       <template #footer>
         <div class="flex justify-end gap-2">
           <button
+            type="button"
             @click="showCreateModal = false"
-            class="px-3.5 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-jetblack/70 hover:bg-slate-50 cursor-pointer"
+            class="px-3.5 py-1.5 rounded-lg border border-jetblack/20 text-xs font-semibold text-jetblack/70 hover:bg-jetblack/5 cursor-pointer"
           >
             Batal
           </button>
           <button
+            type="button"
             @click="handleCreate"
-            class="px-4 py-1.5 rounded-lg btn-gold text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            class="px-4 py-1.5 rounded-lg btn-gold text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer"
           >
-            <span>Simpan &amp; Aktifkan</span>
+            <span>Simpan</span>
           </button>
         </div>
       </template>

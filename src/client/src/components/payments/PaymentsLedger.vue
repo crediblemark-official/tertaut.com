@@ -300,11 +300,11 @@ defineExpose({
         <!-- Shortcut to Balances (saldo dikelola secara agregat di /balances) -->
         <router-link
           :to="envPath(env, '/balances')"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition flex items-center gap-1.5 shrink-0"
-          title="Saldo pencairan dikelola secara agregat di halaman Balances"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition shrink-0"
+          title="Saldo pencairan dikelola secara agregat di halaman Saldo & Payout"
         >
           <Wallet class="w-3.5 h-3.5 text-gold" />
-          <span>Kelola Saldo</span>
+          <span>Saldo</span>
           <ArrowUpRight class="w-3 h-3 text-white/50" />
         </router-link>
 
@@ -313,10 +313,11 @@ defineExpose({
           v-if="showCreateButton"
           type="button"
           @click="emit('create-checkout')"
-          class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gold hover:bg-gold-hover text-jetblack text-xs font-bold transition shadow-2xs cursor-pointer shrink-0"
+          title="Buat Checkout Baru"
+          class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gold hover:bg-gold-hover text-jetblack text-xs font-bold hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 shadow-2xs cursor-pointer shrink-0"
         >
           <Plus class="w-3.5 h-3.5" />
-          <span>Buat Checkout</span>
+          <span>Checkout</span>
         </button>
 
         <!-- Filter Per Project Dropdown -->

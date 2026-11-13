@@ -68,6 +68,12 @@ const liveDashboardRoutes: RouteRecordRaw[] = [
     path: "/dashboard/docs",
     redirect: "/dashboard/developer",
   },
+  {
+    path: "/dashboard/profile",
+    name: "profile",
+    component: () => import("../views/ProfileView.vue"),
+    meta: { requiresAuth: true },
+  },
 ];
 
 // Duplikasi seluruh halaman dashboard untuk environment sandbox

@@ -113,10 +113,11 @@ function isExpiringSoon(c: CouponItem): boolean {
               <button
                 type="button"
                 @click="emit('open-create')"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gold text-xs font-bold transition cursor-pointer shadow-2xs mt-2"
+                title="Buat Kupon Baru"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gold text-xs font-bold cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 mt-2"
               >
                 <Plus class="w-3.5 h-3.5" />
-                <span>Buat Kupon Sekarang</span>
+                <span>Tambah</span>
               </button>
             </template>
           </EmptyState>

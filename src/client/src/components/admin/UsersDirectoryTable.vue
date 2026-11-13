@@ -50,7 +50,7 @@ const bannedCount = computed(() => props.users.filter((u) => u.banned).length);
 </script>
 
 <template>
-  <section class="space-y-4">
+  <section>
     <!-- Macro Summary Counter -->
     <StatsBar borderless>
       <StatItem
@@ -89,7 +89,6 @@ const bannedCount = computed(() => props.users.filter((u) => u.banned).length);
     <Teleport v-if="isMounted" to="#admin-header-search">
       <SearchInput
         v-model="searchQuery"
-        dark
         placeholder="Cari nama pengguna atau email..."
         wrapper-class="w-full max-w-md"
         input-class="h-8 text-xs"
@@ -100,7 +99,6 @@ const bannedCount = computed(() => props.users.filter((u) => u.banned).length);
     <Teleport v-if="isMounted" to="#admin-mobile-header-search">
       <SearchInput
         v-model="searchQuery"
-        dark
         placeholder="Cari nama pengguna atau email..."
         wrapper-class="w-full"
         input-class="h-8 text-xs"
@@ -109,7 +107,7 @@ const bannedCount = computed(() => props.users.filter((u) => u.banned).length);
 
     <!-- Unified Table Toolbar (Standard Tertaut Dark Bar) -->
     <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar shadow-xs mb-0 !mt-0"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar mb-0 !mt-0"
     >
       <div class="flex items-center gap-2 shrink-0">
         <User class="w-3.5 h-3.5 text-gold" />
@@ -117,7 +115,7 @@ const bannedCount = computed(() => props.users.filter((u) => u.banned).length);
           Direktori Pengguna
         </span>
         <span
-          class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
+          class="text-[10px] px-1.5 py-0.5 rounded-xs bg-white/10 text-white/85 font-mono font-bold"
         >
           {{ filteredUsers.length }} pengguna
         </span>
@@ -126,12 +124,12 @@ const bannedCount = computed(() => props.users.filter((u) => u.banned).length);
       <div class="flex items-center gap-2 shrink-0">
         <!-- Role Filter Pills -->
         <div
-          class="flex items-center h-7 rounded-md bg-white/10 p-0.5 text-[10px] font-medium shrink-0"
+          class="flex items-center h-7 rounded-xs bg-white/10 p-0.5 text-[10px] font-medium shrink-0"
         >
           <button
             type="button"
             @click="roleFilter = ''"
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               roleFilter === ''
                 ? 'bg-white font-bold text-jetblack'
@@ -143,7 +141,7 @@ const bannedCount = computed(() => props.users.filter((u) => u.banned).length);
           <button
             type="button"
             @click="roleFilter = 'admin'"
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               roleFilter === 'admin'
                 ? 'bg-gold font-bold text-jetblack'
@@ -155,7 +153,7 @@ const bannedCount = computed(() => props.users.filter((u) => u.banned).length);
           <button
             type="button"
             @click="roleFilter = 'builder'"
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               roleFilter === 'builder'
                 ? 'bg-forest font-bold text-white'
@@ -169,7 +167,7 @@ const bannedCount = computed(() => props.users.filter((u) => u.banned).length);
     </div>
 
     <!-- Table View -->
-    <TableContainer>
+    <TableContainer class="!mt-0">
       <template #head>
         <tr>
           <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Pengguna</th>
@@ -206,16 +204,16 @@ const bannedCount = computed(() => props.users.filter((u) => u.banned).length);
         <td class="py-2.5 px-3">
           <span
             v-if="u.role === 'admin'"
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-[#8a6d1f] border border-gold/30"
+            class="inline-flex items-center gap-1 text-[10.5px] font-mono font-bold uppercase text-[#8a6d1f]"
           >
-            <Shield class="w-3 h-3 text-gold" />
-            SUPER ADMIN
+            <Shield class="w-3 h-3 text-gold shrink-0" />
+            <span>Super Admin</span>
           </span>
           <span
             v-else
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-forest/10 text-forest border border-forest/20"
+            class="inline-flex items-center gap-1 text-[10.5px] font-mono font-bold uppercase text-forest"
           >
-            BUILDER
+            <span>Builder</span>
           </span>
         </td>
         <td class="py-2.5 px-3">
@@ -236,7 +234,7 @@ const bannedCount = computed(() => props.users.filter((u) => u.banned).length);
             :value="u.role === 'admin' ? 'admin' : 'builder'"
             @change="emit('updateRole', u.id, ($event.target as HTMLSelectElement).value)"
             :disabled="u.email === currentAdminEmail"
-            class="h-7 px-2 text-[11px] rounded border border-slate-300 bg-white font-medium text-jetblack focus:border-gold focus:outline-none disabled:opacity-50"
+            class="h-7 px-2 text-[11px] rounded-xs border border-jetblack/20 bg-white font-medium text-jetblack focus:border-gold focus:outline-none disabled:opacity-50"
           >
             <option value="admin">Super Admin</option>
             <option value="builder">Builder</option>

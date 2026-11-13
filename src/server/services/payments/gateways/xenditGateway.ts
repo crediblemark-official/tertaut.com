@@ -173,7 +173,9 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
    * Mengambil daftar channel pembayaran resmi yang aktif sesuai dashboard Xendit Live:
    * - QRIS: Activated (Mendukung semua m-Banking termasuk BCA Mobile/myBCA & E-Wallet)
    * - Virtual Account: Mandiri, BNI, BRI, Permata, BSI, CIMB, dan Bank Sahabat Sampoerna (BSS)
-   * - Retail Outlet: Indomaret
+   * - E-Wallet: OVO dan AstraPay (ShopeePay masih In Progress, DANA Unavailable)
+   * - Retail Outlet: Alfamart dan Indomaret
+   * - Kartu (Visa, Mastercard, JCB, Amex): Masih In Progress (`cardEnabled: false`)
    */
   async getPaymentChannels(_forceRefresh = false): Promise<GatewayChannelsResponse> {
     return {
@@ -222,16 +224,34 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
           name: "Bank Sahabat Sampoerna",
         },
         {
+          channelCode: "OVO",
+          channelCategory: "EWALLET",
+          isEnabled: true,
+          name: "OVO",
+        },
+        {
+          channelCode: "ASTRAPAY",
+          channelCategory: "EWALLET",
+          isEnabled: true,
+          name: "AstraPay",
+        },
+        {
+          channelCode: "ALFAMART",
+          channelCategory: "RETAIL_OUTLET",
+          isEnabled: true,
+          name: "Alfamart",
+        },
+        {
           channelCode: "INDOMARET",
           channelCategory: "RETAIL_OUTLET",
           isEnabled: true,
           name: "Indomaret",
         },
       ],
-      activeRails: ["qris", "va", "retail"],
+      activeRails: ["qris", "va", "ewallet", "retail"],
       activeBanks: ["MANDIRI", "BNI", "BRI", "PERMATA", "BSI", "CIMB", "BSS"],
-      activeEwallets: [],
-      activeRetails: ["INDOMARET"],
+      activeEwallets: ["OVO", "ASTRAPAY"],
+      activeRetails: ["ALFAMART", "INDOMARET"],
       qrisEnabled: true,
       cardEnabled: false,
     };

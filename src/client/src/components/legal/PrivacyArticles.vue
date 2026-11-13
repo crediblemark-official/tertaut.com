@@ -11,6 +11,10 @@ import {
   Mail,
   Building2,
   Phone,
+  User,
+  ShoppingCart,
+  KeyRound,
+  Rocket,
 } from "lucide-vue-next";
 import { COMPANY_INFO } from "../../constants/company";
 </script>
@@ -22,7 +26,7 @@ import { COMPANY_INFO } from "../../constants/company";
     <!-- Summary Banner -->
     <div class="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
       <h2 class="text-sm font-bold text-slate-950 flex items-center gap-2">
-        <span>📋</span>
+        <FileText class="w-4 h-4 text-forest shrink-0" />
         <span>Prinsip Utama Pelindungan Data Pengguna di Tertaut</span>
       </h2>
       <p class="text-xs sm:text-[13px] text-slate-600 leading-relaxed">
@@ -118,7 +122,7 @@ import { COMPANY_INFO } from "../../constants/company";
         <div class="grid sm:grid-cols-2 gap-3.5">
           <div class="p-4 rounded-xl border border-slate-200/90 bg-white space-y-2">
             <div class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-              <span>👤</span>
+              <User class="w-3.5 h-3.5 text-forest shrink-0" />
               <span>1. Data Akun &amp; Identitas Pengembang</span>
             </div>
             <p class="text-slate-600 text-xs leading-relaxed">
@@ -129,18 +133,18 @@ import { COMPANY_INFO } from "../../constants/company";
           </div>
           <div class="p-4 rounded-xl border border-slate-200/90 bg-white space-y-2">
             <div class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-              <span>🛒</span>
+              <ShoppingCart class="w-3.5 h-3.5 text-forest shrink-0" />
               <span>2. Data Transaksi Pembeli Software</span>
             </div>
             <p class="text-slate-600 text-xs leading-relaxed">
-              Nama pembeli, alamat email penerima kunci lisensi dan faktur pajak PPN 11%, nomor
-              kontak notifikasi transaksi, rincian produk software yang dibeli, serta nomor invoice
-              pesanan.
+              Nama pembeli, alamat email penerima kunci lisensi dan bukti pembayaran elektronik
+              (E-Receipt), nomor kontak notifikasi transaksi, rincian produk software yang dibeli,
+              serta nomor invoice pesanan.
             </p>
           </div>
           <div class="p-4 rounded-xl border border-slate-200/90 bg-white space-y-2">
             <div class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-              <span>🔑</span>
+              <KeyRound class="w-3.5 h-3.5 text-forest shrink-0" />
               <span>3. Data Validasi Lisensi &amp; Hardware ID</span>
             </div>
             <p class="text-slate-600 text-xs leading-relaxed">
@@ -152,7 +156,7 @@ import { COMPANY_INFO } from "../../constants/company";
           </div>
           <div class="p-4 rounded-xl border border-slate-200/90 bg-white space-y-2">
             <div class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-              <span>🚀</span>
+              <Rocket class="w-3.5 h-3.5 text-forest shrink-0" />
               <span>4. Data Launch Kit &amp; Webhook Transaksi</span>
             </div>
             <p class="text-slate-600 text-xs leading-relaxed">
@@ -192,8 +196,8 @@ import { COMPANY_INFO } from "../../constants/company";
           <li>
             <strong>Pemenuhan Kewajiban Perjanjian Layanan:</strong> Untuk memverifikasi akun
             pengembang, menerbitkan token lisensi Ed25519 yang dapat diverifikasi secara offline,
-            mengonfirmasi status pembayaran dari payment gateway, menerbitkan faktur pajak resmi,
-            dan memproses settlement dana.
+            mengonfirmasi status pembayaran dari payment gateway, menerbitkan bukti transaksi
+            elektronik (E-Receipt) resmi, dan memproses settlement dana.
           </li>
           <li>
             <strong>Komunikasi &amp; Layanan Pelanggan:</strong> Mengirimkan invoice transaksi,
@@ -287,12 +291,15 @@ import { COMPANY_INFO } from "../../constants/company";
           </li>
         </ul>
         <div
-          class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-950 font-medium"
+          class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-950 font-medium flex items-start gap-2"
         >
-          ✅ <strong>Garansi Bebas Penjualan Data:</strong> Kami
-          <strong>tidak pernah menjual, menyewakan, meminjamkan, atau memperdagangkan</strong>
-          data pribadi pengguna kepada pihak ketiga mana pun, pialang data (*data brokers*), atau
-          biro periklanan untuk keperluan pemasaran tanpa hubungan langsung dengan transaksi Anda.
+          <CheckCircle2 class="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+          <div>
+            <strong>Garansi Bebas Penjualan Data:</strong> Kami
+            <strong>tidak pernah menjual, menyewakan, meminjamkan, atau memperdagangkan</strong>
+            data pribadi pengguna kepada pihak ketiga mana pun, pialang data (*data brokers*), atau
+            biro periklanan untuk keperluan pemasaran tanpa hubungan langsung dengan transaksi Anda.
+          </div>
         </div>
       </div>
     </article>
@@ -353,7 +360,7 @@ import { COMPANY_INFO } from "../../constants/company";
       <div class="p-5 rounded-2xl bg-blue-50/70 border border-blue-200/90 space-y-4">
         <div class="space-y-2">
           <h3 class="text-sm font-bold text-blue-950 flex items-center gap-2">
-            <span>🔐</span>
+            <Lock class="w-4 h-4 text-blue-700 shrink-0" />
             <span>Integrasi Google Sign-In (OAuth 2.0)</span>
           </h3>
           <p class="text-xs text-blue-900 leading-relaxed">
@@ -512,7 +519,7 @@ import { COMPANY_INFO } from "../../constants/company";
         </p>
         <p>
           <strong>Ketentuan Retensi Khusus Pembukuan Keuangan:</strong> Catatan transaksi keuangan,
-          riwayat settlement, dan faktur pajak wajib disimpan selama
+          riwayat settlement, dan bukti transaksi elektronik wajib disimpan selama
           <strong>minimal 5 (lima) hingga 10 (sepuluh) tahun</strong>
           sesuai amanat Undang-Undang Ketentuan Umum dan Tata Cara Perpajakan (UU KUP) serta
           peraturan Bank Indonesia mengenai audit finansial.

@@ -46,7 +46,7 @@ import { CreditCard, KeyRound, Webhook, Tag, ChevronRight } from "lucide-vue-nex
               </h4>
               <p class="text-xs text-slate-600 leading-relaxed">
                 Terima QRIS semua e-wallet &amp; Virtual Account bank. Dilengkapi e-receipt resmi,
-                faktur PPN, dukungan kupon diskon, dan proteksi anti-fraud.
+                dukungan kupon diskon, dan proteksi anti-fraud.
               </p>
             </div>
           </div>

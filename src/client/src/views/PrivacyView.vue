@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
-import { BookOpen, ChevronRight, X } from "lucide-vue-next";
+import { BookOpen, ChevronRight, X, Lock, ShieldCheck } from "lucide-vue-next";
 import PublicHeader from "../components/common/PublicHeader.vue";
 import PublicFooter from "../components/common/PublicFooter.vue";
 import PrivacyArticles from "../components/legal/PrivacyArticles.vue";
@@ -83,7 +83,7 @@ onUnmounted(() => {
         <div
           class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs"
         >
-          <span>🔒</span>
+          <Lock class="w-3.5 h-3.5 text-forest shrink-0" />
           <span>Dokumen Resmi Hukum &amp; Pelindungan Data Pribadi</span>
         </div>
 
@@ -168,7 +168,7 @@ onUnmounted(() => {
             class="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/15 space-y-2 text-xs"
           >
             <div class="font-bold text-slate-900 flex items-center gap-1.5">
-              <span>🛡️</span>
+              <ShieldCheck class="w-4 h-4 text-emerald-700 shrink-0" />
               <span>Hak Data Pribadi &amp; DPO</span>
             </div>
             <p class="text-slate-600 text-[11px] leading-relaxed">

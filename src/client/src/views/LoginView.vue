@@ -18,6 +18,7 @@ import {
   Bot,
   KeyRound,
   AlertCircle,
+  Check,
 } from "lucide-vue-next";
 
 const router = useRouter();
@@ -435,10 +436,11 @@ async function submit() {
                   ></div>
                 </div>
                 <span
-                  class="text-[10px] font-mono"
+                  class="text-[10px] font-mono inline-flex items-center gap-1"
                   :class="password.length >= 8 ? 'text-emerald-400' : 'text-gold'"
                 >
-                  {{ password.length >= 8 ? "✓ Memenuhi syarat" : "Min. 8 karakter" }}
+                  <Check v-if="password.length >= 8" class="w-3 h-3 shrink-0" />
+                  <span>{{ password.length >= 8 ? "Memenuhi syarat" : "Min. 8 karakter" }}</span>
                 </span>
               </div>
 
@@ -516,7 +518,14 @@ async function submit() {
             </div>
 
             <div class="text-center text-[9.5px] text-white/30 pt-2">
-              Dengan melanjutkan, Anda menyetujui Ketentuan Layanan &amp; Kebijakan Privasi
+              Dengan melanjutkan, Anda menyetujui
+              <router-link to="/terms" class="underline hover:text-white/60 transition-colors">
+                Ketentuan Layanan
+              </router-link>
+              &amp;
+              <router-link to="/privacy" class="underline hover:text-white/60 transition-colors">
+                Kebijakan Privasi
+              </router-link>
               tertaut.com.
             </div>
           </div>

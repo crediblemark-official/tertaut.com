@@ -61,7 +61,7 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
 </script>
 
 <template>
-  <section class="space-y-4">
+  <section>
     <!-- Macro Summary Counter -->
     <StatsBar borderless>
       <StatItem
@@ -100,7 +100,6 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
     <Teleport v-if="isMounted" to="#admin-header-search">
       <SearchInput
         v-model="searchQuery"
-        dark
         placeholder="Cari software, slug, nama builder..."
         wrapper-class="w-full max-w-md"
         input-class="h-8 text-xs"
@@ -111,7 +110,6 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
     <Teleport v-if="isMounted" to="#admin-mobile-header-search">
       <SearchInput
         v-model="searchQuery"
-        dark
         placeholder="Cari software, slug, nama builder..."
         wrapper-class="w-full"
         input-class="h-8 text-xs"
@@ -120,7 +118,7 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
 
     <!-- Unified Table Toolbar (Standard Tertaut Dark Bar) -->
     <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar shadow-xs mb-0 !mt-0"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar mb-0 !mt-0"
     >
       <div class="flex items-center gap-2 shrink-0">
         <AppWindow class="w-3.5 h-3.5 text-gold" />
@@ -128,7 +126,7 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
           Direktori Software
         </span>
         <span
-          class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
+          class="text-[10px] px-1.5 py-0.5 rounded-xs bg-white/10 text-white/85 font-mono font-bold"
         >
           {{ filteredApps.length }} software
         </span>
@@ -137,12 +135,12 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
       <div class="flex items-center gap-2 shrink-0">
         <!-- Mode Filter Pills -->
         <div
-          class="flex items-center h-7 rounded-md bg-white/10 p-0.5 text-[10px] font-medium shrink-0"
+          class="flex items-center h-7 rounded-xs bg-white/10 p-0.5 text-[10px] font-medium shrink-0"
         >
           <button
             type="button"
             @click="modeFilter = ''"
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               modeFilter === ''
                 ? 'bg-white font-bold text-jetblack'
@@ -154,7 +152,7 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
           <button
             type="button"
             @click="modeFilter = 'live'"
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               modeFilter === 'live'
                 ? 'bg-forest font-bold text-white'
@@ -166,7 +164,7 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
           <button
             type="button"
             @click="modeFilter = 'sandbox'"
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               modeFilter === 'sandbox'
                 ? 'bg-gold font-bold text-jetblack'
@@ -179,12 +177,12 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
 
         <!-- Status Filter Pills -->
         <div
-          class="flex items-center h-7 rounded-md bg-white/10 p-0.5 text-[10px] font-medium shrink-0"
+          class="flex items-center h-7 rounded-xs bg-white/10 p-0.5 text-[10px] font-medium shrink-0"
         >
           <button
             type="button"
             @click="statusFilter = ''"
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               statusFilter === ''
                 ? 'bg-white font-bold text-jetblack'
@@ -196,7 +194,7 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
           <button
             type="button"
             @click="statusFilter = 'active'"
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               statusFilter === 'active'
                 ? 'bg-white font-bold text-forest'
@@ -208,7 +206,7 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
           <button
             type="button"
             @click="statusFilter = 'suspended'"
-            class="px-2 h-full rounded transition cursor-pointer flex items-center"
+            class="px-2 h-full rounded-xs transition cursor-pointer flex items-center"
             :class="
               statusFilter === 'suspended'
                 ? 'bg-white font-bold text-crimson'
@@ -223,17 +221,17 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
         <button
           @click="handleExportCsv"
           type="button"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition cursor-pointer shrink-0"
+          class="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-xs bg-white/10 hover:bg-white/20 text-[11px] font-bold text-white transition cursor-pointer shrink-0"
           title="Unduh seluruh direktori software ke format CSV"
         >
           <Download class="w-3.5 h-3.5" />
-          <span>Ekspor CSV</span>
+          <span>Ekspor</span>
         </button>
       </div>
     </div>
 
     <!-- Table View -->
-    <TableContainer>
+    <TableContainer class="!mt-0">
       <template #head>
         <tr>
           <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Software</th>
@@ -283,10 +281,8 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
         <td class="py-2.5 px-3">
           <span
             :class="[
-              'px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider',
-              app.mode === 'live'
-                ? 'bg-forest/10 text-forest border border-forest/20'
-                : 'bg-gold/15 text-[#8a6d1f] border border-gold/30',
+              'text-[10.5px] font-mono font-bold uppercase tracking-wider',
+              app.mode === 'live' ? 'text-forest' : 'text-[#8a6d1f]',
             ]"
           >
             {{ app.mode }}
@@ -308,10 +304,8 @@ const suspendedCount = computed(() => props.apps.filter((a) => a.isSuspended).le
           Rp {{ app.totalGMV.toLocaleString("id-ID") }}
         </td>
         <td class="py-2.5 px-3">
-          <span
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-jetblack/5 text-[10px] font-medium text-jetblack/70"
-          >
-            <Tag class="w-2.5 h-2.5 text-jetblack/40" />
+          <span class="inline-flex items-center gap-1 text-[11px] font-medium text-jetblack/70">
+            <Tag class="w-3 h-3 text-jetblack/40" />
             {{ app.deliveryType.replace("_", " ") }}
           </span>
         </td>

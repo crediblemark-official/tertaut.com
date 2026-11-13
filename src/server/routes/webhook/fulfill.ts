@@ -91,8 +91,8 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         })
         .where(eq(transactions.id, tx.id));
 
-      const isSaasWeb = app?.appType === "saas_web";
-      const shouldIssueLicense = !(isSaasWeb && app?.deliveryConfig?.licenseKey?.enabled === false);
+      const licenseDisabled = app?.deliveryConfig?.licenseKey?.enabled === false;
+      const shouldIssueLicense = !licenseDisabled;
 
       const productGrantDays = app?.deliveryConfig?.licenseKey?.expiresInDays;
       const grantDays =

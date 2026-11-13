@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { Building2, Download, Layers, ExternalLink, ChevronDown } from "lucide-vue-next";
+import { Building2, Download, Layers, ExternalLink, ChevronDown, X } from "lucide-vue-next";
 import type { PanelBuilderItem } from "../../types/panel";
 import TableContainer from "../common/TableContainer.vue";
 import TableSkeleton from "../common/TableSkeleton.vue";
@@ -51,7 +51,7 @@ const filteredBuilders = computed(() => {
 </script>
 
 <template>
-  <section class="space-y-4">
+  <section>
     <!-- Macro Summary Counter -->
     <StatsBar borderless>
       <StatItem
@@ -94,7 +94,6 @@ const filteredBuilders = computed(() => {
     <Teleport v-if="isMounted" to="#admin-header-search">
       <SearchInput
         v-model="searchQuery"
-        dark
         placeholder="Cari nama builder, email, atau rekening..."
         wrapper-class="w-full max-w-md"
         input-class="h-8 text-xs"
@@ -105,7 +104,6 @@ const filteredBuilders = computed(() => {
     <Teleport v-if="isMounted" to="#admin-mobile-header-search">
       <SearchInput
         v-model="searchQuery"
-        dark
         placeholder="Cari nama builder, email, atau rekening..."
         wrapper-class="w-full"
         input-class="h-8 text-xs"
@@ -114,7 +112,7 @@ const filteredBuilders = computed(() => {
 
     <!-- Unified Table Toolbar (Standard Tertaut Dark Bar) -->
     <div
-      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar shadow-xs mb-0 !mt-0"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar mb-0 !mt-0"
     >
       <div class="flex items-center gap-2 shrink-0">
         <Building2 class="w-3.5 h-3.5 text-gold" />
@@ -122,7 +120,7 @@ const filteredBuilders = computed(() => {
           Direktori Builder
         </span>
         <span
-          class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-mono font-bold"
+          class="text-[10px] px-1.5 py-0.5 rounded-xs bg-white/10 text-white/85 font-mono font-bold"
         >
           {{ filteredBuilders.length }} builder
         </span>
@@ -132,17 +130,17 @@ const filteredBuilders = computed(() => {
         <button
           @click="handleExportCsv"
           type="button"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition cursor-pointer shrink-0"
+          class="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-xs bg-white/10 hover:bg-white/20 text-[11px] font-bold text-white transition cursor-pointer shrink-0"
           title="Unduh seluruh data direktori builder ke format CSV"
         >
           <Download class="w-3.5 h-3.5" />
-          <span>Ekspor CSV</span>
+          <span>Ekspor</span>
         </button>
       </div>
     </div>
 
     <!-- Table View -->
-    <TableContainer>
+    <TableContainer class="!mt-0">
       <template #head>
         <tr>
           <th class="py-2.5 pr-3 pl-3.5 sm:pl-4 md:pl-6">Builder</th>
@@ -239,55 +237,57 @@ const filteredBuilders = computed(() => {
           </td>
         </tr>
 
-        <!-- Expanded Software Row -->
-        <tr v-if="expandedBuilders[b.id]" class="bg-slate-50/70">
-          <td colspan="9" class="p-3.5 sm:p-4 whitespace-normal border-b border-jetblack/15">
-            <div class="space-y-2.5">
+        <!-- Expanded Software Row (Flush Hairline Sub-table) -->
+        <tr v-if="expandedBuilders[b.id]" class="bg-jetblack/[0.02]">
+          <td colspan="9" class="p-0 whitespace-normal border-b border-jetblack/15">
+            <div>
               <!-- Sub-header -->
-              <div class="flex items-center justify-between gap-3">
+              <div
+                class="flex items-center justify-between gap-3 px-3.5 sm:px-4 md:px-6 py-2.5 border-b border-jetblack/10 bg-jetblack/[0.02]"
+              >
                 <div class="flex items-center gap-2">
-                  <div class="w-2 h-2 rounded-full bg-gold"></div>
-                  <h4 class="text-xs font-bold uppercase tracking-wider text-jetblack">
-                    Daftar Software: {{ b.name || "Builder" }}
+                  <span class="w-1.5 h-3 bg-gold shrink-0"></span>
+                  <h4 class="text-[11px] font-bold uppercase tracking-wider text-jetblack">
+                    Software: {{ b.name || "Builder" }}
                   </h4>
-                  <span
-                    class="text-[10px] px-2 py-0.5 rounded-full bg-white border border-slate-200 font-mono font-bold text-jetblack"
-                  >
-                    {{ b.apps?.length || 0 }} Software
+                  <span class="text-[10px] font-mono font-bold text-jetblack/60">
+                    ({{ b.apps?.length || 0 }})
                   </span>
                   <span class="text-[11px] text-jetblack/50 font-mono hidden sm:inline">
-                    • {{ b.email }}
+                    &bull; {{ b.email }}
                   </span>
                 </div>
                 <button
                   type="button"
                   @click="toggleExpand(b.id)"
-                  class="text-[11px] font-semibold text-jetblack/60 hover:text-jetblack transition cursor-pointer px-2 py-0.5 rounded hover:bg-jetblack/5"
+                  class="inline-flex items-center gap-1 text-[11px] font-semibold text-jetblack/60 hover:text-jetblack transition cursor-pointer px-2 py-0.5 rounded hover:bg-jetblack/5"
                 >
-                  Tutup ✕
+                  <span>Tutup</span>
+                  <X class="w-3 h-3" />
                 </button>
               </div>
 
-              <!-- Nested List / Table of Apps -->
-              <div
-                v-if="b.apps && b.apps.length > 0"
-                class="rounded-lg border border-slate-200 bg-white shadow-2xs overflow-hidden"
-              >
+              <!-- Flush Sub-Table of Apps -->
+              <div v-if="b.apps && b.apps.length > 0" class="overflow-x-auto bg-white">
                 <table class="w-full text-left text-xs whitespace-nowrap">
                   <thead
-                    class="bg-slate-100/80 border-b border-slate-200 text-[10.5px] text-jetblack/70 uppercase tracking-wider font-bold"
+                    class="border-b border-jetblack/10 text-[10px] text-jetblack/60 uppercase tracking-wider font-bold bg-jetblack/[0.015]"
                   >
                     <tr>
-                      <th class="py-2 px-3.5">Software</th>
+                      <th class="py-2 pr-3 pl-3.5 sm:pl-4 md:pl-6">Software</th>
                       <th class="py-2 px-3">Slug URL</th>
                       <th class="py-2 px-3">Mode</th>
                       <th class="py-2 px-3">Status</th>
-                      <th class="py-2 px-3.5 text-right">Aksi</th>
+                      <th class="py-2 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody class="divide-y divide-slate-100">
-                    <tr v-for="app in b.apps" :key="app.id" class="hover:bg-slate-50 transition">
-                      <td class="py-2 px-3.5 font-bold text-jetblack">
+                  <tbody class="divide-y divide-jetblack/10">
+                    <tr
+                      v-for="app in b.apps"
+                      :key="app.id"
+                      class="hover:bg-jetblack/[0.02] transition"
+                    >
+                      <td class="py-2 pr-3 pl-3.5 sm:pl-4 md:pl-6 font-bold text-jetblack">
                         {{ app.name }}
                       </td>
                       <td class="py-2 px-3 font-mono text-[11px] text-jetblack/60">
@@ -296,10 +296,8 @@ const filteredBuilders = computed(() => {
                       <td class="py-2 px-3">
                         <span
                           :class="[
-                            'text-[9px] font-mono px-1.5 py-0.5 rounded font-bold uppercase',
-                            app.mode === 'LIVE'
-                              ? 'bg-forest/10 text-forest border border-forest/20'
-                              : 'bg-amber-500/10 text-amber-700 border border-amber-500/20',
+                            'text-[10px] font-mono font-bold uppercase',
+                            app.mode === 'LIVE' ? 'text-forest' : 'text-[#8a6d1f]',
                           ]"
                         >
                           {{ app.mode || "SANDBOX" }}
@@ -308,20 +306,20 @@ const filteredBuilders = computed(() => {
                       <td class="py-2 px-3">
                         <span
                           v-if="app.isSuspended"
-                          class="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase text-crimson"
+                          class="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase text-crimson"
                         >
                           <span class="w-1.5 h-1.5 rounded-full bg-crimson"></span>
                           DIBEKUKAN
                         </span>
                         <span
                           v-else
-                          class="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase text-forest"
+                          class="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase text-forest"
                         >
                           <span class="w-1.5 h-1.5 rounded-full bg-forest"></span>
                           AKTIF
                         </span>
                       </td>
-                      <td class="py-2 px-3.5 text-right">
+                      <td class="py-2 pl-3 pr-3.5 sm:pr-4 md:pr-6 text-right">
                         <a
                           :href="`/v/${app.slug}`"
                           target="_blank"
@@ -329,7 +327,7 @@ const filteredBuilders = computed(() => {
                           class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-semibold border border-jetblack/15 bg-white hover:bg-jetblack hover:text-white transition cursor-pointer"
                           title="Buka halaman checkout software"
                         >
-                          <span>Lihat Halaman</span>
+                          <span>Lihat</span>
                           <ExternalLink class="w-2.5 h-2.5" />
                         </a>
                       </td>
@@ -338,10 +336,7 @@ const filteredBuilders = computed(() => {
                 </table>
               </div>
 
-              <div
-                v-else
-                class="py-4 text-center text-xs text-jetblack/40 italic bg-white rounded-lg border border-slate-200"
-              >
+              <div v-else class="py-4 text-center text-xs text-jetblack/40 italic bg-white">
                 Builder ini belum memiliki software terdaftar.
               </div>
             </div>

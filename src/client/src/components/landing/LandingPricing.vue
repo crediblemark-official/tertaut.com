@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Sparkles, QrCode, ArrowRight } from "lucide-vue-next";
+import { Sparkles, QrCode, ArrowRight, Check } from "lucide-vue-next";
 import { COMPANY_INFO } from "../../constants/company";
 </script>
 
@@ -74,7 +74,8 @@ import { COMPANY_INFO } from "../../constants/company";
         <div
           class="pt-3.5 border-t border-slate-100 text-[11px] text-slate-500 flex items-center gap-1.5 font-medium"
         >
-          <span class="text-emerald-600 font-bold">✓</span> Tanpa biaya pendaftaran atau bulanan
+          <Check class="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Tanpa biaya pendaftaran atau
+          bulanan
         </div>
       </div>
 
@@ -107,7 +108,8 @@ import { COMPANY_INFO } from "../../constants/company";
         <div
           class="pt-3.5 border-t border-forest/20 text-[11px] text-forest font-medium flex items-center gap-1.5"
         >
-          <span class="font-bold">✓</span> Sudah mencakup fee payment gateway &amp; PPN
+          <Check class="w-3.5 h-3.5 shrink-0" /> Sudah mencakup fee payment gateway &amp; Managed
+          Payment
         </div>
       </div>
 
@@ -133,15 +135,15 @@ import { COMPANY_INFO } from "../../constants/company";
             </div>
           </div>
           <p class="text-xs sm:text-[13px] text-slate-600 leading-relaxed">
-            Dana bersih dicairkan langsung ke rekening bank lokal Anda. Faktur pajak resmi PPN 11%
-            terbit otomatis untuk setiap transaksi.
+            Dana bersih dicairkan langsung ke rekening bank lokal Anda. E-Receipt &amp; bukti
+            pembayaran resmi terbit otomatis untuk setiap transaksi.
           </p>
         </div>
         <div
           class="pt-3.5 border-t border-slate-100 text-[11px] text-slate-500 flex items-center gap-1.5 font-medium"
         >
-          <span class="text-emerald-600 font-bold">✓</span> Settlement langsung ke rekening bank
-          lokal
+          <Check class="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Settlement langsung ke rekening
+          bank lokal
         </div>
       </div>
     </div>

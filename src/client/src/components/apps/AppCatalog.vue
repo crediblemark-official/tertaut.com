@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 import type { AppItem, CatalogKPIStats } from "../../types/app";
 import { dashboardEnv, envPath } from "../../lib/environment";
+import { inferAppCapability } from "../../lib/appCapability";
 import { formatRupiah } from "../../lib/utils";
 import { useConfirm } from "../../composables/useConfirm";
 import {
@@ -99,6 +100,10 @@ function getPricingBadge(app: AppItem): string {
   if (period === "yearly") return "Tahunan";
   if (period === "custom") return "Kustom";
   return "Berulang";
+}
+
+function getAppCapability(app: AppItem) {
+  return inferAppCapability(app);
 }
 </script>
 
@@ -216,10 +221,11 @@ function getPricingBadge(app: AppItem): string {
       <div class="flex items-center gap-2 justify-end">
         <button
           @click="emit('open-create')"
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg btn-gold text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95 shrink-0"
+          title="Tambah Produk Baru"
+          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg btn-gold text-xs font-bold shadow-2xs hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-gold transition-all duration-150 cursor-pointer shrink-0"
         >
           <Plus class="w-3.5 h-3.5 stroke-[3]" />
-          <span>Produk Baru</span>
+          <span>Tambah</span>
         </button>
       </div>
     </div>
@@ -273,13 +279,9 @@ function getPricingBadge(app: AppItem): string {
                 <span class="font-bold text-jetblack leading-tight">{{ app.name }}</span>
                 <span
                   class="text-[9px] px-1.5 py-0.2 rounded font-semibold"
-                  :class="
-                    app.appType === 'desktop_onprem'
-                      ? 'bg-gold/15 text-[#8a6d1f]'
-                      : 'bg-forest/10 text-forest'
-                  "
+                  :class="getAppCapability(app).badgeClass"
                 >
-                  {{ app.appType === "desktop_onprem" ? "💻 DRM" : "🚀 SaaS" }}
+                  {{ getAppCapability(app).label }}
                 </span>
               </div>
               <div class="flex items-center gap-1.5 text-[10px] text-jetblack/50 font-mono">
@@ -300,8 +302,16 @@ function getPricingBadge(app: AppItem): string {
         </td>
         <td class="py-2.5 px-3">
           <div class="flex items-center gap-1.5">
+            <template v-if="getAppCapability(app).mode === 'license_only'">
+              <span class="font-bold text-amber-800 text-[11px]">Lisensi Only</span>
+              <span
+                class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-amber-500/15 text-amber-800"
+              >
+                SDK / S2S
+              </span>
+            </template>
             <template
-              v-if="app.appType !== 'desktop_onprem' && (!app.targetPrice || app.targetPrice === 0)"
+              v-else-if="app.appType === 'saas_web' && (!app.targetPrice || app.targetPrice === 0)"
             >
               <span class="font-bold text-forest text-[11px]"> Dinamis (S2S) </span>
               <span
@@ -446,15 +456,6 @@ function getPricingBadge(app: AppItem): string {
               <Trash2 class="w-3 h-3 text-rose-500" />
               <span>Hapus</span>
             </button>
-            <a
-              :href="`/pay/${app.slug}`"
-              target="_blank"
-              class="inline-flex items-center gap-1 text-[11px] font-bold text-jetblack hover:text-gold transition px-2 py-1"
-              title="Buka Halaman Kasir / Pembayaran"
-            >
-              <span>Buka Kasir</span>
-              <ArrowUpRight class="w-3 h-3" />
-            </a>
           </div>
         </td>
       </tr>

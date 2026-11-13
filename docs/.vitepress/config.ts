@@ -19,6 +19,7 @@ export default defineConfig({
       { text: "Mulai Cepat", link: "/guide/getting-started" },
       { text: "SDK Klien", link: "/api/sdk" },
       { text: "API Backend (S2S)", link: "/api/server-to-server" },
+      { text: "Kepatuhan Hukum (ID)", link: "/legal/compliance" },
       { text: "API Playground (Swagger)", link: "https://tertaut.com/swagger", target: "_blank" },
       { text: "llms.txt", link: "/docs/llms.txt", target: "_blank" },
     ],
@@ -41,6 +42,10 @@ export default defineConfig({
       {
         text: "Contoh & Referensi",
         items: [{ text: "Simulasi Demo Checkout", link: "/reference/demo-checkout" }],
+      },
+      {
+        text: "Legalitas & Kepatuhan",
+        items: [{ text: "Kepatuhan Hukum Indonesia", link: "/legal/compliance" }],
       },
       {
         text: "Spesifikasi AI & LLM",

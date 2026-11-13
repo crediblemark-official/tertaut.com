@@ -922,6 +922,25 @@ function onPayClicked() {
       <p v-if="!emailInput" class="text-[11px] text-amber-600 font-semibold text-center mt-1.5">
         * Masukkan email penerima di kolom kiri untuk melanjutkan
       </p>
+      <p class="text-[10.5px] text-slate-500 text-center mt-2 leading-relaxed">
+        Dengan membayar, Anda menyetujui
+        <router-link to="/terms" target="_blank" class="underline hover:text-jetblack font-medium">
+          Ketentuan Layanan
+        </router-link>
+        ,
+        <router-link
+          to="/privacy"
+          target="_blank"
+          class="underline hover:text-jetblack font-medium"
+        >
+          Kebijakan Privasi
+        </router-link>
+        , dan
+        <router-link to="/refund" target="_blank" class="underline hover:text-jetblack font-medium">
+          Kebijakan Pengembalian Dana
+        </router-link>
+        tertaut.com.
+      </p>
     </div>
   </div>
 </template>

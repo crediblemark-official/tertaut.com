@@ -5,7 +5,7 @@
 > Operator: PT RETAS LINTAS BATAS, Kabupaten Sumenep, Jawa Timur, Indonesia.
 > Official Website: https://tertaut.com
 > Primary Currency: IDR (Indonesian Rupiah)
-> Compliance: UU No. 27/2022 (UU PDP), Google API Services User Data Policy, PPN 11% Tax Compliance.
+> Compliance: UU No. 27/2022 (UU PDP), Google API Services User Data Policy, Non-PKP Entity Disclosure (No PPN Collected).
 
 ---
 
@@ -15,7 +15,7 @@ Tertaut (tertaut.com) is the specialized Merchant of Record (MoR) and developer 
 
 Unlike traditional payment gateways that merely process card or e-wallet transactions, Tertaut operates as a full Merchant of Record:
 - **Zero Corporate Overhead**: Indonesian software creators can legally sell software without establishing a PT or CV corporation.
-- **Tax & Invoicing Handled**: Tertaut calculates, collects, and remits value-added tax (PPN 11%) and issues compliant electronic tax receipts.
+- **Managed Invoicing & E-Receipts**: Tertaut automatically issues official electronic E-Receipts and transaction records (Note: PT RETAS LINTAS BATAS currently operates as a Non-PKP entity and does not collect PPN or issue Faktur Pajak).
 - **Automated Payouts**: Creators receive clean net payouts (95% net after Tertaut's flat 5% platform fee) directly into Indonesian bank accounts.
 - **Built-in DRM & Licensing**: Complete cryptographic license management system with zero need for third-party DRM servers.
 
@@ -113,7 +113,7 @@ const license = await response.json();
 
 - **Company Name**: PT RETAS LINTAS BATAS
 - **Registered Address**: Kabupaten Sumenep, Jawa Timur, Indonesia (Geo: -7.0167, 113.8667)
-- **Contact Email**: legal@tertaut.com / retaslintasbatas@gmail.com
-- **Customer Support**: support@tertaut.com
+- **Contact Email**: platformtertaut@gmail.com
+- **Customer Support**: platformtertaut@gmail.com
 - **Data Protection**: Full compliance with Indonesia's UU Pelindungan Data Pribadi (UU PDP No. 27/2022).
 - **Google API Services Compliance**: Limited Use Requirements strictly upheld; Google user data is never used to train generalized AI models or sold to third-party data brokers.

@@ -28,6 +28,7 @@ import {
   Ticket,
   Activity,
   Users,
+  X,
 } from "lucide-vue-next";
 import AdminSidebar from "../components/admin/AdminSidebar.vue";
 import AdminTopHeader from "../components/admin/AdminTopHeader.vue";
@@ -513,11 +514,7 @@ onMounted(() => {
     <AdminSidebar
       :active-tab="activeTab"
       :admin-nav-items="adminNavItems"
-      :admin-name="adminName"
-      :admin-email="adminEmail"
-      :admin-initial="adminInitial"
       @update:active-tab="activeTab = $event as any"
-      @logout="handleLogout"
     />
 
     <!-- Main Content Area with Desktop Top Bar -->
@@ -526,20 +523,26 @@ onMounted(() => {
       <AdminTopHeader
         :current-nav-item="currentNavItem"
         :refreshing="refreshing"
+        :admin-name="adminName"
+        :admin-email="adminEmail"
+        :admin-initial="adminInitial"
         @refresh="loadAllData"
+        @logout="handleLogout"
       />
 
       <!-- Main Workspace Container -->
       <main
         class="flex-1 min-w-0 px-3.5 sm:px-4 md:px-6 pt-0 pb-28 md:pb-12 overflow-y-auto w-full"
       >
-        <div class="space-y-4 animate-fadeIn pb-28 md:pb-12">
-          <!-- Toast Alert -->
+        <div class="animate-fadeIn">
+          <!-- Flush Hairline Toast Strip -->
           <div
             v-if="alertMessage"
             :class="[
-              'p-3.5 rounded-lg text-xs font-semibold flex items-center justify-between shadow-xs transition mt-3',
-              alertMessage.type === 'success' ? 'bg-forest text-white' : 'bg-[#B91C1C] text-white',
+              '-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-2.5 border-b text-xs font-semibold flex items-center justify-between transition',
+              alertMessage.type === 'success'
+                ? 'bg-forest text-white border-forest'
+                : 'bg-[#B91C1C] text-white border-[#B91C1C]',
             ]"
           >
             <div class="flex items-center gap-2">
@@ -553,33 +556,31 @@ onMounted(() => {
             <button
               @click="alertMessage = null"
               class="opacity-75 hover:opacity-100 p-1 cursor-pointer"
+              aria-label="Tutup"
+              title="Tutup"
             >
-              ✕
+              <X class="w-3.5 h-3.5" />
             </button>
           </div>
 
           <!-- TAB 1: OVERVIEW / RINGKASAN PLATFORM -->
-          <div v-if="activeTab === 'overview'" class="space-y-4">
+          <div v-if="activeTab === 'overview'">
             <!-- Macro Platform KPI Cards Component -->
             <PlatformKpiCards :stats="stats" :loading="loading" />
 
             <!-- Unified Dark Toolbar (Standard Tertaut Dark Bar) -->
             <div
-              class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar shadow-xs mb-0 !mt-0 relative"
+              class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 min-h-[44px] py-1.5 sm:py-0 bg-jetblack text-white border-b border-jetblack flex items-center justify-between gap-3 overflow-x-auto no-scrollbar mb-0 !mt-0 relative"
             >
               <div class="flex items-center gap-2 shrink-0">
                 <ShieldAlert class="w-3.5 h-3.5 text-gold shrink-0" />
                 <span class="text-xs font-bold text-white uppercase tracking-wider">
                   Ringkasan Ekosistem
                 </span>
-                <span
-                  class="px-2 py-0.5 rounded-full bg-gold/20 text-gold text-[10px] font-bold border border-gold/30"
-                >
-                  MoR Core
-                </span>
+                <span class="text-[11px] font-mono font-bold text-gold"> MoR Core </span>
               </div>
-              <div class="flex items-center gap-2 text-xs text-white/60 font-mono shrink-0">
-                Multi-Gateway MoR • 5% Platform Fee Cut
+              <div class="flex items-center gap-2 text-[11px] text-white/60 font-mono shrink-0">
+                Multi-Gateway MoR &bull; 5% Platform Fee Cut
               </div>
             </div>
 
@@ -668,7 +669,7 @@ onMounted(() => {
           </div>
 
           <!-- TAB 9: SYSTEM TELEMETRY -->
-          <div v-else-if="activeTab === 'system'" class="pt-4 space-y-4">
+          <div v-else-if="activeTab === 'system'">
             <SystemTelemetryCard :stats="stats" />
           </div>
 

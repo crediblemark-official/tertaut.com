@@ -234,18 +234,20 @@ const currentSnippet = computed(() => {
       ><code>{{ currentSnippet }}</code></pre>
     </div>
 
-    <!-- Webhook Verification Tip -->
-    <div class="p-3 rounded-lg bg-gold/10 border border-gold/30 flex items-start gap-2.5">
+    <!-- Webhook Verification Tip (Docked Hairline Callout) -->
+    <div class="pt-3 border-t border-jetblack/10 flex items-start gap-2.5">
       <Sparkles class="w-4 h-4 text-gold shrink-0 mt-0.5" />
-      <div class="text-xs text-jetblack/80 space-y-1">
-        <p class="font-bold text-jetblack">Verifikasi Keaslian Webhook di Server Anda:</p>
+      <div class="text-xs text-jetblack/80 space-y-0.5">
+        <p class="font-bold text-jetblack">Verifikasi Keaslian Webhook:</p>
         <p class="leading-relaxed">
           Setiap notifikasi webhook dikirim dengan header
-          <code class="font-mono bg-white/70 px-1 py-0.5 rounded text-[11px]"
+          <code class="font-mono bg-jetblack/5 px-1 py-0.5 rounded text-[11px]"
             >X-Tertaut-Signature: hmac-sha256=...</code
-          >. Cocokkan tanda tangan tersebut menggunakan HMAC-SHA256 bersama
-          <code class="font-mono bg-white/70 px-1 py-0.5 rounded text-[11px]">Webhook Secret</code>
-          Anda untuk memastikan payload benar-benar berasal dari Tertaut MoR.
+          >. Cocokkan tanda tangan tersebut dengan
+          <code class="font-mono bg-jetblack/5 px-1 py-0.5 rounded text-[11px]"
+            >Webhook Secret</code
+          >
+          server Anda.
         </p>
       </div>
     </div>

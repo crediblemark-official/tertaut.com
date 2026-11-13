@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ArrowRight } from "lucide-vue-next";
 import type { PanelBuilderItem, PanelTransactionItem } from "../../types/panel";
 
 defineProps<{
@@ -14,19 +15,21 @@ const emit = defineEmits<{
 
 <template>
   <div
-    class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-jetblack/10 border-b border-jetblack/10 pb-6 pt-2"
+    class="-mx-3.5 sm:-mx-4 md:-mx-6 grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-jetblack/10 border-b border-jetblack/10"
   >
     <!-- Left Column: Builder Highlights -->
-    <div class="lg:pr-6 space-y-3 pb-6 lg:pb-0">
-      <div class="flex items-center justify-between">
-        <h2 class="text-xs font-bold text-jetblack uppercase tracking-wide">
+    <div class="px-3.5 sm:px-4 md:px-6 py-4 space-y-3">
+      <div class="flex items-center justify-between pb-2 border-b border-jetblack/10">
+        <h2 class="text-xs font-bold text-jetblack uppercase tracking-wider">
           Builder Terdaftar Terbaru
         </h2>
         <button
+          type="button"
           @click="emit('selectTab', 'builders')"
-          class="text-[11px] font-bold text-gold hover:underline cursor-pointer"
+          class="text-[11px] font-bold text-gold hover:underline cursor-pointer inline-flex items-center gap-1"
         >
-          Buka Direktori ({{ builders.length }}) →
+          <span>Direktori ({{ builders.length }})</span>
+          <ArrowRight class="w-3 h-3" />
         </button>
       </div>
 
@@ -44,11 +47,11 @@ const emit = defineEmits<{
         </div>
       </div>
 
-      <div v-else class="space-y-2 divide-y divide-jetblack/10">
+      <div v-else class="divide-y divide-jetblack/10">
         <div
           v-for="b in builders.slice(0, 5)"
           :key="b.id"
-          class="flex items-center justify-between pt-2 text-xs"
+          class="flex items-center justify-between py-2.5 first:pt-1 last:pb-1 text-xs"
         >
           <div>
             <div class="font-bold text-jetblack">{{ b.name || "Builder" }}</div>
@@ -61,23 +64,25 @@ const emit = defineEmits<{
             <div class="text-[10px] text-jetblack/50">{{ b.appCount || 0 }} Aplikasi</div>
           </div>
         </div>
-        <div v-if="builders.length === 0" class="pt-3 text-xs text-jetblack/40 italic">
+        <div v-if="builders.length === 0" class="py-4 text-xs text-jetblack/40 italic">
           Belum ada builder yang terdaftar.
         </div>
       </div>
     </div>
 
     <!-- Right Column: Recent Transactions -->
-    <div class="lg:pl-6 space-y-3 pt-6 lg:pt-0">
-      <div class="flex items-center justify-between">
-        <h2 class="text-xs font-bold text-jetblack uppercase tracking-wide">
+    <div class="px-3.5 sm:px-4 md:px-6 py-4 space-y-3">
+      <div class="flex items-center justify-between pb-2 border-b border-jetblack/10">
+        <h2 class="text-xs font-bold text-jetblack uppercase tracking-wider">
           Transaksi Global Terkini
         </h2>
         <button
+          type="button"
           @click="emit('selectTab', 'ledger')"
-          class="text-[11px] font-bold text-gold hover:underline cursor-pointer"
+          class="text-[11px] font-bold text-gold hover:underline cursor-pointer inline-flex items-center gap-1"
         >
-          Buka Ledger ({{ transactions.length }}) →
+          <span>Ledger ({{ transactions.length }})</span>
+          <ArrowRight class="w-3 h-3" />
         </button>
       </div>
 
@@ -95,11 +100,11 @@ const emit = defineEmits<{
         </div>
       </div>
 
-      <div v-else class="space-y-2 divide-y divide-jetblack/10">
+      <div v-else class="divide-y divide-jetblack/10">
         <div
           v-for="t in transactions.slice(0, 5)"
           :key="t.id"
-          class="flex items-center justify-between pt-2 text-xs"
+          class="flex items-center justify-between py-2.5 first:pt-1 last:pb-1 text-xs"
         >
           <div>
             <div class="font-mono font-bold text-jetblack truncate max-w-[200px]">
@@ -119,7 +124,7 @@ const emit = defineEmits<{
             </span>
           </div>
         </div>
-        <div v-if="transactions.length === 0" class="pt-3 text-xs text-jetblack/40 italic">
+        <div v-if="transactions.length === 0" class="py-4 text-xs text-jetblack/40 italic">
           Belum ada riwayat transaksi.
         </div>
       </div>

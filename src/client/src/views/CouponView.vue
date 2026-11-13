@@ -254,10 +254,11 @@ watch(dashboardEnv, () => {
         <button
           type="button"
           @click="isCreateModalOpen = true"
-          class="btn-gold h-7 px-3 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer shadow-xs active:scale-95 shrink-0"
+          title="Buat Kupon Baru"
+          class="btn-gold h-7 px-3 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 shrink-0"
         >
           <Plus class="w-3.5 h-3.5 stroke-[3]" />
-          <span>Buat Kupon Baru</span>
+          <span>Tambah</span>
         </button>
 
         <button
@@ -273,7 +274,7 @@ watch(dashboardEnv, () => {
     <!-- Alert Feedback -->
     <div
       v-if="actionFeedback"
-      class="mb-3 p-3 rounded-xl bg-forest/10 border border-forest/30 text-forest text-xs font-bold flex items-center gap-2 animate-fadeIn"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-2.5 bg-emerald-50/70 border-b border-forest/20 text-forest text-xs font-bold flex items-center gap-2 animate-fadeIn"
     >
       <CheckCircle2 class="w-4 h-4 shrink-0" />
       <span>{{ actionFeedback }}</span>

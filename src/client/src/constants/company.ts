@@ -7,6 +7,7 @@ export const COMPANY_INFO = {
   legalName: "PT RETAS LINTAS BATAS",
   brandName: "Tertaut",
   websiteUrl: "https://tertaut.com",
+  isPkp: false,
   address: {
     street: "Jl. Raya Batang-Batang",
     regency: "Kab. Sumenep",
@@ -19,13 +20,18 @@ export const COMPANY_INFO = {
     phoneDisplay: "+62 851-8313-1249",
     whatsapp: "6285183131249",
     whatsappUrl:
-      "https://wa.me/6285183131249?text=Halo%20Admin%20PT%20RETAS%20LINTAS%20BATAS%20(Tertaut),%20saya%20ingin%20bertanya%20mengenai%20layanan%20Merchant%20of%20Record.",
-    email: "retaslintasbatas@gmail.com",
-    supportEmail: "retaslintasbatas@gmail.com",
+      "https://wa.me/6285183131249?text=Halo%20Admin%20PT%20RETAS%20LINTAS%20BATAS%20(Tertaut),%20saya%20ingin%20bertanya%20mengenai%20layanan%20Managed%20Payment%20%26%20Merchant%20of%20Record.",
+    email: "platformtertaut@gmail.com",
+    supportEmail: "platformtertaut@gmail.com",
   },
   operatingHours: "Senin – Jumat: 08:30 – 17:00 WIB",
-  businessType: "Penyedia Merchant of Record (MoR) Software, Lisensi Digital, & Gateway Pembayaran",
+  businessType: "Penyedia Managed Payment (MoR) Software & Infrastruktur Lisensi Digital",
 };
+
+export const MANAGED_PAYMENT_SPLIT = {
+  developerSharePercent: 95,
+  platformFeePercent: 5,
+} as const;
 
 export interface PricingPlan {
   name: string;
@@ -51,12 +57,12 @@ export const PLATFORM_PRICING: PricingPlan = {
   features: [
     "Pendaftaran akun gratis tanpa biaya setup atau biaya berlangganan",
     "Terima pembayaran instan via QRIS (semua e-wallet & m-banking) & Virtual Account",
-    "Faktur pajak elektronik resmi (PPN 11%) diterbitkan otomatis oleh PT RETAS LINTAS BATAS",
+    "E-Receipt & bukti pembayaran resmi diterbitkan otomatis oleh PT RETAS LINTAS BATAS",
     "Pencairan otomatis: 95% pendapatan bersih langsung ke rekening bank lokal Anda",
     "Universal Licensing SDK (@tertaut/sdk): Lisensi Ed25519 offline 30 hari & hardware seat binding",
     "Hosted Checkout & Kupon: Halaman pembayaran siap pakai dan kupon diskon persentase/potongan harga",
     "Webhooks & Notifikasi Instan: Pengiriman webhook otomatis dengan tanda tangan HMAC-SHA256",
-    "Dashboard analitik real-time, audit log, pelaporan pajak, dan manajemen kupon diskon",
+    "Dashboard analitik real-time, audit log, rekap transaksi, dan manajemen kupon diskon",
   ],
   ctaText: "Daftar Gratis Sekarang",
   ctaLink: "/login",

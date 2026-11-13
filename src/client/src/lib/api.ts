@@ -270,6 +270,19 @@ export const api = {
     return parseJson(res);
   },
 
+  async updateBuilderMyself(data: { name: string }): Promise<{
+    success: boolean;
+    builder?: { id: string; email: string; name: string };
+    error?: string;
+  }> {
+    const res = await apiFetch("/api/v1/apps/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return parseJson(res);
+  },
+
   async rotateBuilderSecret(): Promise<{
     success: boolean;
     secretApiKey: string;

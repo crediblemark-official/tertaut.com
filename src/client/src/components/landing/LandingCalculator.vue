@@ -95,11 +95,11 @@ function formatIDR(amount: number): string {
             >
               <div class="font-bold flex items-center gap-1.5 text-xs sm:text-[13px]">
                 <CheckCircle2 class="w-4 h-4 shrink-0" />
-                <span>Termasuk Seluruh Urusan Pajak &amp; Perizinan</span>
+                <span>Termasuk Infrastruktur Pembayaran &amp; Perizinan</span>
               </div>
               <p class="text-[11px] text-forest/80 leading-relaxed">
-                Tertaut menerbitkan invoice resmi dengan rincian PPN 11% dan mencatatkan bukti
-                potong. Anda tidak perlu menyewa akuntan atau mendirikan PT.
+                Tertaut menangani integrasi kanal pembayaran terpadu dan menerbitkan E-Receipt resmi
+                secara otomatis. Anda cukup fokus membangun produk tanpa daftar gateway terpisah.
               </p>
             </div>
           </div>

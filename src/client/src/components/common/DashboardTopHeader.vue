@@ -1,17 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { Globe, Code2, LogOut, LogIn, Bell } from "lucide-vue-next";
-import { dashboardEnv } from "../../lib/environment";
+import { useRoute } from "vue-router";
+import { Globe, Code2, LogOut, LogIn, Bell, X } from "lucide-vue-next";
+import { dashboardEnv, envPath } from "../../lib/environment";
 import { api } from "../../lib/api";
 
 const props = defineProps<{
   currentPage: { title: string; category: string };
   authUser: { name?: string; email?: string } | null | undefined;
   authInitial: string;
+  hasPayoutAccount?: boolean | null;
 }>();
 
 const emit = defineEmits<{ logout: [] }>();
+const route = useRoute();
 const env = dashboardEnv;
+
+const isProfileActive = computed(
+  () => route.path === "/dashboard/profile" || route.path === "/dashboard/sandbox/profile"
+);
 
 const announcement = ref<{ message: string; type: "info" | "warning" | "alert" } | null>(null);
 
@@ -44,10 +51,11 @@ onMounted(async () => {
     </div>
     <button
       @click="announcement = null"
-      class="text-xs opacity-60 hover:opacity-100 p-0.5 cursor-pointer"
-      title="Tutup pengumuman"
+      class="opacity-60 hover:opacity-100 p-0.5 cursor-pointer"
+      title="Tutup"
+      aria-label="Tutup"
     >
-      ✕
+      <X class="w-3.5 h-3.5" />
     </button>
   </div>
 
@@ -115,18 +123,50 @@ onMounted(async () => {
 
       <!-- Profile & Auth -->
       <div class="flex items-center gap-2 pl-1">
+        <router-link
+          v-if="authUser"
+          :to="envPath(env, '/profile')"
+          :class="[
+            'flex items-center gap-2 px-2 py-1 -my-1 rounded-lg transition cursor-pointer',
+            isProfileActive ? 'bg-jetblack text-white' : 'hover:bg-jetblack/[0.05] text-jetblack',
+          ]"
+          title="Profil Builder & Rekening Pencairan"
+        >
+          <div
+            class="relative w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shadow-sm ring-2 shrink-0"
+            :class="
+              isProfileActive
+                ? 'bg-gold text-jetblack ring-gold'
+                : 'bg-jetblack text-white ring-gold/40'
+            "
+          >
+            {{ authInitial }}
+            <span
+              v-if="hasPayoutAccount === false"
+              class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-white"
+              title="Rekening pencairan belum diatur"
+            ></span>
+          </div>
+          <div class="hidden xl:block text-left pr-0.5">
+            <div
+              class="text-xs font-bold leading-none"
+              :class="isProfileActive ? 'text-white' : 'text-jetblack'"
+            >
+              {{ authUser?.name || "Builder" }}
+            </div>
+            <div
+              class="text-[10px] font-medium mt-0.5"
+              :class="isProfileActive ? 'text-white/70' : 'text-jetblack/50'"
+            >
+              {{ authUser?.email || "Belum login" }}
+            </div>
+          </div>
+        </router-link>
         <div
+          v-else
           class="w-7 h-7 rounded-full bg-jetblack text-white flex items-center justify-center font-bold text-xs shadow-sm ring-2 ring-gold/40"
         >
           {{ authInitial }}
-        </div>
-        <div class="hidden xl:block text-left pr-1">
-          <div class="text-xs font-bold text-jetblack leading-none">
-            {{ authUser?.name || "Builder" }}
-          </div>
-          <div class="text-[10px] text-jetblack/50 font-medium">
-            {{ authUser?.email || "Belum login" }}
-          </div>
         </div>
         <button
           v-if="authUser"

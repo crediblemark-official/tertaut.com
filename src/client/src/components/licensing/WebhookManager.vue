@@ -224,18 +224,20 @@ onMounted(loadWebhooks);
     <!-- Feedback -->
     <div
       v-if="feedback"
-      class="p-3 rounded-xl bg-forest/10 border border-forest/30 text-forest text-xs font-bold flex items-center gap-2 animate-fadeIn"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-2.5 bg-emerald-50/70 border-b border-forest/20 text-forest text-xs font-bold flex items-center gap-2 animate-fadeIn"
     >
-      <Check class="w-4 h-4" />
+      <Check class="w-4 h-4 shrink-0" />
       <span>{{ feedback }}</span>
     </div>
 
-    <!-- New endpoint form -->
-    <div class="rounded-xl border border-jetblack/10 bg-white shadow-xs p-3.5 sm:p-4 space-y-3">
+    <!-- New endpoint form (Docked Full-Edge Section) -->
+    <div
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-4 border-b border-jetblack/15 bg-white space-y-3"
+    >
       <h3
         class="text-[11px] font-bold uppercase tracking-wider text-jetblack/60 flex items-center gap-1.5"
       >
-        <Plus class="w-3.5 h-3.5" /> Daftarkan Endpoint Baru
+        <Plus class="w-3.5 h-3.5" /> Daftarkan Endpoint
       </h3>
       <div class="space-y-2.5 text-xs">
         <div>
@@ -284,17 +286,15 @@ onMounted(loadWebhooks);
           <button
             @click="createWebhook"
             :disabled="importing || !importUrl"
-            class="btn-gold px-3.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            title="Daftarkan Endpoint"
+            class="btn-gold px-3.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150"
           >
             <Plus class="w-3.5 h-3.5" />
-            <span>{{ importing ? "Menyimpan..." : "Daftarkan Endpoint" }}</span>
+            <span>{{ importing ? "Menyimpan..." : "Simpan" }}</span>
           </button>
         </div>
 
-        <div
-          v-if="importAdvancedOpen"
-          class="rounded-lg bg-jetblack/[0.03] border border-jetblack/10 p-2.5"
-        >
+        <div v-if="importAdvancedOpen" class="border-t border-jetblack/10 pt-2.5">
           <label class="block font-semibold text-[11px] text-jetblack/70 mb-1">
             Secret Awal (opsional, untuk HMAC hex-hmac-sha256)
           </label>
@@ -316,180 +316,181 @@ onMounted(loadWebhooks);
       </div>
     </div>
 
-    <!-- Endpoint list -->
+    <!-- Endpoint list (Docked Hairline Rows) -->
     <EmptyState
       v-if="webhooks.length === 0 && !loading"
       :icon="Webhook"
       title="Belum ada webhook endpoint"
       description="Daftarkan endpoint di atas untuk mulai menerima event lifecycle lisensi."
-      container-class="border-dashed py-8"
+      container-class="border-0 bg-transparent py-8"
     />
 
     <div
-      v-for="w in webhooks"
-      :key="w.id"
-      class="rounded-xl border border-jetblack/10 bg-white shadow-xs overflow-hidden"
+      v-else
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 divide-y divide-jetblack/10 border-b border-jetblack/15 bg-white"
     >
-      <div
-        class="flex flex-col sm:flex-row sm:items-center gap-2 px-3.5 py-2.5 bg-jetblack/[0.03] border-b border-jetblack/5"
-      >
-        <div class="flex items-center gap-2 min-w-0 flex-1">
-          <span
-            class="w-2 h-2 rounded-full shrink-0"
-            :class="w.isActive ? 'bg-forest' : 'bg-crimson'"
-            :title="w.isActive ? 'Aktif' : 'Nonaktif'"
-          />
-          <span class="font-mono text-[11px] truncate text-jetblack">{{ w.url }}</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <CopyButton
-            :text="w.url"
-            title="Salin URL"
-            button-class="p-1.5 rounded-md bg-jetblack/5 hover:bg-jetblack/10 cursor-pointer text-jetblack/70"
-            icon-class="w-3 h-3"
-          />
-          <button
-            @click="toggleActive(w)"
-            :class="[
-              'px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer transition',
-              w.isActive
-                ? 'bg-crimson/10 text-crimson hover:bg-crimson/20'
-                : 'bg-forest/10 text-forest hover:bg-forest/20',
-            ]"
-          >
-            {{ w.isActive ? "Nonaktifkan" : "Aktifkan" }}
-          </button>
-        </div>
-      </div>
-
-      <div class="px-3.5 py-2.5 space-y-2">
-        <div class="flex flex-wrap gap-1">
-          <span
-            v-if="w.events.length === 0"
-            class="px-1.5 py-0.5 rounded bg-gold/15 text-[#7a641a] text-[10px] font-bold"
-          >
-            * (semua event)
-          </span>
-          <span
-            v-for="ev in w.events"
-            :key="ev"
-            class="px-1.5 py-0.5 rounded bg-jetblack/5 text-jetblack/70 text-[10px] font-mono"
-          >
-            {{ ev }}
-          </span>
-        </div>
-
-        <!-- Edit mode -->
-        <div v-if="editingId === w.id" class="space-y-2 border-t border-jetblack/5 pt-2">
-          <input
-            v-model="editUrl"
-            type="url"
-            placeholder="Callback URL baru"
-            class="w-full bg-white border border-jetblack/15 rounded-lg px-2.5 py-1.5 text-xs text-jetblack font-mono focus:outline-none focus:border-gold"
-          />
-          <div class="flex flex-wrap gap-1">
-            <button
-              v-for="ev in availableEvents"
-              :key="ev"
-              @click="toggleEvent(editEvents, ev)"
-              :class="[
-                'px-1.5 py-0.5 rounded text-[9px] font-bold transition cursor-pointer border',
-                editEvents.includes(ev)
-                  ? 'bg-jetblack text-white border-jetblack'
-                  : 'bg-white text-jetblack/60 border-jetblack/15',
-              ]"
-            >
-              {{ WEBHOOK_EVENT_LABELS[ev] || ev }}
-            </button>
-          </div>
-          <div class="flex justify-end gap-1.5">
-            <button
-              @click="editingId = null"
-              class="px-2.5 py-1 rounded-md bg-jetblack/5 text-[10px] font-bold text-jetblack hover:bg-jetblack/10 cursor-pointer"
-            >
-              Batal
-            </button>
-            <button
-              @click="saveEdit(w.id)"
-              class="px-2.5 py-1 rounded-md btn-gold text-[10px] font-bold cursor-pointer"
-            >
-              Simpan
-            </button>
-          </div>
-        </div>
-
-        <!-- Detail row -->
-        <div v-else class="flex flex-wrap items-center justify-between gap-2 pt-1">
-          <div class="flex items-center gap-2 text-[10px] text-jetblack/50 font-mono">
-            <span>{{ w.builderId }}</span>
-            <span>•</span>
+      <div v-for="w in webhooks" :key="w.id" class="divide-y divide-jetblack/10">
+        <div
+          class="flex flex-col sm:flex-row sm:items-center gap-2 px-3.5 py-2.5 bg-jetblack/[0.03] border-b border-jetblack/5"
+        >
+          <div class="flex items-center gap-2 min-w-0 flex-1">
             <span
-              >dibuat
-              {{
-                new Date(w.createdAt).toLocaleString("id-ID", {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                })
-              }}</span
-            >
+              class="w-2 h-2 rounded-full shrink-0"
+              :class="w.isActive ? 'bg-forest' : 'bg-crimson'"
+              :title="w.isActive ? 'Aktif' : 'Nonaktif'"
+            />
+            <span class="font-mono text-[11px] truncate text-jetblack">{{ w.url }}</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <template v-if="revealSecretId === w.id">
-              <code
-                class="text-[10px] font-mono text-[#7a641a] bg-gold/10 px-1.5 py-0.5 rounded max-w-40 truncate"
-              >
-                {{ w.secret }}
-              </code>
-              <CopyButton
-                :text="w.secret"
-                title="Salin Secret"
-                button-class="p-1.5 rounded-md bg-gold/10 hover:bg-gold/20 cursor-pointer text-[#7a641a]"
-                icon-class="w-3 h-3"
-              />
+            <CopyButton
+              :text="w.url"
+              title="Salin URL"
+              button-class="p-1.5 rounded-md bg-jetblack/5 hover:bg-jetblack/10 cursor-pointer text-jetblack/70"
+              icon-class="w-3 h-3"
+            />
+            <button
+              @click="toggleActive(w)"
+              :class="[
+                'px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer transition',
+                w.isActive
+                  ? 'bg-crimson/10 text-crimson hover:bg-crimson/20'
+                  : 'bg-forest/10 text-forest hover:bg-forest/20',
+              ]"
+            >
+              {{ w.isActive ? "Nonaktifkan" : "Aktifkan" }}
+            </button>
+          </div>
+        </div>
+
+        <div class="px-3.5 py-2.5 space-y-2">
+          <div class="flex flex-wrap gap-1">
+            <span
+              v-if="w.events.length === 0"
+              class="px-1.5 py-0.5 rounded bg-gold/15 text-[#7a641a] text-[10px] font-bold"
+            >
+              * (semua event)
+            </span>
+            <span
+              v-for="ev in w.events"
+              :key="ev"
+              class="px-1.5 py-0.5 rounded bg-jetblack/5 text-jetblack/70 text-[10px] font-mono"
+            >
+              {{ ev }}
+            </span>
+          </div>
+
+          <!-- Edit mode -->
+          <div v-if="editingId === w.id" class="space-y-2 border-t border-jetblack/5 pt-2">
+            <input
+              v-model="editUrl"
+              type="url"
+              placeholder="Callback URL baru"
+              class="w-full bg-white border border-jetblack/15 rounded-lg px-2.5 py-1.5 text-xs text-jetblack font-mono focus:outline-none focus:border-gold"
+            />
+            <div class="flex flex-wrap gap-1">
               <button
-                @click="revealSecretId = null"
-                title="Sembunyikan"
+                v-for="ev in availableEvents"
+                :key="ev"
+                @click="toggleEvent(editEvents, ev)"
+                :class="[
+                  'px-1.5 py-0.5 rounded text-[9px] font-bold transition cursor-pointer border',
+                  editEvents.includes(ev)
+                    ? 'bg-jetblack text-white border-jetblack'
+                    : 'bg-white text-jetblack/60 border-jetblack/15',
+                ]"
+              >
+                {{ WEBHOOK_EVENT_LABELS[ev] || ev }}
+              </button>
+            </div>
+            <div class="flex justify-end gap-1.5">
+              <button
+                @click="editingId = null"
+                class="px-2.5 py-1 rounded-md bg-jetblack/5 text-[10px] font-bold text-jetblack hover:bg-jetblack/10 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                @click="saveEdit(w.id)"
+                class="px-2.5 py-1 rounded-md btn-gold text-[10px] font-bold cursor-pointer"
+              >
+                Simpan
+              </button>
+            </div>
+          </div>
+
+          <!-- Detail row -->
+          <div v-else class="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <div class="flex items-center gap-2 text-[10px] text-jetblack/50 font-mono">
+              <span>{{ w.builderId }}</span>
+              <span>•</span>
+              <span
+                >dibuat
+                {{
+                  new Date(w.createdAt).toLocaleString("id-ID", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })
+                }}</span
+              >
+            </div>
+            <div class="flex items-center gap-1.5">
+              <template v-if="revealSecretId === w.id">
+                <code
+                  class="text-[10px] font-mono text-[#7a641a] bg-gold/10 px-1.5 py-0.5 rounded max-w-40 truncate"
+                >
+                  {{ w.secret }}
+                </code>
+                <CopyButton
+                  :text="w.secret"
+                  title="Salin Secret"
+                  button-class="p-1.5 rounded-md bg-gold/10 hover:bg-gold/20 cursor-pointer text-[#7a641a]"
+                  icon-class="w-3 h-3"
+                />
+                <button
+                  @click="revealSecretId = null"
+                  title="Sembunyikan"
+                  class="p-1.5 rounded-md bg-jetblack/5 hover:bg-jetblack/10 cursor-pointer"
+                >
+                  <EyeOff class="w-3 h-3" />
+                </button>
+              </template>
+              <button
+                v-else
+                @click="revealSecretId = w.id"
+                title="Lihat Secret"
                 class="p-1.5 rounded-md bg-jetblack/5 hover:bg-jetblack/10 cursor-pointer"
               >
-                <EyeOff class="w-3 h-3" />
+                <Eye class="w-3 h-3" />
               </button>
-            </template>
-            <button
-              v-else
-              @click="revealSecretId = w.id"
-              title="Lihat Secret"
-              class="p-1.5 rounded-md bg-jetblack/5 hover:bg-jetblack/10 cursor-pointer"
-            >
-              <Eye class="w-3 h-3" />
-            </button>
-            <button
-              @click="editWebhook(w)"
-              title="Edit"
-              class="p-1.5 rounded-md bg-jetblack/5 hover:bg-jetblack/10 cursor-pointer"
-            >
-              <Pencil class="w-3 h-3" />
-            </button>
-            <button
-              @click="rotateSecret(w)"
-              title="Rotasi Secret"
-              class="p-1.5 rounded-md bg-gold/10 hover:bg-gold/20 cursor-pointer"
-            >
-              <KeyRound class="w-3 h-3 text-[#7a641a]" />
-            </button>
-            <button
-              @click="testWebhook(w)"
-              title="Kirim Test Delivery"
-              class="p-1.5 rounded-md bg-forest/10 hover:bg-forest/20 cursor-pointer"
-            >
-              <Send class="w-3 h-3 text-forest" />
-            </button>
-            <button
-              @click="deleteWebhook(w)"
-              title="Hapus"
-              class="p-1.5 rounded-md bg-crimson/10 hover:bg-crimson/20 cursor-pointer"
-            >
-              <Trash2 class="w-3 h-3 text-crimson" />
-            </button>
+              <button
+                @click="editWebhook(w)"
+                title="Edit"
+                class="p-1.5 rounded-md bg-jetblack/5 hover:bg-jetblack/10 cursor-pointer"
+              >
+                <Pencil class="w-3 h-3" />
+              </button>
+              <button
+                @click="rotateSecret(w)"
+                title="Rotasi Secret"
+                class="p-1.5 rounded-md bg-gold/10 hover:bg-gold/20 cursor-pointer"
+              >
+                <KeyRound class="w-3 h-3 text-[#7a641a]" />
+              </button>
+              <button
+                @click="testWebhook(w)"
+                title="Kirim Test Delivery"
+                class="p-1.5 rounded-md bg-forest/10 hover:bg-forest/20 cursor-pointer"
+              >
+                <Send class="w-3 h-3 text-forest" />
+              </button>
+              <button
+                @click="deleteWebhook(w)"
+                title="Hapus"
+                class="p-1.5 rounded-md bg-crimson/10 hover:bg-crimson/20 cursor-pointer"
+              >
+                <Trash2 class="w-3 h-3 text-crimson" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -8,6 +8,7 @@ import {
   handleCheckSlug,
   handleGetBySlug,
   handleGetBuilderMyself,
+  handleUpdateBuilderMyself,
 } from "./queries";
 import {
   handleCreateApp,
@@ -181,6 +182,19 @@ export const appRoutes = new Elysia({ prefix: "/apps" })
       summary: "Builder profile (self)",
       description:
         "Returns the current builder's profile including the server-to-server secret API key",
+    },
+  })
+  /**
+   * Perbarui nama tampilan profil builder saat ini
+   */
+  .patch("/me", handleUpdateBuilderMyself, {
+    body: t.Object({
+      name: t.String({ minLength: 1, maxLength: 100 }),
+    }),
+    detail: {
+      tags: ["Apps"],
+      summary: "Update builder profile (self)",
+      description: "Updates the current builder's display name",
     },
   })
   /**

@@ -441,13 +441,13 @@ export async function handleGetInvoiceData({
         name: "tertaut.com (PT RETAS LINTAS BATAS)",
         legalEntity: "Penyedia infrastruktur pembayaran & lisensi resmi untuk perangkat lunak",
         website: "https://tertaut.com",
-        supportEmail: "support@tertaut.com",
+        supportEmail: "platformtertaut@gmail.com",
       },
       merchantOfRecord: {
         name: "tertaut.com (PT RETAS LINTAS BATAS)",
         legalEntity: "Penyedia infrastruktur pembayaran & lisensi resmi untuk perangkat lunak",
         website: "https://tertaut.com",
-        supportEmail: "support@tertaut.com",
+        supportEmail: "platformtertaut@gmail.com",
       },
       seller: {
         name: builder?.name || "Independent Software Builder",

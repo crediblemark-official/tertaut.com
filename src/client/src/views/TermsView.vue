@@ -84,9 +84,10 @@ useSeo(STATIC_PAGES_META.terms);
               3. Alur Transaksi, Harga, dan Pembayaran
             </h2>
             <p>
-              Seluruh harga yang dicantumkan menggunakan mata uang Rupiah Indonesia (IDR) dan telah
-              mencakup Pajak Pertambahan Nilai (PPN 11%) sesuai regulasi perpajakan Republik
-              Indonesia yang berlaku.
+              Seluruh harga yang dicantumkan menggunakan mata uang Rupiah Indonesia (IDR). Sebagai
+              entitas berstatus Non-PKP saat ini, transaksi pada platform tidak dikenakan pemungutan
+              PPN dan diterbitkan E-Receipt / bukti pembayaran elektronik resmi sesuai ketentuan
+              yang berlaku.
             </p>
             <p>
               Pembayaran diproses secara instan melalui kanal resmi payment gateway berizin Bank

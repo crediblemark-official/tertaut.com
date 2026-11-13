@@ -101,10 +101,10 @@ const form = defineModel<{
         <button
           type="submit"
           :disabled="isCreating || !form.appId || !form.code.trim()"
-          class="px-5 h-9 btn-gold rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95 transition shadow-2xs"
+          class="px-5 h-9 btn-gold rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 shadow-2xs"
         >
           <Plus class="w-3.5 h-3.5 stroke-[3]" />
-          <span>{{ isCreating ? "Menyimpan..." : "Terbitkan Kupon" }}</span>
+          <span>{{ isCreating ? "Menyimpan..." : "Buat" }}</span>
         </button>
       </div>
     </form>

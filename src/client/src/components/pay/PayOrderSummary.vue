@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { CheckCircle2, Lock, Sparkles, ChevronDown, ChevronUp, Mail, Tag } from "lucide-vue-next";
 import { formatRupiah } from "../../lib/utils";
+import { COMPANY_INFO } from "../../constants/company";
 
 interface ProductData {
   id: string;
@@ -115,7 +116,7 @@ const couponInputValue = computed({
           }}</span>
         </div>
         <div class="flex items-center justify-between text-xs text-slate-600 font-medium">
-          <span>Biaya Layanan &amp; PPN</span>
+          <span>Biaya Layanan Pembayaran</span>
           <span class="text-emerald-600 font-bold">Gratis (Ditanggung Penjual)</span>
         </div>
 
@@ -208,8 +209,8 @@ const couponInputValue = computed({
             WA: +62 851-8313-1249
           </a>
           <span>•</span>
-          <a href="mailto:retaslintasbatas@gmail.com" class="hover:underline">
-            retaslintasbatas@gmail.com
+          <a :href="`mailto:${COMPANY_INFO.contact.email}`" class="hover:underline">
+            {{ COMPANY_INFO.contact.email }}
           </a>
         </div>
       </div>
@@ -362,8 +363,8 @@ const couponInputValue = computed({
           WA: +62 851-8313-1249
         </a>
         <span>•</span>
-        <a href="mailto:retaslintasbatas@gmail.com" class="hover:underline">
-          retaslintasbatas@gmail.com
+        <a :href="`mailto:${COMPANY_INFO.contact.email}`" class="hover:underline">
+          {{ COMPANY_INFO.contact.email }}
         </a>
       </div>
     </div>

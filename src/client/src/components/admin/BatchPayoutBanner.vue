@@ -14,40 +14,42 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="space-y-3">
-    <!-- Quick Action Strip for Batch Payout -->
+  <div>
+    <!-- Flush Hairline Action Strip for Batch Payout -->
     <section
       v-if="(stats?.pendingDisbursementsCount || 0) > 0"
-      class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-lg bg-gold/10 border border-gold/25 text-jetblack"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-3 bg-gold/10 border-b border-gold/25 text-jetblack flex flex-col sm:flex-row sm:items-center justify-between gap-3"
     >
       <div class="flex items-center gap-2 text-xs">
-        <span class="w-2 h-2 rounded-full bg-gold shrink-0"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-gold shrink-0"></span>
         <span class="font-bold">Batch Payout Siap:</span>
         <span class="text-jetblack/80">
-          <strong>{{ stats?.pendingDisbursementsCount }}</strong> transaksi (total
-          <strong>Rp {{ (stats?.pendingDisbursementsAmount || 0).toLocaleString("id-ID") }}</strong
+          <strong class="font-mono">{{ stats?.pendingDisbursementsCount }}</strong> transaksi (total
+          <strong class="font-mono"
+            >Rp {{ (stats?.pendingDisbursementsAmount || 0).toLocaleString("id-ID") }}</strong
           >) siap dicairkan ke builder.
         </span>
       </div>
 
       <button
+        type="button"
         @click="emit('triggerPayout')"
         :disabled="isProcessingPayout"
-        class="h-9 px-4 rounded-lg btn-gold text-xs font-bold transition inline-flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 shadow-sm"
+        class="h-8 px-4 rounded-lg btn-gold text-xs font-bold transition inline-flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
       >
         <span
           v-if="isProcessingPayout"
           class="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin"
         ></span>
         <Send v-else class="w-3.5 h-3.5 stroke-[2.5]" />
-        <span>Eksekusi Payout</span>
+        <span>Eksekusi</span>
       </button>
     </section>
 
-    <!-- Payout Execution Result -->
+    <!-- Flush Hairline Payout Result Strip -->
     <section
       v-if="payoutResult"
-      class="p-3 rounded-lg bg-forest/10 border border-forest/25 text-forest flex items-center justify-between text-xs font-bold"
+      class="-mx-3.5 sm:-mx-4 md:-mx-6 px-3.5 sm:px-4 md:px-6 py-2.5 bg-forest/10 border-b border-forest/25 text-forest flex items-center justify-between text-xs font-bold"
     >
       <div class="flex items-center gap-2">
         <CheckCircle2 class="w-4 h-4 shrink-0" />

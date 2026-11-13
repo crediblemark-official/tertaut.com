@@ -3,10 +3,12 @@ import { ref, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api, clearAppsCache } from "../lib/api";
 import type { AppItem, CatalogKPIStats } from "../types/app";
+import { X } from "lucide-vue-next";
 import { dashboardEnv } from "../lib/environment";
 import { useConfirm } from "../composables/useConfirm";
 import AppCatalog from "../components/apps/AppCatalog.vue";
 import AppCreateForm from "../components/apps/AppCreateForm.vue";
+import AppQuickStartModal from "../components/apps/AppQuickStartModal.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -18,6 +20,8 @@ const loading = ref(true);
 const searchQuery = ref("");
 const viewMode = ref<"list" | "create">("list");
 const editingApp = ref<AppItem | null>(null);
+const newlyCreatedApp = ref<AppItem | null>(null);
+const isQuickStartOpen = ref(false);
 
 function openCreatePage() {
   editingApp.value = null;
@@ -89,10 +93,19 @@ async function loadData() {
   }
 }
 
-async function handleCreated() {
+async function handleCreated(createdApp: AppItem) {
   closeCreatePage();
   clearAppsCache();
   await loadData();
+  if (createdApp?.id) {
+    newlyCreatedApp.value = createdApp;
+    isQuickStartOpen.value = true;
+  }
+}
+
+function handleQuickStartConfigure(app: AppItem) {
+  isQuickStartOpen.value = false;
+  openEditPage(app);
 }
 
 async function handleUpdated() {
@@ -181,9 +194,10 @@ onMounted(() => {
       <button
         type="button"
         @click="successMessage = null"
-        class="text-white/80 hover:text-white font-bold ml-2 cursor-pointer"
+        aria-label="Tutup notifikasi sukses"
+        class="p-1 text-white/80 hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer"
       >
-        ×
+        <X class="w-3.5 h-3.5" />
       </button>
     </div>
 
@@ -196,9 +210,10 @@ onMounted(() => {
       <button
         type="button"
         @click="errorMessage = null"
-        class="text-white/80 hover:text-white font-bold ml-2 cursor-pointer"
+        aria-label="Tutup notifikasi galat"
+        class="p-1 text-white/80 hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer"
       >
-        ×
+        <X class="w-3.5 h-3.5" />
       </button>
     </div>
 
@@ -230,6 +245,14 @@ onMounted(() => {
       @created="handleCreated"
       @updated="handleUpdated"
       @delete="handleDeleteApp"
+    />
+
+    <!-- Post-Create Quick Start Modal -->
+    <AppQuickStartModal
+      :show="isQuickStartOpen"
+      :app="newlyCreatedApp"
+      @close="isQuickStartOpen = false"
+      @configure="handleQuickStartConfigure"
     />
   </div>
 </template>

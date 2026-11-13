@@ -7,6 +7,7 @@ import { Printer, ArrowLeft, ShieldCheck, Calendar, AlertCircle } from "lucide-v
 import TableContainer from "../components/common/TableContainer.vue";
 import StatusBadge from "../components/common/StatusBadge.vue";
 import CopyButton from "../components/common/CopyButton.vue";
+import { COMPANY_INFO } from "../constants/company";
 
 const route = useRoute();
 const router = useRouter();
@@ -157,7 +158,9 @@ onMounted(() => {
           <p class="text-[11px] text-slate-500 font-medium">
             Platform Pembayaran &amp; Lisensi Digital
           </p>
-          <p class="text-[10px] text-slate-400">PT RETAS LINTAS BATAS • support@tertaut.com</p>
+          <p class="text-[10px] text-slate-400">
+            {{ COMPANY_INFO.legalName }} • {{ COMPANY_INFO.contact.email }}
+          </p>
         </div>
 
         <div class="sm:text-right space-y-1">
@@ -327,14 +330,26 @@ onMounted(() => {
 
         <!-- Calculations -->
         <div class="w-full sm:w-64 space-y-2 text-xs text-slate-600 ml-auto">
-          <div class="flex justify-between">
-            <span>Dasar Pengenaan Pajak (DPP)</span>
-            <span class="font-mono">Rp {{ formatIdr(invoice.financials?.dpp) }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span>PPN 11% (Termasuk)</span>
-            <span class="font-mono">Rp {{ formatIdr(invoice.financials?.ppn11) }}</span>
-          </div>
+          <template v-if="COMPANY_INFO.isPkp">
+            <div class="flex justify-between">
+              <span>Dasar Pengenaan Pajak (DPP)</span>
+              <span class="font-mono">Rp {{ formatIdr(invoice.financials?.dpp) }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>PPN 11% (Termasuk)</span>
+              <span class="font-mono">Rp {{ formatIdr(invoice.financials?.ppn11) }}</span>
+            </div>
+          </template>
+          <template v-else>
+            <div class="flex justify-between">
+              <span>Subtotal Produk</span>
+              <span class="font-mono">Rp {{ formatIdr(invoice.financials?.grossAmount) }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Biaya Layanan Pembayaran</span>
+              <span class="font-semibold text-emerald-700">Rp 0 (Ditanggung Penjual)</span>
+            </div>
+          </template>
           <div
             v-if="invoice.financials?.discountAmount > 0"
             class="flex justify-between text-emerald-700"
@@ -358,13 +373,14 @@ onMounted(() => {
         class="pt-6 border-t border-slate-200 text-[10px] text-slate-500 space-y-1.5 text-center"
       >
         <p class="font-bold text-slate-700">
-          Faktur ini adalah bukti transaksi resmi yang sah dan diterbitkan secara elektronik oleh
-          platform tertaut.com di bawah naungan <strong>PT RETAS LINTAS BATAS</strong> sebagai
-          penyedia infrastruktur pembayaran &amp; lisensi resmi.
+          E-Receipt ini adalah bukti transaksi resmi yang sah dan diterbitkan secara elektronik oleh
+          platform tertaut.com di bawah naungan
+          <strong>{{ COMPANY_INFO.legalName }}</strong> sebagai penyedia infrastruktur pembayaran
+          &amp; lisensi resmi.
         </p>
         <p>
-          Alamat: Jl. Raya Batang-Batang, Kab. Sumenep, Jawa Timur • WhatsApp Dukungan: +62
-          851-8313-1249 • Email: support@tertaut.com
+          Alamat: {{ COMPANY_INFO.address.full }} • WhatsApp Dukungan:
+          {{ COMPANY_INFO.contact.phoneDisplay }} • Email: {{ COMPANY_INFO.contact.email }}
         </p>
       </div>
     </div>

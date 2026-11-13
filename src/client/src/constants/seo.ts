@@ -205,11 +205,11 @@ export function createJsonLd(
       const defaultFaqs = [
         {
           q: "Apa itu Tertaut?",
-          a: "Tertaut adalah platform Merchant of Record (MoR) dan infrastruktur pengembang untuk kreator software di Indonesia. Kami menangani pembayaran lokal (QRIS, VA), faktur pajak resmi (PPN 11%), sistem lisensi kriptografis offline-first Ed25519.",
+          a: "Tertaut adalah platform Managed Payment dan infrastruktur pengembang untuk kreator software di Indonesia. Kami menangani pembayaran lokal (QRIS, VA, E-Wallet), E-Receipt & bukti pembayaran resmi, serta sistem lisensi kriptografis offline-first Ed25519.",
         },
         {
-          q: "Apa perbedaan Merchant of Record (MoR) dengan Payment Gateway biasa?",
-          a: "Payment gateway biasa hanya memproses aliran uang dan mewajibkan Anda mendirikan badan hukum PT/CV serta mengurus faktur pajak PPN sendiri. Sebagai MoR, Tertaut bertindak sebagai penjual resmi atas nama Anda, menerbitkan faktur pajak otomatis, dan langsung mencairkan 95% hasil penjualan bersih ke rekening Anda.",
+          q: "Apa perbedaan Managed Payment (MoR) dengan Payment Gateway biasa?",
+          a: "Payment gateway biasa mewajibkan Anda mengurus verifikasi merchant, kontrak bank, serta rekap transaksi sendiri. Dengan sistem Managed Payment Tertaut, Anda langsung dapat menerima pembayaran (QRIS, VA, E-Wallet) secara terkelola, menerbitkan E-Receipt otomatis, dan menerima pencairan bersih 95% ke rekening bank Anda.",
         },
         {
           q: "Bagaimana cara kerja lisensi offline-first Ed25519?",

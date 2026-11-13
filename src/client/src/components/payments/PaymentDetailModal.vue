@@ -46,107 +46,106 @@ function formatDate(dateStr?: string | null): string {
       <div class="w-2 h-2 rounded-full bg-gold"></div>
     </template>
 
-    <div v-if="transaction" class="p-5 space-y-4 text-xs">
-      <!-- Top Amount Card -->
-      <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+    <div v-if="transaction" class="text-xs divide-y divide-jetblack/10">
+      <!-- Top Amount Strip -->
+      <div class="px-5 py-3.5 bg-jetblack/[0.02] space-y-2">
         <div class="flex items-center justify-between">
-          <span class="text-[11px] text-jetblack/60 font-semibold">Total Nilai Pembayaran</span>
+          <span class="text-[11px] text-jetblack/60 font-semibold">Total Pembayaran</span>
           <StatusBadge :status="transaction.paymentStatus" />
         </div>
-        <div class="text-2xl font-mono font-bold text-jetblack">
+        <div class="text-2xl font-mono tracking-wider font-bold text-jetblack">
           {{ formatRupiah(transaction.grossAmount) }}
         </div>
-        <div class="pt-2 border-t border-slate-200 grid grid-cols-2 gap-2 text-[11px]">
-          <div>
-            <span class="text-jetblack/50 block">Biaya MoR Tertaut (5%):</span>
-            <span class="font-mono font-bold text-crimson"
+        <div
+          class="pt-2 border-t border-jetblack/10 grid grid-cols-2 divide-x divide-jetblack/10 text-[11px]"
+        >
+          <div class="pr-2">
+            <span class="text-jetblack/50 block">Biaya MoR (5%)</span>
+            <span class="font-mono tracking-wider font-bold text-crimson"
               >- {{ formatRupiah(transaction.platformFee) }}</span
             >
           </div>
-          <div>
-            <span class="text-jetblack/50 block">Net Builder (95%):</span>
-            <span class="font-mono font-bold text-forest">{{
+          <div class="pl-3">
+            <span class="text-jetblack/50 block">Net Builder (95%)</span>
+            <span class="font-mono tracking-wider font-bold text-forest">{{
               formatRupiah(transaction.netAmount)
             }}</span>
           </div>
         </div>
       </div>
 
-      <!-- Transaction Fields Details -->
-      <div class="space-y-2.5">
-        <div class="flex justify-between items-center py-1 border-b border-slate-100">
+      <!-- Transaction Fields Details (Hairline Rows) -->
+      <div class="px-5 divide-y divide-jetblack/10">
+        <div class="flex justify-between items-center py-2">
           <span class="text-jetblack/60">ID Transaksi</span>
           <div class="flex items-center gap-1.5">
-            <span class="font-mono font-semibold text-jetblack">{{ transaction.id }}</span>
+            <span class="font-mono tracking-wider font-semibold text-jetblack">{{
+              transaction.id
+            }}</span>
             <CopyButton :text="transaction.id" title="Salin ID Transaksi" />
           </div>
         </div>
-        <div class="flex justify-between py-1 border-b border-slate-100">
-          <span class="text-jetblack/60">Email Klien / Pembeli</span>
+        <div class="flex justify-between py-2">
+          <span class="text-jetblack/60">Email Pembeli</span>
           <span class="font-semibold text-jetblack">{{ transaction.customerEmail || "-" }}</span>
         </div>
-        <div
-          v-if="transaction.customerName"
-          class="flex justify-between py-1 border-b border-slate-100"
-        >
+        <div v-if="transaction.customerName" class="flex justify-between py-2">
           <span class="text-jetblack/60">Nama Pelanggan</span>
           <span class="font-semibold text-jetblack">{{ transaction.customerName }}</span>
         </div>
-        <div
-          v-if="transaction.couponCode"
-          class="flex justify-between py-1 border-b border-slate-100"
-        >
+        <div v-if="transaction.couponCode" class="flex justify-between py-2">
           <span class="text-jetblack/60">Kupon Diskon</span>
           <span
-            class="font-mono font-bold text-jetblack bg-gold/15 px-1.5 py-0.2 rounded border border-gold/30"
+            class="font-mono tracking-wider font-bold text-jetblack bg-gold/15 px-1.5 py-0.2 rounded border border-gold/30"
           >
             {{ transaction.couponCode }}
           </span>
         </div>
-        <div class="flex justify-between py-1 border-b border-slate-100">
+        <div class="flex justify-between py-2">
           <span class="text-jetblack/60">Produk Software</span>
           <span class="font-semibold text-jetblack">{{ getAppName(transaction.appId) }}</span>
         </div>
-        <div class="flex justify-between py-1 border-b border-slate-100">
+        <div class="flex justify-between py-2">
           <span class="text-jetblack/60">Kanal Bayar</span>
           <span class="font-semibold text-jetblack uppercase">{{
             transaction.paymentChannel || "-"
           }}</span>
         </div>
-        <div class="flex justify-between py-1 border-b border-slate-100">
-          <span class="text-jetblack/60">Gateway / MoR Provider</span>
+        <div class="flex justify-between py-2">
+          <span class="text-jetblack/60">Provider</span>
           <span class="font-semibold text-jetblack uppercase">{{
             transaction.paymentProvider || "XENDIT"
           }}</span>
         </div>
-        <div class="flex justify-between py-1 border-b border-slate-100">
+        <div class="flex justify-between py-2">
           <span class="text-jetblack/60">Status Pencairan</span>
           <StatusBadge :status="transaction.disbursementStatus" />
         </div>
-        <div class="flex justify-between py-1 border-b border-slate-100">
+        <div class="flex justify-between py-2">
           <span class="text-jetblack/60">Waktu Dibuat</span>
           <span class="text-jetblack font-mono">{{ formatDate(transaction.createdAt) }}</span>
         </div>
-        <div class="flex justify-between py-1 border-b border-slate-100">
+        <div class="flex justify-between py-2">
           <span class="text-jetblack/60">Waktu Lunas</span>
           <span class="text-jetblack font-mono">{{
             transaction.paidAt ? formatDate(transaction.paidAt) : "-"
           }}</span>
         </div>
+      </div>
+
+      <div
+        v-if="transaction.metadata && Object.keys(transaction.metadata).length > 0"
+        class="px-5 py-3 space-y-1.5"
+      >
+        <span class="text-[10px] font-bold text-jetblack/50 uppercase tracking-wider block">
+          Metadata Kustom SaaS
+        </span>
         <div
-          v-if="transaction.metadata && Object.keys(transaction.metadata).length > 0"
-          class="pt-2 border-t border-slate-100 space-y-1.5"
+          class="p-2.5 rounded-lg bg-jetblack/5 font-mono text-[11px] text-jetblack overflow-x-auto max-h-36 border border-jetblack/10"
         >
-          <span class="text-[10px] font-bold text-jetblack/50 uppercase tracking-wider block">
-            Metadata Kustom SaaS
-          </span>
-          <div
-            class="p-2.5 rounded-xl bg-jetblack/5 font-mono text-[11px] text-jetblack overflow-x-auto max-h-36 border border-jetblack/10"
-          >
-            <pre class="whitespace-pre-wrap leading-relaxed">{{
-              JSON.stringify(transaction.metadata, null, 2)
-            }}</pre>
-          </div>
+          <pre class="whitespace-pre-wrap leading-relaxed">{{
+            JSON.stringify(transaction.metadata, null, 2)
+          }}</pre>
         </div>
       </div>
 
@@ -155,7 +154,7 @@ function formatDate(dateStr?: string | null): string {
         v-if="
           transaction.paymentStatus === 'PAID' && transaction.disbursementStatus !== 'COMPLETED'
         "
-        class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-start gap-2.5"
+        class="px-5 py-3 bg-jetblack/[0.02] flex items-start gap-2.5"
       >
         <Wallet class="w-4 h-4 text-gold shrink-0 mt-0.5" />
         <div class="space-y-1">
@@ -165,66 +164,59 @@ function formatDate(dateStr?: string | null): string {
             <span class="font-mono font-bold text-forest">{{
               formatRupiah(transaction.netAmount)
             }}</span>
-            dari transaksi ini masuk ke akumulasi saldo Anda. Penarikan dana dilakukan secara
-            agregat dari seluruh software di halaman Balances.
+            masuk ke akumulasi saldo di menu Saldo &amp; Payout.
           </p>
           <router-link
             :to="envPath(env, '/balances')"
-            class="inline-flex items-center gap-1.5 mt-1 text-[11px] font-bold text-jetblack hover:text-gold transition"
+            class="inline-flex items-center gap-1 mt-0.5 text-[11px] font-bold text-jetblack hover:text-gold transition"
           >
             <ArrowUpRight class="w-3.5 h-3.5" />
-            Tarik Dana di Halaman Balances
+            <span>Buka Saldo &amp; Payout</span>
           </router-link>
         </div>
       </div>
 
-      <!-- Public Invoice & Delivery Links -->
-      <div class="space-y-2 pt-1">
-        <div class="text-[11px] uppercase font-bold text-jetblack/70 tracking-wider">
-          Tautan Pelanggan &amp; Invoice Resmi
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <router-link
-            :to="`/invoice/${transaction.id}`"
-            target="_blank"
-            class="p-2.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 transition flex items-center justify-between text-xs font-semibold text-jetblack shadow-2xs group"
-          >
-            <span>Buka Bukti Bayar / Invoice</span>
-            <ExternalLink class="w-3.5 h-3.5 text-slate-400 group-hover:text-jetblack" />
-          </router-link>
+      <!-- Public Invoice & Delivery Links (Flush 2-col Grid) -->
+      <div class="grid grid-cols-2 divide-x divide-jetblack/10">
+        <router-link
+          :to="`/invoice/${transaction.id}`"
+          target="_blank"
+          class="px-5 py-3 hover:bg-jetblack/[0.03] transition flex items-center justify-between text-xs font-semibold text-jetblack group"
+        >
+          <span>Invoice</span>
+          <ExternalLink class="w-3.5 h-3.5 text-jetblack/40 group-hover:text-jetblack" />
+        </router-link>
 
-          <router-link
-            :to="`/pay/${transaction.id}`"
-            target="_blank"
-            class="p-2.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 transition flex items-center justify-between text-xs font-semibold text-jetblack shadow-2xs group"
-          >
-            <span>Halaman Pembayaran</span>
-            <ExternalLink class="w-3.5 h-3.5 text-slate-400 group-hover:text-jetblack" />
-          </router-link>
-        </div>
+        <router-link
+          :to="`/pay/${transaction.id}`"
+          target="_blank"
+          class="px-5 py-3 hover:bg-jetblack/[0.03] transition flex items-center justify-between text-xs font-semibold text-jetblack group"
+        >
+          <span>Halaman Bayar</span>
+          <ExternalLink class="w-3.5 h-3.5 text-jetblack/40 group-hover:text-jetblack" />
+        </router-link>
       </div>
 
       <!-- Simulator Notice for Sandbox -->
       <div
         v-if="env === 'sandbox' && transaction.paymentStatus !== 'PAID'"
-        class="p-3 bg-amber-50 rounded-xl border border-amber-200/80 space-y-2 text-xs"
+        class="px-5 py-3.5 bg-amber-50/70 space-y-2 text-xs"
       >
         <div class="flex items-center gap-1.5 font-bold text-amber-900">
           <Zap class="w-4 h-4 text-amber-600" />
           <span>Simulasi Pembayaran Sandbox</span>
         </div>
         <p class="text-[11px] text-amber-800/80">
-          Transaksi ini berada di mode Sandbox. Buka tautan kasir / invoice gateway resmi untuk
-          menyelesaikan simulasi pembayaran langsung melalui simulator resmi Payment Gateway.
+          Buka kasir sandbox untuk menyelesaikan simulasi pembayaran gateway.
         </p>
         <a
           v-if="transaction.xenditInvoiceUrl"
           :href="transaction.xenditInvoiceUrl"
           target="_blank"
-          class="w-full py-2 btn-gold rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer text-center block"
+          class="w-full py-2 btn-gold rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <ExternalLink class="w-3.5 h-3.5" />
-          <span>Buka Halaman Kasir Sandbox</span>
+          <span>Bayar Sandbox</span>
         </a>
       </div>
     </div>

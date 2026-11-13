@@ -55,32 +55,25 @@ function dayLabel(dayIso: string): string {
 
 <template>
   <div
-    class="mb-3 p-4 sm:p-5 rounded-xl bg-white border border-jetblack/15 shadow-xs space-y-4 animate-fadeIn"
+    class="-mx-3.5 sm:-mx-4 md:-mx-6 bg-white border-b border-jetblack/15 divide-y divide-jetblack/10 animate-fadeIn"
   >
     <div
-      class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-jetblack/10 pb-3"
+      class="px-3.5 sm:px-4 md:px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-jetblack/[0.02]"
     >
       <div class="flex items-center gap-2">
-        <div class="p-1.5 rounded-lg bg-gold/15 text-jetblack">
-          <BarChart3 class="w-4 h-4 text-gold" />
-        </div>
-        <div>
-          <h3 class="text-xs font-bold text-jetblack">Statistik Penebusan Kupon</h3>
-          <p class="text-[11px] text-jetblack/60">
-            Pantau performa penggunaan kupon dan total potongan diskon yang diberikan.
-          </p>
-        </div>
+        <BarChart3 class="w-4 h-4 text-gold shrink-0" />
+        <h3 class="text-xs font-bold uppercase tracking-wider text-jetblack">Statistik Kupon</h3>
       </div>
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-1">
         <button
           v-for="d in [7, 14, 30]"
           :key="d"
           type="button"
           @click="statsDays = d"
           :class="[
-            'px-2.5 py-1 rounded-lg font-bold transition cursor-pointer text-xs',
+            'px-2.5 py-1 rounded-md font-bold transition cursor-pointer text-xs',
             statsDays === d
-              ? 'bg-jetblack text-white shadow-2xs'
+              ? 'bg-jetblack text-white'
               : 'bg-jetblack/5 text-jetblack/60 hover:bg-jetblack/10',
           ]"
         >
@@ -89,52 +82,56 @@ function dayLabel(dayIso: string): string {
       </div>
     </div>
 
-    <!-- Grid 2-Kolom: Kiri Ringkasan KPI & Top Kupon, Kanan Bar Chart Harian -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-      <div class="lg:col-span-5 space-y-3">
-        <div class="grid grid-cols-2 gap-2">
-          <div class="p-3 rounded-xl bg-jetblack/[0.02] border border-jetblack/10">
+    <!-- Grid 2-Kolom Hairline: Kiri Ringkasan KPI & Top Kupon, Kanan Bar Chart Harian -->
+    <div
+      class="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-jetblack/10"
+    >
+      <div class="lg:col-span-5 divide-y divide-jetblack/10">
+        <div class="grid grid-cols-2 divide-x divide-jetblack/10">
+          <div class="px-3.5 sm:px-4 md:px-6 py-3">
             <div class="text-[10px] font-bold uppercase tracking-wider text-jetblack/50">
-              Penebusan ({{ statsDays }} hari)
+              Penebusan ({{ statsDays }}h)
             </div>
             <div
               v-if="statsLoading"
               class="h-6 w-14 bg-jetblack/10 rounded animate-pulse mt-1"
             ></div>
-            <div v-else class="text-xl font-black font-mono text-jetblack mt-0.5">
-              {{ stats?.totalRedemptions ?? 0 }}
-              <span class="text-xs font-normal text-jetblack/50">x</span>
+            <div v-else class="text-xl font-black font-mono tracking-wider text-jetblack mt-0.5">
+              {{ stats?.totalRedemptions ?? 0
+              }}<span class="text-xs font-normal text-jetblack/50">x</span>
             </div>
           </div>
-          <div class="p-3 rounded-xl bg-jetblack/[0.02] border border-jetblack/10">
+          <div class="px-3.5 sm:px-4 md:px-6 py-3">
             <div class="text-[10px] font-bold uppercase tracking-wider text-jetblack/50">
-              Total Diskon Diberikan
+              Total Diskon
             </div>
             <div
               v-if="statsLoading"
               class="h-6 w-24 bg-jetblack/10 rounded animate-pulse mt-1"
             ></div>
-            <div v-else class="text-xl font-black font-mono text-crimson mt-0.5">
+            <div v-else class="text-xl font-black font-mono tracking-wider text-crimson mt-0.5">
               {{ formatRupiah(stats?.totalDiscountIdr || 0) }}
             </div>
           </div>
         </div>
 
         <!-- Top Coupons -->
-        <div v-if="statsLoading" class="pt-1 space-y-1.5">
+        <div v-if="statsLoading" class="px-3.5 sm:px-4 md:px-6 py-3 space-y-1.5">
           <div class="h-3 w-28 bg-jetblack/10 rounded animate-pulse"></div>
           <div class="flex gap-1.5">
             <div class="h-5 w-20 bg-gold/15 rounded animate-pulse"></div>
             <div class="h-5 w-20 bg-gold/15 rounded animate-pulse"></div>
           </div>
         </div>
-        <div v-else-if="stats && stats.topCoupons.length > 0" class="pt-1">
-          <div class="text-[11px] font-bold text-jetblack/70 mb-1.5">Kupon Paling Populer:</div>
+        <div v-else-if="stats && stats.topCoupons.length > 0" class="px-3.5 sm:px-4 md:px-6 py-3">
+          <div class="text-[10.5px] font-bold uppercase tracking-wider text-jetblack/55 mb-1.5">
+            Kupon Populer
+          </div>
           <div class="flex flex-wrap items-center gap-1.5">
             <span
               v-for="(tc, idx) in stats.topCoupons.slice(0, 3)"
               :key="tc.code || `idx-${idx}`"
-              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gold/15 border border-gold/35 text-[11px] font-bold text-jetblack font-mono"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gold/15 border border-gold/35 text-[11px] font-bold text-jetblack font-mono tracking-wider"
             >
               <TicketPercent class="w-3 h-3 text-gold" />
               {{ tc.code }} · {{ tc.redemptions }}x
@@ -144,14 +141,12 @@ function dayLabel(dayIso: string): string {
       </div>
 
       <!-- Kanan: Bar Chart Harian -->
-      <div class="lg:col-span-7 flex flex-col justify-between">
-        <div class="text-[11px] font-bold text-jetblack/70 mb-1">Tren Penebusan Harian</div>
+      <div class="lg:col-span-7 px-3.5 sm:px-4 md:px-6 py-3 flex flex-col justify-between">
+        <div class="text-[10.5px] font-bold uppercase tracking-wider text-jetblack/55 mb-2">
+          Tren Harian
+        </div>
 
-        <!-- Chart Skeleton when statsLoading -->
-        <div
-          v-if="statsLoading"
-          class="flex items-end gap-2 h-24 px-3 pt-3 pb-1 bg-jetblack/[0.01] border border-jetblack/10 rounded-xl"
-        >
+        <div v-if="statsLoading" class="flex items-end gap-2 h-24 pt-2 border-b border-jetblack/10">
           <div
             v-for="h in [28, 44, 20, 56, 36, 48, 64]"
             :key="`c-sk-${h}`"
@@ -167,7 +162,7 @@ function dayLabel(dayIso: string): string {
 
         <div
           v-else-if="stats && stats.daily.length > 0"
-          class="flex items-end gap-1.5 h-24 px-2 pt-3 pb-1 bg-jetblack/[0.01] border border-jetblack/10 rounded-xl overflow-x-auto no-scrollbar"
+          class="flex items-end gap-1.5 h-24 pt-2 border-b border-jetblack/10 overflow-x-auto no-scrollbar"
         >
           <div
             v-for="d in stats.daily"
@@ -190,7 +185,7 @@ function dayLabel(dayIso: string): string {
         </div>
         <div
           v-else
-          class="h-24 flex items-center justify-center text-xs text-jetblack/40 border border-jetblack/10 rounded-xl"
+          class="h-24 flex items-center justify-center text-xs text-jetblack/40 border-y border-jetblack/10"
         >
           Belum ada penebusan kupon dalam {{ statsDays }} hari terakhir.
         </div>
