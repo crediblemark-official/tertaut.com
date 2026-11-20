@@ -168,7 +168,9 @@ describe("Xendit Payment Gateway Integration", () => {
     const json = (await res.json()) as any;
     expect(json.success).toBe(true);
     expect(json.paymentGateway).toBe("xendit");
-    expect(json.message).toContain("Xendit");
+    expect(json.message).toContain("berhasil disiapkan");
+    expect(json.message).not.toContain("Xendit");
+    expect(json.xenditInvoiceUrl).toBeUndefined();
 
     // Verifikasi transaksi tercatat di database dengan provider xendit
     const tx = await db.query.transactions.findFirst({

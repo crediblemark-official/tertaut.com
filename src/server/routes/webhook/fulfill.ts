@@ -5,10 +5,11 @@ import { LicenseService } from "../../services/licensing/license";
 import { EmailService } from "../../services/notifications/email";
 import { WebhookService } from "../../services/notifications/webhooks";
 import { AuditService } from "../../services/security/audit";
+import { resolveAppGrantDays } from "../../utils/payment";
 import { randomBytes } from "crypto";
 
 async function sendLicenseIssuedEmail(result: any): Promise<void> {
-  if (!result?.licenseKey || !result?.appId || !result?.customerEmail) return;
+  if (!result?.appId || !result?.customerEmail) return;
   try {
     const app = await db.query.apps.findFirst({ where: eq(apps.id, result.appId) });
     const delivery = app?.deliveryConfig;
@@ -19,12 +20,20 @@ async function sendLicenseIssuedEmail(result: any): Promise<void> {
         }
       : undefined;
 
-    const isLicenseKeyEnabled = delivery?.licenseKey?.enabled !== false;
+    const isLicenseKeyEnabled =
+      delivery?.licenseKey?.enabled !== false && Boolean(result.licenseKey);
+    const hasAnyDelivery = Boolean(
+      isLicenseKeyEnabled ||
+      delivery?.fileDownload?.enabled ||
+      delivery?.privateNote?.enabled ||
+      apiAccessConfig
+    );
+    if (!hasAnyDelivery) return;
 
     await EmailService.sendLicenseIssued({
       to: result.customerEmail,
       appName: app?.name || "Produk Digital",
-      licenseKey: result.licenseKey,
+      licenseKey: result.licenseKey || null,
       expiresAt: result.expiresAt,
       deliveryDetails: delivery
         ? {
@@ -33,7 +42,7 @@ async function sendLicenseIssuedEmail(result: any): Promise<void> {
             privateNote: delivery.privateNote?.enabled ? delivery.privateNote : undefined,
             apiAccess: apiAccessConfig,
           }
-        : { licenseKeyEnabled: true },
+        : { licenseKeyEnabled: isLicenseKeyEnabled },
     });
   } catch (err: any) {
     // Pengiriman email tidak boleh menggagalkan fulfillment pembayaran.
@@ -94,11 +103,7 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
       const licenseDisabled = app?.deliveryConfig?.licenseKey?.enabled === false;
       const shouldIssueLicense = !licenseDisabled;
 
-      const productGrantDays = app?.deliveryConfig?.licenseKey?.expiresInDays;
-      const grantDays =
-        typeof productGrantDays === "number" && productGrantDays > 0
-          ? productGrantDays
-          : tx.grantDays || 365;
+      const grantDays = resolveAppGrantDays(app, tx.grantDays || 365);
       let licenseKey: string | null = null;
       let licId: string | null = null;
       let generatedApiKey: string | undefined = undefined;
@@ -120,6 +125,17 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
         licId = provisioned.licenseId;
         expiresAt = provisioned.expiresAt;
         generatedApiKey = provisioned.apiKey;
+      } else if (app?.deliveryConfig?.apiAccess?.enabled) {
+        generatedApiKey = `tt_cust_${randomBytes(16).toString("hex")}`;
+        await trx
+          .update(transactions)
+          .set({
+            metadata: {
+              ...((locked.metadata as Record<string, unknown> | null) || {}),
+              apiKey: generatedApiKey,
+            },
+          })
+          .where(eq(transactions.id, tx.id));
       }
 
       const paymentData = { ...locked, paymentChannel, paymentStatus: "PAID", paidAt: now };
@@ -211,4 +227,36 @@ export async function fulfillPaymentTransaction(tx: any, paymentChannel: string 
     }
     throw err;
   }
+}
+
+/**
+ * Mengubah transaksi PENDING menjadi EXPIRED/FAILED secara atomik (idempoten).
+ * Bila berhasil bertransisi dari PENDING, lisensi aktif terkait dicabut dan kupon di-rollback.
+ */
+export async function markPendingTransactionTerminal(
+  txId: string,
+  targetStatus: "EXPIRED" | "FAILED"
+): Promise<boolean> {
+  const [updated] = await db
+    .update(transactions)
+    .set({
+      paymentStatus: targetStatus,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(transactions.id, txId), eq(transactions.paymentStatus, "PENDING")))
+    .returning({ id: transactions.id, couponCode: transactions.couponCode });
+
+  if (!updated) return false;
+
+  await db
+    .update(licenses)
+    .set({ status: "REVOKED", updatedAt: new Date() })
+    .where(and(eq(licenses.transactionId, txId), eq(licenses.status, "ACTIVE")));
+
+  if (updated.couponCode) {
+    const { CouponService } = await import("../../services/monetization/coupon");
+    await CouponService.rollback(updated.couponCode);
+  }
+
+  return true;
 }

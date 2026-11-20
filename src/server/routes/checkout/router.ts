@@ -55,6 +55,7 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
       vaBank: t.Optional(t.String()),
       bank: t.Optional(t.String()),
       ewalletChannel: t.Optional(t.String()),
+      ewalletPhone: t.Optional(t.String()),
       retailOutlet: t.Optional(t.String()),
       amount: t.Optional(t.Number({ minimum: 0 })),
       customAmount: t.Optional(t.Number({ minimum: 0 })),
@@ -190,13 +191,13 @@ export const checkoutRoutes = new Elysia({ prefix: "/checkout" })
     },
   })
   /**
-   * Trigger pencairan saldo (Xendit Disbursement) manual / instant payout
+   * Trigger pencairan saldo manual / instant payout
    */
   .post("/disburse/:txId", handleDisburseTx, {
     params: t.Object({ txId: t.String() }),
     detail: {
       tags: ["MoR Checkout"],
-      summary: "Trigger Xendit Disbursement",
+      summary: "Trigger Disbursement",
       description: "Memicu pencairan saldo instan untuk transaksi tertentu.",
     },
   })

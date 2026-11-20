@@ -164,12 +164,38 @@ Pembayaran riil diproses melalui Xendit. Rail yang tersedia mengikuti kanal akti
 
 Rail yang diterima: `qris`, `va`, `ewallet`, `card`, dan `retail`. Bila tidak diisi, server memakai rail default produk. Permintaan gateway yang sudah dihapus ditolak.
 
-### Status pembayaran
+### Status pembayaran & delivery akses digital
 
 ```ts
 const status = await tertaut.getPaymentStatus(transactionId, ticket);
 // tanpa ticket yang valid, server hanya mengembalikan ringkasan minimal
 // { success, transactionId, paymentStatus }
+// dengan ticket valid pada status PAID, server menyertakan payload delivery:
+if (status.paymentStatus === "PAID" && status.delivery) {
+  if (status.delivery.apiAccess?.apiKey) {
+    console.log("Customer API Key:", status.delivery.apiAccess.apiKey);
+  }
+  if (status.delivery.fileDownload?.downloadUrl) {
+    console.log("Download File:", status.delivery.fileDownload.downloadUrl);
+  }
+}
+```
+
+### Validasi kupon & kanal pembayaran
+
+```ts
+// Validasi kupon sebelum checkout
+const couponResult = await tertaut.validateCoupon({
+  couponCode: "DISKON50",
+  amount: 100_000,
+});
+if (couponResult.valid) {
+  console.log("Diskon:", couponResult.discountPercent, "%");
+}
+
+// Ambil daftar kanal pembayaran aktif
+const channels = await tertaut.getPaymentChannels();
+console.log("Active channels:", channels.channels);
 ```
 
 ### Free trial
@@ -415,6 +441,8 @@ Event yang tersedia: `payment.success`, `payment.failed`, `license.issued`,
 | --------------------------------- | ------------------------------------------------------ |
 | `checkout(options)`               | Hosted checkout MoR                                    |
 | `getPaymentStatus(txId, ticket?)` | Status pembayaran MoR                                  |
+| `validateCoupon(options)`         | Validasi kode kupon sebelum checkout                   |
+| `getPaymentChannels()`            | Ambil daftar kanal pembayaran aktif                    |
 | `licensing.*`                     | Siklus hidup lisensi, seat, lease & verifikasi offline |
 | `s2s.*`                           | Admin API backend (secret key)                         |
 | `Tertaut.verifyWebhookSignature`  | Verifikasi HMAC webhook                                |

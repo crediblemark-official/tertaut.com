@@ -435,7 +435,7 @@ export class WebhookService {
         await db
           .update(apps)
           .set({ webhookUrl: input.url, updatedAt: new Date() })
-          .where(eq(apps.id, input.appId));
+          .where(and(eq(apps.id, input.appId), eq(apps.builderId, builderId)));
 
         return updated;
       }
@@ -458,7 +458,7 @@ export class WebhookService {
       await db
         .update(apps)
         .set({ webhookUrl: input.url, updatedAt: new Date() })
-        .where(eq(apps.id, input.appId));
+        .where(and(eq(apps.id, input.appId), eq(apps.builderId, builderId)));
     }
 
     return endpoint;
@@ -480,7 +480,7 @@ export class WebhookService {
       await db
         .update(apps)
         .set({ webhookUrl: patch.url, updatedAt: new Date() })
-        .where(eq(apps.id, updated.appId));
+        .where(and(eq(apps.id, updated.appId), eq(apps.builderId, builderId)));
     }
 
     return updated || null;
@@ -498,7 +498,7 @@ export class WebhookService {
         await db
           .update(apps)
           .set({ webhookUrl: null, updatedAt: new Date() })
-          .where(eq(apps.id, deleted[0].appId));
+          .where(and(eq(apps.id, deleted[0].appId), eq(apps.builderId, builderId)));
       } catch {}
     }
 

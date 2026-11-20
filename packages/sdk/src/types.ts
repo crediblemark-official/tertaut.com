@@ -58,6 +58,9 @@ export interface CheckoutOptions {
   bank?: string;
   ewalletChannel?: string;
   retailOutlet?: string;
+  /** Nomor telepon / ponsel pembeli (wajib diisi bila memilih rail ewallet OVO, mis. 08123456789). */
+  ewalletPhone?: string;
+  phone?: string;
   /** Nominal kustom (hanya untuk produk yang mengizinkan harga bebas). */
   customAmount?: number;
   /** Aktifkan free trial bila produk punya `trialPeriodDays > 0`. */
@@ -74,16 +77,46 @@ export interface CheckoutOptions {
   autoRedirect?: boolean;
 }
 
+/** Struktur pengiriman akses digital non-lisensi (API key, file unduhan, atau private note). */
+export interface CheckoutDeliveryPayload {
+  fileDownload?: {
+    enabled: boolean;
+    downloadUrl?: string;
+    fileName?: string;
+    fileSize?: string;
+    hashSha256?: string;
+  };
+  privateNote?: {
+    enabled: boolean;
+    note?: string;
+  };
+  apiAccess?: {
+    enabled: boolean;
+    endpointUrl?: string;
+    instruction?: string;
+    apiKey?: string;
+  };
+}
+
 export interface CheckoutStatusResult {
   success: boolean;
   transactionId: string;
   paymentStatus: "PENDING" | "PAID" | "EXPIRED" | "FAILED" | string;
   licenseKey?: string | null;
   appId?: string;
+  externalId?: string;
   amount?: number;
   qrDataUrl?: string;
   paymentCode?: string;
   channel?: string;
+  paymentRail?: string;
+  vaBank?: string;
+  retailOutlet?: string;
+  ewalletChannel?: string;
+  /** URL redirect / deeplink untuk penyelesaian pembayaran e-wallet. */
+  actionUrl?: string;
+  /** Data pengiriman digital (file download, private note, apiAccess) saat status PAID. */
+  delivery?: CheckoutDeliveryPayload;
   checkoutUrl?: string;
   paidAt?: string | null;
   message?: string;
@@ -98,11 +131,14 @@ export interface CheckoutResult {
   /** Ticket HMAC berumur 45 menit — wajib disimpan untuk polling status & invoice. */
   ticket?: string;
   hostedPayUrl?: string;
+  actionUrl?: string;
   paymentGateway?: string;
   paymentRail?: string;
   paymentCode?: string;
   qrDataUrl?: string;
   vaBank?: string;
+  retailOutlet?: string;
+  ewalletChannel?: string;
   scenario?: string;
   amount?: number;
   listPrice?: number;
@@ -359,6 +395,8 @@ export interface S2SIssueBatchOptions {
 
 export interface S2SRevokeOptions {
   licenseKey: string;
+  /** Alasan pencabutan lisensi untuk audit trail dan denylist (opsional). */
+  reason?: string;
 }
 
 export interface S2SRevokeBatchOptions {
@@ -383,4 +421,40 @@ export interface S2SEventsFilter {
   event?: string;
   actorType?: string;
   limit?: number;
+}
+
+export interface ValidateCouponOptions {
+  couponCode: string;
+  amount?: number;
+  appId?: string;
+  slug?: string;
+}
+
+export interface ValidateCouponResult {
+  valid: boolean;
+  message?: string;
+  errorCode?: string;
+  coupon?: {
+    code: string;
+    discountPercent: number;
+  };
+  discountPercent?: number;
+  discountAmount?: number;
+  payableAmount?: number;
+  finalAmount?: number;
+}
+
+export interface PaymentChannelsResult {
+  success: boolean;
+  channels: Array<{
+    id: string;
+    name: string;
+    rail: string;
+    category?: string;
+    fee?: { type: "flat" | "percent"; value: number };
+    banks?: string[];
+    outlets?: string[];
+    ewallets?: string[];
+  }>;
+  activeGateway?: string;
 }

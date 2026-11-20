@@ -106,7 +106,10 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
         }),
       ]);
 
-      const isSandbox = sandboxRow?.value !== "false";
+      const isSandbox =
+        !config.isProd && process.env.ALLOW_PROD_KEYS_IN_DEV !== "true"
+          ? true
+          : sandboxRow?.value !== "false";
 
       if (config.isTest && tokenRow?.value) {
         return {
@@ -278,143 +281,199 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
   }
 
   async createOrder(params: CreateGatewayOrderParams): Promise<GatewayOrderResponse> {
-    const { secretKey } = await this.getCredentials();
-
     const xendit = await this.getClient();
     if (!xendit) {
       throw new Error("Xendit Invoice Creation Failed: XENDIT_SECRET_KEY belum dikonfigurasi.");
     }
 
-    // Bangun paymentMethods jika ditentukan sesuai channel aktif Xendit.
-    // Jika scenario adalah REDIRECT (Hosted Checkout), jangan persempit hanya ke 1 rail (seperti QRIS saja),
-    // biarkan paymentMethods kosong agar pembeli di halaman resmi Xendit bebas memilih QRIS, VA, E-Wallet, Card, atau Retail.
+    const useDirectPaymentRequest = params.scenario !== "REDIRECT" && Boolean(params.paymentRail);
+
+    if (useDirectPaymentRequest) {
+      return this.createDirectPaymentRequest(xendit, params);
+    }
+
+    // Mode REDIRECT (Hosted Fallback): biarkan paymentMethods kosong jika tidak dibatasi.
     const paymentMethods: string[] = [];
-    if (params.scenario !== "REDIRECT" && params.paymentRail) {
-      if (params.paymentRail === "qris") {
-        paymentMethods.push("QRIS");
-      } else if (params.paymentRail === "va" && params.vaBank) {
-        paymentMethods.push(params.vaBank.toUpperCase());
-      } else if (params.paymentRail === "card") {
-        paymentMethods.push("CREDIT_CARD");
-      } else if (params.paymentRail === "retail") {
-        if (params.retailOutlet) {
-          paymentMethods.push(params.retailOutlet.toUpperCase());
-        } else {
-          paymentMethods.push("ALFAMART", "INDOMARET");
-        }
-      } else if (params.paymentRail === "ewallet") {
-        if (params.ewalletChannel) {
-          paymentMethods.push(params.ewalletChannel.toUpperCase());
-        } else {
-          paymentMethods.push(
-            "OVO",
-            "DANA",
-            "SHOPEEPAY",
-            "GOPAY",
-            "LINKAJA",
-            "ASTRAPAY",
-            "JENIUSPAY"
-          );
-        }
-      }
-    } else if (params.paymentMethods && params.paymentMethods.length > 0) {
+    if (params.paymentMethods && params.paymentMethods.length > 0) {
       paymentMethods.push(...params.paymentMethods);
     }
 
-    let directPaymentCode: string | undefined;
-    let directQrDataUrl: string | undefined;
+    const invoice = await xendit.Invoice.createInvoice({
+      data: {
+        externalId: params.externalId,
+        amount: params.amount,
+        payerEmail: params.payerEmail,
+        description: params.description,
+        successRedirectUrl: params.finishRedirectUrl || params.returnUrl,
+        failureRedirectUrl: params.returnUrl,
+        invoiceDuration: 86400,
+        paymentMethods: paymentMethods.length > 0 ? paymentMethods : undefined,
+      },
+    });
 
-    // Untuk Full Custom In-Page UI (scenario: "API"):
-    // Jika rail adalah Virtual Account, buat Fixed/Closed VA langsung via Xendit API agar nomor rekening langsung tampil di layar pembeli.
-    if (params.scenario === "API" && params.paymentRail === "va" && params.vaBank) {
-      const bankCode = params.vaBank.toUpperCase();
-      try {
-        const auth = Buffer.from(secretKey + ":").toString("base64");
-        const vaRes = await fetch("https://api.xendit.co/callback_virtual_accounts", {
-          method: "POST",
-          headers: {
-            Authorization: `Basic ${auth}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            external_id: params.externalId,
-            bank_code: bankCode,
-            name: "Tertaut",
-            expected_amount: params.amount,
-            is_closed: true,
-            expiration_date: new Date(Date.now() + 86400000).toISOString(),
-          }),
-        });
-        if (vaRes.ok) {
-          const vaData = (await vaRes.json()) as { account_number?: string };
-          if (vaData.account_number) {
-            directPaymentCode = vaData.account_number;
-          }
-        }
-      } catch (vaErr: unknown) {
-        const msg = vaErr instanceof Error ? vaErr.message : String(vaErr);
-        console.warn("[XenditGateway] Direct VA creation note:", msg);
-      }
+    return {
+      orderId: invoice.id || `xnd_${Date.now()}`,
+      checkoutUrl: invoice.invoiceUrl || "",
+      expiryDate: invoice.expiryDate?.toISOString(),
+      scenario: params.scenario || "REDIRECT",
+      paymentRail: params.paymentRail,
+      vaBank: params.vaBank,
+      retailOutlet: params.retailOutlet,
+    };
+  }
+
+  private normalizeDirectVaChannel(bankCode: string): string {
+    const upper = bankCode.trim().toUpperCase();
+    if (upper === "BSS") return "SAHABAT_SAMPOERNA";
+    return upper;
+  }
+
+  private normalizeIndonesiaMobile(rawPhone?: string): string | null {
+    const cleaned = String(rawPhone || "").replace(/[^0-9+]/g, "");
+    if (!cleaned) return null;
+    if (cleaned.startsWith("+62") && /^\+628\d{7,12}$/.test(cleaned)) return cleaned;
+    if (cleaned.startsWith("628") && /^628\d{7,12}$/.test(cleaned)) return `+${cleaned}`;
+    if (cleaned.startsWith("08") && /^08\d{7,12}$/.test(cleaned)) return `+62${cleaned.slice(1)}`;
+    return null;
+  }
+
+  private async createDirectPaymentRequest(
+    xendit: InstanceType<typeof Xendit>,
+    params: CreateGatewayOrderParams
+  ): Promise<GatewayOrderResponse> {
+    const rail = String(params.paymentRail || "").toLowerCase();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const customerName =
+      params.payerEmail
+        .split("@")[0]
+        ?.replace(/[^a-zA-Z0-9 ]/g, " ")
+        .trim()
+        .slice(0, 50) || "Pembeli Tertaut";
+    const successUrl =
+      params.finishRedirectUrl || params.returnUrl || "https://tertaut.com/checkout/success";
+    const failureUrl = params.returnUrl || successUrl;
+
+    if (rail === "card") {
+      throw new Error("Pembayaran kartu kredit/debit belum tersedia pada mode checkout ini.");
     }
 
-    // Jika rail adalah QRIS dan scenario: "API", buat direct dynamic QR code
-    if (params.scenario === "API" && params.paymentRail === "qris") {
-      try {
-        const auth = Buffer.from(secretKey + ":").toString("base64");
-        const qrRes = await fetch("https://api.xendit.co/qr_codes", {
-          method: "POST",
-          headers: {
-            Authorization: `Basic ${auth}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            external_id: params.externalId,
-            type: "DYNAMIC",
-            amount: params.amount,
-            callback_url: `${(config.publicAppUrl || "https://tertaut.com").replace(/\/$/, "")}/api/v1/webhook/xendit`,
-          }),
-        });
-        if (qrRes.ok) {
-          const qrData = (await qrRes.json()) as { qr_string?: string };
-          if (qrData.qr_string) {
-            directPaymentCode = qrData.qr_string;
-            directQrDataUrl = await QRCode.toDataURL(qrData.qr_string, { width: 320, margin: 2 });
-          }
-        }
-      } catch (qrErr: unknown) {
-        const msg = qrErr instanceof Error ? qrErr.message : String(qrErr);
-        console.warn("[XenditGateway] Direct QR creation note:", msg);
-      }
-    }
+    let paymentMethod: Record<string, any>;
+    let resolvedVaBank: string | undefined;
+    let resolvedRetailOutlet: string | undefined;
 
-    try {
-      // Panggil official Xendit SDK Invoice API
-      const invoice = await xendit.Invoice.createInvoice({
-        data: {
-          externalId: params.externalId,
-          amount: params.amount,
-          payerEmail: params.payerEmail,
-          description: params.description,
-          successRedirectUrl: params.finishRedirectUrl || params.returnUrl,
-          failureRedirectUrl: params.returnUrl,
-          invoiceDuration: 86400,
-          paymentMethods: paymentMethods.length > 0 ? paymentMethods : undefined,
+    if (rail === "qris") {
+      paymentMethod = {
+        type: "QR_CODE",
+        reusability: "ONE_TIME_USE",
+        qrCode: {
+          channelCode: "QRIS",
+          channelProperties: {},
         },
-      });
-
-      return {
-        orderId: invoice.id || `xnd_${Date.now()}`,
-        checkoutUrl: invoice.invoiceUrl || "",
-        expiryDate: invoice.expiryDate?.toISOString(),
-        scenario: params.scenario || "API",
-        paymentRail: params.paymentRail,
-        paymentCode: directPaymentCode,
-        qrDataUrl: directQrDataUrl,
-        vaBank: params.vaBank,
       };
-    } catch (sdkErr: any) {
-      throw sdkErr;
+    } else if (rail === "va") {
+      const requestedBank = (params.vaBank || "MANDIRI").toUpperCase();
+      resolvedVaBank = requestedBank;
+      paymentMethod = {
+        type: "VIRTUAL_ACCOUNT",
+        reusability: "ONE_TIME_USE",
+        virtualAccount: {
+          channelCode: this.normalizeDirectVaChannel(requestedBank),
+          channelProperties: {
+            customerName,
+            expiresAt,
+          },
+        },
+      };
+    } else if (rail === "retail") {
+      const outlet = (params.retailOutlet || "ALFAMART").toUpperCase();
+      resolvedRetailOutlet = outlet;
+      paymentMethod = {
+        type: "OVER_THE_COUNTER",
+        reusability: "ONE_TIME_USE",
+        overTheCounter: {
+          channelCode: outlet,
+          channelProperties: {
+            customerName,
+            expiresAt,
+          },
+        },
+      };
+    } else if (rail === "ewallet") {
+      const channelCode = (params.ewalletChannel || "OVO").toUpperCase();
+      const channelProperties: Record<string, any> = {
+        successReturnUrl: successUrl,
+        failureReturnUrl: failureUrl,
+        cancelReturnUrl: failureUrl,
+      };
+      if (channelCode === "OVO") {
+        const mobileNumber = this.normalizeIndonesiaMobile(params.ewalletPhone);
+        if (!mobileNumber) {
+          throw new Error(
+            "Nomor HP OVO wajib diisi dengan format yang valid (contoh: 081234567890)."
+          );
+        }
+        channelProperties.mobileNumber = mobileNumber;
+      }
+      paymentMethod = {
+        type: "EWALLET",
+        reusability: "ONE_TIME_USE",
+        ewallet: {
+          channelCode,
+          channelProperties,
+        },
+      };
+    } else {
+      throw new Error(`Jalur pembayaran "${rail}" tidak didukung.`);
     }
+
+    const pr = await xendit.PaymentRequest.createPaymentRequest({
+      idempotencyKey: `pr_${params.externalId}`,
+      data: {
+        referenceId: params.externalId,
+        amount: params.amount,
+        currency: "IDR",
+        description: params.description,
+        paymentMethod: paymentMethod as any,
+      },
+    });
+
+    let paymentCode: string | undefined;
+    let qrDataUrl: string | undefined;
+
+    const qrString = pr.paymentMethod?.qrCode?.channelProperties?.qrString;
+    if (qrString) {
+      paymentCode = qrString;
+      qrDataUrl = await QRCode.toDataURL(qrString, { width: 320, margin: 2 });
+    }
+
+    const vaNumber = pr.paymentMethod?.virtualAccount?.channelProperties?.virtualAccountNumber;
+    if (vaNumber) {
+      paymentCode = vaNumber;
+    }
+
+    const otcCode = pr.paymentMethod?.overTheCounter?.channelProperties?.paymentCode;
+    if (otcCode) {
+      paymentCode = otcCode;
+    }
+
+    const preferredAction =
+      pr.actions?.find((a) => a.url && a.urlType === "WEB") ||
+      pr.actions?.find((a) => a.url && (a.urlType === "MOBILE" || a.urlType === "DEEPLINK")) ||
+      pr.actions?.find((a) => a.url);
+    const actionUrl = preferredAction?.url || undefined;
+
+    return {
+      orderId: pr.id,
+      checkoutUrl: actionUrl || "",
+      expiryDate: expiresAt.toISOString(),
+      scenario: "API",
+      paymentRail: rail,
+      paymentCode,
+      qrDataUrl,
+      actionUrl,
+      vaBank: resolvedVaBank,
+      retailOutlet: resolvedRetailOutlet,
+    };
   }
 
   async queryOrderStatus(params: {
@@ -426,13 +485,37 @@ export class XenditGatewayAdapter implements PaymentGatewayAdapter {
       return { isPaid: false, isExpired: false, isFailed: false };
     }
 
-    const invoiceId = params.referenceNo;
-    if (!invoiceId) {
+    const referenceId = params.referenceNo;
+    if (!referenceId) {
       return { isPaid: false, isExpired: false, isFailed: false };
     }
 
     try {
-      const invoice = await xendit.Invoice.getInvoiceById({ invoiceId });
+      if (referenceId.startsWith("pr-")) {
+        const pr = await xendit.PaymentRequest.getPaymentRequestByID({
+          paymentRequestId: referenceId,
+        });
+        const status = String(pr.status || "").toUpperCase();
+        const isPaid = status === "SUCCEEDED";
+        const isExpired = status === "EXPIRED";
+        const isFailed = status === "FAILED" || status === "CANCELED" || status === "VOIDED";
+        const channel =
+          pr.paymentMethod?.virtualAccount?.channelCode ||
+          pr.paymentMethod?.overTheCounter?.channelCode ||
+          pr.paymentMethod?.ewallet?.channelCode ||
+          pr.paymentMethod?.qrCode?.channelCode ||
+          pr.paymentMethod?.type;
+        return {
+          isPaid,
+          isExpired,
+          isFailed,
+          paidAmount: typeof pr.amount === "number" ? pr.amount : undefined,
+          paymentChannel: channel ? String(channel).toUpperCase() : undefined,
+          raw: pr,
+        };
+      }
+
+      const invoice = await xendit.Invoice.getInvoiceById({ invoiceId: referenceId });
       const status = String(invoice.status || "").toUpperCase();
       const isPaid = status === "PAID" || status === "SETTLED";
       const isExpired = status === "EXPIRED";

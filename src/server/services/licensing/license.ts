@@ -39,6 +39,7 @@ export interface IssueDirectLicenseResult {
 export interface RevokeLicenseParams {
   licenseKey?: string;
   licenseId?: string;
+  reason?: string;
   actor?: AuditActor;
   ipAddress?: string | null;
 }
@@ -255,36 +256,64 @@ export class LicenseService {
     apiKey?: string;
   }> {
     const expiresAt = new Date(now.getTime() + grantDays * 24 * 60 * 60 * 1000);
-    const assignedKey = (app?.deliveryConfig?.licenseKey as any)?.assignedLicenseKey;
+    const maxSeats = app?.deliveryConfig?.licenseKey?.maxSeats ?? 3;
+    const features = app?.deliveryConfig?.licenseKey?.defaultFeatures || {};
+    const offlineGraceDays = app?.deliveryConfig?.licenseKey?.offlineGraceDays;
 
-    if (assignedKey) {
-      const existing = await trx.query.licenses.findFirst({
-        where: eq(licenses.licenseKey, assignedKey),
+    // A6: Untuk produk subscription, perpanjang lisensi pelanggan yang sudah ada
+    // (selain REVOKED) agar pembelian ulang memperpanjang masa aktif daripada menduplikasi key.
+    if (app?.pricingType === "subscription") {
+      const normalizedEmail = customerEmail.trim().toLowerCase();
+      const candidateRows = await trx.query.licenses.findMany({
+        where: and(eq(licenses.appId, appId), eq(licenses.mode, mode)),
+        orderBy: (l: any, { desc: d }: any) => [d(l.expiresAt), d(l.createdAt)],
       });
-      if (existing) {
+      const existingSub = candidateRows.find(
+        (l: any) =>
+          l.status !== "REVOKED" &&
+          String(l.customerEmail || "")
+            .trim()
+            .toLowerCase() === normalizedEmail
+      );
+      if (existingSub) {
+        const baseTime =
+          existingSub.expiresAt && existingSub.expiresAt.getTime() > now.getTime()
+            ? existingSub.expiresAt.getTime()
+            : now.getTime();
+        const extendedExpiresAt = new Date(baseTime + grantDays * 24 * 60 * 60 * 1000);
+        const refreshedToken = LicenseService.createOfflineGraceToken(
+          existingSub.licenseKey,
+          appId,
+          existingSub.hardwareId || null,
+          customerEmail,
+          existingSub.maxSeats || maxSeats,
+          existingSub.features || features,
+          offlineGraceDays,
+          mode
+        );
+
         await trx
           .update(licenses)
           .set({
             transactionId,
-            customerEmail,
+            status: "ACTIVE",
+            expiresAt: extendedExpiresAt,
+            offlineJwtGraceToken: refreshedToken,
             updatedAt: now,
           })
-          .where(eq(licenses.id, existing.id));
+          .where(eq(licenses.id, existingSub.id));
 
         return {
-          licenseKey: existing.licenseKey,
-          licenseId: existing.id,
-          expiresAt: existing.expiresAt || expiresAt,
-          apiKey: existing.apiKey || undefined,
+          licenseKey: existingSub.licenseKey,
+          licenseId: existingSub.id,
+          expiresAt: extendedExpiresAt,
+          apiKey: existingSub.apiKey || undefined,
         };
       }
     }
 
     // Generate Universal License Key
     const licenseKey = LicenseService.generateLicenseKey();
-    const maxSeats = app?.deliveryConfig?.licenseKey?.maxSeats ?? 3;
-    const features = app?.deliveryConfig?.licenseKey?.defaultFeatures || {};
-    const offlineGraceDays = app?.deliveryConfig?.licenseKey?.offlineGraceDays;
 
     const offlineToken = LicenseService.createOfflineGraceToken(
       licenseKey,
@@ -486,7 +515,7 @@ export class LicenseService {
               jti: decoded.claims.jti,
               licenseId: updated.id,
               licenseKey: updated.licenseKey,
-              reason: "LICENSE_REVOKED",
+              reason: params.reason || "LICENSE_REVOKED",
               expiresAt: decoded.claims.exp ? new Date(decoded.claims.exp * 1000) : null,
             })
             .onConflictDoNothing();
@@ -506,7 +535,7 @@ export class LicenseService {
           actorId: actor.id,
           ipAddress: params.ipAddress,
         },
-        { tokenDenylisted: denylisted },
+        { tokenDenylisted: denylisted, ...(params.reason ? { reason: params.reason } : {}) },
         trx
       );
       await WebhookService.emit(

@@ -1,6 +1,6 @@
 import { db } from "../../db";
 import { user } from "../../db/schema/auth";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, count } from "drizzle-orm";
 import { DEFAULT_ADMIN_EMAIL } from "../../middleware/auth";
 import { AuditService } from "../../services/security/audit";
 
@@ -10,14 +10,17 @@ import { AuditService } from "../../services/security/audit";
 export async function handlePanelUsers({ query }: any) {
   const limit = Math.min(Number(query?.limit) || 100, 500);
 
-  const users = await db.query.user.findMany({
-    orderBy: [desc(user.createdAt)],
-    limit,
-  });
+  const [[totalRes], users] = await Promise.all([
+    db.select({ count: count() }).from(user),
+    db.query.user.findMany({
+      orderBy: [desc(user.createdAt)],
+      limit,
+    }),
+  ]);
 
   return {
     success: true,
-    total: users.length,
+    total: Number(totalRes?.count ?? users.length),
     users: users.map((u) => ({
       id: u.id,
       name: u.name,

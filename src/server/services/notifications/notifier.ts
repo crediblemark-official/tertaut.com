@@ -88,7 +88,7 @@ export class NotifierService {
       `💰 *Pembayaran Baru Diterima!*\n\n` +
       `• *Aplikasi:* ${params.appName}\n` +
       `• *Nominal:* \`${formatted}\`\n` +
-      `• *Metode:* ${params.paymentChannel || "XENDIT"}\n` +
+      `• *Metode:* ${params.paymentChannel || "TERTAUT PAY"}\n` +
       `• *Pembeli:* \`${params.customerEmail}\`\n` +
       `• *TX ID:* \`${params.transactionId}\`\n` +
       `• *Waktu:* ${new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })} WIB`;

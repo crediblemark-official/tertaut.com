@@ -67,6 +67,19 @@ export async function handlePanelStats() {
   const totalApps = appCount?.value ?? 0;
   const totalActiveLicenses = licenseCount?.value ?? 0;
 
+  let dbConnected = false;
+  let dbPort = "5432";
+  try {
+    await db.execute(sql`SELECT 1`);
+    dbConnected = true;
+  } catch {
+    dbConnected = false;
+  }
+  try {
+    const parsedDb = new URL(process.env.DATABASE_URL || "");
+    if (parsedDb.port) dbPort = parsedDb.port;
+  } catch {}
+
   const mem = process.memoryUsage();
 
   const responseData = {
@@ -86,6 +99,8 @@ export async function handlePanelStats() {
       nodeEnv: process.env.NODE_ENV || "development",
       bunVersion: typeof Bun !== "undefined" ? Bun.version : process.version,
       uptimeSeconds: Math.floor(process.uptime()),
+      dbConnected,
+      dbPort,
       memoryUsageMB: {
         rss: Math.round((mem.rss / 1024 / 1024) * 100) / 100,
         heapTotal: Math.round((mem.heapTotal / 1024 / 1024) * 100) / 100,

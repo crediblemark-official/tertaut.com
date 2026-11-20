@@ -19,8 +19,10 @@ import { LicenseService } from "../../services/licensing/license";
 import { EmailService } from "../../services/notifications/email";
 import { config as checkoutConfig, resolveRequestOrigin } from "../../config";
 import { enforceRateLimitAsync } from "../../services/security/rateLimiter";
-import { handleFreeTrialCheckout } from "./freeTrial";
+import { handleFreeClaimCheckout, handleFreeTrialCheckout } from "./freeTrial";
 import { createPollTicket } from "../../utils/pollTicket";
+import { resolveAppGrantDays } from "../../utils/payment";
+import { resolveCurrentBuilder } from "../apps/builder";
 import { randomBytes } from "crypto";
 import QRCode from "qrcode";
 
@@ -41,6 +43,7 @@ export interface CreateSessionBody {
   vaBank?: string;
   bank?: string;
   ewalletChannel?: string;
+  ewalletPhone?: string;
   retailOutlet?: string;
   amount?: number;
   customAmount?: number;
@@ -101,6 +104,7 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
       vaBank,
       bank,
       ewalletChannel,
+      ewalletPhone,
       retailOutlet,
       customerName,
       metadata,
@@ -115,7 +119,7 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
     // B8: Dukung preferredPaymentChannel (dari PayView) maupun paymentRail secara konsisten
     const selectedRail = (paymentRail || preferredPaymentChannel || "") as
       "qris" | "va" | "ewallet" | "card" | "retail" | "";
-    const selectedBank = (vaBank || bank || "BCA").toUpperCase();
+    const selectedBank = (vaBank || bank || "MANDIRI").toUpperCase();
 
     // Baca preferensi mode checkout dari platformSettings (Super Admin Panel)
     const checkoutModeRow = await db.query.platformSettings.findFirst({
@@ -230,16 +234,7 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
       });
     }
 
-    // B2: grantDays sepenuhnya ditentukan oleh otoritas konfigurasi produk (deliveryConfig), bukan input klien.
-    const productGrantDays = app.deliveryConfig?.licenseKey?.expiresInDays;
-    const grantDays =
-      typeof productGrantDays === "number" && productGrantDays > 0 ? productGrantDays : 365;
-
-    // B1: Harga resmi aplikasi atau nominal dinamis dari backend S2S
-    const appPrice = app.targetPrice ?? 0;
-    const requestedAmount = customAmount ?? amount ?? null;
-
-    // Cek otentikasi S2S via Secret API Key builder
+    // Cek otentikasi S2S via Secret API Key builder atau sesi dashboard pemilik/admin
     const reqHeaders: any = request?.headers;
     const authHeader =
       (typeof reqHeaders?.get === "function"
@@ -249,8 +244,51 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
       ? authHeader.slice(7).trim()
       : authHeader.trim();
     const isS2SAuth = Boolean(builder?.secretApiKey && bearerKey === builder.secretApiKey);
+    let isDashboardOwner = false;
+    if (
+      !isS2SAuth &&
+      reqHeaders &&
+      typeof reqHeaders.get === "function" &&
+      (reqHeaders.get("cookie") || reqHeaders.get("authorization"))
+    ) {
+      try {
+        const { builder: sessionBuilder, isAdmin } = await resolveCurrentBuilder(reqHeaders);
+        isDashboardOwner = Boolean(
+          isAdmin || (sessionBuilder && sessionBuilder.id === app.builderId)
+        );
+      } catch {}
+    }
+    const isTrustedCaller = isS2SAuth || isDashboardOwner;
 
-    if (!isS2SAuth && app.appType === "saas_web" && appPrice <= 0) {
+    // B2: grantDays ditentukan oleh konfigurasi produk & siklus penagihan;
+    // pemanggil terpercaya (S2S / dashboard builder pemilik) dapat menimpa bila eksplisit disertakan.
+    const grantDays =
+      isTrustedCaller && typeof clientGrantDays === "number" && clientGrantDays > 0
+        ? Math.round(clientGrantDays)
+        : resolveAppGrantDays(app, 365);
+
+    // B1: Harga resmi aplikasi atau nominal dinamis dari backend S2S / dashboard builder
+    const appPrice = app.targetPrice ?? 0;
+    const requestedAmount = customAmount ?? amount ?? null;
+
+    // Produk gratis (pricingType === "free" dan targetPrice <= 0) diklaim langsung tanpa gateway pembayaran
+    if (!isS2SAuth && app.pricingType === "free" && appPrice <= 0) {
+      return await handleFreeClaimCheckout({
+        app,
+        builder,
+        email,
+        rawHwid,
+        clientIp,
+        body,
+        set,
+        requestOrigin,
+        redirectUrl,
+        metadata,
+        grantDays,
+      });
+    }
+
+    if (!isTrustedCaller && app.appType === "saas_web" && appPrice <= 0) {
       set.status = 401;
       return {
         success: false,
@@ -261,8 +299,8 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
 
     // List price sebelum diskon:
     let listPrice: number;
-    if (isS2SAuth) {
-      // Hanya backend builder terautentikasi yang berwenang menentukan nominal dinamis.
+    if (isTrustedCaller) {
+      // Hanya backend builder terautentikasi / pemilik dashboard yang berwenang menentukan nominal dinamis.
       listPrice =
         typeof requestedAmount === "number" && requestedAmount > 0
           ? requestedAmount
@@ -323,7 +361,7 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
     const activePlatformPg = await getActivePaymentGateway();
     if (body.paymentGateway && !normalizeGatewayId(body.paymentGateway)) {
       set.status = 400;
-      return { success: false, error: "Gateway pembayaran tidak didukung. Gunakan Xendit." };
+      return { success: false, error: "Gateway pembayaran tidak didukung." };
     }
     let selectedGateway: GatewayId = demoMode
       ? "sandbox"
@@ -373,19 +411,11 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
     // Hitung Merchant of Record 5% platform fee & 95% net atas nominal yang dibayar
     const { grossAmount, platformFee, netAmount } = gatewayAdapter.calculateMor(payableAmount);
 
-    const txId = `tx_${randomBytes(8).toString("hex")}`;
-    const externalId = `tt_${randomBytes(8).toString("hex")}`;
-
-    // Path finish diambil dari registry
-    const finishPath = gatewayDescriptor(effectiveGatewayId)?.finishPath ?? "/checkout/success";
-    const pollTicket = createPollTicket(txId);
-    const finishRedirectUrl = `${requestOrigin}${finishPath}?externalId=${externalId}&ticket=${encodeURIComponent(pollTicket)}`;
-
     const resolvedBank = (
       vaBank ||
       bank ||
       gatewayDescriptor(effectiveGatewayId)?.defaultVaBank ||
-      "BCA"
+      "MANDIRI"
     ).toUpperCase();
 
     // 3. Klaim kuota kupon ATOMIK SEBELUM membuat order di payment gateway (P0 Race Condition Fix).
@@ -405,7 +435,14 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
     }
 
     const gatewayDescriptorForTx = gatewayDescriptor(effectiveGatewayId);
-    const hostedPayUrl = `${requestOrigin}/pay/${app.slug || targetIdentifier}?externalId=${externalId}`;
+    const txId = `tx_${randomBytes(8).toString("hex")}`;
+    const externalId = `tt_${randomBytes(8).toString("hex")}`;
+
+    // Path finish diambil dari registry
+    const finishPath = gatewayDescriptor(effectiveGatewayId)?.finishPath ?? "/checkout/success";
+    const pollTicket = createPollTicket(txId);
+    const finishRedirectUrl = `${requestOrigin}${finishPath}?externalId=${externalId}&ticket=${encodeURIComponent(pollTicket)}`;
+    const hostedPayUrl = `${requestOrigin}/pay/${app.slug || targetIdentifier}?externalId=${externalId}&ticket=${encodeURIComponent(pollTicket)}`;
 
     let orderResult: Awaited<ReturnType<typeof gatewayAdapter.createOrder>>;
     let newTx: typeof transactions.$inferSelect;
@@ -430,15 +467,18 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
               : selectedRail || undefined,
         vaBank: resolvedBank,
         ewalletChannel,
+        ewalletPhone,
         retailOutlet,
       });
 
-      invoiceUrl = effectiveGatewayId === "sandbox" ? hostedPayUrl : orderResult.checkoutUrl;
+      invoiceUrl =
+        effectiveGatewayId === "sandbox" || selectedScenario === "API"
+          ? orderResult.actionUrl || hostedPayUrl
+          : orderResult.checkoutUrl;
       const invoiceId = orderResult.orderId;
       expiryDate = orderResult.expiryDate;
 
-      // Label paymentChannel disusun dari nama gateway di registry
-      const gatewaySlug = effectiveGatewayId.replace(/[^a-z0-9]/gi, "").toUpperCase();
+      // Label paymentChannel disusun netral (tanpa merek vendor pembayaran)
       const savedChannel =
         orderResult.paymentRail === "va"
           ? `VA_${orderResult.vaBank || selectedBank}`
@@ -447,8 +487,10 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
             : orderResult.paymentRail === "card"
               ? "CARD"
               : orderResult.paymentRail === "retail"
-                ? "RETAIL"
-                : gatewaySlug;
+                ? (orderResult.retailOutlet || retailOutlet || "RETAIL").toUpperCase()
+                : orderResult.paymentRail === "ewallet"
+                  ? (ewalletChannel || "EWALLET").toUpperCase()
+                  : "TERTAUT_PAY";
 
       // Simpan transaksi di database
       [newTx] = await db
@@ -487,8 +529,6 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
       throw err;
     }
 
-    const gatewayLabel = gatewayDescriptorForTx?.displayName ?? selectedGateway;
-
     return {
       success: true,
       data: {
@@ -497,7 +537,7 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
         ticket: pollTicket,
         paymentGateway: selectedGateway,
         checkoutUrl: invoiceUrl,
-        xenditInvoiceUrl: invoiceUrl,
+        actionUrl: orderResult.actionUrl,
         expiresAt: expiryDate || new Date(Date.now() + 15 * 60 * 1000).toISOString(),
         isSandbox: isSandboxApp,
         scenario: orderResult.scenario,
@@ -505,18 +545,21 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
         paymentCode: orderResult.paymentCode,
         qrDataUrl: orderResult.qrDataUrl,
         vaBank: orderResult.vaBank,
+        retailOutlet: orderResult.retailOutlet,
         hostedPayUrl,
       },
       transactionId: newTx.id,
       snapToken: newTx.id,
       ticket: pollTicket,
       checkoutUrl: invoiceUrl,
+      actionUrl: orderResult.actionUrl,
       hostedPayUrl,
       scenario: orderResult.scenario,
       paymentRail: orderResult.paymentRail,
       paymentCode: orderResult.paymentCode,
       qrDataUrl: orderResult.qrDataUrl,
       vaBank: orderResult.vaBank,
+      retailOutlet: orderResult.retailOutlet,
       paymentGateway: selectedGateway,
       amount: grossAmount,
       listPrice,
@@ -524,7 +567,7 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
       discountPercent,
       grantDays,
       couponCode: coupon?.code,
-      message: `Sesi pembayaran ${gatewayLabel} berhasil disiapkan`,
+      message: "Sesi pembayaran berhasil disiapkan",
       platformFee,
       netDisbursementAmount: netAmount,
     };
@@ -534,30 +577,24 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
     set.status = 400;
     let errorMsg = "Terjadi kesalahan internal saat membuat sesi checkout. Silakan coba lagi.";
     if (
+      msg.includes("Nomor HP OVO") ||
+      msg.includes("Pembayaran kartu kredit/debit belum tersedia") ||
+      msg.includes("tidak didukung")
+    ) {
+      errorMsg = msg;
+    } else if (
       err?.errorCode === "UNAUTHORIZED_SENDER_IP" ||
       err?.errorMessage?.includes("IP Allowlist") ||
       msg.includes("IP Allowlist") ||
-      msg.includes("UNAUTHORIZED_SENDER_IP")
-    ) {
-      const rejectedIp =
-        err?.errorMessage?.match(/IP\s+([\d.]+)/)?.[1] ||
-        msg.match(/IP\s+([\d.]+)/)?.[1] ||
-        "server";
-      errorMsg =
-        `IP ${rejectedIp} belum didaftarkan di IP Whitelist Xendit. ` +
-        `Buka Dashboard Xendit (Settings > Developers > IP Whitelist) di https://dashboard.xendit.co/settings/developers#ip-allowlist ` +
-        `lalu tambahkan IP ${rejectedIp} atau nonaktifkan pembatasan IP Allowlist.`;
-      set.status = 400;
-    } else if (
+      msg.includes("UNAUTHORIZED_SENDER_IP") ||
       msg.includes("XENDIT_SECRET_KEY") ||
       (msg.includes("Xendit") && msg.includes("belum dikonfigurasi"))
     ) {
+      // Jangan bocorkan kredensial, IP allowlist, atau URL dashboard vendor ke klien publik.
       errorMsg =
-        "Gateway pembayaran Xendit belum dikonfigurasi dengan benar di server atau Super Admin Panel.";
-      set.status = 400;
+        "Layanan pembayaran sedang mengalami gangguan konfigurasi sementara. Silakan coba lagi atau hubungi dukungan Tertaut.";
     } else if (msg.toLowerCase().includes("timeout")) {
-      errorMsg = "Gateway pembayaran tidak merespons tepat waktu. Silakan coba lagi beberapa saat.";
-      set.status = 400;
+      errorMsg = "Layanan pembayaran tidak merespons tepat waktu. Silakan coba lagi beberapa saat.";
     }
     return {
       success: false,

@@ -58,7 +58,7 @@ export const PLATFORM_PRICING: PricingPlan = {
     "Pendaftaran akun gratis tanpa biaya setup atau biaya berlangganan",
     "Terima pembayaran instan via QRIS (semua e-wallet & m-banking) & Virtual Account",
     "E-Receipt & bukti pembayaran resmi diterbitkan otomatis oleh PT RETAS LINTAS BATAS",
-    "Pencairan otomatis: 95% pendapatan bersih langsung ke rekening bank lokal Anda",
+    "Pencairan on-demand & terjadwal: 95% pendapatan bersih ke rekening bank lokal Anda",
     "Universal Licensing SDK (@tertaut/sdk): Lisensi Ed25519 offline 30 hari & hardware seat binding",
     "Hosted Checkout & Kupon: Halaman pembayaran siap pakai dan kupon diskon persentase/potongan harga",
     "Webhooks & Notifikasi Instan: Pengiriman webhook otomatis dengan tanda tangan HMAC-SHA256",

@@ -314,9 +314,91 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- Digital File Download Card -->
+          <div
+            v-if="invoice.delivery?.fileDownload?.fileUrl"
+            class="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 space-y-2 text-xs"
+          >
+            <div class="text-[10px] font-bold text-blue-700 uppercase tracking-wider">
+              Unduhan Produk Digital
+            </div>
+            <a
+              :href="invoice.delivery.fileDownload.fileUrl"
+              target="_blank"
+              download
+              class="w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-center block transition"
+            >
+              {{ invoice.delivery.fileDownload.title || "Unduh Berkas" }}
+            </a>
+          </div>
+
+          <!-- Private Note Card -->
+          <div
+            v-if="invoice.delivery?.privateNote?.note"
+            class="p-3.5 rounded-xl bg-purple-50/70 border border-purple-200 space-y-1.5 text-xs"
+          >
+            <div class="text-[10px] font-bold text-purple-700 uppercase tracking-wider">
+              {{ invoice.delivery.privateNote.title || "Panduan Akses & Instruksi" }}
+            </div>
+            <p class="text-[11px] text-purple-950 whitespace-pre-wrap leading-relaxed">
+              {{ invoice.delivery.privateNote.note }}
+            </p>
+          </div>
+
+          <!-- API Access Card -->
+          <div
+            v-if="invoice.delivery?.apiAccess?.apiKey"
+            class="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1.5 text-xs"
+          >
+            <div
+              class="flex items-center justify-between text-[10px] font-bold text-emerald-700 uppercase tracking-wider"
+            >
+              <span>Kunci Akses API</span>
+              <CopyButton
+                :text="invoice.delivery.apiAccess.apiKey"
+                :show-label="true"
+                button-class="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 transition cursor-pointer"
+                icon-class="w-3 h-3"
+              />
+            </div>
+            <div
+              class="font-mono text-xs font-bold text-black bg-white px-2 py-1 rounded border border-emerald-200 select-all break-all"
+            >
+              {{ invoice.delivery.apiAccess.apiKey }}
+            </div>
+            <p
+              v-if="invoice.delivery.apiAccess.endpointUrl"
+              class="text-[11px] font-mono text-slate-600 break-all"
+            >
+              Endpoint: {{ invoice.delivery.apiAccess.endpointUrl }}
+            </p>
+            <p
+              v-if="invoice.delivery.apiAccess.instruction"
+              class="text-[11px] text-slate-600 whitespace-pre-wrap"
+            >
+              {{ invoice.delivery.apiAccess.instruction }}
+            </p>
+          </div>
+
+          <!-- SaaS Redirect Button -->
+          <div v-if="invoice.delivery?.redirectUrl">
+            <a
+              :href="invoice.delivery.redirectUrl"
+              class="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold text-center block transition"
+            >
+              Lanjutkan ke Aplikasi SaaS
+            </a>
+          </div>
+
           <!-- Fulfillment note card if no license key and no metadata -->
           <div
-            v-else-if="!invoice.licenseKey"
+            v-if="
+              !invoice.licenseKey &&
+              !(invoice.metadata && Object.keys(invoice.metadata).length > 0) &&
+              !invoice.delivery?.fileDownload?.fileUrl &&
+              !invoice.delivery?.privateNote?.note &&
+              !invoice.delivery?.redirectUrl
+            "
             class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1 text-xs"
           >
             <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">

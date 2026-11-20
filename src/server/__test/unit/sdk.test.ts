@@ -828,4 +828,168 @@ describe("Unit Tests - Tertaut SDK", () => {
     expect(resThrow.valid).toBe(false);
     expect(resThrow.reason).toBeDefined();
   });
+
+  it("should support validateCoupon, getPaymentChannels, ewalletPhone, delivery payload, and s2s revoke with reason", async () => {
+    const sdk = new Tertaut({
+      apiKey: "tt_test_v023",
+      appId: "app_v023",
+      baseUrl: "http://localhost:3001",
+    });
+
+    const originalFetch = globalThis.fetch;
+    let lastUrl = "";
+    let lastMethod = "";
+    let lastBody: any = null;
+
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      lastUrl = url;
+      lastMethod = init?.method || "GET";
+      lastBody = init?.body ? JSON.parse(init.body as string) : null;
+
+      if (url.endsWith("/checkout/validate-coupon")) {
+        if (lastBody.couponCode === "INVALID") {
+          return new Response(JSON.stringify({ valid: false, message: "Kupon tidak ditemukan" }), {
+            status: 400,
+          });
+        }
+        return new Response(
+          JSON.stringify({
+            valid: true,
+            coupon: { code: "PROMO2026", discountPercent: 20 },
+            discountPercent: 20,
+            discountAmount: 20000,
+            payableAmount: 80000,
+            finalAmount: 80000,
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (url.endsWith("/checkout/channels")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            channels: [
+              { id: "qris", name: "QRIS", rail: "qris" },
+              { id: "bca_va", name: "BCA VA", rail: "va" },
+              { id: "ovo", name: "OVO", rail: "ewallet" },
+            ],
+            activeGateway: "xendit",
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (url.endsWith("/checkout/session")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            transactionId: "tx_ewallet_1",
+            checkoutUrl: "http://localhost:3001/pay/app_v023?ticket=hmac123",
+            hostedPayUrl: "http://localhost:3001/pay/app_v023?ticket=hmac123",
+            actionUrl: "https://pay.ovo.id/app/order123",
+            paymentRail: "ewallet",
+            ewalletChannel: "OVO",
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (url.includes("/checkout/status/")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            transactionId: "tx_ewallet_1",
+            paymentStatus: "PAID",
+            amount: 80000,
+            channel: "OVO",
+            paymentRail: "ewallet",
+            ewalletChannel: "OVO",
+            actionUrl: "https://pay.ovo.id/app/order123",
+            paidAt: new Date().toISOString(),
+            delivery: {
+              apiAccess: {
+                enabled: true,
+                endpointUrl: "https://api.example.com",
+                apiKey: "tt_cust_demo123",
+              },
+              fileDownload: {
+                enabled: true,
+                downloadUrl: "https://cdn.example.com/asset.zip",
+                fileName: "asset.zip",
+              },
+            },
+          }),
+          { status: 200 }
+        );
+      }
+
+      if (url.endsWith("/s2s/licenses/revoke")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: "Lisensi berhasil dicabut",
+            tokenDenylisted: true,
+          }),
+          { status: 200 }
+        );
+      }
+
+      return new Response(JSON.stringify({ success: true }), { status: 200 });
+    }) as any;
+
+    try {
+      // 1. validateCoupon
+      expect(sdk.validateCoupon({ couponCode: "" })).rejects.toThrow("couponCode is required");
+      const couponValid = await sdk.validateCoupon({ couponCode: "PROMO2026", amount: 100000 });
+      expect(lastUrl).toBe("http://localhost:3001/api/v1/checkout/validate-coupon");
+      expect(lastBody.couponCode).toBe("PROMO2026");
+      expect(lastBody.amount).toBe(100000);
+      expect(couponValid.valid).toBe(true);
+      expect(couponValid.discountPercent).toBe(20);
+
+      // 2. getPaymentChannels
+      const channelsRes = await sdk.getPaymentChannels();
+      expect(lastUrl).toBe("http://localhost:3001/api/v1/checkout/channels");
+      expect(channelsRes.channels.length).toBe(3);
+      expect(channelsRes.channels[0].rail).toBe("qris");
+
+      // 3. checkout with ewalletPhone
+      const checkoutRes = await sdk.checkout({
+        customerEmail: "buyer@example.com",
+        paymentRail: "ewallet",
+        ewalletChannel: "OVO",
+        ewalletPhone: "081234567890",
+        autoRedirect: false,
+      });
+      expect(lastBody.ewalletPhone).toBe("081234567890");
+      expect(checkoutRes.actionUrl).toBe("https://pay.ovo.id/app/order123");
+      expect(checkoutRes.hostedPayUrl).toBe("http://localhost:3001/pay/app_v023?ticket=hmac123");
+
+      // 4. getPaymentStatus with delivery payload
+      const statusRes = await sdk.getPaymentStatus("tx_ewallet_1", "hmac123");
+      expect(statusRes.paymentStatus).toBe("PAID");
+      expect(statusRes.delivery?.apiAccess?.apiKey).toBe("tt_cust_demo123");
+      expect(statusRes.delivery?.fileDownload?.downloadUrl).toBe(
+        "https://cdn.example.com/asset.zip"
+      );
+      expect(statusRes.actionUrl).toBe("https://pay.ovo.id/app/order123");
+
+      // 5. s2s.licenses.revoke with reason
+      const s2sSdk = new Tertaut({
+        apiKey: "tt_secret_builder_key",
+        baseUrl: "http://localhost:3001",
+      });
+      const revokeRes = await s2sSdk.s2s.licenses.revoke({
+        licenseKey: "TT-REVOKE-TEST",
+        reason: "Fraudulent dispute requested",
+      });
+      expect(lastUrl).toBe("http://localhost:3001/api/v1/s2s/licenses/revoke");
+      expect(lastBody.licenseKey).toBe("TT-REVOKE-TEST");
+      expect(lastBody.reason).toBe("Fraudulent dispute requested");
+      expect(revokeRes.success).toBe(true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

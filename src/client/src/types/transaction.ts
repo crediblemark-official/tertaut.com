@@ -11,6 +11,7 @@ export interface TransactionItem {
   platformFee: number;
   netAmount: number;
   paymentStatus: PaymentStatus;
+  refundStatus?: string;
   disbursementStatus: DisbursementStatus;
   disbursementId: string | null;
   couponCode?: string | null;
@@ -20,6 +21,7 @@ export interface TransactionItem {
   xenditExternalId?: string | null;
   paymentChannel?: string | null;
   paymentProvider?: string | null;
+  ticket?: string;
   paidAt?: string | null;
   createdAt: string;
 }

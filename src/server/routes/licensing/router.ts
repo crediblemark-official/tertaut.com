@@ -407,7 +407,7 @@ export function createLicensingRouter(prefix: string) {
           tags: ["Universal Licensing"],
           summary: "Verify Customer API Key",
           description:
-            "Validates a customer API key issued via apiAccess delivery and returns license status & credits",
+            "Validates a customer API key issued via apiAccess delivery and returns license status",
           responses: {
             200: {
               description: "Hasil verifikasi kunci API pelanggan",

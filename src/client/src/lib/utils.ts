@@ -33,3 +33,21 @@ export function formatDate(
     ...(options?.includeTime ? { hour: "2-digit", minute: "2-digit" } : {}),
   });
 }
+
+/**
+ * Menyusun URL halaman pembayaran (/pay/:slug) yang lengkap dengan externalId & poll ticket
+ * agar link dari dashboard / modal detail langsung membuka status atau kasir transaksi terkait.
+ */
+export function buildTransactionPayUrl(
+  tx: { id: string; appId: string; xenditExternalId?: string | null; ticket?: string },
+  appsList?: Array<{ id: string; slug?: string }>
+): string {
+  const matchedApp = appsList?.find((a) => a.id === tx.appId);
+  const identifier = matchedApp?.slug || tx.appId;
+  const params = new URLSearchParams();
+  params.set("externalId", tx.xenditExternalId || tx.id);
+  if (tx.ticket) {
+    params.set("ticket", tx.ticket);
+  }
+  return `/pay/${encodeURIComponent(identifier)}?${params.toString()}`;
+}

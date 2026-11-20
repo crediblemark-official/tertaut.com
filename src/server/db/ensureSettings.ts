@@ -41,7 +41,7 @@ const BASE_PLATFORM_SETTINGS: Array<{ key: string; value: string; description: s
   },
   {
     key: "checkout_mode",
-    value: "hosted",
+    value: "custom",
     description: "Mode checkout default (custom/hosted)",
   },
   {

@@ -1,10 +1,12 @@
 import { db } from "../../db";
-import { projects, apps, builders } from "../../db/schema";
+import { projects, apps, builders, webhookEndpoints } from "../../db/schema";
 import type { DeliveryConfig, CaptureConfig } from "../../db/schema/projects";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { resolveCurrentBuilder } from "./builder";
 import { generateAppApiKey, generateBuilderSecretApiKey } from "./api-key";
+import { parseWebhookUrl } from "../../services/security/webhookUrl";
+import { WebhookService } from "../../services/notifications/webhooks";
 
 export interface CreateAppBody {
   name: string;
@@ -62,6 +64,24 @@ interface UpdateModeContext {
   request: { headers: Headers };
 }
 
+async function syncAppWebhookEndpoint(
+  builderId: string,
+  appId: string,
+  trimmedWebhookUrl: string | null
+) {
+  if (trimmedWebhookUrl) {
+    await WebhookService.create(builderId, {
+      appId,
+      url: trimmedWebhookUrl,
+      isActive: true,
+    });
+  } else {
+    await db
+      .delete(webhookEndpoints)
+      .where(and(eq(webhookEndpoints.builderId, builderId), eq(webhookEndpoints.appId, appId)));
+  }
+}
+
 interface RotateSecretContext {
   request: { headers: Headers };
   set: { status?: number | string };
@@ -111,6 +131,16 @@ export async function handleCreateApp({ body, set, request: { headers } }: Creat
     return { error: `Slug "${slug}" sudah digunakan. Gunakan slug lain.` };
   }
 
+  const trimmedWebhookUrl = typeof webhookUrl === "string" ? webhookUrl.trim() : null;
+  if (trimmedWebhookUrl) {
+    try {
+      parseWebhookUrl(trimmedWebhookUrl);
+    } catch {
+      set.status = 400;
+      return { error: "webhookUrl harus berupa endpoint HTTP(S) publik yang valid." };
+    }
+  }
+
   const appId = `app_${randomBytes(6).toString("hex")}`;
 
   const [newApp] = await db
@@ -121,7 +151,7 @@ export async function handleCreateApp({ body, set, request: { headers } }: Creat
       apiKey: generateAppApiKey(mode),
       name,
       slug,
-      targetPrice,
+      targetPrice: pricingType === "free" ? 0 : targetPrice,
       mode,
       pricingType: pricingType || "one_time",
       billingPeriod: billingPeriod || null,
@@ -140,9 +170,13 @@ export async function handleCreateApp({ body, set, request: { headers } }: Creat
       brandColor: brandColor || "#0D9488",
       logoUrl: logoUrl || null,
       appUrl: appUrl || null,
-      webhookUrl: webhookUrl || null,
+      webhookUrl: trimmedWebhookUrl || null,
     })
     .returning();
+
+  if (trimmedWebhookUrl) {
+    await syncAppWebhookEndpoint(builder.id, newApp.id, trimmedWebhookUrl);
+  }
 
   return { success: true, app: newApp };
 }
@@ -216,6 +250,9 @@ export async function handleUpdateApp({
   if (targetPrice !== undefined) updateData.targetPrice = targetPrice;
   if (mode !== undefined) updateData.mode = mode;
   if (pricingType !== undefined) updateData.pricingType = pricingType;
+  if ((pricingType ?? existing.pricingType) === "free") {
+    updateData.targetPrice = 0;
+  }
   if (billingPeriod !== undefined) updateData.billingPeriod = billingPeriod;
   if (trialPeriodDays !== undefined) updateData.trialPeriodDays = trialPeriodDays;
   if (deliveryConfig !== undefined) updateData.deliveryConfig = deliveryConfig;
@@ -233,10 +270,29 @@ export async function handleUpdateApp({
   if (appType !== undefined) updateData.appType = appType;
   if (brandColor !== undefined) updateData.brandColor = brandColor;
   if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
+  const trimmedUpdateWebhookUrl =
+    webhookUrl !== undefined
+      ? typeof webhookUrl === "string"
+        ? webhookUrl.trim() || null
+        : null
+      : undefined;
+  if (trimmedUpdateWebhookUrl) {
+    try {
+      parseWebhookUrl(trimmedUpdateWebhookUrl);
+    } catch {
+      set.status = 400;
+      return { error: "webhookUrl harus berupa endpoint HTTP(S) publik yang valid." };
+    }
+  }
+
   if (appUrl !== undefined) updateData.appUrl = appUrl;
-  if (webhookUrl !== undefined) updateData.webhookUrl = webhookUrl;
+  if (trimmedUpdateWebhookUrl !== undefined) updateData.webhookUrl = trimmedUpdateWebhookUrl;
 
   const [updated] = await db.update(apps).set(updateData).where(eq(apps.id, appId)).returning();
+
+  if (trimmedUpdateWebhookUrl !== undefined) {
+    await syncAppWebhookEndpoint(existing.builderId, updated.id, trimmedUpdateWebhookUrl);
+  }
 
   return { success: true, app: updated };
 }

@@ -58,10 +58,17 @@ const product = ref<{
   activePaymentGateway?: "xendit" | "sandbox";
   availableChannels?: import("../types/app").AvailableChannels;
   targetPrice: number;
+  pricingType?: "one_time" | "subscription" | "free";
+  billingPeriod?: string | null;
+  trialPeriodDays?: number;
+  licenseKeyEnabled?: boolean;
   description: string | null;
   headline: string | null;
   subheadline: string | null;
   mediaUrl: string | null;
+  logoUrl?: string | null;
+  brandColor?: string | null;
+  ctaText?: string | null;
   valueProps: string[];
   redirectUrl: string | null;
   deliveryConfig?: import("../types/app").DeliveryConfig | null;
@@ -91,8 +98,8 @@ const errorMessage = ref("");
 const selectedPaymentRail = ref<"qris" | "va" | "ewallet" | "card" | "retail">(
   (queryPaymentRail.value || "qris") as "qris" | "va" | "ewallet" | "card" | "retail"
 );
-const selectedBank = ref(queryBank.value || "BCA");
-const selectedEwallet = ref(queryEwallet.value || "DANA");
+const selectedBank = ref(queryBank.value || "MANDIRI");
+const selectedEwallet = ref(queryEwallet.value || "OVO");
 const selectedRetail = ref(queryRetailOutlet.value || "ALFAMART");
 const activeCustomOrder = ref<{
   transactionId: string;
@@ -100,19 +107,26 @@ const activeCustomOrder = ref<{
   paymentRail?: string;
   paymentCode?: string;
   qrDataUrl?: string;
+  actionUrl?: string;
   vaBank?: string;
   ewalletChannel?: string;
   retailOutlet?: string;
-  cardDetails?: {
-    last4?: string;
-    brand?: string;
-  };
   amount?: number;
   checkoutUrl?: string;
   ticket?: string;
 } | null>(null);
 const isPaid = ref(false);
-const paidResult = ref<{ licenseKey?: string; message?: string } | null>(null);
+const paidResult = ref<{
+  licenseKey?: string;
+  message?: string;
+  delivery?: {
+    licenseKeyEnabled?: boolean;
+    fileDownload?: { title?: string; fileUrl?: string; fileName?: string };
+    privateNote?: { title?: string; note?: string };
+    apiAccess?: { enabled?: boolean; endpointUrl?: string; instruction?: string; apiKey?: string };
+    redirectUrl?: string;
+  };
+} | null>(null);
 let pollTimer: any = null;
 
 // Poll ticket (BUG-5): bukti kepemilikan transaksi untuk polling status publik.
@@ -152,6 +166,7 @@ function startPolling(txId: string, isQris = false) {
         isPaid.value = true;
         paidResult.value = {
           licenseKey: res.licenseKey || undefined,
+          delivery: res.delivery,
           message: "Pembayaran berhasil diverifikasi secara instan.",
         };
         return;
@@ -176,7 +191,11 @@ function startPolling(txId: string, isQris = false) {
   pollTimer = setTimeout(pollStep, initialDelay);
 }
 
-function onPaymentSuccess(result: { licenseKey?: string; message?: string }) {
+function onPaymentSuccess(result: {
+  licenseKey?: string;
+  message?: string;
+  delivery?: NonNullable<typeof paidResult.value>["delivery"];
+}) {
   stopPolling();
   isPaid.value = true;
   paidResult.value = result;
@@ -281,20 +300,44 @@ async function loadCheckoutData() {
           isPaid.value = true;
           paidResult.value = {
             licenseKey: statusRes.licenseKey || undefined,
+            delivery: statusRes.delivery,
             message: "Pembayaran berhasil diverifikasi.",
           };
         } else if (statusRes.paymentStatus === "PENDING") {
+          const chLower = (statusRes.channel || "").toLowerCase();
+          const restoredRail =
+            statusRes.paymentRail ||
+            (chLower.includes("va")
+              ? "va"
+              : ["alfamart", "indomaret", "retail"].some((r) => chLower.includes(r))
+                ? "retail"
+                : ["ovo", "dana", "shopeepay", "linkaja", "gopay", "astrapay", "ewallet"].some(
+                      (e) => chLower.includes(e)
+                    )
+                  ? "ewallet"
+                  : "qris");
           activeCustomOrder.value = {
             transactionId: statusRes.transactionId || externalIdParam,
-            paymentRail: statusRes.channel?.toLowerCase().includes("va") ? "va" : "qris",
+            paymentRail: restoredRail,
             paymentCode: statusRes.paymentCode,
             qrDataUrl: statusRes.qrDataUrl,
+            actionUrl: statusRes.actionUrl,
+            vaBank:
+              statusRes.vaBank ||
+              (restoredRail === "va" ? statusRes.channel?.replace(/^VA_/i, "") : undefined),
+            ewalletChannel:
+              statusRes.ewalletChannel ||
+              (restoredRail === "ewallet" ? statusRes.channel : undefined),
+            retailOutlet:
+              statusRes.retailOutlet || (restoredRail === "retail" ? statusRes.channel : undefined),
             amount: statusRes.amount || payableAmount.value,
             checkoutUrl: statusRes.checkoutUrl,
             ticket: currentTicket,
           };
-          const isQris = !statusRes.channel?.toLowerCase().includes("va");
-          startPolling(statusRes.transactionId || externalIdParam, isQris);
+          startPolling(statusRes.transactionId || externalIdParam, restoredRail === "qris");
+        } else if (statusRes.paymentStatus === "EXPIRED" || statusRes.paymentStatus === "FAILED") {
+          errorMessage.value =
+            "Sesi pembayaran ini telah kedaluwarsa atau gagal. Silakan buat transaksi baru.";
         }
       }
     }
@@ -339,11 +382,18 @@ function setProductData(app: any) {
     checkoutMode: app.checkoutMode || "custom",
     activePaymentGateway: app.activePaymentGateway || "xendit",
     availableChannels: app.availableChannels,
-    targetPrice: queryAmount.value || app.targetPrice || 0,
+    targetPrice: app.pricingType === "free" ? 0 : queryAmount.value || app.targetPrice || 0,
+    pricingType: app.pricingType,
+    billingPeriod: app.billingPeriod ?? null,
+    trialPeriodDays: app.trialPeriodDays ?? 0,
+    licenseKeyEnabled: app.licenseKeyEnabled !== false,
     description: app.description || "Solusi software premium otomatis & berlisensi resmi.",
     headline: app.headline || null,
     subheadline: app.subheadline || null,
     mediaUrl: app.mediaUrl || null,
+    logoUrl: app.logoUrl || null,
+    brandColor: app.brandColor || null,
+    ctaText: app.ctaText || null,
     valueProps: Array.isArray(app.valueProps)
       ? app.valueProps
       : app.valueProps
@@ -383,13 +433,9 @@ async function handlePay(payload?: {
   paymentRail?: "qris" | "va" | "ewallet" | "card" | "retail";
   vaBank?: string;
   ewalletChannel?: string;
+  ewalletPhone?: string;
   retailOutlet?: string;
-  cardDetails?: {
-    cardNumber?: string;
-    cardExpiry?: string;
-    cardCvv?: string;
-    cardHolderName?: string;
-  };
+  startTrial?: boolean;
 }) {
   if (!product.value || !emailInput.value) return;
   isSubmitting.value = true;
@@ -400,6 +446,7 @@ async function handlePay(payload?: {
   const rail = payload?.paymentRail || selectedPaymentRail.value;
   const bank = payload?.vaBank || selectedBank.value;
   const ewallet = payload?.ewalletChannel || selectedEwallet.value;
+  const ewalletPhone = payload?.ewalletPhone;
   const retail = payload?.retailOutlet || selectedRetail.value;
 
   try {
@@ -413,7 +460,9 @@ async function handlePay(payload?: {
       paymentRail: rail,
       vaBank: bank,
       ewalletChannel: ewallet,
+      ewalletPhone,
       retailOutlet: retail,
+      startTrial: payload?.startTrial,
       redirectUrl: product.value.redirectUrl || `${window.location.origin}/dashboard`,
       couponCode: appliedCoupon.value?.code || couponInput.value.trim() || undefined,
     });
@@ -433,42 +482,42 @@ async function handlePay(payload?: {
 
     const activeExtId =
       (data as any).externalId || (data as any).data?.externalId || data.transactionId;
-    if (activeExtId && typeof window !== "undefined") {
+
+    // Simpan ticket polling (BUG-5) supaya licenseKey tidak bocor ke pemegang txId saja,
+    // sekaligus pertahankan di URL agar refresh halaman tetap memulihkan detail pembayaran.
+    currentTicket = data.ticket || (data as any).data?.ticket || "";
+    if (typeof window !== "undefined") {
       const currentUrl = new URL(window.location.href);
-      currentUrl.searchParams.set("externalId", activeExtId);
-      window.history.replaceState({}, "", currentUrl.toString());
+      if (activeExtId) currentUrl.searchParams.set("externalId", activeExtId);
+      if (currentTicket) currentUrl.searchParams.set("ticket", currentTicket);
+      if (activeExtId || currentTicket) {
+        window.history.replaceState({}, "", currentUrl.toString());
+      }
     }
 
-    // Simpan ticket polling (BUG-5) supaya licenseKey tidak bocor ke pemegang txId saja.
-    currentTicket = data.ticket || (data as any).data?.ticket || "";
+    // Aktivasi instan untuk produk gratis atau Free Trial
+    if (data.isFree || data.isTrial) {
+      isPaid.value = true;
+      paidResult.value = {
+        licenseKey: data.licenseKey || undefined,
+        delivery: data.delivery,
+        message: data.message || "Akses produk berhasil diaktifkan!",
+      };
+      return;
+    }
 
     // Full Custom Mode: scenario === "API" selalu menampilkan custom view di tertaut.com
     if (data.scenario === "API") {
-      const rawCard = payload?.cardDetails?.cardNumber?.replace(/\D/g, "") || "";
-      const last4 = rawCard.slice(-4) || "2151";
-      const cardBrand = rawCard.startsWith("4")
-        ? "VISA"
-        : rawCard.startsWith("5")
-          ? "Mastercard"
-          : rawCard.startsWith("3")
-            ? "AMEX"
-            : rawCard.startsWith("35")
-              ? "JCB"
-              : "Kartu Kredit/Debit";
-
       activeCustomOrder.value = {
         transactionId: data.transactionId || "",
         scenario: data.scenario,
         paymentRail: data.paymentRail || rail,
         paymentCode: data.paymentCode,
         qrDataUrl: data.qrDataUrl,
+        actionUrl: data.actionUrl,
         vaBank: data.vaBank || bank,
         ewalletChannel: ewallet,
-        retailOutlet: retail,
-        cardDetails: {
-          last4,
-          brand: cardBrand,
-        },
+        retailOutlet: data.retailOutlet || retail,
         amount: data.amount || payableAmount.value,
         checkoutUrl: data.checkoutUrl,
         ticket: currentTicket,
@@ -478,7 +527,7 @@ async function handlePay(payload?: {
         startPolling(data.transactionId, isQris);
       }
     } else if (data.checkoutUrl) {
-      // Hosted Mode: dialihkan ke invoice resmi Xendit
+      // Hosted Fallback: dialihkan ke halaman pembayaran
       window.location.href = data.checkoutUrl;
     }
   } catch (err: any) {

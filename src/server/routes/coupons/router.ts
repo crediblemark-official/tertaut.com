@@ -40,6 +40,8 @@ export const couponRoutes = new Elysia({ prefix: "/coupons" })
             builderApps.map((a) => a.id)
           )
         );
+      } else if (!isAdmin && !builder) {
+        return { success: true, count: 0, coupons: [] };
       }
 
       if (query.appId) {
@@ -112,6 +114,15 @@ export const couponRoutes = new Elysia({ prefix: "/coupons" })
             topCoupons: [],
           };
         }
+      } else if (!isAdmin && !builder) {
+        return {
+          success: true,
+          days,
+          totalRedemptions: 0,
+          totalDiscountIdr: 0,
+          daily: [],
+          topCoupons: [],
+        };
       }
 
       const scopeFilters: any[] = [

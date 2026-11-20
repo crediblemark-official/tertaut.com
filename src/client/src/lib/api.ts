@@ -352,20 +352,41 @@ export const api = {
     scenario?: "API" | "REDIRECT";
     vaBank?: string;
     ewalletChannel?: string;
+    ewalletPhone?: string;
     retailOutlet?: string;
     redirectUrl?: string;
     couponCode?: string;
+    startTrial?: boolean;
   }): Promise<{
     success: boolean;
+    isFree?: boolean;
+    isTrial?: boolean;
     transactionId?: string;
     ticket?: string;
+    licenseKey?: string;
+    delivery?: {
+      licenseKeyEnabled?: boolean;
+      fileDownload?: { title?: string; fileUrl?: string; fileName?: string };
+      privateNote?: { title?: string; note?: string };
+      apiAccess?: {
+        enabled?: boolean;
+        endpointUrl?: string;
+        instruction?: string;
+        apiKey?: string;
+      };
+      redirectUrl?: string;
+    };
     checkoutUrl?: string;
+    hostedPayUrl?: string;
+    actionUrl?: string;
     scenario?: "API" | "REDIRECT";
     paymentRail?: "qris" | "va" | "ewallet" | "card" | "retail";
     paymentCode?: string;
     qrDataUrl?: string;
     vaBank?: string;
+    retailOutlet?: string;
     amount?: number;
+    message?: string;
     error?: string;
   }> {
     const res = await apiFetch("/api/v1/checkout/session", {
@@ -382,10 +403,28 @@ export const api = {
   ): Promise<{
     success: boolean;
     transactionId: string;
+    appId?: string;
     paymentStatus: "PENDING" | "PAID" | "EXPIRED" | "FAILED";
     amount: number;
     channel?: string;
+    paymentRail?: "qris" | "va" | "ewallet" | "card" | "retail";
+    vaBank?: string;
+    retailOutlet?: string;
+    ewalletChannel?: string;
+    actionUrl?: string;
     licenseKey?: string | null;
+    delivery?: {
+      licenseKeyEnabled?: boolean;
+      fileDownload?: { title?: string; fileUrl?: string; fileName?: string };
+      privateNote?: { title?: string; note?: string };
+      apiAccess?: {
+        enabled?: boolean;
+        endpointUrl?: string;
+        instruction?: string;
+        apiKey?: string;
+      };
+      redirectUrl?: string;
+    };
     paidAt?: string | null;
     qrDataUrl?: string;
     paymentCode?: string;
@@ -405,6 +444,18 @@ export const api = {
     success: boolean;
     paymentStatus: "PAID" | "PENDING" | "EXPIRED" | "FAILED";
     licenseKey?: string | null;
+    delivery?: {
+      licenseKeyEnabled?: boolean;
+      fileDownload?: { title?: string; fileUrl?: string; fileName?: string };
+      privateNote?: { title?: string; note?: string };
+      apiAccess?: {
+        enabled?: boolean;
+        endpointUrl?: string;
+        instruction?: string;
+        apiKey?: string;
+      };
+      redirectUrl?: string;
+    };
     message?: string;
     error?: string;
   }> {
@@ -480,6 +531,27 @@ export const api = {
     builderName?: string;
   }> {
     const res = await apiFetch("/api/v1/payouts/account");
+    return parseJson(res);
+  },
+
+  async getPayoutSummary(): Promise<{
+    success: boolean;
+    minThreshold: number;
+    kpis: {
+      availableBalance: number;
+      availableCount: number;
+      processingBalance: number;
+      totalPaidOut: number;
+      totalFeeMoR: number;
+    };
+    disbursementGroups: Array<{
+      disbursementId: string;
+      status: "COMPLETED" | "PROCESSING";
+      totalNet: number;
+      latestDate: string | null;
+    }>;
+  }> {
+    const res = await apiFetch(withMode("/api/v1/payouts/summary"));
     return parseJson(res);
   },
 

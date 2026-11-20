@@ -15,6 +15,8 @@ export interface PanelStats {
     nodeEnv: string;
     bunVersion: string;
     uptimeSeconds: number;
+    dbConnected?: boolean;
+    dbPort?: string;
     memoryUsageMB: {
       rss: number;
       heapTotal: number;

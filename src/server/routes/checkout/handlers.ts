@@ -6,7 +6,8 @@ import { config as checkoutConfig, resolveRequestOrigin } from "../../config";
 import { resolveCurrentBuilder } from "../apps/builder";
 import { handleDisburse } from "../apps/disburse";
 import { enforceRateLimitAsync } from "../../services/security/rateLimiter";
-import { verifyPollTicket } from "../../utils/pollTicket";
+import { createPollTicket, verifyPollTicket } from "../../utils/pollTicket";
+import { resolvePublicPaymentRailInfo, buildPublicDeliveryPayload } from "../../utils/payment";
 import { parsePagination, paginationEnvelope } from "../../lib/pagination";
 
 // Rate-limit sync gateway remote per transaction agar tidak membebani network / API eksternal
@@ -16,6 +17,79 @@ const gatewaySyncThrottleMap = new Map<string, number>();
 export function clearGatewaySyncThrottle(txId?: string) {
   if (txId) gatewaySyncThrottleMap.delete(txId);
   else gatewaySyncThrottleMap.clear();
+}
+
+/** Menormalkan label kanal pembayaran agar tidak membocorkan merek vendor eksternal. */
+function sanitizePublicPaymentChannel(raw?: string | null): string {
+  const val = (raw || "").trim();
+  if (!val) return "TERTAUT PAY";
+  if (/^XENDIT_QRIS$/i.test(val)) return "QRIS";
+  if (/^XENDIT$/i.test(val)) return "TERTAUT PAY";
+  return val.replace(/^XENDIT_/i, "");
+}
+
+/** Sinkronisasi status transaksi PENDING ke gateway jika perlu. */
+async function syncPendingTransactionWithGateway(
+  tx: typeof transactions.$inferSelect,
+  forceSync: boolean
+): Promise<{ tx: typeof transactions.$inferSelect; paymentCode?: string }> {
+  let currentTx = tx;
+  let paymentCode: string | undefined;
+
+  const nowMs = Date.now();
+  const lastSync = gatewaySyncThrottleMap.get(tx.id) || 0;
+  const isInternalSandbox =
+    tx.paymentProvider === "sandbox" || tx.xenditInvoiceId?.startsWith("inv_sandbox_");
+  const shouldSyncRemote =
+    !isInternalSandbox && (forceSync || checkoutConfig.isTest || nowMs - lastSync > 15_000);
+
+  if (currentTx.paymentStatus === "PENDING" && shouldSyncRemote) {
+    gatewaySyncThrottleMap.set(tx.id, nowMs);
+    try {
+      const { getPaymentGateway } = await import("../../services/payments/gateways");
+      const gateway = getPaymentGateway(tx.paymentProvider);
+      const queryRes = await gateway.queryOrderStatus({
+        externalId: tx.xenditExternalId,
+        referenceNo: tx.providerReferenceId || tx.xenditInvoiceId || undefined,
+      });
+
+      if (queryRes.paymentCode) {
+        paymentCode = queryRes.paymentCode;
+      }
+
+      if (queryRes.isPaid) {
+        const paidAmount = queryRes.paidAmount;
+        if (typeof paidAmount === "number" && paidAmount > 0 && paidAmount !== tx.grossAmount) {
+          console.warn(
+            `[Checkout Polling] Amount mismatch: paid=${paidAmount} vs expected=${tx.grossAmount} (TX ${tx.id}) — tidak mem-fulfill.`
+          );
+        } else {
+          const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
+          await fulfillPaymentTransaction(
+            tx,
+            sanitizePublicPaymentChannel(queryRes.paymentChannel || tx.paymentChannel)
+          );
+          const refreshed = await db.query.transactions.findFirst({
+            where: eq(transactions.id, tx.id),
+          });
+          if (refreshed) {
+            currentTx = refreshed;
+          }
+        }
+      } else if (queryRes.isExpired || queryRes.isFailed) {
+        const targetStatus = queryRes.isFailed ? "FAILED" : "EXPIRED";
+        const { markPendingTransactionTerminal } = await import("../webhook/fulfill");
+        const transitioned = await markPendingTransactionTerminal(tx.id, targetStatus);
+        if (transitioned) {
+          currentTx = { ...tx, paymentStatus: targetStatus };
+        }
+      }
+    } catch {
+      // Abaikan error jaringan saat polling status
+    }
+  }
+
+  return { tx: currentTx, paymentCode };
 }
 
 export interface CheckoutHandlerSet {
@@ -71,84 +145,41 @@ export async function handleGetPaymentStatus({
   let qrDataUrl: string | undefined = tx.qrDataUrl || undefined;
   let paymentCode: string | undefined = tx.paymentCode || undefined;
 
-  // Sinkronisasi status aktif ke gateway jika masih PENDING (lewati jika transaksi mock)
-  // Polling default membaca langsung dari DB lokal (<2ms). Query ke remote gateway
-  // di-throttle maksimal 1x per 15 detik atau bila diminta eksplisit (?sync=true) agar tidak lemot.
-  const nowMs = Date.now();
-  const lastSync = gatewaySyncThrottleMap.get(tx.id) || 0;
   const isExplicitSync = query?.sync === "true" || query?.refresh === "true";
-  const isInternalSandbox =
-    tx.paymentProvider === "sandbox" || tx.xenditInvoiceId?.startsWith("inv_sandbox_");
-  const shouldSyncRemote =
-    !isInternalSandbox && (isExplicitSync || checkoutConfig.isTest || nowMs - lastSync > 15_000);
-
-  if (tx.paymentStatus === "PENDING" && shouldSyncRemote) {
-    gatewaySyncThrottleMap.set(tx.id, nowMs);
-    try {
-      const { getPaymentGateway } = await import("../../services/payments/gateways");
-      const gateway = getPaymentGateway(tx.paymentProvider);
-      const queryRes = await gateway.queryOrderStatus({
-        externalId: tx.xenditExternalId,
-        referenceNo: tx.providerReferenceId || tx.xenditInvoiceId || undefined,
-      });
-
-      if (queryRes.paymentCode) {
-        paymentCode = queryRes.paymentCode;
-      }
-
-      if (queryRes.isPaid) {
-        const paidAmount = queryRes.paidAmount;
-        if (typeof paidAmount === "number" && paidAmount > 0 && paidAmount !== tx.grossAmount) {
-          console.warn(
-            `[Checkout Polling] Amount mismatch: paid=${paidAmount} vs expected=${tx.grossAmount} (TX ${tx.id}) — tidak mem-fulfill.`
-          );
-        } else {
-          const { fulfillPaymentTransaction } = await import("../webhook/fulfill");
-          await fulfillPaymentTransaction(
-            tx,
-            queryRes.paymentChannel ||
-              tx.paymentChannel ||
-              (tx.paymentProvider || "XENDIT").replace(/[^a-z0-9]/gi, "").toUpperCase()
-          );
-          const refreshed = await db.query.transactions.findFirst({
-            where: eq(transactions.id, tx.id),
-          });
-          if (refreshed) {
-            tx = refreshed;
-          }
-        }
-      } else if (queryRes.isExpired) {
-        await db
-          .update(transactions)
-          .set({ paymentStatus: "EXPIRED", updatedAt: new Date() })
-          .where(eq(transactions.id, tx.id));
-        tx = { ...tx, paymentStatus: "EXPIRED" };
-      }
-    } catch {
-      // Abaikan error jaringan saat polling status
-    }
+  const synced = await syncPendingTransactionWithGateway(tx, isExplicitSync);
+  tx = synced.tx;
+  if (synced.paymentCode) {
+    paymentCode = synced.paymentCode;
   }
 
   let licenseKey: string | null = null;
-  if (tx.paymentStatus === "PAID") {
-    // BUG-5: licenseKey hanya dibeberkan ke pemanggil yang memiliki poll ticket valid
-    // (dikembalikan oleh create-session / disematkan di redirect finish). Mengetahui
-    // txId saja tidak lagi cukup untuk mencuri lisensi.
-    const ticket = query?.ticket;
-    if (verifyPollTicket(tx.id, ticket)) {
-      const lic = await db.query.licenses.findFirst({
-        where: eq(licenses.transactionId, tx.id),
-      });
-      licenseKey = lic?.licenseKey || null;
-    }
-  }
+  let delivery: ReturnType<typeof buildPublicDeliveryPayload> | undefined = undefined;
 
   // P0-AUTH: detail sensitif (QR/payment code, amount, externalId, checkoutUrl,
-  // licenseKey) HANYA dibeberkan ke pemegang poll ticket yang sah (hasil
-  // create-session / redirect finish). Pemegang txId saja hanya menerima status —
-  // cukup untuk polling UX, tanpa membocorkan data pembayaran pengguna lain.
+  // licenseKey, delivery) HANYA dibeberkan ke pemegang poll ticket yang sah atau owner/admin.
   const reqTicket = query?.ticket;
   const isTicketValid = Boolean(reqTicket) && verifyPollTicket(tx.id, reqTicket);
+  let isAuthorizedViewer = isTicketValid;
+  if (!isAuthorizedViewer && request?.headers) {
+    const authBuilder = await resolveCurrentBuilder(request.headers);
+    const isOwner = Boolean(authBuilder.builder && authBuilder.builder.id === tx.builderId);
+    isAuthorizedViewer = isOwner || authBuilder.isAdmin;
+  }
+
+  if (tx.paymentStatus === "PAID" && isAuthorizedViewer) {
+    const [lic, app] = await Promise.all([
+      db.query.licenses.findFirst({
+        where: eq(licenses.transactionId, tx.id),
+      }),
+      db.query.apps.findFirst({
+        where: eq(apps.id, tx.appId),
+      }),
+    ]);
+    licenseKey = lic?.licenseKey || null;
+    const provisionedApiKey =
+      lic?.apiKey || ((tx.metadata as Record<string, any> | null)?.apiKey as string | undefined);
+    delivery = buildPublicDeliveryPayload(app, undefined, provisionedApiKey);
+  }
 
   const base = {
     success: true,
@@ -156,14 +187,24 @@ export async function handleGetPaymentStatus({
     paymentStatus: tx.paymentStatus,
   };
 
-  if (!isTicketValid) return base;
+  if (!isAuthorizedViewer) return base;
+
+  const normalizedChannel = sanitizePublicPaymentChannel(tx.paymentChannel);
+  const railInfo = resolvePublicPaymentRailInfo(normalizedChannel, tx.xenditInvoiceUrl);
 
   return {
     ...base,
+    appId: tx.appId,
     externalId: tx.xenditExternalId,
     amount: tx.grossAmount,
-    channel: tx.paymentChannel,
+    channel: normalizedChannel,
+    paymentRail: railInfo.paymentRail,
+    vaBank: railInfo.vaBank,
+    retailOutlet: railInfo.retailOutlet,
+    ewalletChannel: railInfo.ewalletChannel,
+    actionUrl: railInfo.actionUrl,
     licenseKey,
+    delivery,
     paidAt: tx.paidAt,
     qrDataUrl,
     paymentCode,
@@ -345,10 +386,15 @@ export async function handleListTransactions({ query, request }: ListTransaction
     offset: pagination.offset,
   });
 
+  const enrichedTxs = txs.map((tx) => ({
+    ...tx,
+    ticket: createPollTicket(tx.id),
+  }));
+
   return {
     success: true,
-    transactions: txs,
-    ...paginationEnvelope(txs, total, pagination),
+    transactions: enrichedTxs,
+    ...paginationEnvelope(enrichedTxs, total, pagination),
   };
 }
 
@@ -395,8 +441,8 @@ export async function handleGetInvoiceData({
 
   const ticket = query?.ticket;
 
-  const tx = await db.query.transactions.findFirst({
-    where: eq(transactions.id, txId),
+  let tx = await db.query.transactions.findFirst({
+    where: or(eq(transactions.id, txId), eq(transactions.xenditExternalId, txId)),
   });
 
   if (!tx) {
@@ -421,6 +467,11 @@ export async function handleGetInvoiceData({
     }
   }
 
+  if (tx.paymentStatus === "PENDING") {
+    const synced = await syncPendingTransactionWithGateway(tx, false);
+    tx = synced.tx;
+  }
+
   const [app, builder, license] = await Promise.all([
     db.query.apps.findFirst({ where: eq(apps.id, tx.appId) }),
     db.query.builders.findFirst({ where: eq(builders.id, tx.builderId) }),
@@ -431,6 +482,11 @@ export async function handleGetInvoiceData({
   const dpp = Math.round(gross / 1.11);
   const ppn = gross - dpp;
   const invoiceNumber = `INV-${tx.createdAt.toISOString().slice(0, 10).replace(/-/g, "")}-${tx.id.slice(-6).toUpperCase()}`;
+
+  const normalizedChannel = sanitizePublicPaymentChannel(tx.paymentChannel);
+  const isPaidTx = tx.paymentStatus === "PAID";
+  const provisionedApiKey =
+    license?.apiKey || ((tx.metadata as Record<string, any> | null)?.apiKey as string | undefined);
 
   return {
     success: true,
@@ -473,15 +529,18 @@ export async function handleGetInvoiceData({
         currency: "IDR",
       },
       payment: {
-        channel:
-          tx.paymentChannel || (tx.paymentProvider ? tx.paymentProvider.toUpperCase() : "XENDIT"),
-        provider: tx.paymentProvider ? tx.paymentProvider.toUpperCase() : "XENDIT",
+        channel: normalizedChannel,
+        provider: tx.paymentProvider === "sandbox" ? "SANDBOX" : "TERTAUT PAY",
         status: tx.paymentStatus,
         disbursementStatus: tx.disbursementStatus,
         paidAt: tx.paidAt ? tx.paidAt.toISOString() : null,
         createdAt: tx.createdAt.toISOString(),
       },
       licenseKey: license?.licenseKey || null,
+      delivery:
+        isPaidTx && isTicketValid
+          ? buildPublicDeliveryPayload(app, undefined, provisionedApiKey)
+          : undefined,
       metadata: (tx.metadata as Record<string, unknown> | null) || null,
       verificationUrl: `${resolveRequestOrigin(request)}/invoice/${tx.id}?ticket=${ticket || ""}`,
     },

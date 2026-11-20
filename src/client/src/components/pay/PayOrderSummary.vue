@@ -14,6 +14,8 @@ interface ProductData {
   headline: string | null;
   subheadline: string | null;
   mediaUrl: string | null;
+  logoUrl?: string | null;
+  brandColor?: string | null;
   valueProps: string[];
   redirectUrl: string | null;
 }
@@ -64,6 +66,18 @@ const couponInputValue = computed({
   >
     <div class="space-y-3.5 my-auto py-1">
       <div class="space-y-1.5">
+        <div v-if="product.logoUrl" class="flex items-center gap-2.5 pb-1">
+          <img
+            :src="product.logoUrl"
+            :alt="product.name"
+            class="w-9 h-9 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0"
+          />
+          <span
+            v-if="product.brandColor"
+            class="h-1.5 w-8 rounded-full"
+            :style="{ backgroundColor: product.brandColor }"
+          />
+        </div>
         <h1 class="text-2xl xl:text-3xl font-black tracking-tight text-slate-950 leading-tight">
           {{ product.headline || product.name }}
         </h1>

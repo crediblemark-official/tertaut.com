@@ -181,6 +181,7 @@ export const s2sRoutes = new Elysia({ prefix: "/s2s" })
   .post("/licenses/revoke", handleS2SRevokeLicense, {
     body: t.Object({
       licenseKey: t.String({ description: "Kunci lisensi (TT-...) yang akan dicabut" }),
+      reason: t.Optional(t.String({ description: "Alasan pencabutan lisensi" })),
     }),
     detail: {
       tags: ["S2S API"],

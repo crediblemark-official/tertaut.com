@@ -9,6 +9,8 @@ import {
 import { eq, and, inArray } from "drizzle-orm";
 import { LicenseService } from "../../services/licensing/license";
 import { EmailService } from "../../services/notifications/email";
+import { createPollTicket } from "../../utils/pollTicket";
+import { buildPublicDeliveryPayload } from "../../utils/payment";
 import { randomBytes } from "crypto";
 import type { CreateSessionBody } from "./session";
 
@@ -23,6 +25,143 @@ export interface FreeTrialContext {
   requestOrigin: string;
   redirectUrl?: string;
   metadata?: Record<string, any>;
+  grantDays?: number;
+}
+
+function buildAppDeliveryPayload(app: Project, redirectUrl?: string, apiKey?: string) {
+  const dc = app.deliveryConfig;
+  const responseDelivery = buildPublicDeliveryPayload(app, redirectUrl, apiKey);
+  const apiAccess = dc?.apiAccess?.enabled ? { ...dc.apiAccess, apiKey } : undefined;
+
+  return {
+    licenseKeyEnabled: responseDelivery.licenseKeyEnabled,
+    responseDelivery,
+    emailDelivery: {
+      licenseKeyEnabled: responseDelivery.licenseKeyEnabled,
+      fileDownload: responseDelivery.fileDownload,
+      privateNote: responseDelivery.privateNote,
+      apiAccess,
+    },
+    shouldSendEmail: Boolean(
+      responseDelivery.licenseKeyEnabled ||
+      responseDelivery.fileDownload ||
+      responseDelivery.privateNote ||
+      apiAccess
+    ),
+  };
+}
+
+export async function handleFreeClaimCheckout({
+  app,
+  email,
+  rawHwid,
+  clientIp,
+  body,
+  requestOrigin,
+  redirectUrl,
+  metadata,
+  grantDays = 365,
+}: FreeTrialContext) {
+  const freeApiKey = app.deliveryConfig?.apiAccess?.enabled
+    ? `tt_cust_${randomBytes(16).toString("hex")}`
+    : undefined;
+  const {
+    licenseKeyEnabled: shouldIssueLicense,
+    responseDelivery,
+    emailDelivery,
+    shouldSendEmail,
+  } = buildAppDeliveryPayload(app, redirectUrl, freeApiKey);
+  const licenseKey = shouldIssueLicense ? LicenseService.generateLicenseKey() : null;
+  const expiresAt = new Date(Date.now() + grantDays * 24 * 60 * 60 * 1000);
+  const txId = `tx_free_${randomBytes(8).toString("hex")}`;
+  const licId = `lic_${randomBytes(8).toString("hex")}`;
+  const primaryHwidHash = rawHwid ? LicenseService.hashHardwareIdSecure(rawHwid) : null;
+
+  const [freeTx] = await db.transaction(async (trx) => {
+    const [insertedTx] = await trx
+      .insert(transactions)
+      .values({
+        id: txId,
+        appId: app.id,
+        builderId: app.builderId,
+        mode: app.mode,
+        paymentProvider: app.mode === "sandbox" ? "sandbox" : "xendit",
+        paymentChannel: "FREE",
+        xenditExternalId: txId,
+        customerEmail: email,
+        customerName: body.customerName || body.name || null,
+        grossAmount: 0,
+        platformFee: 0,
+        netAmount: 0,
+        paymentStatus: "PAID",
+        disbursementStatus: "COMPLETED",
+        paidAt: new Date(),
+        grantDays,
+        metadata: {
+          ...(typeof metadata === "object" && metadata !== null ? metadata : {}),
+          hwidHash: primaryHwidHash,
+          clientIp,
+          deviceFingerprint: rawHwid || undefined,
+        },
+      })
+      .returning();
+
+    if (shouldIssueLicense && licenseKey) {
+      await trx.insert(licenses).values({
+        id: licId,
+        appId: app.id,
+        transactionId: insertedTx.id,
+        mode: app.mode,
+        customerEmail: email,
+        licenseKey,
+        hardwareId: primaryHwidHash,
+        status: "ACTIVE",
+        expiresAt,
+        maxSeats: app.deliveryConfig?.licenseKey?.maxSeats ?? 3,
+        apiKey: freeApiKey,
+      });
+
+      if (primaryHwidHash) {
+        await trx.insert(licenseActivations).values({
+          id: `act_${randomBytes(8).toString("hex")}`,
+          licenseId: licId,
+          hwidHash: primaryHwidHash,
+          deviceName: body.deviceName || "Primary Free Device",
+          ipAddress: clientIp,
+        });
+      }
+    }
+
+    return [insertedTx];
+  });
+
+  if (shouldSendEmail) {
+    await EmailService.sendLicenseIssued({
+      to: email,
+      appName: app.name,
+      licenseKey,
+      expiresAt,
+      deliveryDetails: emailDelivery,
+    }).catch(() => null);
+  }
+
+  const ticket = createPollTicket(freeTx.id);
+  return {
+    success: true,
+    isFree: true,
+    scenario: "API" as const,
+    transactionId: freeTx.id,
+    ticket,
+    licenseKey,
+    expiresAt: expiresAt.toISOString(),
+    amount: 0,
+    delivery: responseDelivery,
+    message: "Akses produk gratis berhasil diaktifkan!",
+    redirectUrl:
+      redirectUrl ||
+      app.redirectUrl ||
+      `${requestOrigin}/checkout/success?externalId=${freeTx.id}&ticket=${encodeURIComponent(ticket)}`,
+  };
 }
 
 export async function handleFreeTrialCheckout({
@@ -112,7 +251,13 @@ export async function handleFreeTrialCheckout({
   const trialApiKey = app.deliveryConfig?.apiAccess?.enabled
     ? `tt_cust_${randomBytes(16).toString("hex")}`
     : undefined;
-  const licenseKey = LicenseService.generateLicenseKey();
+  const {
+    licenseKeyEnabled: shouldIssueLicense,
+    responseDelivery,
+    emailDelivery,
+    shouldSendEmail,
+  } = buildAppDeliveryPayload(app, redirectUrl, trialApiKey);
+  const licenseKey = shouldIssueLicense ? LicenseService.generateLicenseKey() : null;
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + trialDays);
 
@@ -121,7 +266,7 @@ export async function handleFreeTrialCheckout({
 
   let issued:
     | { duplicate: true; reason: "email" | "device" }
-    | { trialTx: typeof transactions.$inferSelect; newLic: typeof licenses.$inferSelect };
+    | { trialTx: typeof transactions.$inferSelect; newLic: typeof licenses.$inferSelect | null };
   try {
     issued = await db.transaction(async (trx) => {
       // Cek ulang DI DALAM transaksi: anti-race (TOCTOU)
@@ -194,31 +339,34 @@ export async function handleFreeTrialCheckout({
         })
         .returning();
 
-      const [nLic] = await trx
-        .insert(licenses)
-        .values({
-          id: licId,
-          appId: app.id,
-          transactionId: tTx.id,
-          mode: app.mode,
-          customerEmail: email,
-          licenseKey,
-          hardwareId: primaryHwidHash,
-          status: "ACTIVE",
-          expiresAt,
-          maxSeats: app.deliveryConfig?.licenseKey?.maxSeats ?? 3,
-          apiKey: trialApiKey,
-        })
-        .returning();
+      let nLic: typeof licenses.$inferSelect | null = null;
+      if (shouldIssueLicense && licenseKey) {
+        [nLic] = await trx
+          .insert(licenses)
+          .values({
+            id: licId,
+            appId: app.id,
+            transactionId: tTx.id,
+            mode: app.mode,
+            customerEmail: email,
+            licenseKey,
+            hardwareId: primaryHwidHash,
+            status: "ACTIVE",
+            expiresAt,
+            maxSeats: app.deliveryConfig?.licenseKey?.maxSeats ?? 3,
+            apiKey: trialApiKey,
+          })
+          .returning();
 
-      if (primaryHwidHash) {
-        await trx.insert(licenseActivations).values({
-          id: `act_${randomBytes(8).toString("hex")}`,
-          licenseId: licId,
-          hwidHash: primaryHwidHash,
-          deviceName: body.deviceName || "Primary Trial Device",
-          ipAddress: clientIp,
-        });
+        if (primaryHwidHash) {
+          await trx.insert(licenseActivations).values({
+            id: `act_${randomBytes(8).toString("hex")}`,
+            licenseId: licId,
+            hwidHash: primaryHwidHash,
+            deviceName: body.deviceName || "Primary Trial Device",
+            ipAddress: clientIp,
+          });
+        }
       }
 
       return { trialTx: tTx, newLic: nLic };
@@ -258,31 +406,30 @@ export async function handleFreeTrialCheckout({
 
   const { trialTx } = issued;
 
-  await EmailService.sendLicenseIssued({
-    to: email,
-    appName: app.name,
-    licenseKey,
-    expiresAt,
-    deliveryDetails: {
-      fileDownload: app.deliveryConfig?.fileDownload,
-      privateNote: app.deliveryConfig?.privateNote,
-      apiAccess: app.deliveryConfig?.apiAccess
-        ? { ...app.deliveryConfig.apiAccess, apiKey: trialApiKey }
-        : undefined,
-    },
-  }).catch(() => null);
+  if (shouldSendEmail) {
+    await EmailService.sendLicenseIssued({
+      to: email,
+      appName: app.name,
+      licenseKey,
+      expiresAt,
+      deliveryDetails: emailDelivery,
+    }).catch(() => null);
+  }
 
+  const ticket = createPollTicket(trialTx.id);
   return {
     success: true,
     isTrial: true,
     trialPeriodDays: trialDays,
     transactionId: trialTx.id,
+    ticket,
     licenseKey,
     expiresAt: expiresAt.toISOString(),
+    delivery: responseDelivery,
     message: `Masa uji coba gratis ${trialDays} hari berhasil diaktifkan!`,
     redirectUrl:
       redirectUrl ||
       app.redirectUrl ||
-      `${requestOrigin}/checkout/success?licenseKey=${licenseKey}`,
+      `${requestOrigin}/checkout/success?externalId=${trialTx.id}&ticket=${encodeURIComponent(ticket)}`,
   };
 }

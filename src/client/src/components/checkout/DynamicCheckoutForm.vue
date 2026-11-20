@@ -142,7 +142,7 @@ const emit = defineEmits<{
         <span>
           {{
             loading
-              ? "Menghubungkan ke API Xendit..."
+              ? "Menyiapkan sesi checkout..."
               : !selectedAppId
                 ? "Pilih atau Buat Software Terlebih Dahulu"
                 : "Generate Dynamic Checkout Link"

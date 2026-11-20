@@ -146,7 +146,7 @@ export class EmailService {
   static async sendLicenseIssued(params: {
     to: string;
     appName: string;
-    licenseKey: string;
+    licenseKey?: string | null;
     expiresAt: Date | string;
     customerName?: string;
     deliveryDetails?: {
@@ -156,9 +156,10 @@ export class EmailService {
       apiAccess?: { endpointUrl?: string; instruction?: string; apiKey?: string };
     };
   }): Promise<SendEmailResult> {
-    const isLicenseKeyEnabled = params.deliveryDetails?.licenseKeyEnabled !== false;
+    const isLicenseKeyEnabled =
+      params.deliveryDetails?.licenseKeyEnabled !== false && Boolean(params.licenseKey);
     const appName = escapeHtml(params.appName);
-    const licenseKey = escapeHtml(params.licenseKey);
+    const licenseKey = params.licenseKey ? escapeHtml(params.licenseKey) : "";
     const greeting = params.customerName ? `Halo ${escapeHtml(params.customerName)},` : "Halo,";
     const expires = formatDate(params.expiresAt);
 

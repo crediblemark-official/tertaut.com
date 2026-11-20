@@ -27,10 +27,16 @@ function formatUptime(seconds: number) {
         </span>
       </div>
       <div
-        class="flex items-center gap-1.5 text-[11px] font-mono text-emerald-300 font-bold shrink-0"
+        class="flex items-center gap-1.5 text-[11px] font-mono font-bold shrink-0"
+        :class="stats?.system.dbConnected === false ? 'text-red-300' : 'text-emerald-300'"
       >
-        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-        <span>PostgreSQL Connected</span>
+        <span
+          class="w-1.5 h-1.5 rounded-full"
+          :class="stats?.system.dbConnected === false ? 'bg-red-400' : 'bg-emerald-400'"
+        ></span>
+        <span>{{
+          stats?.system.dbConnected === false ? "PostgreSQL Disconnected" : "PostgreSQL Connected"
+        }}</span>
       </div>
     </div>
 
@@ -90,9 +96,19 @@ function formatUptime(seconds: number) {
           </div>
           <div class="flex items-center justify-between py-2.5">
             <span class="text-jetblack/60">Status Database PostgreSQL</span>
-            <span class="font-bold text-forest flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              Connected (Port 5432)
+            <span
+              class="font-bold flex items-center gap-1.5"
+              :class="stats?.system.dbConnected === false ? 'text-red-600' : 'text-forest'"
+            >
+              <span
+                class="w-1.5 h-1.5 rounded-full"
+                :class="stats?.system.dbConnected === false ? 'bg-red-500' : 'bg-emerald-500'"
+              ></span>
+              {{
+                stats?.system.dbConnected === false
+                  ? "Disconnected"
+                  : `Connected (Port ${stats?.system.dbPort || "5432"})`
+              }}
             </span>
           </div>
         </div>

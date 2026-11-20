@@ -20,6 +20,8 @@ const REQUIRED_DOCS: Array<{ label: string; needle: string }> = [
   { label: "new Tertaut()", needle: "new Tertaut(" },
   { label: "checkout()", needle: "tertaut.checkout(" },
   { label: "getPaymentStatus()", needle: "getPaymentStatus(" },
+  { label: "validateCoupon()", needle: "validateCoupon(" },
+  { label: "getPaymentChannels()", needle: "getPaymentChannels(" },
   // Lisensi
   { label: "licensing.activate", needle: "licensing.activate" },
   { label: "licensing.validate", needle: "licensing.validate" },

@@ -5,7 +5,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { LaunchService } from "../../services/monetization/launchService";
 import { AuditService } from "../../services/security/audit";
 import { getClientIp } from "../../lib/ip";
-import { config } from "../../config";
+import { config, resolveRequestOrigin } from "../../config";
 
 export const badgeRoutes = new Elysia({ prefix: "/badge" })
   /**
@@ -103,7 +103,7 @@ export const badgeRoutes = new Elysia({ prefix: "/badge" })
         { slug: cleanSlug, referer: request?.headers?.get("referer") || undefined }
       );
 
-      const targetUrl = app.redirectUrl || `${config.publicAppUrl}/pay/${app.slug}`;
+      const targetUrl = `${config.publicAppUrl}/pay/${app.slug}`;
       return redirect(targetUrl);
     },
     {
@@ -249,7 +249,8 @@ export const widgetRoutes = new Elysia({ prefix: "/widgets" })
    */
   .get(
     "/embed.js",
-    ({ set }) => {
+    ({ request, set }) => {
+      const resolvedHost = resolveRequestOrigin(request) || config.publicAppUrl;
       const script = `
 (function() {
   if (customElements.get('tertaut-badge')) return;
@@ -263,7 +264,7 @@ export const widgetRoutes = new Elysia({ prefix: "/widgets" })
     async connectedCallback() {
       const app = this.getAttribute('app') || '';
       const type = this.getAttribute('type') || 'verified';
-      const host = window.location.origin;
+      const host = ${JSON.stringify(resolvedHost)};
 
       if (!app) {
         this.shadowRoot.innerHTML = '<span style="color:#888;font-size:11px;">[tertaut-badge: missing app attr]</span>';

@@ -5,7 +5,11 @@ import { api } from "../../lib/api";
 import type { AppItem, DashboardStats } from "../../types/app";
 import type { TransactionItem } from "../../types/transaction";
 import { dashboardEnv, envPath } from "../../lib/environment";
-import { formatRupiah, formatDate as formatUtilsDate } from "../../lib/utils";
+import {
+  formatRupiah,
+  formatDate as formatUtilsDate,
+  buildTransactionPayUrl,
+} from "../../lib/utils";
 import {
   CreditCard,
   Receipt,
@@ -538,17 +542,17 @@ defineExpose({
         </td>
         <td class="py-2.5 pl-2.5 pr-3.5 sm:pr-4 md:pr-6 text-right" @click.stop>
           <div class="flex items-center justify-end gap-1.5">
-            <!-- Direct Link to Customer Checkout Invoice for pending tx -->
-            <a
-              v-if="tx.xenditInvoiceUrl && tx.paymentStatus === 'PENDING'"
-              :href="tx.xenditInvoiceUrl"
+            <!-- Direct Link to Customer Checkout Page for pending tx -->
+            <router-link
+              v-if="tx.paymentStatus === 'PENDING'"
+              :to="buildTransactionPayUrl(tx, appsList)"
               target="_blank"
-              title="Buka Tautan Kasir / Invoice Pembeli"
+              title="Buka Tautan Kasir / Halaman Bayar Pembeli"
               class="px-2 py-0.5 rounded bg-jetblack text-white hover:bg-jetblack-hover text-[10.5px] font-bold transition inline-flex items-center gap-1"
             >
               <ExternalLink class="w-2.5 h-2.5" />
               <span>Link Kasir</span>
-            </a>
+            </router-link>
 
             <!-- Detail Modal Button -->
             <button

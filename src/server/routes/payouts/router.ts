@@ -1,15 +1,28 @@
 import { submitPayout, PayoutConflictError } from "../../services/payments/payouts";
 import { Elysia, t } from "elysia";
 import { db } from "../../db";
-import { transactions, builders, projects } from "../../db/schema";
+import { transactions, builders, projects, platformSettings } from "../../db/schema";
 import { eq, and, inArray, ne } from "drizzle-orm";
 import { resolveDisbursementAccount } from "../../services/payments/payoutAccount";
 import { getActiveGateway } from "../../services/payments/gateways";
 import { config } from "../../config";
 import { authenticate, isAdminUser } from "../../middleware/auth";
 
-/** FR-4.2 Minimum disbursement threshold Rp 50.000 */
-const MIN_THRESHOLD = 50000;
+/** FR-4.2 Default minimum disbursement threshold Rp 50.000 */
+const DEFAULT_MIN_THRESHOLD = 50000;
+
+async function resolveMinPayoutThreshold(): Promise<number> {
+  try {
+    const row = await db.query.platformSettings.findFirst({
+      where: eq(platformSettings.key, "min_payout_threshold"),
+    });
+    const parsed = Number(row?.value);
+    if (Number.isFinite(parsed) && parsed >= 10000) {
+      return Math.round(parsed);
+    }
+  } catch {}
+  return DEFAULT_MIN_THRESHOLD;
+}
 
 const formatIdr = (value: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(value);
@@ -105,12 +118,13 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
       }
 
       // Validasi ambang minimum terhadap nilai yang benar-benar akan dicairkan.
+      const minThreshold = await resolveMinPayoutThreshold();
       const requestedAmount = amount ?? totalPendingNet;
-      if (requestedAmount < MIN_THRESHOLD) {
+      if (requestedAmount < minThreshold) {
         set.status = 400;
         return {
           success: false,
-          error: `Saldo belum mencapai batas minimum pencairan (${formatIdr(MIN_THRESHOLD)}). Jumlah yang diminta: ${formatIdr(requestedAmount)}`,
+          error: `Saldo belum mencapai batas minimum pencairan (${formatIdr(minThreshold)}). Jumlah yang diminta: ${formatIdr(requestedAmount)}`,
           currentPendingNet: totalPendingNet,
         };
       }
@@ -238,6 +252,156 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
     }
   )
   /**
+   * Ringkasan saldo & riwayat batch pencairan builder (seluruh transaksi tanpa batas pagination 200)
+   */
+  .get(
+    "/summary",
+    async ({ query, request, set }) => {
+      const authResult = await authenticate(request.headers);
+      if ("status" in authResult) {
+        set.status = authResult.status;
+        return { success: false, error: authResult.error };
+      }
+
+      const mode = query?.mode === "sandbox" ? "sandbox" : "live";
+      const minThreshold = await resolveMinPayoutThreshold();
+
+      const builder =
+        (await db.query.builders.findFirst({
+          where: eq(builders.userId, authResult.user.id),
+        })) ||
+        (await db.query.builders.findFirst({
+          where: eq(builders.email, authResult.user.email),
+        }));
+
+      if (!builder) {
+        return {
+          success: true,
+          minThreshold,
+          kpis: {
+            availableBalance: 0,
+            availableCount: 0,
+            processingBalance: 0,
+            totalPaidOut: 0,
+            totalFeeMoR: 0,
+          },
+          disbursementGroups: [],
+        };
+      }
+
+      const [paidTxs, liveApps] = await Promise.all([
+        db
+          .select({
+            id: transactions.id,
+            appId: transactions.appId,
+            netAmount: transactions.netAmount,
+            platformFee: transactions.platformFee,
+            paymentProvider: transactions.paymentProvider,
+            refundStatus: transactions.refundStatus,
+            disbursementStatus: transactions.disbursementStatus,
+            disbursementId: transactions.disbursementId,
+            disbursementExternalId: transactions.disbursementExternalId,
+            paidAt: transactions.paidAt,
+            createdAt: transactions.createdAt,
+          })
+          .from(transactions)
+          .where(
+            and(
+              eq(transactions.builderId, builder.id),
+              eq(transactions.paymentStatus, "PAID"),
+              eq(transactions.mode, mode)
+            )
+          ),
+        mode === "live"
+          ? db.select({ id: projects.id }).from(projects).where(eq(projects.mode, "live"))
+          : Promise.resolve([]),
+      ]);
+
+      const liveAppIdSet = new Set(liveApps.map((a) => a.id));
+
+      let availableBalance = 0;
+      let availableCount = 0;
+      let processingBalance = 0;
+      let totalPaidOut = 0;
+      let totalFeeMoR = 0;
+
+      const groupMap = new Map<
+        string,
+        {
+          disbursementId: string;
+          status: "COMPLETED" | "PROCESSING";
+          totalNet: number;
+          latestDate: string | null;
+        }
+      >();
+
+      for (const tx of paidTxs) {
+        totalFeeMoR += tx.platformFee || 0;
+        const refundClear = tx.refundStatus === "NONE" || tx.refundStatus === "FAILED";
+        const isLiveEligible =
+          mode === "sandbox" || (tx.paymentProvider !== "sandbox" && liveAppIdSet.has(tx.appId));
+
+        if (tx.disbursementStatus === "PENDING" && refundClear && isLiveEligible) {
+          availableBalance += tx.netAmount || 0;
+          availableCount += 1;
+        } else if (tx.disbursementStatus === "PROCESSING") {
+          processingBalance += tx.netAmount || 0;
+        } else if (tx.disbursementStatus === "COMPLETED") {
+          totalPaidOut += tx.netAmount || 0;
+        }
+
+        const batchRef = tx.disbursementId || tx.disbursementExternalId;
+        if (
+          (tx.disbursementStatus === "COMPLETED" || tx.disbursementStatus === "PROCESSING") &&
+          batchRef
+        ) {
+          if (!groupMap.has(batchRef)) {
+            groupMap.set(batchRef, {
+              disbursementId: batchRef,
+              status: tx.disbursementStatus,
+              totalNet: 0,
+              latestDate: null,
+            });
+          }
+          const grp = groupMap.get(batchRef)!;
+          grp.totalNet += tx.netAmount || 0;
+          const d = (tx.paidAt || tx.createdAt)?.toISOString() || null;
+          if (d && (!grp.latestDate || d > grp.latestDate)) {
+            grp.latestDate = d;
+          }
+        }
+      }
+
+      const disbursementGroups = [...groupMap.values()].sort((a, b) => {
+        if (!a.latestDate) return 1;
+        if (!b.latestDate) return -1;
+        return b.latestDate.localeCompare(a.latestDate);
+      });
+
+      return {
+        success: true,
+        minThreshold,
+        kpis: {
+          availableBalance,
+          availableCount,
+          processingBalance,
+          totalPaidOut,
+          totalFeeMoR,
+        },
+        disbursementGroups,
+      };
+    },
+    {
+      query: t.Object({
+        mode: t.Optional(t.Union([t.Literal("sandbox"), t.Literal("live")])),
+      }),
+      detail: {
+        tags: ["MoR Checkout"],
+        summary: "Get Builder Balance & Disbursement Summary",
+      },
+    }
+  )
+  /**
    * Simpan / Perbarui data rekening pencairan builder
    */
   .post(
@@ -264,12 +428,65 @@ export const payoutsRoutes = new Elysia({ prefix: "/payouts" })
 
       const { bankCode, accountNumber, accountHolderName, eWalletType, phoneNumber } = body;
 
+      const SUPPORTED_PAYOUT_CHANNELS = new Set([
+        "BCA",
+        "BNI",
+        "BRI",
+        "MANDIRI",
+        "PERMATA",
+        "BSI",
+        "CIMB",
+        "BNC",
+        "MEGA",
+        "BJB",
+        "BTPN",
+        "BTPN_SYARIAH",
+        "MANDIRI_SYR",
+        "MANDIRI_TASPEN",
+        "SAHABAT_SAMPOERNA",
+        "DANA",
+        "GOPAY",
+        "OVO",
+        "LINKAJA",
+        "SHOPEEPAY",
+      ]);
+      const EWALLET_CHANNELS = new Set(["DANA", "GOPAY", "OVO", "LINKAJA", "SHOPEEPAY"]);
+
+      const normalizedCode = bankCode ? bankCode.trim().toUpperCase().replace(/^ID_/, "") : "";
+      if (normalizedCode && !SUPPORTED_PAYOUT_CHANNELS.has(normalizedCode)) {
+        set.status = 400;
+        return {
+          success: false,
+          error: `Kanal pencairan "${bankCode}" belum didukung.`,
+        };
+      }
+
+      let normalizedAccount = accountNumber ? accountNumber.trim() : undefined;
+      if (normalizedCode && EWALLET_CHANNELS.has(normalizedCode)) {
+        const rawDigits = (normalizedAccount || phoneNumber || "").replace(/[^0-9]/g, "");
+        const formatted = rawDigits.startsWith("08")
+          ? `62${rawDigits.slice(1)}`
+          : rawDigits.startsWith("8")
+            ? `62${rawDigits}`
+            : rawDigits;
+        if (!/^628\d{7,12}$/.test(formatted)) {
+          set.status = 400;
+          return {
+            success: false,
+            error: `Pencairan ke ${normalizedCode} wajib menggunakan nomor HP valid (contoh: 6281234567890 atau 081234567890).`,
+          };
+        }
+        normalizedAccount = formatted;
+      }
+
       const updatedAccount = {
-        bankCode: bankCode || undefined,
-        accountNumber: accountNumber || undefined,
-        accountHolderName: accountHolderName || undefined,
-        eWalletType: eWalletType || undefined,
-        phoneNumber: phoneNumber || undefined,
+        bankCode: normalizedCode || undefined,
+        accountNumber: normalizedAccount,
+        accountHolderName: accountHolderName?.trim() || undefined,
+        eWalletType:
+          eWalletType || (EWALLET_CHANNELS.has(normalizedCode) ? normalizedCode : undefined),
+        phoneNumber:
+          phoneNumber || (EWALLET_CHANNELS.has(normalizedCode) ? normalizedAccount : undefined),
       };
 
       await db

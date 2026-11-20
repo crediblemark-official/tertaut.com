@@ -14,7 +14,15 @@ import BaseModal from "../components/common/BaseModal.vue";
 
 const env = dashboardEnv;
 const loading = ref(true);
-const transactions = ref<TransactionItem[]>([]);
+const minPayoutThreshold = ref(50000);
+const summaryKpis = ref({
+  availableBalance: 0,
+  availableCount: 0,
+  processingBalance: 0,
+  totalPaidOut: 0,
+  totalFeeMoR: 0,
+});
+const rawDisbursementGroups = ref<DisbursementGroup[]>([]);
 
 const isPayoutModalOpen = ref(false);
 const payoutAmount = ref<number>(0);
@@ -27,8 +35,12 @@ const disbSearchQuery = ref("");
 async function loadData() {
   loading.value = true;
   try {
-    const [txRes] = await Promise.all([api.getTransactions()]);
-    transactions.value = txRes.transactions || [];
+    const res = await api.getPayoutSummary();
+    if (res.success) {
+      minPayoutThreshold.value = res.minThreshold || 50000;
+      summaryKpis.value = res.kpis;
+      rawDisbursementGroups.value = res.disbursementGroups || [];
+    }
   } catch (err) {
     console.error("Gagal memuat data balances:", err);
   } finally {
@@ -45,30 +57,7 @@ onMounted(() => {
 watch(env, loadData);
 
 // ── KPI ──────────────────────────────────────────────────────────
-const balanceKPIs = computed(() => {
-  const paidTxs = transactions.value.filter((t) => t.paymentStatus === "PAID");
-
-  const availableTxs = paidTxs.filter(
-    (t) => t.disbursementStatus === "PENDING" || !t.disbursementStatus
-  );
-  const availableBalance = availableTxs.reduce((acc, t) => acc + (t.netAmount || 0), 0);
-
-  const processingTxs = paidTxs.filter((t) => t.disbursementStatus === "PROCESSING");
-  const processingBalance = processingTxs.reduce((acc, t) => acc + (t.netAmount || 0), 0);
-
-  const completedTxs = paidTxs.filter((t) => t.disbursementStatus === "COMPLETED");
-  const totalPaidOut = completedTxs.reduce((acc, t) => acc + (t.netAmount || 0), 0);
-
-  const totalFeeMoR = paidTxs.reduce((acc, t) => acc + (t.platformFee || 0), 0);
-
-  return {
-    availableBalance,
-    processingBalance,
-    totalPaidOut,
-    totalFeeMoR,
-    availableCount: availableTxs.length,
-  };
-});
+const balanceKPIs = computed(() => summaryKpis.value);
 
 // ── Disbursement groups (COMPLETED + PROCESSING) ──────────────────
 interface DisbursementGroup {
@@ -79,41 +68,10 @@ interface DisbursementGroup {
 }
 
 const disbursementGroups = computed((): DisbursementGroup[] => {
-  const paidTxs = transactions.value.filter((t) => t.paymentStatus === "PAID");
-  const disbursed = paidTxs.filter(
-    (t) =>
-      (t.disbursementStatus === "COMPLETED" || t.disbursementStatus === "PROCESSING") &&
-      t.disbursementId
-  );
-
-  const map = new Map<string, DisbursementGroup>();
-  for (const tx of disbursed) {
-    const key = tx.disbursementId!;
-    if (!map.has(key)) {
-      map.set(key, {
-        disbursementId: key,
-        status: tx.disbursementStatus as "COMPLETED" | "PROCESSING",
-        totalNet: 0,
-        latestDate: null,
-      });
-    }
-    const g = map.get(key)!;
-    g.totalNet += tx.netAmount || 0;
-    const d = tx.paidAt || tx.createdAt;
-    if (d && (!g.latestDate || d > g.latestDate)) g.latestDate = d;
-  }
-
   const q = disbSearchQuery.value.toLowerCase().trim();
-  let groups = [...map.values()];
-  if (q) {
-    groups = groups.filter((g) => g.disbursementId.toLowerCase().includes(q));
-  }
-
-  return groups.sort((a, b) => {
-    if (!a.latestDate) return 1;
-    if (!b.latestDate) return -1;
-    return b.latestDate.localeCompare(a.latestDate);
-  });
+  const groups = rawDisbursementGroups.value;
+  if (!q) return groups;
+  return groups.filter((g) => g.disbursementId.toLowerCase().includes(q));
 });
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -142,8 +100,8 @@ async function handleRequestPayout() {
     return;
   }
 
-  if (payoutAmount.value < 50000) {
-    payoutError.value = "Batas minimum pencairan adalah Rp 50.000.";
+  if (payoutAmount.value < minPayoutThreshold.value) {
+    payoutError.value = `Batas minimum pencairan adalah ${formatRupiah(minPayoutThreshold.value)}.`;
     return;
   }
 
@@ -416,14 +374,16 @@ function formatDate(dateStr?: string | null): string {
               <input
                 v-model.number="payoutAmount"
                 type="number"
-                min="50000"
+                :min="minPayoutThreshold"
                 :max="balanceKPIs.availableBalance"
-                placeholder="50000"
+                :placeholder="String(minPayoutThreshold)"
                 required
                 class="w-full h-9 pl-9 pr-3 rounded-lg bg-white border border-slate-300 hover:border-slate-400 focus:border-gold focus:ring-2 focus:ring-gold/20 text-xs font-mono font-bold text-jetblack outline-none transition shadow-2xs"
               />
             </div>
-            <p class="text-[10px] text-jetblack/50 mt-1">Minimal penarikan dana Rp 50.000.</p>
+            <p class="text-[10px] text-jetblack/50 mt-1">
+              Minimal penarikan dana {{ formatRupiah(minPayoutThreshold) }}.
+            </p>
           </div>
 
           <!-- Payout Destination (Hairline Well) -->
@@ -472,7 +432,9 @@ function formatDate(dateStr?: string | null): string {
           <button
             type="submit"
             :disabled="
-              isSubmittingPayout || balanceKPIs.availableBalance < 50000 || payoutAmount < 50000
+              isSubmittingPayout ||
+              balanceKPIs.availableBalance < minPayoutThreshold ||
+              payoutAmount < minPayoutThreshold
             "
             class="h-9 px-4 btn-gold rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 shadow-2xs"
           >

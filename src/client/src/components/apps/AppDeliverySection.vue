@@ -40,6 +40,13 @@ const heartbeatIntervalSeconds = ref(
 const apiEnabled = ref(Boolean(props.modelValue.apiAccess?.enabled));
 const apiEndpoint = ref(props.modelValue.apiAccess?.endpointUrl ?? "");
 const apiInstruction = ref(props.modelValue.apiAccess?.instruction ?? "");
+const fileDownloadEnabled = ref(Boolean(props.modelValue.fileDownload?.enabled));
+const fileDownloadTitle = ref(props.modelValue.fileDownload?.title ?? "");
+const fileDownloadUrl = ref(props.modelValue.fileDownload?.fileUrl ?? "");
+const fileDownloadName = ref(props.modelValue.fileDownload?.fileName ?? "");
+const privateNoteEnabled = ref(Boolean(props.modelValue.privateNote?.enabled));
+const privateNoteTitle = ref(props.modelValue.privateNote?.title ?? "");
+const privateNoteBody = ref(props.modelValue.privateNote?.note ?? "");
 const availableConfigs = ref<LicenseConfigItem[]>([]);
 const loadingConfigs = ref(false);
 
@@ -118,6 +125,13 @@ function syncFromProps(val: DeliveryConfig) {
   apiEnabled.value = Boolean(val.apiAccess?.enabled);
   apiEndpoint.value = val.apiAccess?.endpointUrl ?? "";
   apiInstruction.value = val.apiAccess?.instruction ?? "";
+  fileDownloadEnabled.value = Boolean(val.fileDownload?.enabled);
+  fileDownloadTitle.value = val.fileDownload?.title ?? "";
+  fileDownloadUrl.value = val.fileDownload?.fileUrl ?? "";
+  fileDownloadName.value = val.fileDownload?.fileName ?? "";
+  privateNoteEnabled.value = Boolean(val.privateNote?.enabled);
+  privateNoteTitle.value = val.privateNote?.title ?? "";
+  privateNoteBody.value = val.privateNote?.note ?? "";
   isSyncing = false;
 }
 
@@ -149,8 +163,21 @@ function updateConfig() {
             : undefined,
         }
       : { enabled: false },
-    fileDownload: { enabled: false },
-    privateNote: { enabled: false },
+    fileDownload: fileDownloadEnabled.value
+      ? {
+          enabled: true,
+          title: fileDownloadTitle.value.trim() || undefined,
+          fileUrl: fileDownloadUrl.value.trim() || undefined,
+          fileName: fileDownloadName.value.trim() || undefined,
+        }
+      : { enabled: false },
+    privateNote: privateNoteEnabled.value
+      ? {
+          enabled: true,
+          title: privateNoteTitle.value.trim() || undefined,
+          note: privateNoteBody.value || undefined,
+        }
+      : { enabled: false },
     apiAccess: apiEnabled.value
       ? { enabled: true, endpointUrl: apiEndpoint.value, instruction: apiInstruction.value }
       : { enabled: false },
@@ -168,6 +195,13 @@ watch(
     floatingEnabled,
     leaseTtlSeconds,
     heartbeatIntervalSeconds,
+    fileDownloadEnabled,
+    fileDownloadTitle,
+    fileDownloadUrl,
+    fileDownloadName,
+    privateNoteEnabled,
+    privateNoteTitle,
+    privateNoteBody,
     apiEnabled,
     apiEndpoint,
     apiInstruction,
@@ -418,6 +452,111 @@ const licensingMenuUrl = computed(() =>
             v-model="apiInstruction"
             rows="2"
             placeholder="Contoh: Sertakan header Authorization: Bearer <API_KEY>"
+            class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/15 text-xs text-jetblack focus:outline-none focus:border-gold"
+          ></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. File Download Delivery -->
+    <section class="px-3.5 sm:px-4 md:px-6 py-5 space-y-4 max-w-4xl">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-xs font-bold text-jetblack">Unduhan Berkas Digital</div>
+          <div class="text-[11px] text-jetblack/55 truncate">
+            Tautan installer, ZIP, atau aset digital setelah pembayaran lunas
+          </div>
+        </div>
+        <button
+          type="button"
+          aria-label="Aktifkan Unduhan Berkas"
+          @click="fileDownloadEnabled = !fileDownloadEnabled"
+          class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200"
+          :class="fileDownloadEnabled ? 'bg-emerald-600' : 'bg-jetblack/20'"
+        >
+          <span
+            class="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-2xs transition duration-200"
+            :class="fileDownloadEnabled ? 'translate-x-4' : 'translate-x-0'"
+          />
+        </button>
+      </div>
+
+      <div v-if="fileDownloadEnabled" class="pt-3 border-t border-jetblack/10 space-y-3 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-bold text-jetblack/75 mb-1"
+              >Judul Tombol Unduh</label
+            >
+            <input
+              v-model="fileDownloadTitle"
+              type="text"
+              placeholder="Contoh: Unduh Installer v2.1"
+              class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/15 text-xs text-jetblack focus:outline-none focus:border-gold"
+            />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-jetblack/75 mb-1"
+              >Nama File (Opsional)</label
+            >
+            <input
+              v-model="fileDownloadName"
+              type="text"
+              placeholder="Contoh: AppInstaller.zip"
+              class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/15 text-xs font-mono text-jetblack focus:outline-none focus:border-gold"
+            />
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-jetblack/75 mb-1">URL Berkas</label>
+          <input
+            v-model="fileDownloadUrl"
+            type="url"
+            placeholder="https://cdn.yourdomain.com/releases/app.zip"
+            class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/15 text-xs font-mono text-jetblack focus:outline-none focus:border-gold"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Private Note Delivery -->
+    <section class="px-3.5 sm:px-4 md:px-6 py-5 space-y-4 max-w-4xl">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-xs font-bold text-jetblack">Catatan Privat &amp; Link Komunitas</div>
+          <div class="text-[11px] text-jetblack/55 truncate">
+            Instruksi onboarding, link Discord/GitHub, atau panduan rahasia untuk pembeli
+          </div>
+        </div>
+        <button
+          type="button"
+          aria-label="Aktifkan Catatan Privat"
+          @click="privateNoteEnabled = !privateNoteEnabled"
+          class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200"
+          :class="privateNoteEnabled ? 'bg-emerald-600' : 'bg-jetblack/20'"
+        >
+          <span
+            class="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-2xs transition duration-200"
+            :class="privateNoteEnabled ? 'translate-x-4' : 'translate-x-0'"
+          />
+        </button>
+      </div>
+
+      <div v-if="privateNoteEnabled" class="pt-3 border-t border-jetblack/10 space-y-3 text-xs">
+        <div>
+          <label class="block text-[11px] font-bold text-jetblack/75 mb-1">Judul Catatan</label>
+          <input
+            v-model="privateNoteTitle"
+            type="text"
+            placeholder="Contoh: Panduan Akses & Komunitas"
+            class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/15 text-xs text-jetblack focus:outline-none focus:border-gold"
+          />
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-jetblack/75 mb-1">Isi Catatan</label>
+          <textarea
+            v-model="privateNoteBody"
+            rows="3"
+            placeholder="Tulis panduan instalasi atau tautan privat..."
             class="w-full px-3 py-2 rounded-lg bg-white border border-jetblack/15 text-xs text-jetblack focus:outline-none focus:border-gold"
           ></textarea>
         </div>

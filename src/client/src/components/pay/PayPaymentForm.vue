@@ -31,6 +31,11 @@ interface ProductData {
   deliveryConfig?: import("../../types/app").DeliveryConfig | null;
   redirectUrl?: string | null;
   targetPrice: number;
+  pricingType?: "one_time" | "subscription" | "free";
+  trialPeriodDays?: number;
+  licenseKeyEnabled?: boolean;
+  ctaText?: string | null;
+  brandColor?: string | null;
 }
 
 const props = defineProps<{
@@ -52,19 +57,31 @@ const props = defineProps<{
     paymentRail?: string;
     paymentCode?: string;
     qrDataUrl?: string;
+    actionUrl?: string;
     vaBank?: string;
     ewalletChannel?: string;
     retailOutlet?: string;
-    cardDetails?: {
-      last4?: string;
-      brand?: string;
-    };
     amount?: number;
     checkoutUrl?: string;
     ticket?: string;
   } | null;
   isPaid?: boolean;
-  paidResult?: { licenseKey?: string; message?: string } | null;
+  paidResult?: {
+    licenseKey?: string;
+    message?: string;
+    delivery?: {
+      licenseKeyEnabled?: boolean;
+      fileDownload?: { title?: string; fileUrl?: string; fileName?: string };
+      privateNote?: { title?: string; note?: string };
+      apiAccess?: {
+        enabled?: boolean;
+        endpointUrl?: string;
+        instruction?: string;
+        apiKey?: string;
+      };
+      redirectUrl?: string;
+    };
+  } | null;
 }>();
 
 const emit = defineEmits<{
@@ -78,23 +95,61 @@ const emit = defineEmits<{
       paymentRail?: "qris" | "va" | "ewallet" | "card" | "retail";
       vaBank: string;
       ewalletChannel: string;
+      ewalletPhone?: string;
       retailOutlet: string;
-      cardDetails?: {
-        cardNumber: string;
-        cardExpiry: string;
-        cardCvv: string;
-        cardHolderName: string;
-      };
+      startTrial?: boolean;
     },
   ];
   resetOrder: [];
-  paymentSuccess: [result: { licenseKey?: string; message?: string }];
+  paymentSuccess: [
+    result: {
+      licenseKey?: string;
+      message?: string;
+      delivery?: {
+        licenseKeyEnabled?: boolean;
+        fileDownload?: { title?: string; fileUrl?: string; fileName?: string };
+        privateNote?: { title?: string; note?: string };
+        apiAccess?: {
+          enabled?: boolean;
+          endpointUrl?: string;
+          instruction?: string;
+          apiKey?: string;
+        };
+        redirectUrl?: string;
+      };
+    },
+  ];
 }>();
 
 const copiedVa = ref(false);
 const copiedLicense = ref(false);
 const isSimulatingPaid = ref(false);
 const simulateError = ref("");
+
+const resolvedFileDownload = computed(
+  () => props.paidResult?.delivery?.fileDownload || props.product?.deliveryConfig?.fileDownload
+);
+const resolvedPrivateNote = computed(
+  () => props.paidResult?.delivery?.privateNote || props.product?.deliveryConfig?.privateNote
+);
+const resolvedApiAccess = computed(() => props.paidResult?.delivery?.apiAccess);
+const resolvedRedirectUrl = computed(
+  () => props.paidResult?.delivery?.redirectUrl || props.product?.redirectUrl
+);
+const isLicenseEnabled = computed(() => {
+  if (props.paidResult?.delivery?.licenseKeyEnabled !== undefined) {
+    return props.paidResult.delivery.licenseKeyEnabled;
+  }
+  if (props.product?.licenseKeyEnabled !== undefined) {
+    return props.product.licenseKeyEnabled;
+  }
+  return props.product?.deliveryConfig?.licenseKey?.enabled !== false;
+});
+const isFreeProduct = computed(
+  () =>
+    props.product?.pricingType === "free" &&
+    (props.payableAmount || props.product?.targetPrice || 0) <= 0
+);
 
 async function handleSimulatePayment() {
   if (!props.activeOrder?.transactionId) return;
@@ -108,6 +163,7 @@ async function handleSimulatePayment() {
     if (res.success && res.paymentStatus === "PAID") {
       emit("paymentSuccess", {
         licenseKey: res.licenseKey || undefined,
+        delivery: res.delivery,
         message: res.message || "Simulasi pembayaran sandbox berhasil diverifikasi.",
       });
     } else {
@@ -161,10 +217,7 @@ function copyToClipboard(text: string, isLicense = false) {
       </div>
 
       <!-- 1. Unduhan Berkas Digital (File Download) -->
-      <div
-        v-if="product?.deliveryConfig?.fileDownload?.fileUrl"
-        class="pt-3 border-t border-emerald-200 space-y-2"
-      >
+      <div v-if="resolvedFileDownload?.fileUrl" class="pt-3 border-t border-emerald-200 space-y-2">
         <div class="flex items-center justify-between">
           <span class="text-xs font-bold text-slate-800">Unduhan Berkas Digital</span>
           <span class="text-[11px] text-blue-700 font-semibold flex items-center gap-1">
@@ -172,31 +225,24 @@ function copyToClipboard(text: string, isLicense = false) {
           </span>
         </div>
         <a
-          :href="product.deliveryConfig.fileDownload.fileUrl"
+          :href="resolvedFileDownload.fileUrl"
           target="_blank"
           download
           class="w-full py-2.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
         >
           <Download class="w-3.5 h-3.5" />
           <span
-            >{{ product.deliveryConfig.fileDownload.title || "Unduh Berkas"
-            }}{{
-              product.deliveryConfig.fileDownload.fileName
-                ? ` (${product.deliveryConfig.fileDownload.fileName})`
-                : ""
-            }}</span
+            >{{ resolvedFileDownload.title || "Unduh Berkas"
+            }}{{ resolvedFileDownload.fileName ? ` (${resolvedFileDownload.fileName})` : "" }}</span
           >
         </a>
       </div>
 
       <!-- 2. Catatan Privat / Link Komunitas (Private Note) -->
-      <div
-        v-if="product?.deliveryConfig?.privateNote?.note"
-        class="pt-3 border-t border-emerald-200 space-y-1.5"
-      >
+      <div v-if="resolvedPrivateNote?.note" class="pt-3 border-t border-emerald-200 space-y-1.5">
         <div class="flex items-center justify-between">
           <span class="text-xs font-bold text-slate-800">
-            {{ product.deliveryConfig.privateNote.title || "Panduan Akses & Instruksi" }}
+            {{ resolvedPrivateNote.title || "Panduan Akses & Instruksi" }}
           </span>
           <span class="text-[11px] text-purple-700 font-semibold flex items-center gap-1">
             <FileText class="w-3.5 h-3.5" /> Akses Privat
@@ -205,13 +251,38 @@ function copyToClipboard(text: string, isLicense = false) {
         <div
           class="p-3 bg-white/90 border border-purple-200 rounded-xl text-xs text-purple-950 whitespace-pre-wrap font-sans leading-relaxed shadow-2xs"
         >
-          {{ product.deliveryConfig.privateNote.note }}
+          {{ resolvedPrivateNote.note }}
         </div>
       </div>
 
-      <!-- 3. Kunci Lisensi Software (Hanya jika fitur lisensi aktif) -->
+      <!-- 3. Akses API Pelanggan (apiAccess) -->
+      <div v-if="resolvedApiAccess?.apiKey" class="pt-3 border-t border-emerald-200 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-800">Kredensial Akses API</span>
+          <span class="text-[11px] text-emerald-700 font-semibold">Auto-Provisioned</span>
+        </div>
+        <div
+          class="p-3 bg-slate-900 rounded-xl border border-slate-700 font-mono font-bold text-emerald-400 text-xs break-all select-all text-center"
+        >
+          {{ resolvedApiAccess.apiKey }}
+        </div>
+        <p
+          v-if="resolvedApiAccess.endpointUrl"
+          class="text-[11px] text-slate-600 font-mono break-all"
+        >
+          Endpoint: {{ resolvedApiAccess.endpointUrl }}
+        </p>
+        <p
+          v-if="resolvedApiAccess.instruction"
+          class="text-[11px] text-slate-600 whitespace-pre-wrap"
+        >
+          {{ resolvedApiAccess.instruction }}
+        </p>
+      </div>
+
+      <!-- 4. Kunci Lisensi Software (Hanya jika fitur lisensi aktif) -->
       <div
-        v-if="paidResult?.licenseKey && product?.deliveryConfig?.licenseKey?.enabled !== false"
+        v-if="paidResult?.licenseKey && isLicenseEnabled"
         class="pt-3 border-t border-emerald-200 space-y-2"
       >
         <div class="flex items-center justify-between">
@@ -244,9 +315,9 @@ function copyToClipboard(text: string, isLicense = false) {
       </div>
 
       <!-- 4. Tombol Lanjut ke Aplikasi SaaS / Web Portal -->
-      <div v-if="product?.redirectUrl" class="pt-3 border-t border-emerald-200">
+      <div v-if="resolvedRedirectUrl" class="pt-3 border-t border-emerald-200">
         <a
-          :href="product.redirectUrl"
+          :href="resolvedRedirectUrl"
           class="w-full py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
         >
           <span>Lanjutkan ke Aplikasi SaaS</span>
@@ -461,7 +532,7 @@ function copyToClipboard(text: string, isLicense = false) {
                 <input
                   type="text"
                   readonly
-                  :value="activeOrder.paymentCode || 'Membuat kode...'"
+                  :value="activeOrder.paymentCode || 'Kode pembayaran tidak tersedia'"
                   class="flex-1 font-mono font-bold text-slate-900 text-sm sm:text-base tracking-wider bg-white p-2.5 rounded-lg border border-slate-200 focus:outline-none select-all"
                 />
                 <button
@@ -528,14 +599,38 @@ function copyToClipboard(text: string, isLicense = false) {
             </span>
           </div>
 
-          <div class="p-3.5 bg-slate-50/70 rounded-xl border border-slate-200/80 space-y-2 text-xs">
+          <div class="p-3.5 bg-slate-50/70 rounded-xl border border-slate-200/80 space-y-3 text-xs">
             <p class="text-slate-700 leading-relaxed">
-              Silakan periksa notifikasi aplikasi e-wallet Anda untuk menyetujui transaksi senilai
-              <span class="font-extrabold text-slate-900">{{
-                formatRupiah(activeOrder.amount || payableAmount)
-              }}</span
-              >.
+              <template v-if="activeOrder.actionUrl">
+                Klik tombol di bawah untuk membuka aplikasi
+                {{ activeOrder.ewalletChannel || "e-wallet" }} Anda dan menyetujui tagihan senilai
+                <span class="font-extrabold text-slate-900">{{
+                  formatRupiah(activeOrder.amount || payableAmount)
+                }}</span
+                >.
+              </template>
+              <template v-else>
+                Silakan buka aplikasi {{ activeOrder.ewalletChannel || "e-wallet" }} di ponsel Anda
+                dan setujui notifikasi tagihan senilai
+                <span class="font-extrabold text-slate-900">{{
+                  formatRupiah(activeOrder.amount || payableAmount)
+                }}</span
+                >.
+              </template>
             </p>
+            <a
+              v-if="activeOrder.actionUrl"
+              :href="activeOrder.actionUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2"
+            >
+              <ExternalLink class="w-3.5 h-3.5" />
+              <span
+                >Lanjutkan Pembayaran di Aplikasi
+                {{ activeOrder.ewalletChannel || "E-Wallet" }}</span
+              >
+            </a>
           </div>
 
           <!-- Sandbox guidance E-Wallet -->
@@ -560,73 +655,6 @@ function copyToClipboard(text: string, isLicense = false) {
               <FlaskConical class="w-3.5 h-3.5 text-amber-600 shrink-0" />
               <span
                 >Mode Sandbox: Simulasi notifikasi e-wallet Tertaut tanpa melibatkan uang
-                riil.</span
-              >
-            </div>
-          </div>
-        </div>
-
-        <!-- 2E. Credit/Debit Card Display -->
-        <div
-          v-else-if="activeOrder.paymentRail === 'card'"
-          class="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 space-y-4 shadow-xs"
-        >
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Pembayaran Kartu Kredit / Debit
-            </span>
-            <span
-              class="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 flex items-center gap-1"
-            >
-              <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-              Menunggu Autentikasi
-            </span>
-          </div>
-
-          <div class="p-3.5 bg-slate-50/70 rounded-xl border border-slate-200/80 space-y-2 text-xs">
-            <div class="flex items-center justify-between">
-              <span class="text-slate-600 font-medium">Metode Pembayaran:</span>
-              <span class="font-bold text-slate-900 flex items-center gap-1.5">
-                <CreditCard class="w-4 h-4 text-slate-700" />
-                {{ activeOrder.cardDetails?.brand || "Kartu Kredit/Debit" }}
-              </span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-slate-600 font-medium">Nomor Kartu:</span>
-              <span class="font-mono font-bold text-slate-900">
-                •••• •••• •••• {{ activeOrder.cardDetails?.last4 || "2151" }}
-              </span>
-            </div>
-            <div class="flex items-center justify-between pt-1 border-t border-slate-200/60">
-              <span class="text-slate-600 font-medium">Total Tagihan:</span>
-              <span class="font-extrabold text-slate-900">
-                {{ formatRupiah(activeOrder.amount || payableAmount) }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Sandbox guidance Card -->
-          <div v-if="product.mode === 'sandbox'" class="pt-1.5 space-y-2">
-            <button
-              type="button"
-              :disabled="isSimulatingPaid"
-              @click="handleSimulatePayment"
-              class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              <Zap class="w-4 h-4" />
-              <span>{{
-                isSimulatingPaid ? "Memproses Simulasi..." : "Simulasi Bayar Lunas (Sandbox)"
-              }}</span>
-            </button>
-            <p v-if="simulateError" class="text-[11px] text-red-600 font-medium text-center">
-              {{ simulateError }}
-            </p>
-            <div
-              class="p-2.5 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-800 flex items-center gap-2"
-            >
-              <FlaskConical class="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span
-                >Mode Sandbox: Simulasi otorisasi kartu kredit Tertaut tanpa melibatkan uang
                 riil.</span
               >
             </div>
@@ -680,27 +708,6 @@ function copyToClipboard(text: string, isLicense = false) {
           <p>3. Simpan struk bukti pembayaran yang diberikan kasir.</p>
         </div>
 
-        <!-- Opsi Buka Invoice Eksternal jika ada (Hanya Mode Live) -->
-        <div
-          v-if="
-            !demoMode &&
-            product.mode !== 'sandbox' &&
-            activeOrder.checkoutUrl &&
-            activeOrder.paymentRail !== 'card' &&
-            activeOrder.paymentRail !== 'ewallet'
-          "
-          class="text-center pt-1"
-        >
-          <a
-            :href="activeOrder.checkoutUrl"
-            target="_blank"
-            class="text-[11px] font-semibold text-slate-500 hover:text-slate-800 inline-flex items-center gap-1 transition"
-          >
-            <span>Buka di Halaman Pembayaran Gateway</span>
-            <ExternalLink class="w-3 h-3" />
-          </a>
-        </div>
-
         <!-- Footer Bar: Ganti Metode / Batal & Berlaku 30 Menit -->
         <div class="pt-3 border-t border-slate-200 flex items-center justify-between text-xs">
           <button
@@ -722,7 +729,38 @@ function copyToClipboard(text: string, isLicense = false) {
     <!-- ======================================================== -->
     <!-- 3. INITIAL PAYMENT SELECTION (Modular per Gateway)       -->
     <!-- ======================================================== -->
-    <div v-else>
+    <div v-else-if="isFreeProduct" class="space-y-4 animate-fadeIn">
+      <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+        <p class="font-bold text-slate-900">Produk Akses Gratis</p>
+        <p class="text-slate-600 leading-relaxed">
+          Tidak diperlukan pembayaran. Masukkan alamat email Anda lalu klik tombol di bawah untuk
+          mengaktifkan lisensi atau akses produk secara instan.
+        </p>
+      </div>
+      <div
+        v-if="errorMessage"
+        class="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold"
+      >
+        {{ errorMessage }}
+      </div>
+      <button
+        type="button"
+        :disabled="isSubmitting || !emailInput"
+        @click="
+          emit('pay', {
+            vaBank: selectedBank || 'MANDIRI',
+            ewalletChannel: selectedEwallet || 'OVO',
+            retailOutlet: selectedRetail || 'ALFAMART',
+          })
+        "
+        class="w-full py-3 px-4 rounded-xl btn-gold text-xs sm:text-sm font-extrabold text-jetblack shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+      >
+        <KeyRound class="w-4 h-4" />
+        <span>{{ isSubmitting ? "Mengaktifkan..." : "Klaim Akses Gratis — Rp 0" }}</span>
+      </button>
+    </div>
+
+    <div v-else class="space-y-3">
       <!-- Gateway XENDIT -->
       <PayXenditForm
         :product="product"
@@ -742,6 +780,25 @@ function copyToClipboard(text: string, isLicense = false) {
         @update:selected-retail="emit('update:selectedRetail', $event)"
         @pay="emit('pay', $event)"
       />
+
+      <div v-if="product?.trialPeriodDays && product.trialPeriodDays > 0" class="pt-1">
+        <button
+          type="button"
+          :disabled="isSubmitting || !emailInput"
+          @click="
+            emit('pay', {
+              startTrial: true,
+              vaBank: selectedBank || 'MANDIRI',
+              ewalletChannel: selectedEwallet || 'OVO',
+              retailOutlet: selectedRetail || 'ALFAMART',
+            })
+          "
+          class="w-full py-2.5 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-xs font-bold text-slate-800 transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Sparkles class="w-3.5 h-3.5 text-amber-500" />
+          <span>Coba Gratis {{ product.trialPeriodDays }} Hari Tanpa Bayar</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>

@@ -7,7 +7,7 @@ import {
   revokedTokens,
   licenseEvents,
 } from "../../db/schema";
-import { eq, desc, and, ilike, or, count } from "drizzle-orm";
+import { eq, desc, and, ilike, or, count, inArray } from "drizzle-orm";
 import { LicenseService } from "../../services/licensing/license";
 
 /**
@@ -16,13 +16,43 @@ import { LicenseService } from "../../services/licensing/license";
 export async function handlePanelLicenses({ query }: any) {
   const limit = Math.min(Number(query?.limit) || 100, 500);
   const statusFilter = query?.status;
-  const search = (query?.search || "").trim().toLowerCase();
+  const modeFilter = query?.mode;
+  const search = (query?.search || "").trim();
 
-  const allLicenses = await db.query.licenses.findMany({
-    where: statusFilter ? eq(licenses.status, statusFilter as any) : undefined,
-    orderBy: [desc(licenses.createdAt)],
-    limit,
-  });
+  const conditions: any[] = [];
+  if (statusFilter) {
+    conditions.push(eq(licenses.status, statusFilter as any));
+  }
+  if (modeFilter === "sandbox" || modeFilter === "live") {
+    conditions.push(eq(licenses.mode, modeFilter));
+  }
+  if (search) {
+    const pattern = `%${search}%`;
+    const matchedApps = await db
+      .select({ id: apps.id })
+      .from(apps)
+      .where(or(ilike(apps.name, pattern), ilike(apps.slug, pattern)));
+    const matchedAppIds = matchedApps.map((a) => a.id);
+    const searchFilters = [
+      ilike(licenses.licenseKey, pattern),
+      ilike(licenses.customerEmail, pattern),
+    ];
+    if (matchedAppIds.length > 0) {
+      searchFilters.push(inArray(licenses.appId, matchedAppIds));
+    }
+    conditions.push(or(...searchFilters));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [[totalRes], allLicenses] = await Promise.all([
+    db.select({ count: count() }).from(licenses).where(whereClause),
+    db.query.licenses.findMany({
+      where: whereClause,
+      orderBy: [desc(licenses.createdAt)],
+      limit,
+    }),
+  ]);
 
   const appIds = [...new Set(allLicenses.map((l) => l.appId))];
   const appRows = appIds.length
@@ -77,24 +107,9 @@ export async function handlePanelLicenses({ query }: any) {
     };
   });
 
-  const modeFilter = query?.mode;
-  if (modeFilter) {
-    items = items.filter((l) => l.mode === modeFilter);
-  }
-
-  if (search) {
-    items = items.filter(
-      (l) =>
-        l.licenseKey.toLowerCase().includes(search) ||
-        l.customerEmail.toLowerCase().includes(search) ||
-        l.appName.toLowerCase().includes(search) ||
-        l.builderEmail.toLowerCase().includes(search)
-    );
-  }
-
   return {
     success: true,
-    total: items.length,
+    total: Number(totalRes?.count ?? items.length),
     licenses: items,
   };
 }
@@ -123,44 +138,22 @@ export async function handleRevokeLicense({ params, body, set }: any) {
     };
   }
 
-  await db.transaction(async (trx) => {
-    // 1. Update status lisensi
-    await trx
-      .update(licenses)
-      .set({ status: "REVOKED", updatedAt: new Date() })
-      .where(eq(licenses.id, lic.id));
-
-    // 2. Tambah token jti ke revokedTokens denylist
-    const token = LicenseService.createOfflineGraceToken(lic.licenseKey, lic.appId);
-    const jti = token.split(".")[1] || `jti_rev_${lic.id}_${Date.now()}`;
-
-    await trx
-      .insert(revokedTokens)
-      .values({
-        jti,
-        licenseId: lic.id,
-        licenseKey: lic.licenseKey,
-        reason: `ADMIN_REVOKE: ${reason}`,
-        expiresAt: lic.expiresAt,
-      })
-      .onConflictDoNothing();
-
-    // 3. Masukkan ke audit trail licenseEvents
-    await trx.insert(licenseEvents).values({
-      id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      licenseId: lic.id,
-      licenseKey: lic.licenseKey,
-      appId: lic.appId,
-      event: "revoked",
-      actorType: "ADMIN",
-      payload: { reason, revokedBy: "Super Admin" },
-    });
+  const result = await LicenseService.revoke({
+    licenseId: lic.id,
+    actor: { type: "ADMIN", id: "platform-admin" },
+    reason,
   });
+
+  if (result.notFound) {
+    set.status = 404;
+    return { success: false, error: "Lisensi tidak ditemukan." };
+  }
 
   return {
     success: true,
     licenseId: lic.id,
     status: "REVOKED",
+    tokenDenylisted: result.tokenDenylisted,
     message: `Lisensi ${lic.licenseKey} berhasil dicabut (REVOKED).`,
   };
 }
@@ -180,26 +173,15 @@ export async function handleReactivateLicense({ params, set }: any) {
     return { success: false, error: "Lisensi tidak ditemukan." };
   }
 
-  await db.transaction(async (trx) => {
-    await trx
-      .update(licenses)
-      .set({ status: "ACTIVE", updatedAt: new Date() })
-      .where(eq(licenses.id, lic.id));
-
-    // Hapus dari revokedTokens denylist jika ada
-    await trx.delete(revokedTokens).where(eq(revokedTokens.licenseId, lic.id));
-
-    // Audit trail
-    await trx.insert(licenseEvents).values({
-      id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      licenseId: lic.id,
-      licenseKey: lic.licenseKey,
-      appId: lic.appId,
-      event: "reactivated",
-      actorType: "ADMIN",
-      payload: { reactivatedBy: "Super Admin" },
-    });
+  const result = await LicenseService.reactivate({
+    licenseKey: lic.licenseKey,
+    actor: { type: "ADMIN", id: "platform-admin" },
   });
+
+  if (result.notFound || !result.success) {
+    set.status = result.notFound ? 404 : 400;
+    return { success: false, error: result.error || "Gagal mengaktifkan kembali lisensi." };
+  }
 
   return {
     success: true,

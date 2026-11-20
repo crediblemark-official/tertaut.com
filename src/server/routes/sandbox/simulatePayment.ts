@@ -3,6 +3,7 @@ import { transactions, apps, licenses } from "../../db/schema";
 import { eq, or } from "drizzle-orm";
 import { enforceRateLimitAsync } from "../../services/security/rateLimiter";
 import { verifyPollTicket } from "../../utils/pollTicket";
+import { buildPublicDeliveryPayload } from "../../utils/payment";
 import { fulfillPaymentTransaction } from "../webhook/fulfill";
 
 export interface SimulateSandboxContext {
@@ -78,24 +79,32 @@ export async function handleSimulateSandboxPayment({
     const lic = await db.query.licenses.findFirst({
       where: eq(licenses.transactionId, tx.id),
     });
+    const apiKey =
+      lic?.apiKey || ((tx.metadata as Record<string, any> | null)?.apiKey as string | undefined);
     return {
       success: true,
       paymentStatus: "PAID",
       licenseKey: lic?.licenseKey || null,
+      delivery: buildPublicDeliveryPayload(app, undefined, apiKey),
       message: "Transaksi sudah lunas sebelumnya",
     };
   }
 
   await fulfillPaymentTransaction(tx, tx.paymentChannel || "VA_BCA");
 
-  const lic = await db.query.licenses.findFirst({
-    where: eq(licenses.transactionId, tx.id),
-  });
+  const [lic, updatedTx] = await Promise.all([
+    db.query.licenses.findFirst({ where: eq(licenses.transactionId, tx.id) }),
+    db.query.transactions.findFirst({ where: eq(transactions.id, tx.id) }),
+  ]);
+  const apiKey =
+    lic?.apiKey ||
+    ((updatedTx?.metadata as Record<string, any> | null)?.apiKey as string | undefined);
 
   return {
     success: true,
     paymentStatus: "PAID",
     licenseKey: lic?.licenseKey || null,
+    delivery: buildPublicDeliveryPayload(app, undefined, apiKey),
     message: "Pembayaran sandbox berhasil diselesaikan (Simulasi Lunas)",
   };
 }

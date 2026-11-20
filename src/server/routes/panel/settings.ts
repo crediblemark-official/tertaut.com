@@ -60,7 +60,7 @@ export async function handleGetPlatformSettings() {
 
   settingsMap.active_payment_gateway =
     normalizeGatewayId(settingsMap.active_payment_gateway) || DEFAULT_GATEWAY_ID;
-  const isSandbox = settingsMap.sandbox_mode !== "false";
+  const isSandbox = !config.isProd || settingsMap.sandbox_mode !== "false";
   settingsMap.xendit_configured = String(
     Boolean(
       isSandbox
@@ -198,19 +198,53 @@ export async function handleUpdatePlatformSettings({ body, set }: any) {
 }
 
 /**
- * Sinkronisasi channel pembayaran Xendit sesuai konfigurasi resmi yang aktif
+ * Sinkronisasi channel pembayaran & uji koneksi kredensial aktif ke API Xendit
  */
 export async function handleSyncPaymentChannels() {
   xenditGateway.clearChannelsCache();
   const channels = await xenditGateway.getPaymentChannels();
+  const { secretKey } = await xenditGateway.getCredentials();
+
+  let probeSuccess = false;
+  let probeStatus = "UNCONFIGURED";
+  let probeMessage = "Secret key Xendit belum dikonfigurasi.";
+
+  if (secretKey && secretKey.startsWith("xnd_")) {
+    if (config.isTest) {
+      probeSuccess = true;
+      probeStatus = "TEST_MODE";
+      probeMessage = "Kredensial terdeteksi pada mode test.";
+    } else {
+      try {
+        const auth = Buffer.from(`${secretKey}:`).toString("base64");
+        const res = await fetch("https://api.xendit.co/balance", {
+          headers: { Authorization: `Basic ${auth}` },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (res.ok) {
+          probeSuccess = true;
+          probeStatus = secretKey.startsWith("xnd_production_") ? "LIVE_ACTIVE" : "SANDBOX_ACTIVE";
+          probeMessage = secretKey.startsWith("xnd_production_")
+            ? "Koneksi ke Xendit Live API terverifikasi."
+            : "Koneksi ke Xendit Sandbox API terverifikasi.";
+        } else {
+          probeStatus = `HTTP_${res.status}`;
+          probeMessage = `Kredensial ditolak oleh Xendit API (HTTP ${res.status}).`;
+        }
+      } catch (err: any) {
+        probeStatus = "UNREACHABLE";
+        probeMessage = err?.message || "Gagal menghubungi API Xendit.";
+      }
+    }
+  }
 
   return {
     success: true,
     channels,
     qrisProbe: {
-      success: true,
-      status: "ACTIVE",
-      message: "Channel pembayaran resmi Xendit Live aktif (QRIS Instan, 7 Bank VA, Indomaret).",
+      success: probeSuccess,
+      status: probeStatus,
+      message: probeMessage,
     },
   };
 }

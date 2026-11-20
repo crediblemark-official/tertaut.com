@@ -4,7 +4,7 @@ import { transactions, licenses } from "../../db/schema";
 import { eq, and, inArray, or, isNull } from "drizzle-orm";
 import { XenditService } from "../../services/payments/xendit";
 import { enforceRateLimitAsync } from "../../services/security/rateLimiter";
-import { fulfillPaymentTransaction } from "./fulfill";
+import { fulfillPaymentTransaction, markPendingTransactionTerminal } from "./fulfill";
 import type { WebhookContext, WebhookHeaderContext } from "./types";
 
 /**
@@ -41,6 +41,7 @@ export async function handleXenditInvoiceWebhook({ request, headers, body, set }
     body?.id ||
     data?.payment_id ||
     data?.payment_request_id ||
+    data?.id ||
     body?.payment_id ||
     body?.callback_virtual_account_id;
 
@@ -51,18 +52,32 @@ export async function handleXenditInvoiceWebhook({ request, headers, body, set }
     body?.event === "payment.succeeded" ||
     body?.event === "payment_request.succeeded"
       ? "PAID"
-      : undefined);
+      : body?.event === "payment_request.expiry"
+        ? "EXPIRED"
+        : body?.event === "payment_request.failed" || body?.event === "payment.failed"
+          ? "FAILED"
+          : body?.callback_virtual_account_id && body?.payment_id && Number(body?.amount) > 0
+            ? "PAID"
+            : undefined);
 
   const payment_channel =
     body?.payment_channel ||
     body?.paymentChannel ||
     data?.channel_code ||
+    data?.payment_method?.virtual_account?.channel_code ||
+    data?.payment_method?.over_the_counter?.channel_code ||
+    data?.payment_method?.ewallet?.channel_code ||
+    data?.payment_method?.qr_code?.channel_code ||
     data?.payment_method?.type ||
     body?.bank_code;
 
   const payment_method =
     body?.payment_method ||
     body?.paymentMethod ||
+    data?.payment_method?.virtual_account?.channel_code ||
+    data?.payment_method?.over_the_counter?.channel_code ||
+    data?.payment_method?.ewallet?.channel_code ||
+    data?.payment_method?.qr_code?.channel_code ||
     data?.payment_method?.type ||
     body?.payment_channel;
 
@@ -155,33 +170,22 @@ export async function handleXenditInvoiceWebhook({ request, headers, body, set }
     return { success: result.status === "success", ...result };
   }
 
-  // EXPIRED/FAILED adalah status terminal. BUG A3: revoke lisensi harus digate
-  // paymentStatus="PENDING" SAMA SEPERTI update transaksi di bawahnya — tanpa guard,
-  // callback EXPIRED/FAILED yang terlambat/retried untuk transaksi yang sudah PAID
-  // akan mencabut lisensi aktif secara paksa.
-  if (normalizedStatus === "EXPIRED" || normalizedStatus === "FAILED") {
-    if (tx.paymentStatus === "PENDING") {
-      await db
-        .update(licenses)
-        .set({ status: "REVOKED", updatedAt: new Date() })
-        .where(and(eq(licenses.transactionId, tx.id), eq(licenses.status, "ACTIVE")));
+  // EXPIRED/FAILED/CANCELED/VOIDED adalah status terminal: revoke lisensi & rollback kupon secara atomik hanya dari PENDING.
+  const terminalStatus =
+    normalizedStatus === "EXPIRED"
+      ? "EXPIRED"
+      : normalizedStatus === "FAILED" ||
+          normalizedStatus === "CANCELED" ||
+          normalizedStatus === "CANCELLED" ||
+          normalizedStatus === "VOIDED"
+        ? "FAILED"
+        : null;
 
-      if (tx.couponCode) {
-        const { CouponService } = await import("../../services/monetization/coupon");
-        await CouponService.rollback(tx.couponCode);
-      }
-    }
-
-    await db
-      .update(transactions)
-      .set({
-        paymentStatus: normalizedStatus as any,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(transactions.id, tx.id), eq(transactions.paymentStatus, "PENDING")));
+  if (terminalStatus) {
+    await markPendingTransactionTerminal(tx.id, terminalStatus);
   }
 
-  return { received: true, status: normalizedStatus };
+  return { received: true, status: terminalStatus || normalizedStatus };
 }
 
 export async function handleXenditDisbursementWebhook({

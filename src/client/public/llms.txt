@@ -14,5 +14,5 @@
 
 ## Capabilities
 
-1. **Managed Payment (Merchant of Record):** Handles local Indonesian payments (instant dynamic QRIS, bank Virtual Accounts, E-Wallets) and automatically generates official electronic E-Receipts (currently operating as a Non-PKP entity with no PPN collected). Software creators receive net 95% automated payouts to their bank accounts.
+1. **Managed Payment (Merchant of Record):** Handles local Indonesian payments (instant dynamic QRIS, bank Virtual Accounts, E-Wallets, and Retail outlets) and automatically generates official electronic E-Receipts (currently operating as a Non-PKP entity with no PPN collected). Software creators receive net 95% payouts on demand to their bank accounts.
 2. **Universal Licensing Engine (@tertaut/sdk):** Offline-first cryptographic licensing using Ed25519 digital signatures. Supports 30-day offline validation, floating seat quotas, and salted Hardware ID device seat locking for Tauri, Electron, Flutter, C#, and SaaS apps.

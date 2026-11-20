@@ -24,6 +24,8 @@ interface ProductData {
   checkoutMode?: "custom" | "hosted";
   availableChannels?: import("../../types/app").AvailableChannels;
   targetPrice: number;
+  ctaText?: string | null;
+  brandColor?: string | null;
 }
 
 const props = defineProps<{
@@ -50,13 +52,8 @@ const emit = defineEmits<{
       paymentRail?: "qris" | "va" | "ewallet" | "card" | "retail";
       vaBank: string;
       ewalletChannel: string;
+      ewalletPhone?: string;
       retailOutlet: string;
-      cardDetails?: {
-        cardNumber: string;
-        cardExpiry: string;
-        cardCvv: string;
-        cardHolderName: string;
-      };
     },
   ];
 }>();
@@ -112,21 +109,15 @@ const isRetailActive = computed(() => {
   return availableChannels.value.activeRetails.length > 0;
 });
 
-// 5. Ketersediaan Kartu Kredit (3D Secure memerlukan mode live & channel aktif di gateway)
-const isCardActive = computed(() => {
-  if (props.product?.mode === "sandbox") return false;
-  if (!availableChannels.value) return false;
-  return Boolean(
-    availableChannels.value.cardEnabled || availableChannels.value.activeRails?.includes("card")
-  );
-});
+// 5. Kartu Kredit / Debit (dinonaktifkan sampai tokenisasi client-side siap)
+const isCardActive = computed(() => false);
 
 const currentBank = computed({
   get: () => {
     if (activeBankList.value.some((b) => b.id === props.selectedBank)) {
-      return props.selectedBank || "BCA";
+      return props.selectedBank || "MANDIRI";
     }
-    return activeBankList.value[0]?.id || "BCA";
+    return activeBankList.value[0]?.id || "MANDIRI";
   },
   set: (val: string) => emit("update:selectedBank", val),
 });
@@ -134,9 +125,9 @@ const currentBank = computed({
 const currentEwallet = computed({
   get: () => {
     if (activeEwalletList.value.some((e) => e.id === props.selectedEwallet)) {
-      return props.selectedEwallet || "DANA";
+      return props.selectedEwallet || "OVO";
     }
-    return activeEwalletList.value[0]?.id || "DANA";
+    return activeEwalletList.value[0]?.id || "OVO";
   },
   set: (val: string) => emit("update:selectedEwallet", val),
 });
@@ -151,42 +142,18 @@ const currentRetail = computed({
   set: (val: string) => emit("update:selectedRetail", val),
 });
 
-const cardNumber = ref("");
-const cardExpiry = ref("");
-const cardCvv = ref("");
-const cardHolderName = ref("");
-
-function handleCardNumberInput(e: any) {
-  const raw = e.target.value.replace(/\D/g, "").slice(0, 16);
-  cardNumber.value = raw.replace(/(.{4})/g, "$1 ").trim();
-}
-
-function handleExpiryInput(e: any) {
-  const raw = e.target.value.replace(/\D/g, "").slice(0, 4);
-  if (raw.length >= 2) {
-    cardExpiry.value = `${raw.slice(0, 2)}/${raw.slice(2)}`;
-  } else {
-    cardExpiry.value = raw;
-  }
-}
+const ewalletPhone = ref("");
 
 function onPayClicked() {
-  const cardData =
-    props.selectedPaymentRail === "card"
-      ? {
-          cardNumber: cardNumber.value,
-          cardExpiry: cardExpiry.value,
-          cardCvv: cardCvv.value,
-          cardHolderName: cardHolderName.value,
-        }
-      : undefined;
-
   emit("pay", {
     paymentRail: isHosted.value ? undefined : props.selectedPaymentRail,
     vaBank: currentBank.value,
     ewalletChannel: currentEwallet.value,
+    ewalletPhone:
+      props.selectedPaymentRail === "ewallet" && currentEwallet.value === "OVO"
+        ? ewalletPhone.value.trim()
+        : undefined,
     retailOutlet: currentRetail.value,
-    cardDetails: cardData,
   });
 }
 </script>
@@ -229,7 +196,7 @@ function onPayClicked() {
             <div class="min-w-0">
               <div class="font-bold text-xs text-slate-900">Virtual Account</div>
               <div class="text-[11px] text-slate-500 truncate">
-                BCA, Mandiri, BRI, BNI, Permata, CIMB
+                {{ activeBankList.map((b) => b.label).join(", ") }}
               </div>
             </div>
           </div>
@@ -238,6 +205,7 @@ function onPayClicked() {
 
         <!-- 3. E-Wallet -->
         <div
+          v-if="isEwalletActive"
           class="flex items-center justify-between p-3 rounded-xl border border-slate-200/90 bg-white shadow-2xs hover:border-slate-300 transition"
         >
           <div class="flex items-center gap-3 min-w-0">
@@ -246,7 +214,9 @@ function onPayClicked() {
             </div>
             <div class="min-w-0">
               <div class="font-bold text-xs text-slate-900">E-Wallet</div>
-              <div class="text-[11px] text-slate-500 truncate">DANA, OVO, ShopeePay, GoPay</div>
+              <div class="text-[11px] text-slate-500 truncate">
+                {{ activeEwalletList.map((e) => e.label).join(", ") }}
+              </div>
             </div>
           </div>
           <span class="text-[11px] font-medium text-slate-400 shrink-0">Instan</span>
@@ -254,6 +224,7 @@ function onPayClicked() {
 
         <!-- 4. Kartu Kredit / Debit -->
         <div
+          v-if="isCardActive"
           class="flex items-center justify-between p-3 rounded-xl border border-slate-200/90 bg-white shadow-2xs hover:border-slate-300 transition"
         >
           <div class="flex items-center gap-3 min-w-0">
@@ -315,7 +286,7 @@ function onPayClicked() {
                 ? "Memproses..."
                 : product.mode === "sandbox"
                   ? `Bayar Sandbox — ${formatRupiah(payableAmount || product.targetPrice)}`
-                  : `Bayar Sekarang — ${formatRupiah(payableAmount || product.targetPrice)}`
+                  : `${product.ctaText || "Bayar Sekarang"} — ${formatRupiah(payableAmount || product.targetPrice)}`
             }}
           </span>
           <ArrowRight v-if="!isSubmitting" class="w-4 h-4 ml-0.5 text-slate-950 shrink-0" />
@@ -343,18 +314,20 @@ function onPayClicked() {
         </span>
       </div>
 
-      <!-- Sandbox Live-Sync Notice -->
+      <!-- Sandbox Notice -->
       <div
         v-if="product.mode === 'sandbox'"
         class="p-2.5 rounded-xl bg-blue-50/80 border border-blue-200/70 text-xs text-blue-900 flex items-start gap-2"
       >
         <FlaskConical class="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
         <div class="text-[11px] leading-relaxed">
-          <span class="font-bold">Mode Sandbox Xendit:</span>
-          Channel disinkronkan real-time dari API Xendit.
+          <span class="font-bold">Mode Sandbox Tertaut:</span>
+          Transaksi simulasi tanpa melibatkan uang riil.
           <span class="font-medium text-blue-800">
-            Jalur aktif:
-            <strong>Virtual Account ({{ activeBankList.map((b) => b.label).join(", ") }})</strong> &
+            Jalur tersedia:
+            <strong>QRIS</strong>,
+            <strong>Virtual Account ({{ activeBankList.map((b) => b.label).join(", ") }})</strong>,
+            &amp;
             <strong>Minimarket ({{ activeRetailList.map((r) => r.label).join(", ") }})</strong>.
           </span>
         </div>
@@ -496,7 +469,7 @@ function onPayClicked() {
             @click.stop
           >
             <label class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-              Pilih Bank Tujuan Transfer (Aktif di Xendit)
+              Pilih Bank Tujuan Transfer
             </label>
             <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
               <button
@@ -626,157 +599,39 @@ function onPayClicked() {
                 <Check v-if="currentEwallet === ew.id" class="w-3.5 h-3.5 text-emerald-400" />
               </button>
             </div>
+
+            <div v-if="currentEwallet === 'OVO'" class="pt-1 space-y-1">
+              <label class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                Nomor HP Akun OVO
+              </label>
+              <input
+                type="tel"
+                v-model="ewalletPhone"
+                placeholder="081234567890"
+                class="w-full text-xs font-mono p-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 text-slate-900"
+              />
+              <p class="text-[10.5px] text-slate-500">
+                Notifikasi tagihan akan dikirim ke aplikasi OVO pada nomor ini.
+              </p>
+            </div>
           </div>
         </div>
 
-        <!-- 4. Kartu Kredit / Debit -->
+        <!-- 4. Kartu Kredit / Debit (hanya tampil bila kanal diaktifkan) -->
         <div
-          @click="isCardActive ? emit('update:selectedPaymentRail', 'card') : null"
-          class="rounded-xl border transition-all overflow-hidden"
-          :class="[
-            !isCardActive
-              ? 'opacity-65 bg-slate-50/60 border-slate-200 cursor-not-allowed'
-              : selectedPaymentRail === 'card'
-                ? 'border-slate-900 bg-slate-50/70 shadow-xs ring-1 ring-slate-900/10 cursor-pointer'
-                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/40 cursor-pointer',
-          ]"
+          v-if="isCardActive"
+          @click="emit('update:selectedPaymentRail', 'card')"
+          class="rounded-xl border border-slate-200 bg-white overflow-hidden"
         >
           <div class="p-3 flex items-center justify-between gap-3">
             <div class="flex items-center gap-2.5 min-w-0">
-              <div
-                class="w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition"
-                :class="
-                  !isCardActive
-                    ? 'border-slate-300 bg-slate-100'
-                    : selectedPaymentRail === 'card'
-                      ? 'border-slate-900 bg-slate-900'
-                      : 'border-slate-300 bg-white'
-                "
-              >
-                <div
-                  v-if="selectedPaymentRail === 'card' && isCardActive"
-                  class="w-1.5 h-1.5 rounded-full bg-white"
-                />
-              </div>
-              <div
-                class="p-1.5 rounded-lg shrink-0"
-                :class="
-                  isCardActive ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-400'
-                "
-              >
+              <div class="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 shrink-0">
                 <CreditCard class="w-4 h-4" />
               </div>
               <div class="min-w-0">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                  <span
-                    class="text-xs font-bold"
-                    :class="isCardActive ? 'text-slate-900' : 'text-slate-500'"
-                  >
-                    Kartu Kredit / Debit
-                  </span>
-                  <span
-                    v-if="!isCardActive"
-                    class="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-slate-200 text-slate-600"
-                  >
-                    {{ product?.mode === "sandbox" ? "Hanya Mode Live" : "Nonaktif" }}
-                  </span>
-                  <span
-                    v-else
-                    class="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-700"
-                  >
-                    3D Secure
-                  </span>
-                </div>
-                <p class="text-[11px] text-slate-500 truncate">
-                  {{
-                    isCardActive
-                      ? "Visa, Mastercard, JCB, American Express"
-                      : product?.mode === "sandbox"
-                        ? "Pembayaran kartu memerlukan akun live"
-                        : "Metode kartu kredit/debit belum aktif pada akun gateway pembayaran ini"
-                  }}
-                </p>
+                <span class="text-xs font-bold text-slate-900">Kartu Kredit / Debit</span>
+                <p class="text-[11px] text-slate-500 truncate">3D Secure</p>
               </div>
-            </div>
-            <div class="flex items-center gap-1 shrink-0">
-              <span v-if="!isCardActive" class="text-[11px] font-medium text-slate-400 mr-1">
-                Belum Aktif
-              </span>
-              <span
-                class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200"
-                >VISA</span
-              >
-              <span
-                class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200"
-                >MC</span
-              >
-            </div>
-          </div>
-
-          <!-- Expanded Card Inputs -->
-          <div
-            v-if="selectedPaymentRail === 'card' && isCardActive"
-            class="px-3 pb-3 pt-2.5 border-t border-slate-200/70 space-y-3 animate-fadeIn"
-            @click.stop
-          >
-            <div>
-              <label
-                class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1"
-              >
-                Nomor Kartu (16 Digit)
-              </label>
-              <input
-                type="text"
-                :value="cardNumber"
-                @input="handleCardNumberInput"
-                placeholder="4000 1234 5678 9010"
-                maxlength="19"
-                class="w-full text-xs font-mono p-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 text-slate-900"
-              />
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1"
-                >
-                  Masa Berlaku (MM/YY)
-                </label>
-                <input
-                  type="text"
-                  :value="cardExpiry"
-                  @input="handleExpiryInput"
-                  placeholder="12/28"
-                  maxlength="5"
-                  class="w-full text-xs font-mono p-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 text-slate-900"
-                />
-              </div>
-              <div>
-                <label
-                  class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1"
-                >
-                  CVV / CVC (3-4 Digit)
-                </label>
-                <input
-                  type="password"
-                  v-model="cardCvv"
-                  placeholder="•••"
-                  maxlength="4"
-                  class="w-full text-xs font-mono p-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 text-slate-900"
-                />
-              </div>
-            </div>
-            <div>
-              <label
-                class="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1"
-              >
-                Nama Pemegang Kartu
-              </label>
-              <input
-                type="text"
-                v-model="cardHolderName"
-                placeholder="NAMA LENGKAP PADA KARTU"
-                class="w-full text-xs p-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 text-slate-900 uppercase"
-              />
             </div>
           </div>
         </div>
@@ -914,7 +769,7 @@ function onPayClicked() {
               ? "Membuat kode pembayaran..."
               : product.mode === "sandbox"
                 ? `Mulai Sesi Sandbox — ${formatRupiah(payableAmount || product.targetPrice)}`
-                : `Bayar Sekarang — ${formatRupiah(payableAmount || product.targetPrice)}`
+                : `${product.ctaText || "Bayar Sekarang"} — ${formatRupiah(payableAmount || product.targetPrice)}`
           }}
         </span>
         <ArrowRight v-if="!isSubmitting" class="w-4 h-4 ml-0.5 text-slate-950" />

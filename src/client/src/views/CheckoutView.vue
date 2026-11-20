@@ -127,7 +127,10 @@ async function createCheckout() {
       grantDays: Number(grantDays.value) || 30,
     });
     if (res && res.success !== false) {
-      checkoutResult.value = res;
+      checkoutResult.value = {
+        ...res,
+        checkoutUrl: res.hostedPayUrl || res.checkoutUrl,
+      };
       paymentsLedgerRef.value?.refresh();
     } else {
       disburseAlert.value = `Error: ${res?.error || "Gagal membuat sesi checkout."}`;

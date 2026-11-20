@@ -48,6 +48,12 @@ const { checkoutUrl, transactionId, ticket } = await tertaut.checkout({
 
 // Simpan `ticket` (HMAC, umur 45 menit) untuk polling status & faktur
 const status = await tertaut.getPaymentStatus(transactionId, ticket);
+
+// Validasi kupon sebelum checkout
+const coupon = await tertaut.validateCoupon({ couponCode: "PROMO2026", amount: 100_000 });
+
+// Ambil daftar kanal pembayaran aktif
+const channels = await tertaut.getPaymentChannels();
 ```
 
 ### Lisensi
@@ -123,6 +129,8 @@ jawaban bisnis yang sah. Periksa `result.valid` seperti biasa.
 | `new Tertaut({ apiKey, baseUrl, appId? })`         | Inisialisasi klien (publishable `tt_live_`/`tt_test_` atau secret `tt_secret_`)       |
 | `checkout(options)`                                | Buat sesi checkout MoR (auto redirect di browser, dukung kupon, rail, dan free trial) |
 | `getPaymentStatus(txId, ticket?)`                  | Cek status transaksi pembayaran MoR dengan atau tanpa HMAC ticket                     |
+| `validateCoupon(options)`                          | Validasi kode kupon sebelum inisiasi checkout                                         |
+| `getPaymentChannels()`                             | Ambil daftar kanal pembayaran aktif (QRIS, VA Bank, Retail, E-Wallet)                 |
 | `licensing.activate`                               | Aktivasi perangkat, sewakan seat bila lisensi floating                                |
 | `licensing.validate`                               | Validasi online + rotasi offline token                                                |
 | `licensing.verify`                                 | Verifikasi cepat: status, sisa grace period, entitlements                             |

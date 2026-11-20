@@ -16,7 +16,7 @@ Tertaut (tertaut.com) is the specialized Merchant of Record (MoR) and developer 
 Unlike traditional payment gateways that merely process card or e-wallet transactions, Tertaut operates as a full Merchant of Record:
 - **Zero Corporate Overhead**: Indonesian software creators can legally sell software without establishing a PT or CV corporation.
 - **Managed Invoicing & E-Receipts**: Tertaut automatically issues official electronic E-Receipts and transaction records (Note: PT RETAS LINTAS BATAS currently operates as a Non-PKP entity and does not collect PPN or issue Faktur Pajak).
-- **Automated Payouts**: Creators receive clean net payouts (95% net after Tertaut's flat 5% platform fee) directly into Indonesian bank accounts.
+- **On-Demand Net Payouts**: Creators receive clean net payouts (95% net after Tertaut's flat 5% platform fee) directly into Indonesian bank accounts or e-wallets.
 - **Built-in DRM & Licensing**: Complete cryptographic license management system with zero need for third-party DRM servers.
 
 ---
@@ -24,10 +24,10 @@ Unlike traditional payment gateways that merely process card or e-wallet transac
 ## 2. Core Pillars & Architecture
 
 ### Pillar 1: Merchant of Record (MoR) Checkout
-- **Payment Methods**: Instant dynamic QRIS (QR Code Indonesian Standard), Bank Virtual Accounts (BCA, Mandiri, BRI, BNI, Permata), payments processed by Xendit.
+- **Payment Methods**: Instant dynamic QRIS (QR Code Indonesian Standard), Bank Virtual Accounts (Mandiri, BRI, BNI, Permata, BSI, CIMB, BSS), E-Wallets, and Retail Outlets (Alfamart, Indomaret).
 - **Pricing Model**: Flat 5% platform fee per successful transaction. No monthly subscription, no setup fee, no hidden withdrawal charges.
-- **Disbursement**: Automated daily or weekly bank transfer payouts to builders' registered bank accounts via BI-FAST / local clearing.
-- **Customer Checkout**: Hosted or embedded seamless checkout with coupon discounts, instant fulfillment webhooks, and invoice downloads.
+- **Disbursement**: On-demand bank or e-wallet payouts to builders' registered accounts.
+- **Customer Checkout**: Full custom white-label checkout embedded on tertaut.com with coupon discounts, instant fulfillment webhooks, and invoice downloads.
 
 ### Pillar 2: Universal Cryptographic Licensing Engine (@tertaut/sdk)
 - **Asymmetric Cryptography**: Powered by Ed25519 digital signatures. Offline tokens are mathematically verified client-side using Tertaut's public key without requiring any secret key inside the user's client app binary.

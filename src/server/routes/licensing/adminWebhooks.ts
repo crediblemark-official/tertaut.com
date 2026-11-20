@@ -5,6 +5,7 @@ import { eq, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { WebhookService, WEBHOOK_EVENTS } from "../../services/notifications/webhooks";
 import { resolveCurrentBuilder } from "../apps/builder";
+import { verifyOwnedApp } from "../../lib/ownership";
 
 /**
  * Fase 3: Manajemen Webhook (dashboard). Scoped per-builder; admin bebas.
@@ -77,6 +78,14 @@ export async function handleCreateWebhook({ body, request, set }: any) {
     return { success: false, error: "builderId wajib untuk admin" };
   }
 
+  if (!actor.isAdmin && body.appId) {
+    const owned = await verifyOwnedApp(actor.builder!.id, body.appId, false);
+    if ("error" in owned) {
+      set.status = owned.status;
+      return { success: false, error: owned.error };
+    }
+  }
+
   try {
     parseWebhookUrl(body.url);
   } catch {
@@ -122,6 +131,13 @@ export async function handleUpdateWebhook({ params, body, request, set }: any) {
   if (!actor.isAdmin && existing.builderId !== actor.builder!.id) {
     set.status = 403;
     return { success: false, error: "Bukan milik builder Anda" };
+  }
+  if (!actor.isAdmin && body.appId) {
+    const owned = await verifyOwnedApp(existing.builderId, body.appId, false);
+    if ("error" in owned) {
+      set.status = owned.status;
+      return { success: false, error: owned.error };
+    }
   }
   try {
     if (body.url !== undefined) parseWebhookUrl(body.url);

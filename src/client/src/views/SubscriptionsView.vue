@@ -138,6 +138,10 @@ function getAppBillingInterval(appId: string): string {
   if (period === "every_3_months") return "3 Bulan";
   if (period === "every_6_months") return "6 Bulan";
   if (period === "yearly") return "Tahunan";
+  if (period?.startsWith("custom_")) {
+    const days = Number(period.slice(7));
+    return Number.isFinite(days) && days > 0 ? `Kustom (${days} Hari)` : "Kustom";
+  }
   if (period === "custom") return "Kustom";
   return "Berulang";
 }

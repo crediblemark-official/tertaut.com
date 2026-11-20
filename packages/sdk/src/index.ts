@@ -4,7 +4,12 @@
  * Multi-Platform: Browser, Chrome Extension, Desktop (Tauri/Electron), Node.js, Bun, React Native
  */
 
-import { executeCheckout, getPaymentStatus } from "./modules/checkout";
+import {
+  executeCheckout,
+  getPaymentStatus,
+  validateCoupon,
+  getPaymentChannels,
+} from "./modules/checkout";
 import { LicensingModule } from "./modules/licensing";
 import { S2SModule } from "./modules/s2s";
 import { verifyWebhookSignature } from "./utils/crypto";
@@ -17,6 +22,9 @@ import type {
   CheckoutOptions,
   CheckoutResult,
   CheckoutStatusResult,
+  ValidateCouponOptions,
+  ValidateCouponResult,
+  PaymentChannelsResult,
 } from "./types";
 
 export * from "./types";
@@ -163,6 +171,20 @@ export class Tertaut {
     ticket?: string
   ): Promise<CheckoutStatusResult> {
     return getPaymentStatus(this.executor(), transactionId, ticket);
+  }
+
+  /**
+   * Validasi kode kupon diskon sebelum checkout.
+   */
+  public async validateCoupon(options: ValidateCouponOptions): Promise<ValidateCouponResult> {
+    return validateCoupon(this.executor(), options);
+  }
+
+  /**
+   * Ambil daftar kanal pembayaran aktif yang didukung (QRIS, VA Bank, Retail, E-Wallet).
+   */
+  public async getPaymentChannels(): Promise<PaymentChannelsResult> {
+    return getPaymentChannels(this.executor());
   }
 }
 

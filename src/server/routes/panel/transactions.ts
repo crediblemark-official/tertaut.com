@@ -1,6 +1,6 @@
 import { db } from "../../db";
 import { transactions, builders, apps } from "../../db/schema";
-import { eq, inArray, and } from "drizzle-orm";
+import { eq, inArray, and, count } from "drizzle-orm";
 
 /**
  * Ledger Transaksi Global (Audit Cross-Builder)
@@ -20,11 +20,14 @@ export async function handlePanelTransactions({ query }: any) {
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const allTxs = await db.query.transactions.findMany({
-    where: whereClause,
-    orderBy: (t, { desc }) => [desc(t.createdAt)],
-    limit,
-  });
+  const [[totalRes], allTxs] = await Promise.all([
+    db.select({ count: count() }).from(transactions).where(whereClause),
+    db.query.transactions.findMany({
+      where: whereClause,
+      orderBy: (t, { desc }) => [desc(t.createdAt)],
+      limit,
+    }),
+  ]);
 
   // Batch-lookup app & builder (hindari N+1 per baris ledger).
   const appIds = [...new Set(allTxs.map((tx) => tx.appId))];
@@ -65,7 +68,7 @@ export async function handlePanelTransactions({ query }: any) {
   return {
     success: true,
     count: enriched.length,
-    total: enriched.length,
+    total: Number(totalRes?.count ?? enriched.length),
     transactions: enriched,
   };
 }

@@ -1,6 +1,7 @@
 import { db } from "../../db";
 import { coupons, apps } from "../../db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, isNull } from "drizzle-orm";
+import { randomBytes } from "crypto";
 
 /**
  * Daftar Kupon Diskon (Global & Seluruh Aplikasi)
@@ -64,17 +65,19 @@ export async function handleCreateGlobalCoupon({ body, set }: any) {
     return { success: false, error: "Diskon kupon harus antara 1% hingga 100%." };
   }
 
-  // Cek apakah kode sudah digunakan
+  // Cek apakah kode sudah digunakan pada cakupan app yang sama (atau global)
   const existing = await db.query.coupons.findFirst({
-    where: eq(coupons.code, code),
+    where: appId
+      ? and(eq(coupons.code, code), eq(coupons.appId, appId))
+      : and(eq(coupons.code, code), isNull(coupons.appId)),
   });
 
   if (existing) {
     set.status = 409;
-    return { success: false, error: `Kupon dengan kode '${code}' sudah ada.` };
+    return { success: false, error: `Kupon dengan kode '${code}' sudah ada pada cakupan ini.` };
   }
 
-  const id = `cpn_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const id = `cpn_${randomBytes(8).toString("hex")}`;
   const [newCoupon] = await db
     .insert(coupons)
     .values({

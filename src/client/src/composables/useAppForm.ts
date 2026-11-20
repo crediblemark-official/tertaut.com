@@ -196,7 +196,13 @@ export function useAppForm(options: UseAppFormOptions) {
     pricingType.value =
       (app.pricingType as any) || (app.billingPeriod ? "subscription" : "one_time");
     newAppPrice.value = app.targetPrice || 0;
-    billingPeriod.value = (app.billingPeriod as any) || "monthly";
+    const rawPeriod = String(app.billingPeriod || "monthly");
+    if (rawPeriod.startsWith("custom_")) {
+      billingPeriod.value = "custom";
+      customBillingDays.value = Math.max(1, Number(rawPeriod.slice(7)) || 14);
+    } else {
+      billingPeriod.value = (rawPeriod as any) || "monthly";
+    }
     hasTrialPeriod.value = Boolean(app.trialPeriodDays && app.trialPeriodDays > 0);
     trialPeriodDays.value = app.trialPeriodDays || 7;
 
@@ -271,7 +277,9 @@ export function useAppForm(options: UseAppFormOptions) {
       pricingType: resolvedPricingType,
       billingPeriod:
         hasPayment.value && !isDyn && resolvedPricingType === "subscription"
-          ? billingPeriod.value
+          ? billingPeriod.value === "custom"
+            ? `custom_${Math.max(1, Math.min(365, Number(customBillingDays.value) || 14))}`
+            : billingPeriod.value
           : null,
       trialPeriodDays:
         hasPayment.value && !isDyn && resolvedPricingType === "subscription" && hasTrialPeriod.value

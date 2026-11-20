@@ -3,7 +3,11 @@ import { Wallet, ArrowUpRight, Zap, ExternalLink } from "lucide-vue-next";
 import type { AppItem } from "../../types/app";
 import type { TransactionItem } from "../../types/transaction";
 import { envPath, type DashboardEnv } from "../../lib/environment";
-import { formatRupiah, formatDate as formatUtilsDate } from "../../lib/utils";
+import {
+  formatRupiah,
+  formatDate as formatUtilsDate,
+  buildTransactionPayUrl,
+} from "../../lib/utils";
 import BaseModal from "../common/BaseModal.vue";
 import StatusBadge from "../common/StatusBadge.vue";
 import CopyButton from "../common/CopyButton.vue";
@@ -112,9 +116,9 @@ function formatDate(dateStr?: string | null): string {
           }}</span>
         </div>
         <div class="flex justify-between py-2">
-          <span class="text-jetblack/60">Provider</span>
+          <span class="text-jetblack/60">Mode Lingkungan</span>
           <span class="font-semibold text-jetblack uppercase">{{
-            transaction.paymentProvider || "XENDIT"
+            transaction.paymentProvider === "sandbox" ? "SANDBOX" : "TERTAUT PAY"
           }}</span>
         </div>
         <div class="flex justify-between py-2">
@@ -179,7 +183,7 @@ function formatDate(dateStr?: string | null): string {
       <!-- Public Invoice & Delivery Links (Flush 2-col Grid) -->
       <div class="grid grid-cols-2 divide-x divide-jetblack/10">
         <router-link
-          :to="`/invoice/${transaction.id}`"
+          :to="`/invoice/${transaction.id}${transaction.ticket ? `?ticket=${encodeURIComponent(transaction.ticket)}` : ''}`"
           target="_blank"
           class="px-5 py-3 hover:bg-jetblack/[0.03] transition flex items-center justify-between text-xs font-semibold text-jetblack group"
         >
@@ -188,7 +192,7 @@ function formatDate(dateStr?: string | null): string {
         </router-link>
 
         <router-link
-          :to="`/pay/${transaction.id}`"
+          :to="buildTransactionPayUrl(transaction, appsList)"
           target="_blank"
           class="px-5 py-3 hover:bg-jetblack/[0.03] transition flex items-center justify-between text-xs font-semibold text-jetblack group"
         >
@@ -209,15 +213,14 @@ function formatDate(dateStr?: string | null): string {
         <p class="text-[11px] text-amber-800/80">
           Buka kasir sandbox untuk menyelesaikan simulasi pembayaran gateway.
         </p>
-        <a
-          v-if="transaction.xenditInvoiceUrl"
-          :href="transaction.xenditInvoiceUrl"
+        <router-link
+          :to="buildTransactionPayUrl(transaction, appsList)"
           target="_blank"
           class="w-full py-2 btn-gold rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <ExternalLink class="w-3.5 h-3.5" />
           <span>Bayar Sandbox</span>
-        </a>
+        </router-link>
       </div>
     </div>
 

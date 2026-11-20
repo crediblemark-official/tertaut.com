@@ -134,7 +134,7 @@ const { copied: copiedCode, copy: copyCode } = useClipboard();
       </div>
 
       <p class="text-[10px] text-jetblack/55 leading-relaxed">
-        Xendit Checkout siap memproses transaksi. Webhook otomatis menerbitkan lisensi &amp;
+        Tertaut Checkout siap memproses transaksi. Webhook otomatis menerbitkan lisensi &amp;
         mencatat saldo siap cair.
       </p>
     </div>

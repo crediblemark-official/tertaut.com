@@ -76,8 +76,8 @@ export const GATEWAY_REGISTRY: Readonly<Record<GatewayId, GatewayDescriptor>> = 
     displayName: "Xendit",
     rails: CARD_RAILS,
     finishPath: "/checkout/success",
-    defaultVaBank: "BCA",
-    qrChannelLabel: "XENDIT_QRIS",
+    defaultVaBank: "MANDIRI",
+    qrChannelLabel: "QRIS",
     webhookFile: "src/server/routes/webhook/xendit.ts",
     credentials: {
       xendit_secret_key: ["XENDIT_SECRET_KEY", "XENDIT_SANDBOX_SECRET_KEY"],

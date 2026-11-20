@@ -1,6 +1,6 @@
 import { db } from "../../db";
 import { apps, builders, transactions, licenses, platformSettings } from "../../db/schema";
-import { eq, desc, count, sql, and, inArray } from "drizzle-orm";
+import { eq, desc, count, sql, and, inArray, or } from "drizzle-orm";
 import { config as appConfig } from "../../config";
 import { resolveCurrentBuilder, seedSandboxBuilderIfNeeded } from "./builder";
 import { getActivePaymentGateway } from "../../services/payments/paymentGateway";
@@ -285,7 +285,7 @@ export async function handleCheckSlug({ params: { slug } }: { params: { slug: st
  */
 export async function handleGetBySlug({ params: { slug }, set }: SlugParamContext) {
   let app = await db.query.apps.findFirst({
-    where: eq(apps.slug, slug),
+    where: or(eq(apps.slug, slug), eq(apps.id, slug)),
   });
 
   const DEMO_SLUGS = [
@@ -342,15 +342,18 @@ export async function handleGetBySlug({ params: { slug }, set }: SlugParamContex
     activePaymentGateway: effectiveGateway,
     availableChannels,
     targetPrice: app.targetPrice,
+    pricingType: app.pricingType,
+    billingPeriod: app.billingPeriod,
+    trialPeriodDays: app.trialPeriodDays ?? 0,
+    licenseKeyEnabled: app.deliveryConfig?.licenseKey?.enabled !== false,
     description: app.description,
     headline: app.headline || app.name,
     subheadline: app.subheadline || app.description,
     mediaUrl: app.mediaUrl,
+    logoUrl: app.logoUrl || null,
+    brandColor: app.brandColor || "#0D9488",
     valueProps: app.valueProps || [],
     ctaText: app.ctaText || "Beli Sekarang",
-    customIntentMessage:
-      app.customIntentMessage || "Aplikasi dalam persiapan rilis. Masukkan email untuk diskon 50%!",
-    pageBlocks: app.pageBlocks || null,
     redirectUrl: app.redirectUrl,
   };
 }

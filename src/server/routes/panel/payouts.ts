@@ -94,7 +94,8 @@ export async function handleBatchPayout() {
         recipient: bankInfo,
         description: `Batch Payout tertaut.com (${txs.length} txs)`,
       });
-      if (result.status === "COMPLETED") totalDisbursedAmount += result.amount;
+      const isAccepted = result.status === "COMPLETED" || result.status === "PROCESSING";
+      if (isAccepted) totalDisbursedAmount += result.amount;
       results.push({
         builderId,
         builderName: builder?.name,
@@ -113,12 +114,17 @@ export async function handleBatchPayout() {
     }
   }
 
-  const successfulCount = results.filter((r) => r.status === "SUCCESS").length;
+  const successfulCount = results.filter(
+    (r) => r.status === "SUCCESS" || r.status === "PROCESSING"
+  ).length;
   if (totalDisbursedAmount > 0) {
     const { NotifierService } = await import("../../services/notifications/notifier");
     NotifierService.notifyBatchPayout({
       builderCount: successfulCount,
-      transactionCount: results.reduce((acc, r) => acc + (r.status === "SUCCESS" ? 1 : 0), 0),
+      transactionCount: results.reduce(
+        (acc, r) => acc + (r.status === "SUCCESS" || r.status === "PROCESSING" ? 1 : 0),
+        0
+      ),
       totalAmount: totalDisbursedAmount,
     }).catch(() => null);
   }

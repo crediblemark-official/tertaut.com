@@ -80,6 +80,7 @@ export async function handleS2SRevokeLicense({ builder, body, set }: any) {
 
   const result = await LicenseService.revoke({
     licenseId: owned.lic.id,
+    reason: body.reason,
     actor: { type: "S2S", id: builder.id },
   });
   if (result.notFound) {

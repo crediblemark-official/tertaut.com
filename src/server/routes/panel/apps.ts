@@ -1,6 +1,6 @@
 import { db } from "../../db";
 import { apps, builders, transactions, licenses } from "../../db/schema";
-import { eq, desc, sql, count } from "drizzle-orm";
+import { eq, desc, sql, count, and } from "drizzle-orm";
 
 /**
  * Direktori Semua Aplikasi / Software di Seluruh Platform (Super Admin)
@@ -10,10 +10,25 @@ export async function handlePanelApps({ query }: any) {
   const modeFilter = query?.mode;
   const statusFilter = query?.status;
 
-  const allApps = await db.query.apps.findMany({
-    orderBy: [desc(apps.createdAt)],
-    limit,
-  });
+  const conditions: any[] = [];
+  if (modeFilter === "sandbox" || modeFilter === "live") {
+    conditions.push(eq(apps.mode, modeFilter));
+  }
+  if (statusFilter === "suspended") {
+    conditions.push(eq(apps.isSuspended, true));
+  } else if (statusFilter === "active") {
+    conditions.push(eq(apps.isSuspended, false));
+  }
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [[totalRes], allApps] = await Promise.all([
+    db.select({ count: count() }).from(apps).where(whereClause),
+    db.query.apps.findMany({
+      where: whereClause,
+      orderBy: [desc(apps.createdAt)],
+      limit,
+    }),
+  ]);
 
   const [allBuilders, licenseCounts, paidTxs] = await Promise.all([
     db.select({ id: builders.id, name: builders.name, email: builders.email }).from(builders),
@@ -67,19 +82,9 @@ export async function handlePanelApps({ query }: any) {
     };
   });
 
-  if (modeFilter) {
-    enriched = enriched.filter((a) => a.mode === modeFilter);
-  }
-
-  if (statusFilter === "suspended") {
-    enriched = enriched.filter((a) => a.isSuspended);
-  } else if (statusFilter === "active") {
-    enriched = enriched.filter((a) => !a.isSuspended);
-  }
-
   return {
     success: true,
-    total: enriched.length,
+    total: Number(totalRes?.count ?? enriched.length),
     apps: enriched,
   };
 }

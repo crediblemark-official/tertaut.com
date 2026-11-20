@@ -2,10 +2,11 @@ import { reconcilePayouts } from "../services/payments/payouts";
 import { reconcileRefunds } from "../services/payments/refunds";
 import { and, eq, lt } from "drizzle-orm";
 import { db } from "../db";
-import { licenses } from "../db/schema";
+import { licenses, transactions } from "../db/schema";
 import { AuditService } from "../services/security/audit";
 import { WebhookService } from "../services/notifications/webhooks";
 import { LicenseLeaseService } from "../services/licensing/licenseLease";
+import { markPendingTransactionTerminal } from "../routes/webhook/fulfill";
 import { logger } from "../lib/logger";
 
 export async function expireLicenses(): Promise<void> {
@@ -62,6 +63,29 @@ export async function expireLeases(): Promise<void> {
   }
 }
 
+/** A7: Tandai transaksi PENDING yang melewati paymentExpiresAt sebagai EXPIRED dan rollback kupon. */
+export async function expirePendingTransactions(): Promise<void> {
+  try {
+    const now = new Date();
+    const stale = await db
+      .select({ id: transactions.id })
+      .from(transactions)
+      .where(and(eq(transactions.paymentStatus, "PENDING"), lt(transactions.paymentExpiresAt, now)))
+      .limit(100);
+
+    let expiredCount = 0;
+    for (const row of stale) {
+      const transitioned = await markPendingTransactionTerminal(row.id, "EXPIRED");
+      if (transitioned) expiredCount++;
+    }
+    if (expiredCount > 0) {
+      logger.info(`[Checkout] ${expiredCount} pending transaction(s) marked EXPIRED.`);
+    }
+  } catch (err: any) {
+    logger.error("[Checkout] expirePendingTransactions failed", err);
+  }
+}
+
 /** Fase 3: deliverer outbox webhook (retry exponential backoff). */
 export async function dispatchWebhooks(): Promise<void> {
   try {
@@ -87,6 +111,9 @@ export function startScheduledTasks(): ScheduledTasksController {
   expireLeases();
   const leaseInterval = setInterval(expireLeases, 2 * 60 * 1000); // 2 menit
 
+  expirePendingTransactions();
+  const pendingTxInterval = setInterval(expirePendingTransactions, 2 * 60 * 1000); // 2 menit
+
   dispatchWebhooks();
   const reconcile = () => Promise.allSettled([reconcilePayouts(), reconcileRefunds()]);
   void reconcile();
@@ -97,6 +124,7 @@ export function startScheduledTasks(): ScheduledTasksController {
     stop: () => {
       clearInterval(licenseInterval);
       clearInterval(leaseInterval);
+      clearInterval(pendingTxInterval);
       clearInterval(webhookInterval);
       clearInterval(moneyInterval);
     },

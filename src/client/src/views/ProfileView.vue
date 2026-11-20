@@ -210,19 +210,42 @@ async function handleResendVerification() {
   }
 }
 
+const EWALLET_CODES = new Set(["DANA", "GOPAY", "OVO", "LINKAJA", "SHOPEEPAY"]);
+const isEwalletSelected = computed(() =>
+  EWALLET_CODES.has((accountForm.value.bankCode || "").toUpperCase())
+);
+
 async function handleSaveAccount() {
   payoutFeedback.value = null;
   if (!accountForm.value.accountNumber.trim() || !accountForm.value.accountHolderName.trim()) {
     payoutFeedback.value = {
       type: "error",
-      message: "Nomor rekening dan nama pemilik rekening wajib diisi.",
+      message: "Nomor rekening / HP dan nama pemilik akun wajib diisi.",
     };
     return;
   }
 
+  let cleanNumber = accountForm.value.accountNumber.trim();
+  if (isEwalletSelected.value) {
+    const digits = cleanNumber.replace(/[^0-9]/g, "");
+    const formatted = digits.startsWith("08")
+      ? `62${digits.slice(1)}`
+      : digits.startsWith("8")
+        ? `62${digits}`
+        : digits;
+    if (!/^628\d{7,12}$/.test(formatted)) {
+      payoutFeedback.value = {
+        type: "error",
+        message: `Pencairan ke ${accountForm.value.bankCode} wajib memakai nomor HP valid berformat 628xxx (atau 08xxx).`,
+      };
+      return;
+    }
+    cleanNumber = formatted;
+    accountForm.value.accountNumber = formatted;
+  }
+
   isSavingPayout.value = true;
   try {
-    const cleanNumber = accountForm.value.accountNumber.trim();
     const cleanHolder = accountForm.value.accountHolderName.trim();
     const res = await api.updatePayoutAccount({
       bankCode: accountForm.value.bankCode,
@@ -594,24 +617,37 @@ onMounted(() => {
             v-model="accountForm.bankCode"
             class="w-full h-9 px-3 rounded-lg bg-white border border-jetblack/15 hover:border-jetblack/30 focus:border-gold focus:ring-2 focus:ring-gold/20 text-xs font-bold text-jetblack outline-none transition"
           >
-            <option value="BCA">BCA - Bank Central Asia</option>
-            <option value="BNI">BNI - Bank Negara Indonesia</option>
-            <option value="BRI">BRI - Bank Rakyat Indonesia</option>
-            <option value="MANDIRI">Bank Mandiri</option>
-            <option value="PERMATA">Bank Permata</option>
-            <option value="CIMB">CIMB Niaga</option>
-            <option value="DANA">DANA Bisnis / E-Wallet</option>
+            <optgroup label="Bank Nasional">
+              <option value="MANDIRI">Bank Mandiri</option>
+              <option value="BCA">BCA - Bank Central Asia</option>
+              <option value="BNI">BNI - Bank Negara Indonesia</option>
+              <option value="BRI">BRI - Bank Rakyat Indonesia</option>
+              <option value="PERMATA">Bank Permata</option>
+              <option value="BSI">BSI - Bank Syariah Indonesia</option>
+              <option value="CIMB">CIMB Niaga</option>
+              <option value="BNC">BNC - Bank Neo Commerce</option>
+              <option value="MEGA">Bank Mega</option>
+              <option value="BJB">Bank BJB</option>
+              <option value="BTPN">Bank BTPN / Jenius</option>
+            </optgroup>
+            <optgroup label="E-Wallet (Format 628xxx)">
+              <option value="DANA">DANA</option>
+              <option value="GOPAY">GoPay</option>
+              <option value="OVO">OVO</option>
+              <option value="SHOPEEPAY">ShopeePay</option>
+              <option value="LINKAJA">LinkAja</option>
+            </optgroup>
           </select>
         </div>
 
         <div>
           <label class="block text-[11px] font-bold text-jetblack/70 mb-1.5">
-            Nomor Rekening / HP Akun
+            {{ isEwalletSelected ? "Nomor HP E-Wallet (628xxx)" : "Nomor Rekening Bank" }}
           </label>
           <input
             v-model="accountForm.accountNumber"
             type="text"
-            placeholder="Contoh: 1234567890"
+            :placeholder="isEwalletSelected ? 'Contoh: 6281234567890' : 'Contoh: 1234567890'"
             required
             class="w-full h-9 px-3 rounded-lg bg-white border border-jetblack/15 hover:border-jetblack/30 focus:border-gold focus:ring-2 focus:ring-gold/20 text-xs font-mono font-bold text-jetblack outline-none transition"
           />

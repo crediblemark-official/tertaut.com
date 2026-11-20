@@ -16,6 +16,7 @@ export interface CreateGatewayOrderParams {
   paymentRail?: "qris" | "va" | "ewallet" | "card" | "retail" | string;
   vaBank?: string;
   ewalletChannel?: string;
+  ewalletPhone?: string;
   retailOutlet?: "ALFAMART" | "INDOMARET" | string;
   scenario?: "API" | "REDIRECT";
   paymentMethods?: string[];
@@ -30,6 +31,7 @@ export interface GatewayOrderResponse {
   paymentRail?: string;
   paymentCode?: string;
   qrDataUrl?: string;
+  actionUrl?: string;
   vaBank?: string;
   retailOutlet?: string;
 }
