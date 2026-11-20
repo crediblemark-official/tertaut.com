@@ -1084,6 +1084,16 @@ describe("White-Label Full Custom UI & Xendit PaymentRequest v2", () => {
     } as any);
 
     // S2S caller / dashboard session can create dynamic saas_web checkout with grantDays & gets hostedPayUrl
+    const dynOrderSpy = spyOn(xenditGateway, "createOrder").mockImplementation(
+      async (params: any) => ({
+        orderId: `xnd_dyn_${Date.now()}`,
+        checkoutUrl: `https://checkout.xendit.co/web/${params.externalId}`,
+        actionUrl: `https://tertaut.com/pay/api-slug-${suffix}`,
+        scenario: params.scenario || "API",
+        paymentRail: params.paymentRail || "qris",
+      })
+    );
+
     const dynRes: any = await handleCreateSession({
       request: new Request("https://tertaut.com/api/v1/checkout/session", {
         method: "POST",
@@ -1094,6 +1104,7 @@ describe("White-Label Full Custom UI & Xendit PaymentRequest v2", () => {
       body: { appId: apiAppId, customerEmail: "api@example.invalid", amount: 75000, grantDays: 45 },
       set: {},
     });
+    dynOrderSpy.mockRestore();
     expect(dynRes.success).toBe(true);
     expect(dynRes.amount).toBe(75000);
     expect(dynRes.grantDays).toBe(45);
