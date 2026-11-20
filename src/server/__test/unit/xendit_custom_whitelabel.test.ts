@@ -958,12 +958,14 @@ describe("White-Label Full Custom UI & Xendit PaymentRequest v2", () => {
 
   it("covers panel revoke jti denylist, non-license apiAccess email/delivery, dashboard dynamic checkout, badge redirect/embed host, subscription renewal, and pending tx expiry", async () => {
     const suffix = randomBytes(4).toString("hex");
+    const secretKey = `tt_secret_test_${suffix}`;
     const [b] = await db
       .insert(builders)
       .values({
         name: "Audit Builder",
         email: `aud_${suffix}@example.invalid`,
         apiKey: `k_aud_${suffix}`,
+        secretApiKey: secretKey,
       })
       .returning();
 
@@ -1081,11 +1083,13 @@ describe("White-Label Full Custom UI & Xendit PaymentRequest v2", () => {
       ok: true,
     } as any);
 
-    // Dashboard admin/owner session can create dynamic saas_web checkout with grantDays & gets hostedPayUrl
+    // S2S caller / dashboard session can create dynamic saas_web checkout with grantDays & gets hostedPayUrl
     const dynRes: any = await handleCreateSession({
       request: new Request("https://tertaut.com/api/v1/checkout/session", {
         method: "POST",
-        headers: new Headers({ cookie: authCookie }),
+        headers: new Headers({
+          authorization: `Bearer ${b.secretApiKey}`,
+        }),
       }),
       body: { appId: apiAppId, customerEmail: "api@example.invalid", amount: 75000, grantDays: 45 },
       set: {},
@@ -1093,7 +1097,7 @@ describe("White-Label Full Custom UI & Xendit PaymentRequest v2", () => {
     expect(dynRes.success).toBe(true);
     expect(dynRes.amount).toBe(75000);
     expect(dynRes.grantDays).toBe(45);
-    expect(dynRes.hostedPayUrl).toContain("/pay/api-slug-");
+    expect(dynRes.hostedPayUrl).toContain(`/pay/api-slug-${suffix}`);
     expect(dynRes.hostedPayUrl).toContain("ticket=");
 
     await fulfillPaymentTransaction(
