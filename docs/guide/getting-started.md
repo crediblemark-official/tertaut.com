@@ -61,19 +61,21 @@ Respons sukses:
   "success": true,
   "data": {
     "sessionId": "tx_sand_...",
-    "ticket": "poll_...",
+    "ticket": "tx_sand_....poll_ticket_hmac",
     "paymentGateway": "xendit",
-    "checkoutUrl": "https://checkout.xendit.co/web/...",
-    "hostedPayUrl": "https://tertaut.com/pay/fastmail-ai?txId=tx_sand_...",
+    "checkoutUrl": "https://tertaut.com/pay/fastmail-ai?ticket=poll_ticket_hmac",
+    "hostedPayUrl": "https://tertaut.com/pay/fastmail-ai?ticket=poll_ticket_hmac",
+    "actionUrl": "https://pay.ovo.id/...",
     "expiresAt": "2026-10-23T18:30:00.000Z",
     "isSandbox": false,
-    "scenario": "REDIRECT",
+    "scenario": "API",
     "paymentRail": "qris",
     "qrDataUrl": "data:image/png;base64,..."
   },
   "transactionId": "tx_sand_...",
-  "checkoutUrl": "https://checkout.xendit.co/web/...",
-  "hostedPayUrl": "https://tertaut.com/pay/fastmail-ai?txId=tx_sand_...",
+  "ticket": "tx_sand_....poll_ticket_hmac",
+  "checkoutUrl": "https://tertaut.com/pay/fastmail-ai?ticket=poll_ticket_hmac",
+  "hostedPayUrl": "https://tertaut.com/pay/fastmail-ai?ticket=poll_ticket_hmac",
   "paymentGateway": "xendit",
   "amount": 49000,
   "listPrice": 49000,
@@ -84,12 +86,36 @@ Respons sukses:
 
 > **Catatan Keamanan & Parameter**:
 >
+> - Pembeli akan diarahkan ke antarmuka kasir kustom Tertaut (`/pay/:slug`), bukan ke vendor pihak ketiga.
 > - `amount`: Harus sesuai dengan harga resmi aplikasi atau harga setelah diskon kupon valid (anti-tampering).
 > - `grantDays`: Durasi lisensi ditentukan secara terpusat oleh konfigurasi produk (`deliveryConfig.licenseKey.expiresInDays`, default 365 hari) dan tidak dapat dimanipulasi dari sisi klien.
 > - `appSlug` / `slug` dapat digunakan sebagai alternatif `appId`.
-> - `paymentRail`: Nilai opsional (`qris` / `va` / `ewallet`) untuk mengunci kanal pembayaran tertentu.
+> - `paymentRail`: Nilai opsional (`qris` / `va` / `ewallet` / `retail`) untuk mengunci kanal pembayaran tertentu.
 
-### Opsi B — Server-to-Server (Penerbitan Programatik Tanpa Pembayaran)
+### Opsi B — Menggunakan SDK Klien `@tertaut/sdk`
+
+```ts
+import { Tertaut } from "@tertaut/sdk";
+
+const tertaut = new Tertaut({
+  apiKey: "tt_live_...",
+  baseUrl: "https://tertaut.com",
+  appId: "app_...",
+});
+
+// Validasi kupon sebelum bayar (opsional)
+const coupon = await tertaut.validateCoupon({ couponCode: "HEMAT20", amount: 49000 });
+
+// Buat sesi checkout (auto redirect ke halaman kasir resmi Tertaut)
+const { checkoutUrl, transactionId, ticket } = await tertaut.checkout({
+  customerEmail: "pembeli@example.com",
+  couponCode: "HEMAT20",
+  redirectUrl: "https://app.example.com/finish",
+  autoRedirect: true,
+});
+```
+
+### Opsi C — Server-to-Server (Penerbitan Programatik Tanpa Pembayaran)
 
 Gunakan backend Anda untuk menerbitkan lisensi (trial, migrasi database, atau transaksi off-platform):
 
@@ -107,6 +133,32 @@ curl -X POST https://tertaut.com/api/v1/s2s/licenses/issue \
 ```
 
 Respons: `{ "success": true, "license": { "licenseKey": "TT-...", "status": "ACTIVE", ... } }`. Email konfirmasi lisensi otomatis dikirim ke `customerEmail`.
+
+### Menangani Webhook Pembayaran di Server Anda
+
+Saat pembayaran selesai, Tertaut mengirim event `payment.success` dan `license.issued` ke URL webhook yang Anda daftarkan di dashboard (**Aplikasi** → **Webhook URL** atau via S2S API).
+
+Verifikasi signature HMAC-SHA256 dari header `x-tertaut-signature` untuk memastikan callback resmi:
+
+```ts
+import { Tertaut } from "@tertaut/sdk";
+
+// Verifikasi signature webhook universal (Web Crypto API)
+const isValid = await Tertaut.verifyWebhookSignature(
+  rawBodyString,
+  req.headers["x-tertaut-signature"],
+  process.env.TERTAUT_WEBHOOK_SECRET!
+);
+
+if (isValid) {
+  const { event, data } = JSON.parse(rawBodyString);
+  if (event === "payment.success") {
+    console.log("Pembayaran terkonfirmasi:", data.transactionId, data.customerEmail);
+  }
+}
+```
+
+> Contoh lengkap implementasi webhook receiver di **Next.js, Express, Python (FastAPI), dan PHP (Laravel)** tersedia di [Resep Integrasi per Platform](/guide/integration-recipes).
 
 ## 5. Validasi Lisensi
 

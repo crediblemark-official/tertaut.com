@@ -145,8 +145,10 @@ curl -X POST https://tertaut.com/api/v1/s2s/licenses/issue \
 ```bash
 curl -X POST https://tertaut.com/api/v1/s2s/licenses/revoke \
   -H "Authorization: Bearer tt_secret_..." -H "Content-Type: application/json" \
-  -d '{ "licenseKey": "TT-..." }'
+  -d '{ "licenseKey": "TT-...", "reason": "Pengembalian dana (refund) diproses" }'
 ```
+
+- `reason` (opsional): catatan alasan pencabutan lisensi untuk audit trail dan pelaporan. Token offline Ed25519 otomatis didaftarkan ke JTI denylist.
 
 ```json
 {

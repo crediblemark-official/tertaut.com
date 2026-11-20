@@ -35,6 +35,7 @@ export default defineConfig({
       {
         text: "Panduan Integrasi",
         items: [
+          { text: "Resep Integrasi per Platform", link: "/guide/integration-recipes" },
           { text: "SDK Frontend (@tertaut/sdk)", link: "/api/sdk" },
           { text: "API Server-ke-Server (S2S)", link: "/api/server-to-server" },
         ],

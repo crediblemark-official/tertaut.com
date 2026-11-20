@@ -36,6 +36,7 @@ const tertaut = new Tertaut({
 ## 📚 Jelajahi Panduan
 
 - [Panduan Mulai Cepat](/guide/getting-started) — Tutorial langkah demi langkah dari setup hingga menerima pembayaran pertama.
+- [Resep Integrasi per Platform](/guide/integration-recipes) — Contoh kode siap pakai untuk Next.js, Node.js, Electron, Tauri, Chrome Extension, Python, dan Laravel.
 - [Konfigurasi .env](/guide/environment) — Panduan aman mengonfigurasi environment variables di Vite, Next.js, dan Nuxt.
 - [SDK @tertaut/sdk](/api/sdk) — Referensi lengkap method dan error handling SDK frontend.
 - [API Server-ke-Server](/api/server-to-server) — Otomasi pencatatan dan penerbitan lisensi langsung dari server Anda.
