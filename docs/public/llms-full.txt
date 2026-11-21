@@ -53,23 +53,51 @@ npm install @tertaut/sdk
 
 ### Client-Side License Verification (Offline-Capable)
 ```typescript
-import { TertautClient } from "@tertaut/sdk";
+import { Tertaut } from "@tertaut/sdk";
 
-const client = new TertautClient({
+const client = new Tertaut({
+  apiKey: "tt_live_your_publishable_key",
   appId: "app_your_app_id",
-  publicKey: "MCowBQYDK2VwAyEA...", // Ed25519 Public Key
+  baseUrl: "https://tertaut.com",
 });
 
-// Activate license and bind device seat
-const result = await client.activate({
+// Activate license and bind device seat (HWID)
+const result = await client.licensing.activate({
   licenseKey: "TT-XXXX-XXXX-XXXX",
+  hwid: "HWID-A1B2-C3D4-E5F6-0001",
   deviceName: "MacBook Pro M3",
 });
 
-if (result.success) {
-  console.log("License is valid until:", result.expiresAt);
-  // Offline token can now be cached locally for up to 30 days
+if (result.success && result.data) {
+  console.log("License is valid until:", result.data.expiresAt);
+  // Offline token (Ed25519 signed JWT) is cached locally for offline verification
+  localStorage.setItem("tt_offline_token", result.data.licenseToken);
 }
+
+// Startup check with automatic Ed25519 offline fallback
+const check = await client.licensing.check({
+  licenseKey: "TT-XXXX-XXXX-XXXX",
+  hwid: "HWID-A1B2-C3D4-E5F6-0001",
+  offlineToken: localStorage.getItem("tt_offline_token"),
+  allowOfflineFallback: true,
+});
+```
+
+### Official Hosted Checkout URL (Fixed vs Dynamic S2S Best Practice)
+- **Fixed Price Products**: Simply open `https://tertaut.com/pay/${appSlug}` directly in browser/opener without backend calls.
+- **Dynamic S2S Products**: Static URL defaults to Rp 0. Initiate session via `POST /api/v1/checkout/session` with `Authorization: Bearer tt_secret_...` and `amount`, then open the returned `hostedPayUrl` (ticketed) or use in-app custom UI with `qrDataUrl` / `paymentCode`.
+```typescript
+// Fixed price: direct open
+const hostedCheckoutUrl = `https://tertaut.com/pay/${appSlug}`;
+
+// Dynamic S2S: pre-create session with Secret Key
+const sessionRes = await fetch("https://tertaut.com/api/v1/checkout/session", {
+  method: "POST",
+  headers: { "Authorization": `Bearer ${TERTAUT_SECRET_KEY}`, "Content-Type": "application/json" },
+  body: JSON.stringify({ appId: "app_xxx", amount: 135000, customerEmail: "user@example.com" })
+});
+const { hostedPayUrl } = await sessionRes.json();
+// Open ticketed URL (e.g. window.open(hostedPayUrl, '_blank'))
 ```
 
 ### Server-to-Server (S2S) License Issuance

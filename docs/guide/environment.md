@@ -2,13 +2,16 @@
 
 Panduan ini ditujukan bagi **pengembang yang mengintegrasikan SDK tertaut.com ke aplikasi klien** — mencakup tata cara penyimpanan dan penyediaan kredensial pada environment aplikasi frontend/klien.
 
-## Ringkasan: 3 Nilai Wajib
+## Ringkasan: Variabel Konfigurasi
 
-| Nilai     | Contoh                | Sifat      | Dari mana                                                               |
-| --------- | --------------------- | ---------- | ----------------------------------------------------------------------- |
-| `apiKey`  | `tt_live_xxxx...`     | **Publik** | Publishable API key aplikasi — dashboard → **Aplikasi** / **Developer** |
-| `appId`   | `app_xxxx`            | Publik     | ID aplikasi (dashboard → Aplikasi)                                      |
-| `baseUrl` | `https://tertaut.com` | Publik     | Server API tertaut                                                      |
+| Nilai         | Contoh                | Sifat       | Dari mana                                                                            |
+| :------------ | :-------------------- | :---------- | :----------------------------------------------------------------------------------- |
+| `apiKey`      | `tt_live_xxxx...`     | **Publik**  | Publishable API key aplikasi — dashboard → **Aplikasi** / **Developer**              |
+| `appId`       | `app_xxxx`            | Publik      | ID aplikasi (dashboard → Aplikasi)                                                   |
+| `baseUrl`     | `https://tertaut.com` | Publik      | Server API tertaut (trailing `/api/v1` otomatis dinormalisasi)                       |
+| `slug`        | `kasir-sirka-pos`     | Publik      | Slug produk untuk kasir checkout resmi (`https://tertaut.com/pay/:slug`)             |
+| `targetPrice` | `135000`              | Publik      | Harga resmi produk untuk tampilan UI aplikasi                                        |
+| `secretKey`   | `tt_secret_xxxx...`   | **RAHASIA** | Secret key backend (dashboard → Developer). **Hanya untuk backend / script CLI S2S** |
 
 - SDK tidak membaca variabel environment secara otomatis — aplikasi Anda meneruskan nilai ini ke konstruktor.
 - `environment` (production/sandbox) **diturunkan secara otomatis dari prefiks `apiKey`**: `tt_live_` = produksi, `tt_test_` = sandbox. Tidak memerlukan konfigurasi flag tambahan.
@@ -18,19 +21,28 @@ Panduan ini ditujukan bagi **pengembang yang mengintegrasikan SDK tertaut.com ke
 
 ## Menyimpan di Env Aplikasi Client
 
-### Vite (`src/.env`)
+### Vite / Desktop App (Tauri & Electron)
 
 ```sh
-VITE_TERTAUT_API_KEY=tt_live_xxxxxxxxxxxxxxxx
+# .env (Klien Publik - terekspos di bundle frontend)
+VITE_TERTAUT_PUBLISHABLE_KEY=tt_live_xxxxxxxxxxxxxxxx
 VITE_TERTAUT_APP_ID=app_xxxx
 VITE_TERTAUT_BASE_URL=https://tertaut.com
+VITE_TERTAUT_SLUG=kasir-sirka-pos
+VITE_TERTAUT_PRICE=135000
+
+# Server-to-Server (Rahasia Developer untuk script CLI seperti `bun run license:issue`)
+# JANGAN berikan awalan VITE_ agar TIDAK bocor ke binary aplikasi
+TERTAUT_SECRET_KEY=tt_secret_xxxxxxxxxxxxxxxx
+TERTAUT_APP_ID=app_xxxx
+TERTAUT_BASE_URL=https://tertaut.com
 ```
 
 ```ts
 import { Tertaut } from "@tertaut/sdk";
 
 const tertaut = new Tertaut({
-  apiKey: import.meta.env.VITE_TERTAUT_API_KEY,
+  apiKey: import.meta.env.VITE_TERTAUT_PUBLISHABLE_KEY || import.meta.env.VITE_TERTAUT_API_KEY,
   appId: import.meta.env.VITE_TERTAUT_APP_ID,
   baseUrl: import.meta.env.VITE_TERTAUT_BASE_URL,
 });

@@ -14,7 +14,12 @@ Panduan integrasi menyeluruh end-to-end menggunakan REST API dan SDK tertaut.com
 
 ## 1. Buat Aplikasi
 
-Dashboard → **Aplikasi** → **Buat Aplikasi**: tentukan nama, slug (URL checkout publik `/pay/:slug`), harga resmi (`targetPrice`), dan mode.
+Dashboard → **Aplikasi** → **Buat Aplikasi**: tentukan nama, slug (URL checkout publik `/pay/:slug`), strategi harga, dan mode.
+
+> [!TIP] Memilih Strategi Harga (Tetap vs Dinamis)
+>
+> - **Harga Tetap (Fixed)**: Masukkan nominal resmi (misal `135000`). URL kasir publik `https://tertaut.com/pay/:slug` langsung dapat dipakai secara mandiri tanpa koding API.
+> - **Harga Dinamis (S2S)**: Dipilih jika nominal ditentukan secara terprogram saat runtime. Tautan statis mentah `/pay/:slug` **tidak bisa dibuka langsung** (akan bernilai Rp 0 dan error `S2S_REQUIRED`). Anda harus menginisiasi sesi transaksi melalui `POST /api/v1/checkout/session` dengan Secret Key terlebih dahulu.
 
 Setiap aplikasi memiliki **publishable API key** (`tt_live_...` / `tt_test_...`). Key ini **publik** — aman dipasang di frontend, dan bisa dirotasi kapan saja dari menu **Developer**.
 

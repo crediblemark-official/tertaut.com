@@ -19,6 +19,7 @@ Tanpa/`tt_secret_` salah → `401 { "error": "..." }`. Secret key didapat & diro
 | GET    | `/api/v1/s2s`                            | Info akun builder                                        |
 | GET    | `/api/v1/s2s/apps`                       | Daftar aplikasi (`?mode=sandbox\|live`)                  |
 | GET    | `/api/v1/s2s/apps/:appId`                | Detail satu aplikasi                                     |
+| POST   | `/api/v1/checkout/session`               | Buat sesi checkout dinamis (S2S) dengan nominal kustom   |
 | GET    | `/api/v1/s2s/licenses`                   | Daftar lisensi scoped                                    |
 | POST   | `/api/v1/s2s/licenses/issue`             | Terbitkan lisensi (tanpa pembayaran)                     |
 | POST   | `/api/v1/s2s/licenses/revoke`            | Cabut lisensi + denylist token offline                   |
@@ -70,6 +71,68 @@ curl "https://tertaut.com/api/v1/s2s/apps?mode=live" \
   }
 ]
 ```
+
+## Dynamic Checkout Session (S2S)
+
+Endpoint ini digunakan untuk produk dengan pengaturan **"Harga: Dinamis S2S"** di dashboard (di mana `targetPrice = 0`), atau saat backend Anda ingin menentukan nominal transaksi secara terprogram.
+
+> **Proteksi S2S Required**: Jika endpoint ini dipanggil untuk produk dinamis **tanpa** Secret Key (`tt_secret_...`), server akan mengembalikan status `401 Unauthorized` dengan pesan `Checkout dengan nominal dinamis memerlukan secret API key builder` (`S2S_REQUIRED`).
+
+### Request
+
+```bash
+curl -X POST https://tertaut.com/api/v1/checkout/session \
+  -H "Authorization: Bearer tt_secret_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "appId": "app_2ee4f785d508",
+    "amount": 135000,
+    "customerEmail": "pembeli@example.com",
+    "customerName": "Toko Berkah",
+    "grantDays": 365,
+    "redirectUrl": "https://myapp.com/dashboard",
+    "metadata": {
+      "hwid": "HWID-A1B2-C3D4-E5F6",
+      "source": "desktop_client"
+    }
+  }'
+```
+
+### Parameter Request
+
+| Field           | Tipe   | Status   | Keterangan                                              |
+| :-------------- | :----- | :------- | :------------------------------------------------------ |
+| `appId`         | string | Wajib    | ID unik aplikasi (`app_xxxx`)                           |
+| `amount`        | number | Wajib    | Nominal pembayaran dalam Rupiah (mis. `135000`)         |
+| `customerEmail` | string | Wajib    | Email pembeli penerima lisensi resmi                    |
+| `customerName`  | string | Opsional | Nama pemilik / bisnis pembeli                           |
+| `grantDays`     | number | Opsional | Durasi masa berlaku lisensi dalam hari (default: `365`) |
+| `redirectUrl`   | string | Opsional | URL redirect peramban setelah pembayaran berhasil       |
+| `metadata`      | object | Opsional | Data arbitrer tambahan (mis. `hwid`, `tier`, `userId`)  |
+
+### Response
+
+```json
+{
+  "success": true,
+  "transactionId": "tx_f660ce50782d5300",
+  "ticket": "tx_f660ce50782d5300.1795196193183.5a77af48...",
+  "checkoutUrl": "https://checkout.xendit.co/web/6b007a95921564c0a539e69c",
+  "hostedPayUrl": "https://tertaut.com/pay/kasir-sirka-pos-suite?externalId=tt_64c6d04c511cd4fe&ticket=tx_f660ce50782d5300...",
+  "amount": 135000,
+  "listPrice": 135000,
+  "discountAmount": 0,
+  "paymentGateway": "xendit",
+  "grantDays": 365,
+  "message": "Sesi pembayaran berhasil disiapkan"
+}
+```
+
+- **`hostedPayUrl`**: URL kasir resmi Tertaut yang sudah membawa tiket transaksi. Membuka URL ini di browser akan langsung menampilkan harga Rp 135.000 dengan kanal QRIS & Virtual Account aktif.
+- **`checkoutUrl`**: URL invoice gateway pembayaran resmi (Xendit) untuk diarahkan secara langsung ke halaman pembayaran vendor.
+- **`ticket`**: Token pembuktian kepemilikan transaksi untuk polling status publik di `GET /api/v1/checkout/status/:txId?ticket=...`.
+
+---
 
 ## Licenses
 
@@ -462,6 +525,150 @@ API Server-to-Server mengembalikan kode status HTTP standar:
 | `400 Bad Request`  | Payload atau parameter tidak valid.                | Format email pembeli salah atau parameter wajib kosong.                                            |
 | `401 Unauthorized` | Autentikasi secret key gagal.                      | Header `Authorization: Bearer tt_secret_...` tidak disertakan atau key tidak valid/sudah dirotasi. |
 | `404 Not Found`    | Resource tidak ditemukan atau bukan milik builder. | ID aplikasi (`appId`) atau kunci lisensi tidak ditemukan di bawah akun Anda.                       |
+
+## Script CLI Otomasi Lisensi Developer (`tertaut-s2s.ts`)
+
+Bagi tim builder yang ingin mengelola lisensi langsung dari terminal (tanpa membuka dashboard web), Anda dapat menambahkan script CLI berbasis TypeScript/Bun ke repositori Anda:
+
+```ts
+#!/usr/bin/env bun
+/**
+ * CLI Manajemen Lisensi Tertaut.com (Server-to-Server / S2S)
+ * Jalankan via terminal: bun run scripts/tertaut-s2s.ts <command> [...args]
+ */
+
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
+
+// Baca .env jika belum tersedia di environment
+function loadEnv() {
+  const envPath = resolve(process.cwd(), ".env");
+  if (existsSync(envPath)) {
+    const lines = readFileSync(envPath, "utf8").split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx > 0) {
+        const key = trimmed.slice(0, eqIdx).trim();
+        const val = trimmed.slice(eqIdx + 1).trim();
+        if (!process.env[key]) process.env[key] = val;
+      }
+    }
+  }
+}
+
+loadEnv();
+
+const SECRET_KEY = process.env.TERTAUT_SECRET_KEY || "";
+const APP_ID = process.env.TERTAUT_APP_ID || "";
+const BASE_URL = (process.env.TERTAUT_BASE_URL || "https://tertaut.com").replace(/\/+$/, "");
+
+if (!SECRET_KEY || !SECRET_KEY.startsWith("tt_secret_")) {
+  console.error("❌ Error: TERTAUT_SECRET_KEY belum diisi di file .env");
+  process.exit(1);
+}
+
+const headers = {
+  Authorization: `Bearer ${SECRET_KEY}`,
+  "Content-Type": "application/json",
+};
+
+async function listLicenses(appId: string = APP_ID) {
+  console.log(`🔍 Mengambil lisensi aktif untuk App: ${appId} ...`);
+  const res = await fetch(
+    `${BASE_URL}/api/v1/s2s/licenses?appId=${encodeURIComponent(appId)}&limit=100`,
+    { headers }
+  );
+  const data = (await res.json()) as any;
+  if (!res.ok) return console.error("❌ Gagal:", data);
+
+  console.table(
+    (data.licenses || []).map((l: any) => ({
+      Key: l.licenseKey,
+      Email: l.customerEmail,
+      Status: l.status,
+      Seats: l.maxSeats,
+      Expires: l.expiresAt ? new Date(l.expiresAt).toLocaleDateString("id-ID") : "Permanen",
+    }))
+  );
+}
+
+async function issueLicense(email: string, grantDays = 365, maxSeats = 3) {
+  console.log(
+    `📝 Menerbitkan lisensi baru untuk: ${email} (${grantDays} hari, ${maxSeats} seats)...`
+  );
+  const res = await fetch(`${BASE_URL}/api/v1/s2s/licenses/issue`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      appId: APP_ID,
+      customerEmail: email,
+      grantDays,
+      maxSeats,
+      platform: "desktop",
+    }),
+  });
+  const data = (await res.json()) as any;
+  if (!res.ok || !data.success) return console.error("❌ Gagal:", data);
+  console.log(`\n🎉 LISENSI BERHASIL DITERBITKAN: ${data.license.licenseKey}`);
+}
+
+async function revokeLicense(licenseKey: string, reason = "Dicabut oleh administrator") {
+  const res = await fetch(`${BASE_URL}/api/v1/s2s/licenses/revoke`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ licenseKey, reason }),
+  });
+  if (res.ok) console.log(`✅ Lisensi ${licenseKey} berhasil dicabut.`);
+}
+
+async function releaseSeat(licenseKey: string, hwid: string) {
+  const res = await fetch(`${BASE_URL}/api/v1/s2s/licenses/seat/release`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ licenseKey, hwid }),
+  });
+  if (res.ok) console.log(`✅ Seat ${hwid} berhasil dilepaskan.`);
+}
+
+const [, , command, ...args] = process.argv;
+switch (command) {
+  case "list":
+    await listLicenses(args[0] || APP_ID);
+    break;
+  case "issue":
+    await issueLicense(args[0], Number(args[1]) || 365, Number(args[2]) || 3);
+    break;
+  case "revoke":
+    await revokeLicense(args[0], args[1]);
+    break;
+  case "release":
+    await releaseSeat(args[0], args[1]);
+    break;
+  default:
+    console.log(`
+Penggunaan:
+  bun run scripts/tertaut-s2s.ts list
+  bun run scripts/tertaut-s2s.ts issue <customerEmail> [grantDays] [maxSeats]
+  bun run scripts/tertaut-s2s.ts revoke <licenseKey> [reason]
+  bun run scripts/tertaut-s2s.ts release <licenseKey> <hwid>
+`);
+}
+```
+
+Tambahkan ke `package.json`:
+
+```json
+{
+  "scripts": {
+    "license:list": "bun run scripts/tertaut-s2s.ts list",
+    "license:issue": "bun run scripts/tertaut-s2s.ts issue",
+    "license:revoke": "bun run scripts/tertaut-s2s.ts revoke",
+    "license:release": "bun run scripts/tertaut-s2s.ts release"
+  }
+}
+```
 
 ## Referensi Lengkap
 
