@@ -442,7 +442,7 @@ export async function handleCreateSession({ request, body, set = {} }: CreateSes
     const finishPath = gatewayDescriptor(effectiveGatewayId)?.finishPath ?? "/checkout/success";
     const pollTicket = createPollTicket(txId);
     const finishRedirectUrl = `${requestOrigin}${finishPath}?externalId=${externalId}&ticket=${encodeURIComponent(pollTicket)}`;
-    const hostedPayUrl = `${requestOrigin}/pay/${app.slug || targetIdentifier}?externalId=${externalId}&ticket=${encodeURIComponent(pollTicket)}`;
+    const hostedPayUrl = `${requestOrigin}/pay/${app.slug || targetIdentifier}?externalId=${externalId}&ticket=${encodeURIComponent(pollTicket)}&email=${encodeURIComponent(email)}&amount=${grossAmount}`;
 
     let orderResult: Awaited<ReturnType<typeof gatewayAdapter.createOrder>>;
     let newTx: typeof transactions.$inferSelect;

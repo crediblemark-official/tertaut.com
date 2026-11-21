@@ -242,6 +242,12 @@ async function loadCheckoutData() {
     let identifier = slug.value || queryAppId.value || (isDemoMode.value ? "fastmail-ai" : "");
     const externalIdParam = (route.query.externalId as string) || "";
     currentTicket = (route.query.ticket as string) || currentTicket || "";
+    const queryEmail = (
+      (route.query.email || route.query.customer_email || route.query.buyer_email || "") as string
+    ).trim();
+    if (queryEmail && !emailInput.value) {
+      emailInput.value = queryEmail;
+    }
 
     let statusRes: any = null;
     if (externalIdParam) {
@@ -249,6 +255,9 @@ async function loadCheckoutData() {
         statusRes = await api.getPaymentStatus(externalIdParam, currentTicket);
         if (statusRes?.appId && !identifier) {
           identifier = statusRes.appId;
+        }
+        if (statusRes?.customerEmail) {
+          emailInput.value = statusRes.customerEmail;
         }
       } catch {}
     }
@@ -293,9 +302,22 @@ async function loadCheckoutData() {
 
     setProductData(loadedApp);
 
+    if (statusRes?.amount && product.value) {
+      product.value.targetPrice = statusRes.amount;
+    }
+    if (statusRes?.customerEmail) {
+      emailInput.value = statusRes.customerEmail;
+    }
+
     // Cek jika halaman dibuka dengan parameter externalId (misal dari redirect finish / link transaksi)
     if (externalIdParam && statusRes) {
       if (statusRes.success) {
+        if (statusRes.amount && product.value) {
+          product.value.targetPrice = statusRes.amount;
+        }
+        if (statusRes.customerEmail) {
+          emailInput.value = statusRes.customerEmail;
+        }
         if (statusRes.paymentStatus === "PAID") {
           isPaid.value = true;
           paidResult.value = {

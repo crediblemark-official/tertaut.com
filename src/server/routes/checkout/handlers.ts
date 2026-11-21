@@ -195,6 +195,7 @@ export async function handleGetPaymentStatus({
   return {
     ...base,
     appId: tx.appId,
+    customerEmail: tx.customerEmail,
     externalId: tx.xenditExternalId,
     amount: tx.grossAmount,
     channel: normalizedChannel,

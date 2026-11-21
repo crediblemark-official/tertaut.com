@@ -100,24 +100,40 @@ const couponInputValue = computed({
 
       <!-- Email Penerima Lisensi Digital (Kolom Kiri) -->
       <div class="space-y-1.5 pt-3 border-t border-slate-200">
-        <label class="block text-xs font-bold text-slate-900">
-          Email Penerima Lisensi Digital <span class="text-amber-500">*</span>
-        </label>
+        <div class="flex items-center justify-between">
+          <label class="block text-xs font-bold text-slate-900">
+            Email Penerima Lisensi Digital <span class="text-amber-500">*</span>
+          </label>
+          <span
+            v-if="!!activeOrder && !isPaid && !!emailInputValue"
+            class="text-[10px] font-semibold text-slate-500 flex items-center gap-1"
+          >
+            <Lock class="w-3 h-3 text-slate-400" /> Terkunci untuk sesi ini
+          </span>
+        </div>
         <div class="relative">
           <Mail class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
           <input
             v-model="emailInputValue"
             type="email"
             required
-            :disabled="!!activeOrder || isPaid"
+            :disabled="(!!activeOrder && !!emailInputValue) || isPaid"
             placeholder="nama@email.com"
             class="auth-input w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs sm:text-sm font-semibold text-slate-950 placeholder-slate-400 outline-none transition focus:border-slate-800 focus:ring-1 focus:ring-slate-800 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
             @keyup.enter="emit('pay')"
           />
         </div>
         <p class="text-[11px] text-slate-600 leading-relaxed font-normal">
-          Kunci lisensi resmi dan petunjuk aktivasi otomatis dikirimkan ke alamat email ini setelah
-          pembayaran tervalidasi.
+          <template v-if="!!activeOrder && !isPaid">
+            Kunci lisensi akan dikirimkan ke email di atas setelah pembayaran tervalidasi. Ingin
+            ganti email atau metode? Klik
+            <span class="font-semibold text-slate-800">Ganti Metode / Batal</span> pada panel
+            pembayaran.
+          </template>
+          <template v-else>
+            Kunci lisensi resmi dan petunjuk aktivasi otomatis dikirimkan ke alamat email ini
+            setelah pembayaran tervalidasi.
+          </template>
         </p>
       </div>
 
@@ -259,24 +275,40 @@ const couponInputValue = computed({
 
     <!-- Mobile Email Input (Always visible) -->
     <div class="pt-2.5 border-t border-slate-200/80 space-y-1.5">
-      <label class="block text-xs font-bold text-slate-900">
-        Email Penerima Lisensi Digital <span class="text-amber-500">*</span>
-      </label>
+      <div class="flex items-center justify-between">
+        <label class="block text-xs font-bold text-slate-900">
+          Email Penerima Lisensi Digital <span class="text-amber-500">*</span>
+        </label>
+        <span
+          v-if="!!activeOrder && !isPaid && !!emailInputValue"
+          class="text-[10px] font-semibold text-slate-500 flex items-center gap-1"
+        >
+          <Lock class="w-3 h-3 text-slate-400" /> Terkunci untuk sesi ini
+        </span>
+      </div>
       <div class="relative">
         <Mail class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
         <input
           v-model="emailInputValue"
           type="email"
           required
-          :disabled="!!activeOrder || isPaid"
+          :disabled="(!!activeOrder && !!emailInputValue) || isPaid"
           placeholder="nama@email.com"
           class="auth-input w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs sm:text-sm font-semibold text-slate-950 placeholder-slate-400 outline-none transition focus:border-slate-800 focus:ring-1 focus:ring-slate-800 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
           @keyup.enter="emit('pay')"
         />
       </div>
       <p class="text-[11px] text-slate-600 leading-relaxed font-normal">
-        Kunci lisensi resmi dan petunjuk aktivasi otomatis dikirimkan ke alamat email ini setelah
-        pembayaran tervalidasi.
+        <template v-if="!!activeOrder && !isPaid">
+          Kunci lisensi akan dikirimkan ke email di atas setelah pembayaran tervalidasi. Ingin ganti
+          email atau metode? Klik
+          <span class="font-semibold text-slate-800">Ganti Metode / Batal</span> pada panel
+          pembayaran.
+        </template>
+        <template v-else>
+          Kunci lisensi resmi dan petunjuk aktivasi otomatis dikirimkan ke alamat email ini setelah
+          pembayaran tervalidasi.
+        </template>
       </p>
     </div>
 
